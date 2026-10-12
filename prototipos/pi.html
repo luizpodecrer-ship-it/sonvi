@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SONVI · Pedidos de Inserção</title>
+<style>
+  :root { --bg:#f5f7fb; --card:#fff; --line:#e3e8f0; --ink:#1f2a44; --mute:#6b7690; --pri:#1f5eff; --ok:#0b9d62; --warn:#e08a12; --bad:#d6283b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header.top { background:var(--card); border-bottom:1px solid var(--line); padding:10px 20px; display:flex; gap:16px; align-items:center; position:sticky; top:0; z-index:5; }
+  header.top h1 { font-size:16px; margin:0; }
+  nav button { background:none; border:0; padding:8px 10px; color:var(--mute); cursor:pointer; font:inherit; border-bottom:2px solid transparent; }
+  nav button.on { color:var(--pri); border-color:var(--pri); font-weight:600; }
+  main { padding:20px; max-width:1400px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:14px; }
+  .card h3 { margin:0 0 10px; font-size:14px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .grow { flex:1; }
+  label.f { display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--mute); text-transform:uppercase; letter-spacing:.03em; }
+  input, select, textarea { font:inherit; color:inherit; border:1px solid var(--line); border-radius:6px; padding:6px 8px; background:#fff; min-width:0; }
+  input:disabled, select:disabled, textarea:disabled { background:#f1f3f8; color:var(--mute); }
+  textarea { width:100%; min-height:60px; resize:vertical; }
+  button.b { font:inherit; border:1px solid var(--line); background:#fff; border-radius:6px; padding:6px 12px; cursor:pointer; }
+  button.b.pri { background:var(--pri); border-color:var(--pri); color:#fff; font-weight:600; }
+  button.b.sm { padding:3px 8px; font-size:12px; }
+  button.x { border:0; background:none; color:var(--mute); cursor:pointer; font-size:15px; }
+  table { border-collapse:collapse; width:100%; }
+  th { text-align:left; font-size:11px; color:var(--mute); text-transform:uppercase; font-weight:600; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  td.r, th.r { text-align:right; font-variant-numeric:tabular-nums; }
+  tr.tot td { font-weight:700; border-bottom:0; }
+  tr.click { cursor:pointer; } tr.click:hover { background:#f7f9fd; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:20px; color:#fff; font-size:11px; font-weight:600; }
+  .muted { color:var(--mute); } .small { font-size:12px; }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) 240px; gap:14px; align-items:start; }
+  .layout > .sum { position:sticky; top:64px; }
+  @media (max-width:900px) { .layout { grid-template-columns:minmax(0,1fr); } .layout > .sum { position:static; } }
+  .sum div { margin-bottom:10px; } .sum small { display:block; color:var(--mute); } .sum b { font-size:15px; } .sum .g b { color:var(--ok); }
+  .gridwrap { overflow-x:auto; }
+  .gridwrap td, .gridwrap th { padding:4px; }
+  .gridwrap input.day { width:26px; padding:3px 0; text-align:center; border-radius:5px; }
+  .gridwrap input.day.has { background:var(--pri); color:#fff; border-color:var(--pri); font-weight:700; }
+  .gridwrap th.d { text-align:center; font-size:10px; line-height:1.1; padding:2px; }
+  .gridwrap th.d.we { color:var(--bad); }
+  .gridwrap input.w { width:190px; } .gridwrap input.n { width:92px; text-align:right; }
+  .gridwrap select { padding:5px 4px; }
+  .duo { display:flex; } .duo input { border-radius:6px 0 0 6px; width:74px; text-align:right; } .duo select { border-radius:0 6px 6px 0; border-left:0; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:14px; }
+  .tabs button { background:none; border:0; padding:8px 14px; cursor:pointer; font:inherit; color:var(--mute); border-bottom:2px solid transparent; text-transform:uppercase; font-size:12px; letter-spacing:.04em; }
+  .tabs button.on { color:var(--pri); border-color:var(--pri); font-weight:700; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px; }
+  .kpis .card { margin:0; border-top:3px solid var(--pri); } .kpis small { color:var(--mute); text-transform:uppercase; font-size:10px; } .kpis b { display:block; font-size:16px; }
+  dialog { border:0; border-radius:12px; padding:0; width:min(560px,94vw); box-shadow:0 20px 60px rgba(0,0,30,.3); }
+  dialog::backdrop { background:rgba(20,30,60,.45); }
+  dialog form { padding:18px 20px; display:grid; gap:12px; } dialog h2 { margin:0; font-size:16px; }
+  .g2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; } .g2 input, .g2 select { width:100%; }
+  .chk { display:flex; gap:6px; align-items:center; text-transform:none; font-size:13px; color:var(--ink); }
+  #print { display:none; }
+  @media print {
+    @page { size:A4 landscape; margin:10mm; }
+    body { background:#fff; } header.top, main, dialog { display:none !important; }
+    #print { display:block; font-size:10px; color:#000; }
+    #print h1 { font-size:16px; margin:0; } #print h2 { font-size:12px; margin:12px 0 4px; }
+    #print table { margin:6px 0; } #print th, #print td { border:1px solid #777; padding:2px 3px; font-size:8.5px; color:#000; text-transform:none; }
+    #print .meta { display:grid; grid-template-columns:repeat(3,1fr); gap:2px 16px; margin:8px 0; }
+    #print .cols { display:grid; grid-template-columns:2fr 1fr; gap:12px; } #print .box { border:1px solid #777; padding:6px; }
+    #print .sign { display:flex; gap:40px; margin-top:44px; } #print .sign div { flex:1; border-top:1px solid #000; text-align:center; padding-top:3px; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>SONVI</h1>
+  <span id="veh"></span>
+  <nav id="nav"></nav>
+  <span class="grow"></span>
+  <button class="b pri" data-act="newPi">+ Novo PI</button>
+</header>
+<main id="app"></main>
+<dialog id="dlg"></dialog>
+<div id="print"></div>
+
+<script>
+// ---------- dados ----------
+const KEY = 'sonvi-pi-v1';
+// Fluxo do PI na rádio: o consultor monta, a OPEC confere, a grade programa e o financeiro fatura
+const STATUS = { rascunho:['Rascunho','#1f5eff'], opec:['Na OPEC','#e08a12'], devolvido:['Devolvido','#d6283b'], aprovado:['Aprovado','#0b9d62'], programado:['Programado','#7a4cff'], faturado:['Faturado','#6b7690'], cancelado:['Cancelado','#9aa3b5'] };
+const EDITABLE = ['rascunho', 'devolvido'];
+// Campos complementares de cada tipo de mídia (o que aparece em cada linha da grade)
+const MEDIA = { 'Rádio':['Programa / faixa','Formato'] };
+const BILLING = { 10:'Faturar bruto contra a Agência', 20:'Faturar bruto contra o Cliente', 30:'Faturar líquido + comissão contra a Agência', 40:'Faturar líquido contra a Agência', 50:'Faturar líquido contra o Cliente' };
+const PROFILES = { cliente:'Cliente (anunciante)', agencia:'Agência' };
+const WD = ['D','S','T','Q','Q','S','S'];
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const brl = v => (v || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+const num = s => { if (typeof s === 'number') return s; const n = parseFloat(String(s || '').replace(/\./g, '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+const nfmt = v => v ? v.toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '';
+const dfmt = d => d ? d.split('-').reverse().join('/') : '—';
+const today = () => new Date().toISOString().slice(0, 10);
+
+function seed() {
+  const v1 = { id:uid(), name:'Rádio Verde FM', code:'VERDE', doc:'12.345.678/0001-90', address:'Cuiabá - MT', email:'', color:'#0b9d62', seq:1 };
+  const v2 = { id:uid(), name:'Rádio Serra FM', code:'SERRA', doc:'98.765.432/0001-10', address:'Chapada dos Guimarães - MT', email:'', color:'#1f5eff', seq:0 };
+  const p = (name, profile, doc, city) => ({ id:uid(), vehicleId:v1.id, name, profile, doc, address:city, email:'' });
+  const people = [ p('Supermercado Aurora','cliente','11.222.333/0001-44','Cuiabá - MT'), p('Agência Farol','agencia','55.666.777/0001-88','Cuiabá - MT') ];
+  const a = uid(), b = uid();
+  const pi = { id:uid(), vehicleId:v1.id, num:1, title:'Campanha Dia das Mães', mediaType:'Rádio', client:'Supermercado Aurora', vehicle:v1.name, agency:'Agência Farol', project:'Dia das Mães 2027', owner:'', briefing:'', status:'rascunho', dueDate:'2027-04-23',
+    commission:{ type:'pct', value:20 }, fee:{ type:'brl', value:0 }, discount:{ type:'brl', value:0 },
+    pieces:[{ id:a, name:'Spot 30s - Oferta' }, { id:b, name:'Testemunhal 60s' }],
+    grids:[{ id:uid(), place:'', period:'2027-05', items:[
+      { id:uid(), piece:a, f1:'Manhã Total (06h-09h)', f2:'Spot 30"', days:{ 3:2, 4:2, 5:2, 6:2, 7:2 }, qty:0, unit:180, disc:{ type:'pct', value:0 }, bonus:false },
+      { id:uid(), piece:b, f1:'Tarde Sertaneja (14h-17h)', f2:'Testemunhal', days:{ 6:1, 7:1, 8:1 }, qty:0, unit:420, disc:{ type:'pct', value:10 }, bonus:false },
+      { id:uid(), piece:a, f1:'Madrugada (00h-05h)', f2:'Spot 30"', days:{ 5:3, 6:3 }, qty:0, unit:60, disc:{ type:'pct', value:0 }, bonus:true } ] }],
+    result:{ leads:0, value:0, desc:'' }, billing:{ type:10, firstDue:'2027-06-10', installments:1, method:'Boleto', obsVehicle:'', obsClient:'' }, createdAt:today() };
+  return { vehicles:[v1, v2], people, places:[], pis:[pi] };
+}
+let db; try { db = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+if (!db) db = seed();
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} };
+let ui = { view:'list', piId:null, tab:'detalhes', q:'', vehicleId:db.vehicles[0].id };
+const cur = () => db.pis.find(p => p.id === ui.piId);
+// Tudo é individual por veículo (rádio): cadastros, PIs e numeração
+const veh = id => db.vehicles.find(v => v.id === (id || ui.vehicleId));
+const piNo = pi => `PI ${veh(pi.vehicleId).code} ${String(pi.num).padStart(4, '0')}`;
+
+// ---------- regras financeiras ----------
+const share = (rule, base) => rule.type === 'pct' ? base * num(rule.value) / 100 : num(rule.value);
+const insertions = (pi, it) => pi.mediaType === 'Produção' ? num(it.qty) : Object.values(it.days || {}).reduce((s, n) => s + num(n), 0);
+function itemCalc(pi, it) {
+  const ins = insertions(pi, it), gross = ins * num(it.unit);
+  const sub = Math.max(0, gross - share(it.disc, gross));
+  return { ins, gross, sub: it.bonus ? 0 : sub };
+}
+function calc(pi) {
+  let media = 0, bonus = 0, ins = 0;
+  pi.grids.forEach(g => g.items.forEach(it => { const c = itemCalc(pi, it); ins += c.ins; if (it.bonus) bonus += c.gross; else media += c.sub; }));
+  const discount = Math.min(media, share(pi.discount, media));
+  const total = media - discount;                 // o que o cliente paga pela mídia
+  const commission = pi.agency ? Math.min(total, share(pi.commission, total)) : 0; // parte da agência; sem agência não há comissão
+  const net = total - commission;                 // o que chega ao veículo
+  const fee = share(pi.fee, total);               // honorários, cobrados à parte do cliente
+  return { media, bonus, ins, discount, total, commission, net, fee };
+}
+// Quem paga quem, conforme a instrução de faturamento
+function billingEntries(pi, c) {
+  const C = pi.client || 'Cliente', V = pi.vehicle || 'Veículo', A = pi.agency || 'Agência';
+  const e = (from, to, what, value) => ({ from, to, what, value });
+  const by = {
+    10: [e(C, A, 'Valor total', c.total), e(A, V, 'Valor líquido', c.net)],
+    20: [e(C, V, 'Valor total', c.total), e(V, A, 'Comissão', c.commission)],
+    30: [e(C, A, 'Valor líquido', c.net), e(C, A, 'Comissão', c.commission), e(A, V, 'Valor líquido', c.net)],
+    40: [e(C, A, 'Comissão', c.commission), e(A, V, 'Valor líquido', c.net)],
+    50: [e(C, V, 'Valor líquido', c.net), e(C, A, 'Comissão', c.commission)] };
+  if (!pi.agency) return [e(C, V, 'Valor total', c.total)]; // venda direta: o cliente paga a rádio
+  const list = by[pi.billing.type] || by[10];
+  if (c.fee > 0) list.push(e(C, A, 'Honorários', c.fee));
+  return list;
+}
+function parcels(pi, value) {
+  const n = Math.max(1, parseInt(pi.billing.installments) || 1), cents = Math.round(value * 100), base = Math.floor(cents / n);
+  return Array.from({ length:n }, (_, k) => {
+    let due = '';
+    if (pi.billing.firstDue) { const [y, m, d] = pi.billing.firstDue.split('-').map(Number); const dt = new Date(y, m - 1 + k, 1); const last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate(); due = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`; }
+    return { n:k + 1, due, value:(base + (k === n - 1 ? cents - base * n : 0)) / 100 };
+  });
+}
+
+// ---------- telas ----------
+const pill = s => `<span class="pill" style="background:${STATUS[s][1]}">${STATUS[s][0]}</span>`;
+const opts = (list, sel) => list.map(o => `<option${o === sel ? ' selected' : ''}>${esc(o)}</option>`).join('');
+const names = profile => db.people.filter(p => p.profile === profile && p.vehicleId === ui.vehicleId).map(p => p.name);
+// Sugestões vindas do histórico: tudo que já foi digitado nesse campo nos PIs desta rádio
+const history = (mediaType, f) => [...new Set(db.pis.filter(p => p.vehicleId === ui.vehicleId).flatMap(p => p.grids.flatMap(g => g.items.map(i => i[f]))).filter(Boolean))];
+const datalist = (id, list) => `<datalist id="${id}">${list.map(o => `<option value="${esc(o)}">`).join('')}</datalist>`;
+
+function render() {
+  document.getElementById('veh').innerHTML = `<select data-ui="vehicleId" style="font-weight:700;border-left:4px solid ${veh().color}">${db.vehicles.map(v => `<option value="${v.id}"${v.id === ui.vehicleId ? ' selected' : ''}>${esc(v.name)}</option>`).join('')}</select>`;
+  document.getElementById('nav').innerHTML = [['list','Pedidos'],['people','Cadastros']].map(([v, t]) => `<button class="${ui.view === v || (v === 'list' && ui.view === 'edit') ? 'on' : ''}" data-act="go" data-view="${v}">${t}</button>`).join('');
+  document.getElementById('app').innerHTML = ui.view === 'edit' && cur() ? viewEdit(cur()) : ui.view === 'people' ? viewPeople() : viewList();
+}
+
+function viewList() {
+  const q = ui.q.toLowerCase();
+  const pis = db.pis.filter(p => p.vehicleId === ui.vehicleId && (!q || [p.title, p.client, p.agency, p.owner, p.project].join(' ').toLowerCase().includes(q)));
+  const groups = Object.keys(STATUS).map(s => {
+    const rows = pis.filter(p => p.status === s); if (!rows.length) return '';
+    const t = { commission:0, net:0, total:0 };
+    const body = rows.map(p => { const c = calc(p); t.commission += c.commission; t.net += c.net; t.total += c.total;
+      return `<tr class="click" data-act="open" data-id="${p.id}"><td style="white-space:nowrap">${piNo(p)}</td><td><b>${esc(p.title)}</b><div class="muted small">${esc(p.project)}</div></td><td>${esc(p.client)}</td><td>${esc(p.agency) || '<span class="muted">Direto</span>'}</td><td>${esc(p.owner)}</td><td>${dfmt(p.dueDate)}</td><td class="r">${p.result.leads || '—'}</td><td class="r">${brl(c.commission)}</td><td class="r">${brl(c.net)}</td><td class="r">${brl(c.total)}</td><td class="r"><button class="b sm" data-act="dup" data-id="${p.id}">Duplicar</button></td></tr>`; }).join('');
+    return `<div class="card"><h3>${pill(s)} <span class="muted">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h3><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Agência</th><th>Consultor</th><th>Prazo</th><th class="r">Leads</th><th class="r">Comissão</th><th class="r">Líquido</th><th class="r">Total</th><th></th></tr></thead><tbody>${body}<tr class="tot"><td colspan="7">Total</td><td class="r">${brl(t.commission)}</td><td class="r">${brl(t.net)}</td><td class="r">${brl(t.total)}</td><td></td></tr></tbody></table></div>`;
+  }).join('');
+  return `<div class="row" style="margin-bottom:14px"><input class="grow" placeholder="Buscar por título, cliente, agência, consultor ou projeto" value="${esc(ui.q)}" data-ui="q"></div>${groups || `<div class="card muted">Nenhum pedido em ${esc(veh().name)}.</div>`}`;
+}
+
+function duo(path, rule, ro) { return `<span class="duo"><input value="${nfmt(num(rule.value))}" data-f="${path}.value" data-k="num"${ro}><select data-f="${path}.type"${ro}><option value="pct"${rule.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${rule.type === 'brl' ? ' selected' : ''}>R$</option></select></span>`; }
+
+function viewEdit(pi) {
+  const ro = EDITABLE.includes(pi.status) ? '' : ' disabled', c = calc(pi);
+  const head = `<div class="card"><div class="row"><button class="b sm" data-act="go" data-view="list">← Voltar</button><span class="muted" style="white-space:nowrap">${piNo(pi)}</span><input class="grow" style="font-size:16px;font-weight:700" value="${esc(pi.title)}" data-f="title"${ro}>
+    <select data-f="status" data-rerender="1">${Object.keys(STATUS).map(s => `<option value="${s}"${pi.status === s ? ' selected' : ''}>${STATUS[s][0]}</option>`).join('')}</select>
+    <button class="b pri" data-act="exportDlg">Exportar PDF</button><button class="b" data-act="del" data-id="${pi.id}">Excluir</button></div>
+    ${ro ? '<p class="muted small" style="margin:8px 0 0">Só é possível editar em Rascunho ou Devolvido. Nos demais status o pedido fica somente leitura, exceto os resultados.</p>' : ''}</div>
+    <div class="tabs">${[['detalhes','Detalhes'],['faturamento','Faturamento']].map(([t, n]) => `<button class="${ui.tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}">${n}</button>`).join('')}</div>`;
+  return head + (ui.tab === 'faturamento' ? tabBilling(pi, c, ro) : tabDetails(pi, c, ro));
+}
+
+function tabDetails(pi, c, ro) {
+  const info = `<div class="card"><div class="row">
+    <label class="f">Cliente<input list="dl-cliente" value="${esc(pi.client)}" data-f="client"${ro}></label>
+    <label class="f">Agência (opcional)<input list="dl-agencia" value="${esc(pi.agency)}" data-f="agency" data-rerender="1"${ro}></label>
+    <label class="f">Projeto<input value="${esc(pi.project)}" data-f="project"${ro}></label>
+    <label class="f">Consultor<input value="${esc(pi.owner)}" data-f="owner"${ro}></label></div>
+    <div class="row" style="margin-top:12px">
+    <label class="f">Comissão ${duo('commission', pi.commission, ro)}</label>
+    <label class="f">Honorários ${duo('fee', pi.fee, ro)}</label>
+    <label class="f">Desconto geral ${duo('discount', pi.discount, ro)}</label>
+    <label class="f">Prazo<input type="date" value="${pi.dueDate || ''}" data-f="dueDate"${ro}></label></div>
+    ${['cliente','agencia'].map(p => datalist('dl-' + p, names(p))).join('')}</div>`;
+  const pieces = `<div class="card"><h3>Peças</h3><div class="row">${pi.pieces.map((p, i) => `<span class="row" style="gap:4px"><b>${String.fromCharCode(65 + i)}</b><input value="${esc(p.name)}" data-f="name" data-piece="${p.id}" data-rerender="1"${ro}>${ro ? '' : `<button class="x" data-act="rmPiece" data-id="${p.id}" title="Remover peça">×</button>`}</span>`).join('')}${ro ? '' : '<button class="b sm" data-act="addPiece">+ Adicionar peça</button>'}</div></div>`;
+  const grids = pi.grids.map(g => gridCard(pi, g, ro)).join('') + (ro ? '' : '<p><button class="b" data-act="addGrid">+ Adicionar grade</button></p>');
+  const results = `<div class="card"><h3>Resultados</h3><div class="row">
+    <label class="f">Leads<input class="n" style="width:90px" value="${pi.result.leads || ''}" data-f="result.leads" data-k="num"></label>
+    <label class="f">Valor (R$)<input style="width:120px" value="${nfmt(pi.result.value)}" data-f="result.value" data-k="num"></label>
+    <label class="f grow">Descrição<input value="${esc(pi.result.desc)}" data-f="result.desc"></label></div></div>
+    <div class="card"><h3>Briefing</h3><textarea data-f="briefing"${ro}>${esc(pi.briefing)}</textarea></div>`;
+  return `<div class="layout"><div>${info}${pieces}${grids}${results}</div><div class="card sum" id="sum">${summary(c)}</div></div>`;
+}
+
+const summary = c => `<h3>Resumo financeiro</h3>
+  <div><small>Total da mídia</small><b>${brl(c.media)}</b></div><div><small>Desconto geral</small><b>${brl(c.discount)}</b></div><hr style="border:0;border-top:1px solid var(--line)">
+  <div><small>Valor total</small><b>${brl(c.total)}</b></div><div class="g"><small>Comissão</small><b>${brl(c.commission)}</b></div>
+  <div><small>Valor líquido</small><b>${brl(c.net)}</b></div><div><small>Bonificação</small><b>${c.bonus ? brl(c.bonus) : '—'}</b></div>
+  <div class="g"><small>Honorários</small><b>${brl(c.fee)}</b></div><div><small>Inserções</small><b>${c.ins}</b></div>`;
+
+function gridCard(pi, g, ro) {
+  const prod = pi.mediaType === 'Produção', [l1, l2] = MEDIA[pi.mediaType];
+  const [y, m] = (g.period || today().slice(0, 7)).split('-').map(Number), nd = new Date(y, m, 0).getDate();
+  const days = Array.from({ length:nd }, (_, i) => i + 1);
+  const pieceSel = it => `<select data-f="piece" data-g="${g.id}" data-i="${it.id}"${ro}><option value=""></option>${pi.pieces.map((p, i) => `<option value="${p.id}"${it.piece === p.id ? ' selected' : ''}>${String.fromCharCode(65 + i)} · ${esc(p.name)}</option>`).join('')}</select>`;
+  const a = it => `data-g="${g.id}" data-i="${it.id}"${ro}`;
+  let tIns = 0, tSub = 0;
+  const rows = g.items.map(it => { const c = itemCalc(pi, it); tIns += c.ins; tSub += c.sub;
+    const mid = prod ? `<td><input class="n" value="${it.qty || ''}" data-f="qty" data-k="num" ${a(it)}></td>`
+      : `<td><input class="w" list="dl-f1" value="${esc(it.f1)}" data-f="f1" ${a(it)}></td><td><input class="w" style="width:120px" list="dl-f2" value="${esc(it.f2)}" data-f="f2" ${a(it)}></td>${days.map(d => `<td><input class="day${it.days[d] ? ' has' : ''}" value="${it.days[d] || ''}" data-day="${d}" ${a(it)}></td>`).join('')}<td class="r" id="ins-${it.id}">${c.ins}</td>`;
+    return `<tr><td>${pieceSel(it)}</td>${mid}<td><input class="n" value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" ${a(it)}></td><td><span class="duo"><input value="${nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" ${a(it)}><select data-f="disc.type" ${a(it)}><option value="pct"${it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${it.disc.type === 'brl' ? ' selected' : ''}>R$</option></select></span></td><td class="r" id="sub-${it.id}">${brl(c.sub)}</td><td style="text-align:center"><input type="checkbox"${it.bonus ? ' checked' : ''} data-f="bonus" data-k="bool" ${a(it)}></td><td>${ro ? '' : `<button class="x" data-act="rmItem" data-g="${g.id}" data-id="${it.id}">×</button>`}</td></tr>`; }).join('');
+  const headMid = prod ? '<th class="r">Quantidade</th>' : `<th>${l1}</th><th>${l2}</th>${days.map(d => { const w = new Date(y, m - 1, d).getDay(); return `<th class="d${w === 0 || w === 6 ? ' we' : ''}">${WD[w]}<br>${String(d).padStart(2, '0')}</th>`; }).join('')}<th class="r">Ins.</th>`;
+  const span = prod ? 1 : 2 + nd;
+  return `<div class="card"><div class="row" style="margin-bottom:8px"><h3 style="margin:0">Grade</h3>
+    ${prod ? '' : `<label class="f">Período<input type="month" value="${g.period}" data-f="period" data-g="${g.id}" data-rerender="1"${ro}></label>`}
+    <span class="grow"></span>${ro ? '' : `<button class="b sm" data-act="rmGrid" data-id="${g.id}">Remover grade</button>`}</div>
+    <div class="gridwrap"><table><thead><tr><th>Peça</th>${headMid}<th class="r">Valor unit.</th><th>Desconto</th><th class="r">Subtotal</th><th>Bonif.</th><th></th></tr></thead>
+    <tbody>${rows}<tr class="tot"><td>${ro ? '' : `<button class="b sm" data-act="addItem" data-id="${g.id}">+ Adicionar item</button>`}</td><td colspan="${span}" class="r">Totais</td>${prod ? '' : `<td class="r" id="gins-${g.id}">${tIns}</td>`}<td colspan="2"></td><td class="r" id="gsub-${g.id}">${brl(tSub)}</td><td colspan="2"></td></tr></tbody></table></div>
+    ${datalist('dl-f1', history(pi.mediaType, 'f1'))}${datalist('dl-f2', history(pi.mediaType, 'f2'))}</div>`;
+}
+
+function tabBilling(pi, c, ro) {
+  const kpi = (t, v, col) => `<div class="card" style="border-top-color:${col || 'var(--pri)'}"><small>${t}</small><b>${brl(v)}</b></div>`;
+  const blocks = billingEntries(pi, c).map(e => `<div class="card"><h3>${esc(e.from)} paga ${e.what.toLowerCase()} para ${esc(e.to)}</h3><table><thead><tr><th>#</th><th>Vencimento</th><th>Lançamento</th><th class="r">Valor</th><th class="r">Forma</th></tr></thead><tbody>${parcels(pi, e.value).map(p => `<tr><td>${p.n}</td><td>${dfmt(p.due)}</td><td>${esc(e.what)} — ${esc(e.from)} → ${esc(e.to)}</td><td class="r">${brl(p.value)}</td><td class="r">${esc(pi.billing.method)}</td></tr>`).join('')}</tbody></table></div>`).join('');
+  return `<div class="kpis">${kpi('Total da mídia', c.media)}${kpi('Desc. geral', c.discount)}${kpi('Valor total', c.total)}${kpi('Comissão', c.commission, 'var(--ok)')}${kpi('Valor líquido', c.net, 'var(--ok)')}${kpi('Honorários', c.fee)}${kpi('Bonificação', c.bonus, 'var(--mute)')}</div>
+    <div class="card"><div class="row">
+    <label class="f grow">Instrução de faturamento<select data-f="billing.type" data-k="int" data-rerender="1"${ro}>${Object.entries(BILLING).map(([k, v]) => `<option value="${k}"${+k === +pi.billing.type ? ' selected' : ''}>${v}</option>`).join('')}</select></label>
+    <label class="f">1º vencimento<input type="date" value="${pi.billing.firstDue || ''}" data-f="billing.firstDue" data-rerender="1"${ro}></label>
+    <label class="f">Parcelas<input type="number" min="1" max="24" style="width:80px" value="${pi.billing.installments}" data-f="billing.installments" data-k="int" data-rerender="1"${ro}></label>
+    <label class="f">Forma de pagamento<select data-f="billing.method" data-rerender="1"${ro}>${opts(['Boleto','Pix','Transferência','Cartão'], pi.billing.method)}</select></label></div></div>
+    ${blocks}
+    <div class="card"><h3>Observações ao veículo</h3><textarea data-f="billing.obsVehicle"${ro}>${esc(pi.billing.obsVehicle)}</textarea></div>
+    <div class="card"><h3>Observações ao cliente</h3><textarea data-f="billing.obsClient"${ro}>${esc(pi.billing.obsClient)}</textarea></div>`;
+}
+
+function viewPeople() {
+  const vf = (v, f, w) => `<input value="${esc(v[f])}" data-v="${v.id}" data-vf="${f}"${w ? ` style="width:${w}px"` : ''}>`;
+  return `<div class="card"><h3>Clientes e agências de ${esc(veh().name)}</h3><table><thead><tr><th>Nome</th><th>Perfil</th><th>CNPJ / CPF</th><th>Endereço</th><th>E-mail</th><th></th></tr></thead><tbody>
+    ${db.people.filter(p => p.vehicleId === ui.vehicleId).map(p => `<tr><td><input value="${esc(p.name)}" data-p="${p.id}" data-pf="name"></td><td><select data-p="${p.id}" data-pf="profile">${Object.entries(PROFILES).map(([k, v]) => `<option value="${k}"${p.profile === k ? ' selected' : ''}>${v}</option>`).join('')}</select></td><td><input value="${esc(p.doc)}" data-p="${p.id}" data-pf="doc"></td><td><input value="${esc(p.address)}" data-p="${p.id}" data-pf="address"></td><td><input value="${esc(p.email)}" data-p="${p.id}" data-pf="email"></td><td><button class="x" data-act="rmPerson" data-id="${p.id}">×</button></td></tr>`).join('')}
+    </tbody></table><p><button class="b sm" data-act="addPerson">+ Adicionar pessoa</button></p>
+    <p class="muted small">Cada rádio tem os seus próprios cadastros. Programas, faixas e formatos são sugeridos a partir dos PIs anteriores da mesma rádio.</p></div>
+    <div class="card"><h3>Veículos (rádios)</h3><table><thead><tr><th>Nome</th><th>Sigla do PI</th><th>CNPJ</th><th>Cidade</th><th>E-mail</th><th>Cor</th></tr></thead><tbody>
+    ${db.vehicles.map(v => `<tr><td>${vf(v, 'name')}</td><td>${vf(v, 'code', 90)}</td><td>${vf(v, 'doc')}</td><td>${vf(v, 'address')}</td><td>${vf(v, 'email')}</td><td><input type="color" value="${v.color}" data-v="${v.id}" data-vf="color"></td></tr>`).join('')}
+    </tbody></table><p><button class="b sm" data-act="addVehicle">+ Adicionar veículo</button></p></div>`;
+}
+
+// ---------- ações ----------
+function newPi(base) {
+  const v = veh(); v.seq += 1; // numeração separada por veículo
+  return Object.assign({ id:uid(), vehicleId:v.id, num:v.seq, title:'', mediaType:'Rádio', client:'', vehicle:v.name, agency:'', project:'', owner:'', briefing:'', status:'rascunho', dueDate:'',
+    commission:{ type:'pct', value:20 }, fee:{ type:'brl', value:0 }, discount:{ type:'brl', value:0 }, pieces:[], grids:[],
+    result:{ leads:0, value:0, desc:'' }, billing:{ type:10, firstDue:'', installments:1, method:'Boleto', obsVehicle:'', obsClient:'' }, createdAt:today() }, base || {});
+}
+const blankItem = () => ({ id:uid(), piece:'', f1:'', f2:'', days:{}, qty:0, unit:0, disc:{ type:'pct', value:0 }, bonus:false });
+// Cadastra na hora quem ainda não existe, como acontece no preenchimento do PI
+function learn(pi) {
+  [['client','cliente'],['agency','agencia']].forEach(([f, profile]) => { const n = (pi[f] || '').trim(); if (n && !db.people.some(p => p.name === n && p.profile === profile && p.vehicleId === pi.vehicleId)) db.people.push({ id:uid(), vehicleId:pi.vehicleId, name:n, profile, doc:'', address:'', email:'' }); });
+}
+const dlg = document.getElementById('dlg');
+const actions = {
+  go: d => { ui.view = d.view; render(); },
+  tab: d => { ui.tab = d.tab; render(); },
+  open: d => { ui.view = 'edit'; ui.piId = d.id; ui.tab = 'detalhes'; render(); },
+  newPi: () => {
+    dlg.innerHTML = `<form method="dialog" id="fNew"><h2>Novo PI · ${esc(veh().name)}</h2>
+      <label class="f">Título<input name="title" required></label>
+      <div class="g2"><label class="f">Cliente<input name="client" list="n-c" required></label><label class="f">Agência (opcional)<input name="agency" list="n-a"></label>
+      <label class="f">Consultor<input name="owner"></label><label class="f">Projeto / campanha<input name="project"></label></div>
+      <label class="f">Briefing<textarea name="briefing"></textarea></label>
+      ${datalist('n-c', names('cliente'))}${datalist('n-a', names('agencia'))}
+      <div class="row"><span class="grow"></span><button class="b" value="cancel" formnovalidate>Cancelar</button><button class="b pri" value="ok">Criar e editar</button></div></form>`;
+    dlg.showModal();
+  },
+  dup: d => { const src = db.pis.find(p => p.id === d.id), copy = JSON.parse(JSON.stringify(src)); const n = newPi(); Object.assign(copy, { id:n.id, num:n.num, status:'rascunho', title:src.title + ' (cópia)', createdAt:today(), result:{ leads:0, value:0, desc:'' } }); db.pis.push(copy); save(); render(); },
+  del: d => { if (confirm('Excluir este pedido de inserção?')) { db.pis = db.pis.filter(p => p.id !== d.id); ui.view = 'list'; save(); render(); } },
+  addPiece: () => { cur().pieces.push({ id:uid(), name:'' }); save(); render(); },
+  rmPiece: d => { const pi = cur(); pi.pieces = pi.pieces.filter(p => p.id !== d.id); save(); render(); },
+  addGrid: () => { const pi = cur(), last = pi.grids[pi.grids.length - 1]; pi.grids.push({ id:uid(), place:'', period:last ? last.period : today().slice(0, 7), items:[blankItem()] }); save(); render(); },
+  rmGrid: d => { const pi = cur(); pi.grids = pi.grids.filter(g => g.id !== d.id); save(); render(); },
+  addItem: d => { cur().grids.find(g => g.id === d.id).items.push(blankItem()); save(); render(); },
+  rmItem: d => { const g = cur().grids.find(g => g.id === d.g); g.items = g.items.filter(i => i.id !== d.id); save(); render(); },
+  addPerson: () => { db.people.push({ id:uid(), vehicleId:ui.vehicleId, name:'', profile:'cliente', doc:'', address:'', email:'' }); save(); render(); },
+  rmPerson: d => { db.people = db.people.filter(p => p.id !== d.id); save(); render(); },
+  addVehicle: () => { db.vehicles.push({ id:uid(), name:'Nova rádio', code:'NOVA', doc:'', address:'', email:'', color:'#1f5eff', seq:0 }); save(); render(); },
+  exportDlg: () => {
+    const c = (n, t) => `<label class="f chk"><input type="checkbox" name="${n}" checked>${t}</label>`;
+    dlg.innerHTML = `<form method="dialog" id="fExp"><h2>Exportar pedido de inserção</h2>
+      <div class="g2"><label class="f">Data do documento<input type="date" name="date" value="${today()}"></label><label class="f">Para<select name="to"><option value="vehicle">Veículo</option><option value="client">Cliente</option></select></label></div>
+      <div class="g2">${c('commission','Comissão / valor líquido')}${c('fee','Honorários da agência')}${c('clientData','Dados do cliente')}${c('vehicleData','Dados do veículo')}${c('obsVehicle','Observações ao veículo')}${c('obsClient','Observações ao cliente')}${c('signClient','Assinatura cliente')}${c('signVehicle','Assinatura veículo')}${c('signAgency','Assinatura agência')}</div>
+      <div class="row"><span class="grow"></span><button class="b" value="cancel">Cancelar</button><button class="b pri" value="ok">Exportar</button></div></form>`;
+    dlg.showModal();
+  }
+};
+dlg.addEventListener('close', () => {
+  const f = dlg.querySelector('form'); if (!f || dlg.returnValue !== 'ok') return;
+  const v = Object.fromEntries(new FormData(f));
+  if (f.id === 'fNew') { const pi = newPi(v); learn(pi); db.pis.push(pi); save(); ui.view = 'edit'; ui.piId = pi.id; ui.tab = 'detalhes'; render(); }
+  if (f.id === 'fExp') { buildPrint(cur(), v); setTimeout(() => window.print(), 50); }
+});
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  if (el.tagName === 'A') e.preventDefault();
+  if (el.tagName === 'BUTTON' && el.closest('tr.click')) e.stopPropagation();
+  actions[el.dataset.act](el.dataset);
+});
+const setPath = (obj, path, val) => { const ks = path.split('.'); const last = ks.pop(); ks.reduce((o, k) => o[k], obj)[last] = val; };
+document.addEventListener('change', e => {
+  const el = e.target, d = el.dataset;
+  if (d.ui) { ui[d.ui] = el.value; if (d.ui === 'vehicleId' && ui.view === 'edit') ui.view = 'list'; render(); return; }
+  if (d.vf) { const v = veh(d.v); v[d.vf] = el.value; if (d.vf === 'name') db.pis.forEach(p => { if (p.vehicleId === v.id) p.vehicle = v.name; }); save(); render(); return; }
+  if (d.pf) { db.people.find(p => p.id === d.p)[d.pf] = el.value; save(); return; }
+  const pi = cur(); if (!pi || !(d.f || d.day)) return;
+  const val = d.k === 'num' ? num(el.value) : d.k === 'int' ? parseInt(el.value) || 1 : d.k === 'bool' ? el.checked : el.value;
+  const grid = d.g && pi.grids.find(g => g.id === d.g), item = grid && d.i && grid.items.find(i => i.id === d.i);
+  if (d.day) { const n = parseInt(el.value) || 0; if (n > 0) item.days[d.day] = n; else delete item.days[d.day]; el.value = n || ''; el.classList.toggle('has', n > 0); }
+  else if (d.piece) pi.pieces.find(p => p.id === d.piece).name = val;
+  else setPath(item || grid || pi, d.f, val);
+  if (d.k === 'num' && !d.day && d.f !== 'qty' && d.f !== 'result.leads') el.value = nfmt(val);
+  learn(pi); save();
+  if (d.rerender) return render();
+  // Atualiza só os números calculados, para não perder o foco durante a digitação
+  pi.grids.forEach(g => { let ti = 0, ts = 0; g.items.forEach(it => { const c = itemCalc(pi, it); ti += c.ins; ts += c.sub; const a = document.getElementById('ins-' + it.id), b = document.getElementById('sub-' + it.id); if (a) a.textContent = c.ins; if (b) b.textContent = brl(c.sub); }); const a = document.getElementById('gins-' + g.id), b = document.getElementById('gsub-' + g.id); if (a) a.textContent = ti; if (b) b.textContent = brl(ts); });
+  const s = document.getElementById('sum'); if (s) s.innerHTML = summary(calc(pi));
+});
+
+// ---------- documento para impressão / PDF ----------
+function buildPrint(pi, o) {
+  const c = calc(pi), prod = pi.mediaType === 'Produção', [l1, l2] = MEDIA[pi.mediaType];
+  const person = (name, profile) => db.people.find(p => p.name === name && p.profile === profile && p.vehicleId === pi.vehicleId) || { name };
+  const letter = id => { const i = pi.pieces.findIndex(p => p.id === id); return i < 0 ? '' : String.fromCharCode(65 + i); };
+  const grids = pi.grids.map(g => {
+    const [y, m] = g.period.split('-').map(Number), nd = new Date(y, m, 0).getDate(), days = Array.from({ length:nd }, (_, i) => i + 1);
+    let sub = 0;
+    const rows = g.items.map(it => { const k = itemCalc(pi, it); sub += k.sub; const dv = num(it.disc.value);
+      return `<tr><td>${prod ? esc((pi.pieces.find(p => p.id === it.piece) || {}).name) : letter(it.piece)}</td>${prod ? `<td class="r">${k.ins}</td>` : `<td>${esc(it.f1)}</td><td>${esc(it.f2)}</td>${days.map(d => `<td style="text-align:center">${it.days[d] || ''}</td>`).join('')}<td class="r">${k.ins}</td>`}<td class="r">${nfmt(num(it.unit))}</td><td class="r">${dv ? (it.disc.type === 'pct' ? dv + '%' : nfmt(dv)) : '-'}</td><td class="r">${nfmt(k.sub) || '0,00'}</td><td>${it.bonus ? 'X' : ''}</td></tr>`; }).join('');
+    return `<div><b>Período:</b> ${String(m).padStart(2, '0')}/${y}</div><table><thead><tr><th>Peça</th>${prod ? '<th>Qtd.</th>' : `<th>${l1}</th><th>${l2}</th>${days.map(d => `<th>${WD[new Date(y, m - 1, d).getDay()]}<br>${d}</th>`).join('')}<th>Inser.</th>`}<th>Valor unit.</th><th>Desc.</th><th>Subtotal</th><th>B</th></tr></thead><tbody>${rows}</tbody></table><div style="text-align:right"><b>Subtotal: ${brl(sub)}</b></div>`;
+  }).join('');
+  const data = (title, p) => `<div class="box"><b>${title}:</b> ${esc(p.name)}<br>${p.doc ? 'CNPJ/CPF: ' + esc(p.doc) + '<br>' : ''}${p.address ? esc(p.address) + '<br>' : ''}${p.email ? esc(p.email) : ''}</div>`;
+  const bills = billingEntries(pi, c).filter(e => (o.commission || e.what !== 'Comissão') && (o.fee || e.what !== 'Honorários')).flatMap(e => parcels(pi, e.value).map(p => `<tr><td>${esc(e.from)} → ${esc(e.to)}</td><td>${esc(e.what)}</td><td>${p.n}</td><td>${dfmt(p.due)}</td><td class="r">${nfmt(p.value) || '0,00'}</td><td>${esc(pi.billing.method)}</td></tr>`)).join('');
+  const obs = o.to === 'vehicle' ? (o.obsVehicle && pi.billing.obsVehicle ? ['Observações ao veículo', pi.billing.obsVehicle] : null) : (o.obsClient && pi.billing.obsClient ? ['Observações ao cliente', pi.billing.obsClient] : null);
+  const signs = [o.signClient && pi.client, o.signVehicle && pi.vehicle, o.signAgency && pi.agency].filter(Boolean);
+  document.getElementById('print').innerHTML = `<h1 style="border-left:6px solid ${veh(pi.vehicleId).color};padding-left:8px">Pedido de Inserção · ${piNo(pi)}</h1><div>${esc(pi.title)}</div>
+    <div class="meta"><div><b>Agência:</b> ${esc(pi.agency) || 'Venda direta'}</div><div><b>Veículo:</b> ${esc(pi.vehicle)}</div><div><b>Data:</b> ${dfmt(o.date)}</div><div><b>Mídia:</b> ${esc(pi.mediaType)}</div><div><b>Anunciante:</b> ${esc(pi.client)}</div><div><b>Projeto:</b> ${esc(pi.project)}</div><div><b>Consultor:</b> ${esc(pi.owner)}</div><div><b>Total de inserções:</b> ${c.ins}</div><div><b>Para:</b> ${o.to === 'vehicle' ? 'Veículo' : 'Cliente'}</div></div>
+    ${prod ? '' : `<div><b>Peças:</b> ${pi.pieces.map((p, i) => `<b>${String.fromCharCode(65 + i)}</b> - ${esc(p.name)}`).join(' &nbsp; ')}</div>`}
+    ${grids}
+    <div class="cols"><div class="box"><b>Valor total: ${brl(c.total)}</b>${c.discount ? ` (desconto geral ${brl(c.discount)})` : ''}${c.bonus ? ` &nbsp; Bonificação: ${brl(c.bonus)}` : ''}${o.commission ? `<br>Comissão: ${brl(c.commission)} &nbsp; Valor líquido: ${brl(c.net)}` : ''}${o.fee && c.fee ? `<br>Honorários da agência: ${brl(c.fee)}` : ''}
+      <h2>${BILLING[pi.billing.type]}</h2><table><thead><tr><th>De → para</th><th>Lançamento</th><th>Parc.</th><th>Vencimento</th><th>Valor (R$)</th><th>Forma</th></tr></thead><tbody>${bills}</tbody></table></div>
+      <div>${o.vehicleData ? data('Veículo', veh(pi.vehicleId)) : ''}${o.clientData ? data('Cliente', person(pi.client, 'cliente')) : ''}</div></div>
+    ${obs ? `<h2>${obs[0]}</h2><div>${esc(obs[1]).replace(/\n/g, '<br>')}</div>` : ''}
+    ${signs.length ? `<div class="sign">${signs.map(s => `<div>${esc(s)}</div>`).join('')}</div>` : ''}`;
+}
+
+render();
+</script>
+</body>
+</html>

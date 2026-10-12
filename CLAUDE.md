@@ -1,0 +1,37 @@
+# SONVI
+
+Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e financeiro. A especificação está em `~/Documents/Sistema de Gestão para Rádios — Documento do Projeto.pdf`.
+
+## Linguagem e estrutura
+
+- HTML, CSS e JavaScript puros, sem framework e sem etapa de build. O app abre com dois cliques em `app/index.html`.
+- Scripts clássicos (não ES modules, que não funcionam via `file://`), carregados em ordem pelo `index.html`. Tudo vive no objeto global `SONVI` (apelido `S`).
+- `app/js/config.js`: endereço e chave pública do Supabase. `core.js`: utilitários e navegação. `dados.js`: toda conversa com a nuvem. `app.js`: barra lateral e eventos. Cada módulo é um arquivo que registra telas em `S.views` e ações em `S.actions`.
+- Regras de negócio ficam em funções puras, separadas da tela (ex.: `pi-regras.js`).
+- Interface, nomes de tela, tabelas, colunas e comentários em português do Brasil.
+
+## Nuvem (Supabase, projeto "SONVI", id `ccfsyhniwwspnpnpkjzf`)
+
+- Nenhum dado fica no navegador. `S.db` é só uma cópia em memória do que veio da nuvem; gravações usam `S.salvar` / `S.excluir` / `S.run` de `dados.js`. Não usar `localStorage` para conteúdo (a sessão de login do Supabase é a única exceção).
+- A estrutura do banco está em `database/`, em arquivos numerados. Toda mudança de tabela, função ou política entra como arquivo novo ali e é aplicada como migração.
+- Quem protege os dados é o banco (RLS por veículo e por perfil); esconder um botão na tela não é segurança. Perfis: diretor (todas as rádios), gerente, consultor, opec, financeiro.
+- O PI nasce por `criar_pi`, muda de status só por `mudar_status_pi` e é faturado por `faturar_pi`. Nunca alterar `status` com update direto.
+- Só a chave pública (publishable) pode aparecer no código. Nunca a `service_role`.
+
+## Regras do produto
+
+- Tudo é individual por veículo (rádio): clientes, agências, PIs e numeração (`PI VERDE 0001`). Nenhum dado de uma rádio aparece em outra.
+- Fluxo do PI: Rascunho → Na OPEC → Devolvido ou Aprovado → Programado → Faturado. Só se edita em Rascunho ou Devolvido.
+
+## Visual
+
+- Limpo, profissional, estilo Apple: muito espaço em branco, fonte do sistema, poucos elementos por tela, cartões brancos sobre cinza claro, botões em pílula, um único azul de destaque.
+- Usar sempre as variáveis e classes de `app/css/sonvi.css` (`.card`, `.btn`, `.pill`, `.seg`, `.tile`); não criar cores ou estilos soltos nos módulos.
+- Claro e escuro automáticos. No celular a barra lateral vira barra de abas; toda tela precisa funcionar em 375 px de largura.
+
+## Testar
+
+- O servidor de preview não tem permissão de leitura em `~/Documents`. Para testar no navegador, copie `app/` para uma pasta temporária e sirva de lá.
+- Não criar contas nem entrar com senha pelo app durante testes. Regras do banco se testam por SQL dentro de um bloco que termina em erro (nada fica gravado); telas se testam preenchendo `S.me` e `S.db` em memória.
+
+`prototipos/pi.html` é o primeiro protótipo do PI, em arquivo único e sem nuvem; o módulo oficial é `app/js/pi.js`.

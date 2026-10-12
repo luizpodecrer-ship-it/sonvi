@@ -1,0 +1,4 @@
+# Netlify publica só a pasta app/ (banco e documentos ficam fora do site)
+[build]
+  publish = "app"
+  command = ""
