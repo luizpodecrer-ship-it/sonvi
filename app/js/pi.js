@@ -110,8 +110,8 @@
     const body = S.ui.tab === 'faturamento' ? tabBilling(pi, c, em ? '' : ' disabled') : S.ui.tab === 'historico' ? tabHistory(pi) : S.ui.tab === 'midias' ? tabMidias(pi, em) : tabDetails(pi, c, em);
     const titulo = em ? `<input class="titulo-in" value="${esc(pi.titulo)}" placeholder="Título do PI" data-f="titulo" aria-label="Título do PI">` : (esc(pi.titulo) || 'Novo pedido');
     const acoes = em
-      ? `<span class="sujo" ${ed.sujo ? '' : 'hidden'}><i></i>Alterações não salvas</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piCancelar">Cancelar</button><button class="btn pri" data-act="piSalvar">${S.svg('check')}Salvar</button>`
-      : `<span class="muted small salvo">${salvoEm(pi)}</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piExport">${S.svg('baixar')}Exportar PI</button>${editavel(pi) ? `<button class="btn" data-act="piEditar">${S.svg('editar')}Editar</button>` : ''}${flow(pi)}`;
+      ? `<span class="sujo" ${ed.sujo ? '' : 'hidden'}><i></i>Alterações não salvas</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piCancelar">Cancelar</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn pri" data-act="piSalvar">${S.svg('check')}Salvar</button>`
+      : `<span class="muted small salvo">${salvoEm(pi)}</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn" data-act="piExport">${S.svg('baixar')}Exportar PI</button>${editavel(pi) ? `<button class="btn" data-act="piEditar">${S.svg('editar')}Editar</button>` : ''}${flow(pi)}`;
     return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
       actions:acoes, body:abas + notas + body };
   };
@@ -155,9 +155,11 @@
   }
 
   const cabGrade = (g, i, em) => `<div class="g-hd"><h3>Grade ${String.fromCharCode(65 + i)}</h3>
-    <label>Praça ${em ? `<input list="dl-praca" value="${esc(g.praca || '')}" placeholder="Ex.: Cuiabá" data-f="praca" data-g="${g.id}">` : `<b>${esc(g.praca) || '—'}</b>`}</label>
-    <label>Período ${em ? `<select data-f="period" data-g="${g.id}" data-rerender="1" aria-label="Período">${meses(g.period)}</select>` : `<b>${mesExt(g.period)}</b>`}</label>
+    <label>Período de veiculação ${em ? `<select data-f="period" data-g="${g.id}" data-rerender="1" aria-label="Período de veiculação">${meses(g.period)}</select>` : `<b>${mesExt(g.period)}</b>`}</label>
     ${em ? `<button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button>` : ''}</div>`;
+  // Desconto da linha: em %, em R$ ou a linha inteira bonificada (sem cobrança)
+  const descEdit = (it, a) => `<span class="duo"><input value="${it.bonus ? '' : nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="${it.bonus ? '—' : '0'}" ${a}${it.bonus ? ' disabled' : ''} aria-label="Desconto"><select data-f="disc.type" data-rerender="1" ${a} aria-label="Tipo de desconto"><option value="pct"${!it.bonus && it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${!it.bonus && it.disc.type === 'brl' ? ' selected' : ''}>R$</option><option value="bon"${it.bonus ? ' selected' : ''}>Bonif.</option></select></span>`;
+  const descVer = it => it.bonus ? 'Bonificado' : regra(it.disc);
   // Listas de escolha vindas do cadastro (Tabelas). Um valor antigo que não está mais no cadastro continua aparecendo.
   const escolha = (tipo, atual, rotulo) => { const lista = S.db.produtos.filter(p => p.tipo === tipo && p.ativo).sort((a, b) => a.nome.localeCompare(b.nome)), at = String(atual || '').trim();
     const ops = lista.map(p => `<option value="${esc(p.nome.trim())}"${p.nome.trim() === at ? ' selected' : ''}${p.detalhe ? ` title="${esc(p.detalhe)}"` : ''}>${esc(p.nome.trim())}${p.detalhe && tipo === 'programa' ? ' · ' + esc(p.detalhe) : ''}</option>`).join('');
@@ -170,7 +172,7 @@
     return out.map(m => `<option value="${m}"${m === atual ? ' selected' : ''}>${mesExt(m)}</option>`).join(''); };
   const opcPecas = (pi, it) => `<option value="">—</option>${pi.dados.pieces.map(p => `<option value="${p.id}"${it.piece === p.id ? ' selected' : ''} title="${esc(p.name)}">${letter(pi, p.id)}</option>`).join('')}`;
 
-  // Computador: programa à esquerda, os dias do mês no meio e os valores à direita
+  // Computador: programa e formato à esquerda, o mês inteiro no meio e quantidade, valor, desconto e total à direita
   function gradeTela(pi, g, i, em) {
     const [y, m] = g.period.split('-').map(Number), nd = new Date(y, m, 0).getDate(), days = Array.from({ length:nd }, (_, k) => k + 1);
     const a = it => `data-g="${g.id}" data-i="${it.id}"`;
@@ -178,27 +180,24 @@
     const L = [], M = [], R = [];
     g.items.forEach(it => {
       const c = S.itemCalc(it); tIns += c.ins; tSub += c.sub; days.forEach(d => { if (it.days[d]) porDia[d] = (porDia[d] || 0) + num(it.days[d]); });
-      L.push(`<div class="ln">${em ? `<select class="pc-sel" style="--pc:${corPeca(pi, it.piece)}" data-f="piece" data-rerender="1" ${a(it)} aria-label="Peça">${opcPecas(pi, it)}</select>
+      L.push(`<div class="ln">${em ? `<button class="x rm" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}" aria-label="Remover linha" title="Remover linha">×</button>
           <select data-f="f1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato')}</select>`
-        : `${selo(pi, it.piece)}<b class="tx">${esc(it.f1) || '—'}</b><span class="tx muted">${esc(it.f2)}</span>`}</div>`);
-      M.push(`<div class="ln dias" style="--pc:${corPeca(pi, it.piece)}">${days.map(d => em
+        : `<span></span><b class="tx">${esc(it.f1) || '—'}</b><span class="tx muted">${esc(it.f2)}</span>`}</div>`);
+      M.push(`<div class="ln dias">${days.map(d => em
         ? `<input class="day${it.days[d] ? ' has' : ''}" inputmode="numeric" data-mask="int" value="${it.days[d] || ''}" data-day="${d}" ${a(it)} aria-label="Dia ${d}">`
         : `<span class="day${it.days[d] ? ' has' : ''}">${it.days[d] || ''}</span>`).join('')}</div>`);
       R.push(`<div class="ln vals"><span class="ins" id="ins-${it.id}">${c.ins}</span>
-        ${em ? `<input class="n" value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)} aria-label="Valor unitário">
-          <span class="duo"><input value="${nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0" ${a(it)} aria-label="Desconto"><select data-f="disc.type" ${a(it)} aria-label="Tipo de desconto"><option value="pct"${it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${it.disc.type === 'brl' ? ' selected' : ''}>R$</option></select></span>`
-          : `<span class="n">${brl(num(it.unit))}</span><span class="n">${regra(it.disc)}</span>`}
-        <b class="sub" id="sub-${it.id}">${brl(c.sub)}</b>
-        <span class="bon"><input type="checkbox"${it.bonus ? ' checked' : ''} data-f="bonus" data-k="bool" ${a(it)}${em ? '' : ' disabled'} aria-label="Bonificado"></span>
-        ${em ? `<button class="x" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}" aria-label="Remover item">×</button>` : '<span></span>'}</div>`);
+        ${em ? `<input class="n" value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)} aria-label="Valor unitário">${descEdit(it, a(it))}`
+          : `<span class="n">${brl(num(it.unit))}</span><span class="n">${descVer(it)}</span>`}
+        <b class="sub" id="sub-${it.id}">${brl(c.sub)}</b></div>`);
     });
     const cab = days.map(d => { const w = new Date(y, m - 1, d).getDay(); return `<span class="dh${w === 0 || w === 6 ? ' we' : ''}">${WD[w]}<b>${String(d).padStart(2, '0')}</b></span>`; }).join('');
     return `<section class="card grade">${cabGrade(g, i, em)}
       <div class="gr">
         <div class="gr-l"><div class="ln cb"><span></span><span>Programa</span><span>Formato</span></div>${L.join('')}<div class="ln ft">${em ? `<button class="btn sm" data-act="piAddItem" data-id="${g.id}">+ Adicionar item</button>` : ''}<b>Totais</b></div></div>
         <div class="gr-m"><div class="gr-mi"><div class="ln cb dias">${cab}</div>${M.join('')}<div class="ln ft dias tot">${days.map(d => `<span class="dt" id="dt-${g.id}-${d}">${porDia[d] || ''}</span>`).join('')}</div></div></div>
-        <div class="gr-r"><div class="ln cb vals"><span>Ins.</span><span class="n">Valor unit.</span><span class="n">Desc.</span><span class="sub">Subtotal</span><span class="bon">Bonif.</span><span></span></div>${R.join('')}
-          <div class="ln ft vals"><b class="ins" id="gins-${g.id}">${tIns}</b><span></span><span></span><b class="sub" id="gsub-${g.id}">${brl(tSub)}</b><span></span><span></span></div></div>
+        <div class="gr-r"><div class="ln cb vals"><span>Qtd.</span><span class="n">Valor unit.</span><span class="n">Desconto</span><span class="sub">Total</span></div>${R.join('')}
+          <div class="ln ft vals"><b class="ins" id="gins-${g.id}">${tIns}</b><span></span><span></span><b class="sub" id="gsub-${g.id}">${brl(tSub)}</b></div></div>
       </div></section>`;
   }
 
@@ -210,20 +209,20 @@
     let tIns = 0, tSub = 0;
     const itens = g.items.map(it => {
       const c = S.itemCalc(it); tIns += c.ins; tSub += c.sub;
-      if (it.id !== aberto) return `<button class="it-res" data-act="piAbrirItem" data-g="${g.id}" data-id="${it.id}">${selo(pi, it.piece)}<span class="tx"><b>${esc(it.f1) || 'Programa'}</b><small>${esc(it.f2) || 'formato'} · <span id="ins-${it.id}">${c.ins}</span> inserções</small></span><b id="sub-${it.id}">${brl(c.sub)}</b>${S.svg('seta')}</button>`;
+      if (it.id !== aberto) return `<button class="it-res" data-act="piAbrirItem" data-g="${g.id}" data-id="${it.id}"><span class="tx"><b>${esc(it.f1) || 'Programa'}</b><small>${esc(it.f2) || 'formato'} · <span id="ins-${it.id}">${c.ins}</span> inserções</small></span><b id="sub-${it.id}">${brl(c.sub)}</b>${S.svg('seta')}</button>`;
       const cal = [...Array(vazio).fill('<span></span>'), ...Array.from({ length:nd }, (_, k) => { const d = k + 1, w = new Date(y, m - 1, d).getDay();
         return em ? `<label class="cd${w === 0 || w === 6 ? ' we' : ''}"><small>${d}</small><input class="day${it.days[d] ? ' has' : ''}" inputmode="numeric" data-mask="int" value="${it.days[d] || ''}" data-day="${d}" ${a(it)} aria-label="Dia ${d}"></label>`
           : `<span class="cd${w === 0 || w === 6 ? ' we' : ''}"><small>${d}</small><span class="day${it.days[d] ? ' has' : ''}">${it.days[d] || ''}</span></span>`; })];
-      return `<article class="it-ab" style="--pc:${corPeca(pi, it.piece)}">
-        <div class="it-cab">${em ? `<select class="pc-sel" style="--pc:${corPeca(pi, it.piece)}" data-f="piece" data-rerender="1" ${a(it)} aria-label="Peça">${opcPecas(pi, it)}</select>` : selo(pi, it.piece)}
+      return `<article class="it-ab">
+        <div class="it-cab">
           ${em ? `<span class="tx"><select data-f="f1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato')}</select></span>` : `<span class="tx"><b>${esc(it.f1) || '—'}</b><small>${esc(it.f2)}</small></span>`}
           <b id="sub-${it.id}">${brl(c.sub)}</b></div>
         <div class="cal">${WD.map((w, k) => `<small class="${k === 0 || k === 6 ? 'we' : ''}">${w}</small>`).join('')}${cal.join('')}</div>
         ${em ? '<small class="muted" style="text-align:center">Toque no dia e digite quantas inserções</small>' : ''}
-        <div class="it-vals"><label class="f">Inserções<span class="ro" id="ins-${it.id}">${c.ins}</span></label>
+        <div class="it-vals"><label class="f">Quantidade<span class="ro" id="ins-${it.id}">${c.ins}</span></label>
           <label class="f">Valor unit.${em ? `<input value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)}>` : `<span class="ro">${brl(num(it.unit))}</span>`}</label>
-          <label class="f">Desconto${em ? duo('', it.disc, '').replace(/data-f="\.value"/, `data-f="disc.value" ${a(it)}`).replace(/data-f="\.type"/, `data-f="disc.type" ${a(it)}`) : `<span class="ro">${regra(it.disc)}</span>`}</label></div>
-        <div class="row mid"><label class="chk"><input type="checkbox"${it.bonus ? ' checked' : ''} data-f="bonus" data-k="bool" ${a(it)}${em ? '' : ' disabled'}>Bonificado</label><span class="grow"></span>${em ? `<button class="btn sm danger" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}">Remover item</button>` : ''}</div></article>`;
+          <label class="f">Desconto${em ? descEdit(it, a(it)) : `<span class="ro">${descVer(it)}</span>`}</label></div>
+        ${em ? `<div class="row mid"><span class="grow"></span><button class="btn sm danger" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}">Remover linha</button></div>` : ''}</article>`;
     }).join('');
     return `<section class="card grade gc">${cabGrade(g, i, em)}<p class="muted small"><b id="gins-${g.id}">${tIns}</b> inserções · <b id="gsub-${g.id}">${brl(tSub)}</b></p>${itens}
       ${em ? `<button class="btn" data-act="piAddItem" data-id="${g.id}">+ Adicionar item</button>` : ''}</section>`;
@@ -296,6 +295,15 @@
     piCancelar: () => { const pi = cur();
       if (!ed.sujo) { sairEdicao(); return S.render(); }
       S.dialog(`<h2>Descartar alterações?</h2><p class="muted">O PI volta a ficar como estava quando foi salvo pela última vez.</p><div class="row"><span class="grow"></span><button class="btn" value="x">Continuar editando</button><button class="btn danger" value="ok">Descartar</button></div>`, () => { desfazer(pi); sairEdicao(); S.render(); }); },
+    // Visualizar: o PI como vai sair no documento (o mesmo do PDF), para conferir antes de salvar ou exportar
+    piVer: () => { const pi = cur();
+      S.buildPrint(pi, { date:today(), to:'client', commission:true, billing:true, clientData:true, vehicleData:true, obs:true, signClient:true, signVehicle:true, signAgency:!!pi.agencia_id });
+      const doc = document.getElementById('print').innerHTML, probs = S.piProblems(pi);
+      S.dialog(`<div class="row mid"><h2 class="grow">Visualizar ${S.piNo(pi)}</h2><button class="btn" value="x">Fechar</button><button class="btn pri" value="exp" type="submit">${S.svg('baixar')}Exportar PI</button></div>
+        ${probs.length ? `<div class="note">Falta preencher: ${probs.map(esc).join('; ')}.</div>` : '<div class="note info">Tudo preenchido para enviar.</div>'}
+        <div class="previa">${doc}</div>`);
+      document.getElementById('dlg').classList.add('largo');
+      const d = document.getElementById('dlg'); d.onclose = () => { d.classList.remove('largo'); if (d.returnValue === 'exp') S.actions.piExport(); }; },
     piAbrirItem: d => { S.ui.piItem = Object.assign({}, S.ui.piItem, { [d.g]:d.id }); S.render(); },
     piVerResumo: () => { const s = document.getElementById('sum'); if (s) s.scrollIntoView({ behavior:'smooth', block:'start' }); },
     piBaixar: async d => { const pi = cur(); try { const { data, error } = await S.sb.storage.from(BUCKET).createSignedUrl(`${pasta(pi)}/${d.nome}`, 120, { download:nomeArq(d.nome) }); if (error) throw error; window.open(data.signedUrl, '_blank', 'noopener'); } catch (e) { S.toast(S.erro(e)); } },
@@ -398,6 +406,7 @@
     if (d.day) { const n = Math.max(0, parseInt(el.value) || 0); if (n) item.days[d.day] = n; else delete item.days[d.day]; el.value = n || ''; el.classList.toggle('has', n > 0);
       const t = document.getElementById(`dt-${grid.id}-${d.day}`); if (t) t.textContent = grid.items.reduce((s, it) => s + num(it.days[d.day] || 0), 0) || ''; }
     else if (d.piece) pi.dados.pieces.find(p => p.id === d.piece).name = val;
+    else if (item && d.f === 'disc.type') { item.bonus = val === 'bon'; if (val !== 'bon') item.disc.type = val; }
     else setPath(item || grid || pi, d.f, d.f.endsWith('_id') ? val || null : val);
     if (d.k === 'num') el.value = nfmt(val);
     // A agência escolhida traz a sua comissão padrão
@@ -422,8 +431,8 @@
       const [y, m] = g.period.split('-').map(Number), nd = new Date(y, m, 0).getDate(), days = Array.from({ length:nd }, (_, i) => i + 1);
       let sub = 0;
       const rows = g.items.map(it => { const k = S.itemCalc(it); sub += k.sub; const dv = num(it.disc.value);
-        return `<tr><td>${letter(pi, it.piece)}</td><td>${esc(it.f1)}</td><td>${esc(it.f2)}</td>${days.map(d => `<td style="text-align:center">${it.days[d] || ''}</td>`).join('')}<td class="r">${k.ins}</td><td class="r">${nfmt(num(it.unit)) || '0,00'}</td><td class="r">${dv ? (it.disc.type === 'pct' ? dv + '%' : nfmt(dv)) : '-'}</td><td class="r">${nfmt(k.sub) || '0,00'}</td><td>${it.bonus ? 'X' : ''}</td></tr>`; }).join('');
-      return `<div><b>Período:</b> ${String(m).padStart(2, '0')}/${y}${g.praca ? ` &nbsp; <b>Praça:</b> ${esc(g.praca)}` : ''}</div><table><thead><tr><th>Peça</th><th>Programa / faixa</th><th>Formato</th>${days.map(d => `<th>${WD[new Date(y, m - 1, d).getDay()]}<br>${d}</th>`).join('')}<th>Ins.</th><th>Valor unit.</th><th>Desc.</th><th>Subtotal</th><th>B</th></tr></thead><tbody>${rows}</tbody></table><div style="text-align:right"><b>Subtotal: ${brl(sub)}</b></div>`;
+        return `<tr><td>${esc(it.f1)}</td><td>${esc(it.f2)}</td>${days.map(d => `<td style="text-align:center">${it.days[d] || ''}</td>`).join('')}<td class="r">${k.ins}</td><td class="r">${nfmt(num(it.unit)) || '0,00'}</td><td class="r">${it.bonus ? 'Bonificado' : dv ? (it.disc.type === 'pct' ? dv + '%' : nfmt(dv)) : '-'}</td><td class="r">${nfmt(k.sub) || '0,00'}</td></tr>`; }).join('');
+      return `<div><b>Período de veiculação:</b> ${mesExt(g.period)}</div><table><thead><tr><th>Programa / faixa</th><th>Formato</th>${days.map(d => `<th>${WD[new Date(y, m - 1, d).getDay()]}<br>${d}</th>`).join('')}<th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table><div style="text-align:right"><b>Subtotal: ${brl(sub)}</b></div>`;
     }).join('');
     const box = (title, nome, doc, end, email) => `<div class="box"><b>${title}:</b> ${esc(nome)}<br>${doc ? 'CNPJ/CPF: ' + esc(doc) + '<br>' : ''}${end ? esc(end) + '<br>' : ''}${email ? esc(email) : ''}</div>`;
     const bills = S.billingEntries(pi, c).filter(e => o.commission || e.what !== 'Comissão').flatMap(e => S.parcels(pi, e.value).map(p => `<tr><td>${esc(e.from)} → ${esc(e.to)}</td><td>${esc(e.what)}</td><td>${p.n}</td><td>${dfmt(p.due)}</td><td class="r">${nfmt(p.value) || '0,00'}</td><td>${esc(b.method)}</td></tr>`)).join('');
