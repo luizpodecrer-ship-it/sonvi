@@ -29,7 +29,7 @@
     cadAba: d => { aba = d.tab; S.render(); },
     cadProduto: d => { const p = d.id ? prod(d.id) : { ativo:true };
       S.form(p.id ? esc(p.nome) : (aba === 'programa' ? 'Novo programa ou faixa' : 'Novo formato'), [
-        { k:'nome', label:TIPOS[p.tipo || aba][1], req:true }, { k:'detalhe', label:TIPOS[p.tipo || aba][2] }, { k:'ativo', label:'Disponível para novos PIs', type:'checkbox' }, ...(p.id ? [btnExcluir] : [])], p,
+        { k:'nome', label:TIPOS[p.tipo || aba][1], req:true, ph:(p.tipo || aba) === 'programa' ? 'Ex.: Manhã Total' : 'Ex.: Spot 30"' }, { k:'detalhe', label:TIPOS[p.tipo || aba][2].replace(/ \(ex\.:.*\)/, ''), ph:(p.tipo || aba) === 'programa' ? 'Ex.: 06h às 10h' : 'Ex.: 30 segundos' }, { k:'ativo', label:'Disponível para novos PIs', type:'checkbox' }, ...(p.id ? [btnExcluir] : [])], p,
         v => S.run(() => S.salvar('produtos', Object.assign({ nome:v.nome, detalhe:v.detalhe, ativo:v.ativo === 'on' }, p.id ? { id:p.id } : { veiculo_id:S.ui.vehicleId, tipo:aba })), 'Cadastro salvo'));
       if (p.id) comExcluir('produtos', p.id); },
     cadPreco: d => { const p = d.id ? S.db.precos.find(x => x.id === d.id) : { vigencia_inicio:S.today(), desconto_max:0 };
@@ -37,7 +37,7 @@
       if (!progs.length || !forms.length) return S.toast('Cadastre ao menos um programa e um formato antes dos preços.');
       S.form(p.id ? 'Editar preço' : 'Novo preço', [
         { k:'programa_id', label:'Programa / faixa', type:'select', options:progs.map(x => [x.id, x.nome]) }, { k:'formato_id', label:'Formato', type:'select', options:forms.map(x => [x.id, x.nome]) },
-        { k:'preco', label:'Preço por inserção (R$)', req:true }, { k:'vigencia_inicio', label:'Vigência a partir de', type:'date', req:true },
+        { k:'preco', label:'Preço por inserção (R$)', req:true, ph:'Ex.: 68,00' }, { k:'vigencia_inicio', label:'Vigência a partir de', type:'date', req:true },
         { k:'desconto_max', label:'Desconto máximo (%)' }, ...(p.id ? [btnExcluir] : [])], Object.assign({}, p, { preco:S.nfmt(Number(p.preco)) }),
         v => S.run(() => S.salvar('precos', Object.assign({ programa_id:v.programa_id, formato_id:v.formato_id, preco:S.num(v.preco), vigencia_inicio:v.vigencia_inicio, desconto_max:S.num(v.desconto_max) }, p.id ? { id:p.id } : { veiculo_id:S.ui.vehicleId })), 'Preço salvo'));
       if (p.id) comExcluir('precos', p.id); }

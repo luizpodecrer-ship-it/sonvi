@@ -68,10 +68,11 @@ S.route = () => { const [view, id] = location.hash.replace(/^#\/?/, '').split('/
 S.go = path => { if (location.hash === '#' + path) S.render(); else location.hash = path; };
 
 // ---------- diálogo, formulário e aviso ----------
-S.dialog = (html, onOk) => { const d = document.getElementById('dlg'); d.innerHTML = `<form method="dialog">${html}</form>`; d.onclose = () => { if (d.returnValue === 'ok' && onOk) onOk(Object.fromEntries(new FormData(d.querySelector('form')))); }; d.showModal(); };
+S.dialog = (html, onOk) => { const d = document.getElementById('dlg'); d.innerHTML = `<form method="dialog">${html}</form>`; d.onclose = () => { if (d.returnValue === 'ok' && onOk) onOk(Object.fromEntries(new FormData(d.querySelector('form')))); }; S.mascarar(d); d.showModal(); };
 // Formulário genérico: campos = [{ k, label, type, options, req, full }]
 S.form = (title, fields, v, onOk, ok = 'Salvar') => {
-  const inp = f => { const val = v[f.k] ?? '', a = `name="${f.k}"${f.req ? ' required' : ''}`;
+  const inp = f => { const val = v[f.k] ?? '', m = f.mask || S.CAMPO_MASCARA[f.k], ph = f.ph || S.CAMPO_EXEMPLO[f.k] || (m && S.MASK[m].ph) || '';
+    const a = `name="${f.k}"${f.req ? ' required' : ''}${m ? ` data-mask="${m}" inputmode="${S.MASK[m].modo}" autocomplete="off"` : ''}${ph && !['select', 'checkbox', 'color', 'date', 'datetime-local'].includes(f.type) ? ` placeholder="${S.esc(ph)}"` : ''}`;
     if (f.type === 'select') return `<select ${a}>${f.options.map(([k, n]) => `<option value="${S.esc(k)}"${String(k) === String(val) ? ' selected' : ''}>${S.esc(n)}</option>`).join('')}</select>`;
     if (f.type === 'textarea') return `<textarea ${a}>${S.esc(val)}</textarea>`;
     if (f.type === 'checkbox') return `<input type="checkbox" ${a}${val ? ' checked' : ''}>`;
@@ -79,4 +80,59 @@ S.form = (title, fields, v, onOk, ok = 'Salvar') => {
   const row = f => f.html || `<label class="f${f.type === 'checkbox' ? ' chk' : ''}"${f.full || f.type === 'textarea' ? ' style="grid-column:1/-1"' : ''}>${f.type === 'checkbox' ? inp(f) + S.esc(f.label) : S.esc(f.label) + inp(f)}</label>`;
   S.dialog(`<h2>${title}</h2><div class="g2">${fields.map(row).join('')}</div><div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${ok}</button></div>`, onOk);
 };
+// ---------- máscaras dos campos ----------
+// Cada campo com data-mask é formatado enquanto a pessoa digita e mostra o exemplo em cinza (placeholder).
+// CPF e CNPJ têm os dígitos verificadores conferidos: um número errado impede salvar o formulário.
+(() => {
+  const so = s => String(s || '').replace(/\D/g, '');
+  const enc = (d, padrao) => { let out = '', i = 0; for (const c of padrao) { if (i >= d.length) break; if (c === '0') out += d[i++]; else out += c; } return out; };
+  const cpfOk = d => { if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false; const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += +d[i] * (n + 1 - i); const r = s * 10 % 11 % 10; return r === +d[n]; }; return dv(9) && dv(10); };
+  const cnpjOk = d => { if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false; const dv = n => { const w = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]; const s = w.reduce((t, x, i) => t + x * d[i], 0) % 11; return (s < 2 ? 0 : 11 - s) === +d[n]; }; return dv(12) && dv(13); };
+  const cpf = d => enc(d.slice(0, 11), '000.000.000-00'), cnpj = d => enc(d.slice(0, 14), '00.000.000/0000-00');
+  // Decimal brasileiro: 1.234,56 (milhar com ponto, centavos com vírgula)
+  const dec = v => { let [i, c] = String(v || '').replace(/[^\d,]/g, '').split(','); i = (i || '').replace(/^0+(?=\d)/, ''); const ii = i.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return c === undefined ? ii : (ii || '0') + ',' + c.replace(/,/g, '').slice(0, 2); };
+  S.MASK = {
+    doc:{ ph:'00.000.000/0000-00 ou 000.000.000-00', modo:'numeric', f:v => { const d = so(v); return d.length <= 11 ? cpf(d) : cnpj(d); },
+      erro:v => { const d = so(v); if (!d) return ''; if (d.length !== 11 && d.length !== 14) return 'Complete o CNPJ (14 números) ou o CPF (11 números).'; return (d.length === 11 ? cpfOk(d) : cnpjOk(d)) ? '' : `${d.length === 11 ? 'CPF' : 'CNPJ'} inválido. Confira os números.`; } },
+    cnpj:{ ph:'00.000.000/0000-00', modo:'numeric', f:v => cnpj(so(v)), erro:v => { const d = so(v); return !d ? '' : d.length < 14 ? 'Complete o CNPJ (14 números).' : cnpjOk(d) ? '' : 'CNPJ inválido. Confira os números.'; } },
+    cpf:{ ph:'000.000.000-00', modo:'numeric', f:v => cpf(so(v)), erro:v => { const d = so(v); return !d ? '' : d.length < 11 ? 'Complete o CPF (11 números).' : cpfOk(d) ? '' : 'CPF inválido. Confira os números.'; } },
+    tel:{ ph:'(65) 99999-9999', modo:'tel', f:v => { const d = so(v).slice(0, 11); return d.length <= 10 ? enc(d, '(00) 0000-0000') : enc(d, '(00) 00000-0000'); },
+      erro:v => { const d = so(v); return !d || d.length >= 10 ? '' : 'Telefone incompleto: DDD e número.'; } },
+    cep:{ ph:'00000-000', modo:'numeric', f:v => enc(so(v).slice(0, 8), '00000-000'), erro:v => { const d = so(v); return !d || d.length === 8 ? '' : 'Complete o CEP (8 números).'; } },
+    ie:{ ph:'Somente números', modo:'numeric', f:v => so(v).slice(0, 14) },
+    sigla:{ ph:'Ex.: CBN', modo:'text', f:v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) },
+    dec:{ ph:'0,00', modo:'decimal', f:dec },
+    pct:{ ph:'0', modo:'decimal', f:v => dec(v).replace(/^(\d{1,3}(?:\.\d{3})*)/, m => m.length > 3 ? '100' : m) },
+    int:{ ph:'0', modo:'numeric', f:v => so(v).slice(0, 6) } };
+  // Campos que ganham máscara e exemplo só pelo nome, em qualquer formulário
+  S.CAMPO_MASCARA = { documento:'doc', cnpj:'cnpj', cpf:'cpf', telefone:'tel', whatsapp:'tel', celular:'tel', cep:'cep', inscricao_estadual:'ie', sigla:'sigla', preco:'dec', valor:'dec', comissao:'pct', desconto_max:'pct' };
+  S.CAMPO_EXEMPLO = { email:'nome@empresa.com.br', cidade:'Cuiabá / MT', endereco:'Rua, número, bairro', frequencia:'101,9 FM', razao_social:'Como consta no CNPJ', rede_afiliada:'Ex.: CBN, Jovem Pan', segmento:'Ex.: Varejo, Saúde, Educação',
+    contato_decide:'Nome de quem decide a compra', contato_assina:'Nome de quem assina o PI', assunto:'Ex.: Apresentar proposta', nome:'', titulo:'Ex.: Campanha de aniversário', projeto:'Ex.: Black Friday 2026', dados_bancarios:'Banco, agência, conta e chave Pix', observacoes:'', resultado:'Ex.: Gostou da proposta, ficou de responder na quinta', nota:'Ex.: Ajustar a grade de novembro' };
+
+  // Formata o campo mantendo o cursor no lugar certo
+  const aplicar = (el, digitando) => {
+    const m = S.MASK[el.dataset.mask]; if (!m) return;
+    const conta = s => (s.match(/[\dA-Za-z,]/g) || []).length, antes = digitando ? conta(el.value.slice(0, el.selectionStart || 0)) : 0;
+    const novo = m.f(el.value);
+    if (novo !== el.value) {
+      el.value = novo;
+      if (digitando && document.activeElement === el) { let pos = 0, n = 0; while (pos < novo.length && n < antes) { if (/[\dA-Za-z,]/.test(novo[pos])) n++; pos++; } try { el.setSelectionRange(pos, pos); } catch (e) {} }
+    }
+    el.setCustomValidity(m.erro ? m.erro(el.value) : '');
+    if (el._aviso) avisar(el); // depois do primeiro aviso, acompanha a digitação
+  };
+  // Mostra o problema embaixo do campo (sem prender o cursor nele)
+  const avisar = el => {
+    let a = el.parentElement.querySelector(':scope > .aviso');
+    if (!el.validationMessage) { if (a) a.remove(); return; }
+    if (!a) { a = document.createElement('small'); a.className = 'aviso'; el.insertAdjacentElement('afterend', a); }
+    a.textContent = el.validationMessage; el._aviso = true;
+  };
+  S.mascarar = raiz => (raiz || document).querySelectorAll('input[data-mask]').forEach(el => { if (!el.placeholder && S.MASK[el.dataset.mask]) el.placeholder = S.MASK[el.dataset.mask].ph; aplicar(el); });
+  document.addEventListener('input', e => { if (e.target.dataset && e.target.dataset.mask) aplicar(e.target, true); });
+  // Ao sair do campo, avisa na hora se o número está errado
+  document.addEventListener('focusout', e => { const el = e.target; if (el.dataset && el.dataset.mask && el.validationMessage) avisar(el); });
+})();
+
 S.toast = msg => { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(S._toast); S._toast = setTimeout(() => t.classList.remove('on'), 3200); };

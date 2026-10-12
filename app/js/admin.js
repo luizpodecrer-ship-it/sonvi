@@ -21,7 +21,7 @@
     admAba: d => { aba = d.tab; S.render(); },
     admVeiculo: d => { const v = d.id ? S.veh(d.id) : { cor:'#0055ff' };
       S.form(v.id ? esc(v.nome) : 'Novo veículo', [
-        { k:'nome', label:'Nome da rádio', req:true }, { k:'sigla', label:'Sigla do PI (ex.: CBN)', req:true },
+        { k:'nome', label:'Nome da rádio', req:true, ph:'Ex.: Rádio Verde' }, { k:'sigla', label:'Sigla do PI', req:true, ph:'Ex.: VERDE' },
         { k:'razao_social', label:'Razão social' }, { k:'cnpj', label:'CNPJ' }, { k:'inscricao_estadual', label:'Inscrição estadual' }, { k:'frequencia', label:'Frequência (ex.: 101,9 FM)' },
         { k:'rede_afiliada', label:'Rede afiliada' }, { k:'cidade', label:'Cidade / UF' }, { k:'endereco', label:'Endereço', full:true },
         { k:'telefone', label:'Telefone' }, { k:'email', label:'E-mail', type:'email' }, { k:'dados_bancarios', label:'Dados bancários (banco, agência, conta, Pix)', type:'textarea' }, { k:'cor', label:'Cor da rádio', type:'color' }], v,

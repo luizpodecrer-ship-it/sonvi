@@ -18,7 +18,7 @@
     const cliente = (p.tipo || aba) === 'cliente', gestor = S.pode('diretor', 'gerente'), novo = !p.id;
     const buscar = (id, label) => ({ html:`<div style="display:flex;align-items:flex-end"><button type="button" class="btn sm" data-act="${id}">${label}</button></div>` });
     const campos = [
-      { k:'nome', label:cliente ? 'Nome fantasia ou nome' : 'Nome da agência', req:true },
+      { k:'nome', label:cliente ? 'Nome fantasia ou nome' : 'Nome da agência', req:true, ph:cliente ? 'Ex.: Supermercado Três Irmãos' : 'Ex.: Agência Ponto Alto' },
       { k:'pessoa', label:'Tipo', type:'select', options:[['pj', 'Pessoa jurídica'], ['pf', 'Pessoa física']] },
       { k:'documento', label:'CNPJ / CPF' }, buscar('pesCnpj', 'Preencher pelo CNPJ'),
       { k:'razao_social', label:'Razão social' }, { k:'inscricao_estadual', label:'Inscrição estadual' },
@@ -46,7 +46,7 @@
   // Preenchimento automático: consulta serviços públicos de CNPJ e CEP só quando o usuário pede
   const campo = n => document.querySelector(`#dlg [name="${n}"]`);
   async function buscar(url, usar) {
-    try { const r = await fetch(url); if (!r.ok) throw new Error(); usar(await r.json()); S.toast('Dados preenchidos. Confira antes de salvar.'); }
+    try { const r = await fetch(url); if (!r.ok) throw new Error(); usar(await r.json()); S.mascarar(document.getElementById('dlg')); S.toast('Dados preenchidos. Confira antes de salvar.'); }
     catch (e) { S.toast('Não encontrei. Confira o número e tente de novo.'); }
   }
 

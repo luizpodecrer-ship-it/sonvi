@@ -154,6 +154,9 @@ input[type="search"] { border-radius:999px; padding-left:40px; background:var(--
 input[type="checkbox"] { accent-color:var(--accent); width:18px; height:18px; }
 input[type="color"] { padding:3px; height:42px; }
 textarea { width:100%; min-height:84px; resize:vertical; }
+small.aviso { color:var(--red); font-size:12px; font-weight:500; }
+::placeholder { color:var(--ink-3); opacity:.7; }
+input:user-invalid, textarea:user-invalid { border-color:var(--red); box-shadow:0 0 0 3px color-mix(in srgb, var(--red) 15%, transparent); }
 select { appearance:none; padding-right:30px; background-image:linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%); background-position:calc(100% - 15px) 55%, calc(100% - 10px) 55%; background-size:5px 5px; background-repeat:no-repeat; }
 label.f { display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:500; color:var(--ink-2); }
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid var(--line); border-radius:999px; padding:0 18px; height:42px; background:var(--surface); font-weight:600; cursor:pointer; white-space:nowrap; transition:background .2s, transform .15s, box-shadow .2s, border-color .2s; }

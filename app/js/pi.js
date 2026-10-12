@@ -48,7 +48,7 @@
   };
 
   // ---------- edição ----------
-  const duo = (path, rule, ro) => `<span class="duo"><input value="${nfmt(num(rule.value))}" data-f="${path}.value" data-k="num"${ro}><select data-f="${path}.type"${ro}><option value="pct"${rule.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${rule.type === 'brl' ? ' selected' : ''}>R$</option></select></span>`;
+  const duo = (path, rule, ro) => `<span class="duo"><input value="${nfmt(num(rule.value))}" data-f="${path}.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00"${ro}><select data-f="${path}.type"${ro}><option value="pct"${rule.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${rule.type === 'brl' ? ' selected' : ''}>R$</option></select></span>`;
   const flow = pi => {
     const b = (act, label, extra = '', pri = true, icon = '') => `<button class="btn${pri === true ? ' pri' : pri ? ' ' + pri : ''}" data-act="${act}"${extra}>${icon ? S.svg(icon) : ''}${label}</button>`;
     if (S.EDITABLE.includes(pi.status)) return comercial(pi) ? b('piSend', pi.status === 'devolvido' ? 'Reenviar para a OPEC' : 'Enviar para a OPEC', '', true, 'seta') : '';
@@ -105,18 +105,18 @@
     const info = `<div class="card"><label class="f" style="margin-bottom:14px">Título<input value="${esc(pi.titulo)}" data-f="titulo" data-rerender="1"${ro}></label><div class="row">
       <label class="f grow">Cliente<select data-f="cliente_id" data-rerender="1"${ro}>${sel(S.pessoas('cliente'), pi.cliente_id, 'Escolha o cliente')}</select></label>
       <label class="f grow">Agência<select data-f="agencia_id" data-rerender="1"${ro}>${sel(S.pessoas('agencia'), pi.agencia_id, 'Venda direta')}</select></label>
-      <label class="f grow">Projeto / campanha<input value="${esc(pi.projeto)}" data-f="projeto"${ro}></label>
+      <label class="f grow">Projeto / campanha<input value="${esc(pi.projeto)}" placeholder="Ex.: Black Friday 2026" data-f="projeto"${ro}></label>
       <label class="f">Consultor<input value="${esc(S.usuario(pi.consultor_id))}" disabled></label></div>
       <div class="row" style="margin-top:14px">
       <label class="f">Comissão ${duo('dados.commission', d.commission, ro || ag)}</label><label class="f">Honorários ${duo('dados.fee', d.fee, ro || ag)}</label>
       <label class="f">Desconto geral ${duo('dados.discount', d.discount, ro)}</label><label class="f">Prazo<input type="date" value="${pi.prazo || ''}" data-f="prazo"${ro}></label></div></div>`;
-    const pieces = `<div class="card"><h3>Peças</h3><div class="pieces">${d.pieces.map((p, i) => `<span class="piece"><b>${String.fromCharCode(65 + i)}</b><input value="${esc(p.name)}" placeholder="Nome da peça" data-f="name" data-piece="${p.id}" data-rerender="1"${ro}>${ro ? '' : `<button class="x" data-act="piRmPiece" data-id="${p.id}" title="Remover peça">×</button>`}</span>`).join('')}${ro ? '' : '<button class="btn sm" data-act="piAddPiece">Adicionar peça</button>'}${!d.pieces.length && ro ? '<span class="muted">Nenhuma peça.</span>' : ''}</div></div>`;
+    const pieces = `<div class="card"><h3>Peças</h3><div class="pieces">${d.pieces.map((p, i) => `<span class="piece"><b>${String.fromCharCode(65 + i)}</b><input value="${esc(p.name)}" placeholder="Ex.: Spot oferta" data-f="name" data-piece="${p.id}" data-rerender="1"${ro}>${ro ? '' : `<button class="x" data-act="piRmPiece" data-id="${p.id}" title="Remover peça">×</button>`}</span>`).join('')}${ro ? '' : '<button class="btn sm" data-act="piAddPiece">Adicionar peça</button>'}${!d.pieces.length && ro ? '<span class="muted">Nenhuma peça.</span>' : ''}</div></div>`;
     const grids = d.grids.map(g => gridCard(pi, g, ro)).join('') + (ro ? '' : '<p style="margin-bottom:16px"><button class="btn" data-act="piAddGrid">Adicionar grade</button></p>');
     const results = `<div class="card"><h3>Resultados</h3><div class="row">
-      <label class="f">Leads<input style="width:100px" value="${pi.resultado.leads || ''}" data-f="resultado.leads" data-k="int0"${roRes}></label>
-      <label class="f">Valor (R$)<input style="width:130px" value="${nfmt(pi.resultado.value)}" data-f="resultado.value" data-k="num"${roRes}></label>
-      <label class="f grow">Descrição<input value="${esc(pi.resultado.desc)}" data-f="resultado.desc"${roRes}></label></div></div>
-      <div class="card"><h3>Briefing</h3><textarea data-f="dados.briefing"${ro}>${esc(d.briefing)}</textarea></div>`;
+      <label class="f">Leads<input style="width:100px" value="${pi.resultado.leads || ''}" data-f="resultado.leads" data-k="int0" data-mask="int" inputmode="numeric" placeholder="0"${roRes}></label>
+      <label class="f">Valor (R$)<input style="width:130px" value="${nfmt(pi.resultado.value)}" data-f="resultado.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00"${roRes}></label>
+      <label class="f grow">Descrição<input placeholder="Ex.: 40 ligações na primeira semana" value="${esc(pi.resultado.desc)}" data-f="resultado.desc"${roRes}></label></div></div>
+      <div class="card"><h3>Briefing</h3><textarea placeholder="O que o cliente quer comunicar, público, ofertas e tom da campanha" data-f="dados.briefing"${ro}>${esc(d.briefing)}</textarea></div>`;
     return `<div class="layout"><div>${info}${pieces}${grids}${results}</div><div class="card sum" id="sum">${summary(c)}</div></div>`;
   }
 
@@ -126,10 +126,10 @@
     let tIns = 0, tSub = 0;
     const rows = g.items.map(it => { const c = S.itemCalc(it); tIns += c.ins; tSub += c.sub;
       return `<tr><td><select data-f="piece" ${a(it)}><option value=""></option>${pi.dados.pieces.map((p, i) => `<option value="${p.id}"${it.piece === p.id ? ' selected' : ''}>${String.fromCharCode(65 + i)} · ${esc(p.name)}</option>`).join('')}</select></td>
-        <td><input class="w" list="dl-f1" value="${esc(it.f1)}" data-f="f1" ${a(it)}></td><td><input class="w" style="width:124px" list="dl-f2" value="${esc(it.f2)}" data-f="f2" ${a(it)}></td>
-        ${days.map(d => `<td><input class="day${it.days[d] ? ' has' : ''}" inputmode="numeric" value="${it.days[d] || ''}" data-day="${d}" ${a(it)}></td>`).join('')}
-        <td class="r" id="ins-${it.id}">${c.ins}</td><td><input class="n" value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" ${a(it)}></td>
-        <td><span class="duo"><input value="${nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" ${a(it)}><select data-f="disc.type" ${a(it)}><option value="pct"${it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${it.disc.type === 'brl' ? ' selected' : ''}>R$</option></select></span></td>
+        <td><input class="w" list="dl-f1" placeholder="Escolha ou digite" value="${esc(it.f1)}" data-f="f1" ${a(it)}></td><td><input class="w" style="width:124px" list="dl-f2" placeholder="Formato" value="${esc(it.f2)}" data-f="f2" ${a(it)}></td>
+        ${days.map(d => `<td><input class="day${it.days[d] ? ' has' : ''}" inputmode="numeric" data-mask="int" value="${it.days[d] || ''}" data-day="${d}" ${a(it)}></td>`).join('')}
+        <td class="r" id="ins-${it.id}">${c.ins}</td><td><input class="n" value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)}></td>
+        <td><span class="duo"><input value="${nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)}><select data-f="disc.type" ${a(it)}><option value="pct"${it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${it.disc.type === 'brl' ? ' selected' : ''}>R$</option></select></span></td>
         <td class="r" id="sub-${it.id}">${brl(c.sub)}</td><td style="text-align:center"><input type="checkbox"${it.bonus ? ' checked' : ''} data-f="bonus" data-k="bool" ${a(it)}></td>
         <td>${ro ? '' : `<button class="x" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}" title="Remover item">×</button>`}</td></tr>`; }).join('');
     const head = days.map(d => { const w = new Date(y, m - 1, d).getDay(); return `<th class="d${w === 0 || w === 6 ? ' we' : ''}">${WD[w]}<br>${String(d).padStart(2, '0')}</th>`; }).join('');

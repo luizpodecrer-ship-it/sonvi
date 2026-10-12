@@ -15,9 +15,9 @@
     if (!S.me) {
       const criar = modo === 'criar';
       return moldura(`<form class="auth" data-form="auth">${S.logo('logo')}<h1>${criar ? 'Criar acesso' : 'Entrar'}</h1><p class="muted">${criar ? 'Crie o seu acesso. A direção libera a sua rádio em seguida.' : 'Bem-vindo de volta. Use o e-mail e a senha do seu cadastro.'}</p>
-        ${criar ? '<label class="f">Nome<input name="nome" required autocomplete="name"></label>' : ''}
-        <label class="f">E-mail<input name="email" type="email" required autocomplete="email"></label>
-        <label class="f">Senha<input name="senha" type="password" required minlength="${criar ? 8 : 6}" autocomplete="${criar ? 'new-password' : 'current-password'}"></label>
+        ${criar ? '<label class="f">Nome<input name="nome" required autocomplete="name" placeholder="Seu nome completo"></label>' : ''}
+        <label class="f">E-mail<input name="email" type="email" required autocomplete="email" placeholder="seu@email.com.br"></label>
+        <label class="f">Senha<input name="senha" type="password" required minlength="${criar ? 8 : 6}" autocomplete="${criar ? 'new-password' : 'current-password'}" placeholder="${criar ? 'Mínimo de 8 caracteres' : 'Sua senha'}"></label>
         ${criar ? '<p class="muted small" style="margin-top:-6px">Mínimo de 8 caracteres, com letras e números.</p>' : ''}
         <button class="btn pri">${criar ? 'Criar conta' : 'Entrar'}</button>
         <a data-act="authModo">${criar ? 'Já tenho conta' : 'Criar conta'}</a></form>`);
