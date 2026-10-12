@@ -19,12 +19,13 @@
     const content = document.getElementById('content'), bar = document.getElementById('bar');
     const acesso = S.carregando ? `<div class="carregando"><div style="display:grid;justify-items:center;gap:18px"><img src="img/simbolo.svg" alt="SONVI"><div class="eq" aria-label="Carregando"><span></span><span></span><span></span><span></span><span></span></div></div></div>` : S.telaDeAcesso();
     document.body.classList.toggle('fora', !!acesso);
-    if (acesso) { document.getElementById('side').innerHTML = ''; bar.innerHTML = ''; content.innerHTML = acesso; document.title = 'SONVI'; ultima = ''; return; }
+    if (acesso) { S.temaRadio(null); document.getElementById('side').innerHTML = ''; bar.innerHTML = ''; content.innerHTML = acesso; document.title = 'SONVI'; ultima = ''; return; }
 
     const semVeiculo = !S.ui.vehicleId, itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || n[0] === 'admin'));
     let { view, id } = S.route();
     if (!itens.some(n => n[0] === view) && view !== 'pi') view = itens[0][0];
     if (semVeiculo) view = 'admin';
+    S.temaRadio(semVeiculo ? null : S.veh());
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, veh = semVeiculo ? null : S.veh();
     document.getElementById('side').innerHTML = `<a class="brand" data-go="/painel" aria-label="SONVI · Painel">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" alt=""></a>
       ${semVeiculo ? '' : `<label class="veh" title="Trocar de rádio">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc([veh.frequencia, veh.cidade].filter(Boolean).join(' · ') || 'Rádio selecionada')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Rádio">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}

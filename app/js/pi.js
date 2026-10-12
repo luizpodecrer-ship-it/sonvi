@@ -78,7 +78,8 @@
   // ---------- peças e cores ----------
   const COR = ['#0055ff', '#7c3aed', '#f59e0b', '#10b981', '#ef4444', '#0ea5e9', '#ec4899', '#64748b'];
   const pecaIdx = (pi, id) => pi.dados.pieces.findIndex(p => p.id === id);
-  const corPeca = (pi, id) => { const i = pecaIdx(pi, id); return i < 0 ? 'var(--ink-3)' : COR[i % COR.length]; };
+  // A primeira peça usa a cor da rádio
+  const corPeca = (pi, id) => { const i = pecaIdx(pi, id); return i < 0 ? 'var(--ink-3)' : i === 0 ? 'var(--accent)' : COR[i % COR.length]; };
   const selo = (pi, id, tam = '') => `<span class="pc${tam}" style="--pc:${corPeca(pi, id)}">${letter(pi, id) || '?'}</span>`;
   const mesExt = p => { const [y, m] = p.split('-').map(Number); return ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][m - 1] + ' de ' + y; };
 
@@ -437,7 +438,7 @@
     const box = (title, nome, doc, end, email) => `<div class="box"><b>${title}:</b> ${esc(nome)}<br>${doc ? 'CNPJ/CPF: ' + esc(doc) + '<br>' : ''}${end ? esc(end) + '<br>' : ''}${email ? esc(email) : ''}</div>`;
     const bills = S.billingEntries(pi, c).filter(e => o.commission || e.what !== 'Comissão').flatMap(e => S.parcels(pi, e.value).map(p => `<tr><td>${esc(e.from)} → ${esc(e.to)}</td><td>${esc(e.what)}</td><td>${p.n}</td><td>${dfmt(p.due)}</td><td class="r">${nfmt(p.value) || '0,00'}</td><td>${esc(b.method)}</td></tr>`)).join('');
     const signs = [o.signClient && (cli.contato_assina || cli.nome), o.signVehicle && v.nome, o.signAgency && ag && ag.nome].filter(Boolean);
-    document.getElementById('print').innerHTML = `<h1 style="border-left:6px solid #0055ff;padding-left:8px">${esc(v.nome)} · Pedido de Inserção ${S.piNo(pi)}</h1><div>${esc(pi.titulo)}</div>
+    document.getElementById('print').innerHTML = `<div class="cab">${v.logo ? `<img src="${v.logo}" alt="">` : ''}<div><h1 style="border-left:6px solid ${v.cor || S.COR_PADRAO};padding-left:8px">${esc(v.nome)} · Pedido de Inserção ${S.piNo(pi)}</h1><div>${esc(pi.titulo)}</div></div></div>
       <div class="meta"><div><b>Anunciante:</b> ${esc(cli.nome)}</div><div><b>Agência:</b> ${ag ? esc(ag.nome) : 'Venda direta'}</div><div><b>Data:</b> ${dfmt(o.date)}</div><div><b>Projeto:</b> ${esc(pi.projeto)}</div><div><b>Consultor:</b> ${esc(S.usuario(pi.consultor_id))}</div><div><b>Total de inserções:</b> ${c.ins}</div></div>
       <div><b>Peças:</b> ${pi.dados.pieces.map((p, i) => `<b>${String.fromCharCode(65 + i)}</b> - ${esc(p.name)}`).join(' &nbsp; ')}</div>
       ${grids}

@@ -21,11 +21,12 @@
     admAba: d => { aba = d.tab; S.render(); },
     admVeiculo: d => { const v = d.id ? S.veh(d.id) : {};
       S.form(v.id ? esc(v.nome) : 'Novo veículo', [
+        { html:S.campoLogo(v, !!v.id && !d.editar) },
         { k:'nome', label:'Nome da rádio', req:true, ph:'Ex.: Rádio Verde' }, { k:'sigla', label:'Sigla do PI', req:true, ph:'Ex.: VERDE' },
         { k:'razao_social', label:'Razão social' }, { k:'cnpj', label:'CNPJ' }, { k:'inscricao_estadual', label:'Inscrição estadual' }, { k:'frequencia', label:'Frequência' },
         { k:'rede_afiliada', label:'Rede afiliada' }, { k:'cidade', label:'Cidade / UF' }, { k:'endereco', label:'Endereço', full:true },
         { k:'telefone', label:'Telefone' }, { k:'email', label:'E-mail', type:'email' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
-        f => S.run(async () => { const row = Object.assign({}, f, { sigla:f.sigla.toUpperCase().trim() }); if (v.id) row.id = v.id;
+        f => S.run(async () => { const row = Object.assign({}, f, { sigla:f.sigla.toUpperCase().trim(), logo:f.logo || null, cor:(f.cor || S.COR_PADRAO).toLowerCase() }); if (v.id) row.id = v.id;
           const novo = await S.salvar('veiculos', row); if (!v.id) { S.ui.vehicleId = novo.id; await S.carregarVeiculo(); } }, 'Veículo salvo'), 'Salvar', { editar:!!d.editar }); },
     admUsuario: d => { const u = S.db.usuarios.find(x => x.id === d.id), atual = v => (S.db.vinculos.find(x => x.usuario_id === u.id && x.veiculo_id === v.id) || {}).perfil || '';
       S.form(esc(u.nome || u.email), [

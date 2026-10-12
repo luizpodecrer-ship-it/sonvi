@@ -45,13 +45,88 @@ S.ICON = {
   programacao:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
   mais:'<path d="M12 5v14M5 12h14"/>', check:'<path d="M5 12l5 5L20 7"/>', voltar:'<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
   baixar:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', seta:'<path d="M9 6l6 6-6 6"/>', baixo:'<path d="M6 9l6 6 6-6"/>', rota:'<path d="M3 11l19-9-9 19-2-8z"/>',
-  olho:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', editar:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>', doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>', whats:'<path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 10c.5 2 2 3.5 4 4l1.2-1.2 2 .8-.3 1.6c-3.5.3-7-3.2-6.7-6.7L10.8 8.2l.8 2z"/>', lixo:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>', copia:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>', abrir:'<path d="M14 3h7v7M10 14L21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>', mais3:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>', relogio:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/>' };
+  imagem:'<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>', olho:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', editar:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>', doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>', whats:'<path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 10c.5 2 2 3.5 4 4l1.2-1.2 2 .8-.3 1.6c-3.5.3-7-3.2-6.7-6.7L10.8 8.2l.8 2z"/>', lixo:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>', copia:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>', abrir:'<path d="M14 3h7v7M10 14L21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>', mais3:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>', relogio:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/>' };
 S.svg = (k, size) => `<svg viewBox="0 0 24 24"${size ? ` width="${size}" height="${size}"` : ''} aria-hidden="true">${S.ICON[k]}</svg>`;
 // Selo da rádio: a sigla quando é curta (CBN), senão as iniciais do nome sem "Rádio" (Rádio Verde → VE)
 S.selo = v => { const sg = String(v.sigla || '').trim(); if (sg && sg.length <= 3) return sg.toUpperCase();
   const ps = String(v.nome || '').replace(/\b(r[áa]dio|fm|am)\b/gi, '').trim().split(/\s+/).filter(Boolean);
   return (ps.length > 1 ? ps[0][0] + ps[1][0] : (ps[0] || sg || '?').slice(0, 2)).toUpperCase(); };
-S.vav = v => `<span class="vav" style="background:var(--accent)">${S.esc(S.selo(v))}</span>`;
+// Selo da rádio: o logo dela, ou a sigla sobre a cor dela
+S.vav = v => v && v.logo ? `<span class="vav img"><img src="${v.logo}" alt=""></span>` : `<span class="vav" style="background:${v && v.cor && v.cor !== S.COR_PADRAO ? v.cor : 'var(--accent)'}">${S.esc(S.selo(v || {}))}</span>`;
+
+// ---------- cor da rádio: personaliza o sistema todo ----------
+S.COR_PADRAO = '#0055ff';
+const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const hex = c => '#' + c.map(x => Math.round(Math.max(0, Math.min(255, x))).toString(16).padStart(2, '0')).join('');
+const mistura = (a, b, t) => { const x = rgb(a), y = rgb(b); return hex(x.map((v, i) => v + (y[i] - v) * t)); };
+const lum = h => { const [r, g, b] = rgb(h).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * r + .7152 * g + .0722 * b; };
+const contraste = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+// Escurece (ou clareia) a cor só o necessário para o texto continuar legível
+const ajusta = (c, fundo, min, para) => { let x = c; for (let i = 0; i < 30 && contraste(x, fundo) < min; i++) x = mistura(x, para, .08); return x; };
+S.temaRadio = v => {
+  const cor = v && /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor.toLowerCase() : S.COR_PADRAO;
+  let st = document.getElementById('tema-radio');
+  if (cor === S.COR_PADRAO) { if (st) st.remove(); return; }
+  if (st && st.dataset.cor === cor) return;
+  if (!st) { st = document.createElement('style'); st.id = 'tema-radio'; document.head.appendChild(st); }
+  const ac = ajusta(cor, '#ffffff', 3, '#000000'), tx = ajusta(cor, '#ffffff', 4.5, '#000000'), txd = ajusta(cor, '#121316', 4.5, '#ffffff'), [r, g, b] = rgb(ac);
+  st.dataset.cor = cor;
+  st.textContent = `:root{--accent:${ac};--accent-hover:${mistura(ac, '#000000', .14)};--accent-2:${mistura(ac, '#ffffff', .3)};--accent-ink:#fff;--accent-soft:${mistura(ac, '#ffffff', .9)};--accent-text:${tx};--bar-soft:${mistura(ac, '#ffffff', .78)};--blue:${tx}}
+@media (prefers-color-scheme: dark){:root{--accent-hover:${mistura(ac, '#ffffff', .12)};--accent-soft:rgba(${r},${g},${b},.24);--accent-text:${txd};--bar-soft:${mistura(ac, '#121316', .65)};--blue:${txd}}}`;
+};
+
+// ---------- logo da rádio: quadrado 500 × 500, e as cores tiradas dele ----------
+S.coresDoLogo = img => {
+  const n = 64, c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'); x.drawImage(img, 0, 0, n, n);
+  const d = x.getImageData(0, 0, n, n).data, cx = {};
+  for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 160) continue;
+    const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, dd = mx - mn;
+    const sat = dd ? dd / (1 - Math.abs(2 * l - 1)) : 0; if (sat < .28 || l > .9 || l < .1) continue;
+    const h = dd ? (mx === r ? ((g - b) / dd + 6) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4) * 60 : 0, k = Math.round(h / 15) % 24;
+    const cx_ = cx[k] || (cx[k] = { n:0, q:0, r:0, g:0, b:0 }); cx_.n += sat; cx_.q++; cx_.r += d[i]; cx_.g += d[i + 1]; cx_.b += d[i + 2]; }
+  const cores = Object.values(cx).sort((a, b) => b.n - a.n).filter(c => c.n > 6).map(c => hex([c.r, c.g, c.b].map(v => v / c.q)));
+  return cores;
+};
+S.lerLogo = arquivo => new Promise((ok, erro) => {
+  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/.test(arquivo.type)) return erro(new Error('Use uma imagem PNG, JPG, WebP ou SVG.'));
+  const url = URL.createObjectURL(arquivo), img = new Image();
+  img.onerror = () => { URL.revokeObjectURL(url); erro(new Error('Não foi possível abrir essa imagem.')); };
+  img.onload = () => {
+    const w = img.naturalWidth || 500, h = img.naturalHeight || 500, gerar = lado => { const c = document.createElement('canvas'); c.width = c.height = lado;
+      const e = Math.min(lado / w, lado / h); c.getContext('2d').drawImage(img, (lado - w * e) / 2, (lado - h * e) / 2, w * e, h * e);
+      let u = c.toDataURL('image/webp', .9); if (!u.startsWith('data:image/webp')) u = c.toDataURL('image/png'); return u; };
+    let logo = gerar(500); if (logo.length > 580000) logo = gerar(360);
+    URL.revokeObjectURL(url); ok({ logo, cores:S.coresDoLogo(img), quadrado:Math.abs(w - h) <= Math.max(w, h) * .02, w, h });
+  };
+  img.src = url;
+});
+// Campo do formulário da rádio: prévia do logo, botões e as cores encontradas nele
+S.campoLogo = (v, travado) => {
+  const t = travado ? ' disabled data-trava="1"' : '', cor = v.cor || S.COR_PADRAO;
+  return `<div class="logo-campo" style="grid-column:1/-1">
+    <div class="logo-prev">${v.logo ? `<img src="${v.logo}" alt="Logo da rádio">` : `<span>${S.svg('imagem', 26)}</span>`}</div>
+    <div class="logo-info"><b>Logo da rádio</b><small class="muted">Quadrado, 500 × 500 px (PNG, JPG ou WebP). Sai no PI e a cor dele personaliza o sistema.</small>
+      <div class="row"><button type="button" class="btn sm" data-act="logoEscolher"${t}>${S.svg('baixar')}${v.logo ? 'Trocar logo' : 'Enviar logo'}</button>${v.logo ? `<button type="button" class="btn sm" data-act="logoRemover"${t}>Remover</button>` : ''}</div>
+      <div class="cores" role="radiogroup" aria-label="Cor da rádio"><span class="muted small">Cor</span>${[...new Set([cor, ...(v._cores || [])])].slice(0, 6).map(c => `<button type="button" class="cor${c === cor ? ' on' : ''}" style="background:${c}" data-act="logoCor" data-cor="${c}" role="radio" aria-checked="${c === cor}" aria-label="Cor ${c}" title="${c}"${t}></button>`).join('')}</div>
+      <small class="aviso" id="logoAviso"></small></div>
+    <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" id="logoArquivo" hidden>
+    <input type="hidden" name="logo" value="${S.esc(v.logo || '')}"><input type="hidden" name="cor" value="${S.esc(cor)}"></div>`;
+};
+const logoRedesenha = v => { const el = document.querySelector('#dlg .logo-campo'); if (!el) return; el.outerHTML = S.campoLogo(v, false); };
+const logoAtual = () => { const f = document.querySelector('#dlg form'); return { logo:f.logo.value, cor:f.cor.value, _cores:JSON.parse(f.dataset.cores || '[]') }; };
+Object.assign(S.actions, {
+  logoEscolher: () => document.getElementById('logoArquivo').click(),
+  logoRemover: () => { const f = document.querySelector('#dlg form'); f.dataset.cores = '[]'; logoRedesenha({ logo:'', cor:S.COR_PADRAO }); },
+  logoCor: d => { const v = logoAtual(); v.cor = d.cor; logoRedesenha(v); },
+});
+document.addEventListener('change', async e => {
+  if (e.target.id !== 'logoArquivo' || !e.target.files[0]) return;
+  try { const r = await S.lerLogo(e.target.files[0]), f = document.querySelector('#dlg form');
+    const cores = r.cores.length ? r.cores : [S.COR_PADRAO, '#0a0b0d']; f.dataset.cores = JSON.stringify(cores);
+    logoRedesenha({ logo:r.logo, cor:cores[0], _cores:cores });
+    if (!r.quadrado) document.getElementById('logoAviso').textContent = `A imagem tem ${r.w} × ${r.h} px; ela foi centralizada num quadrado. O ideal é 500 × 500 px.`;
+  } catch (err) { const a = document.getElementById('logoAviso'); if (a) a.textContent = err.message; }
+});
 
 // ---------- consultas ao que está carregado ----------
 S.veh = id => S.db.veiculos.find(v => v.id === (id || S.ui.vehicleId));

@@ -33,6 +33,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - Usar sempre as variáveis e classes de `app/css/sonvi.css` (`.card`, `.hd`, `.cols`, `.btn`, `.pill`, `.seg`, `.tile`/`.tile.hero`, `.bars`, `.stack`, `.legend`, `.prog`, `.people`, `.list`, `.steps`, `.next`, `.agenda`); ícones por `S.svg(nome)` e selo da rádio por `S.vav(veiculo)`. Não criar cores ou estilos soltos nos módulos.
 - Movimento: os blocos entram em sequência só quando a tela muda (classe `entra`, controlada em `app.js`), gráficos crescem, status "Na OPEC" pulsa. Respeitar "reduzir movimento" do sistema.
 - Claro e escuro automáticos.
+- Cor da rádio: cada veículo tem logo quadrado (500 × 500, coluna `logo` em `veiculos`) e uma `cor` tirada do logo. `S.temaRadio` troca o `--accent` do sistema pela cor da rádio selecionada (ajustada para manter contraste); o logo e a cor saem no PI. Sem logo, fica o azul SONVI. Cores de status continuam fixas.
 - Todo o sistema é responsivo, sem exceção: cada tela precisa funcionar bem no celular (375 px), em notebook (1366–1440 px) e em tela grande (1920 px). No celular a barra lateral vira barra de abas flutuante, tabelas viram listas ou cartões e grades de dias viram calendário; em telas menores o conteúdo se reorganiza, nunca fica cortado.
 
 ## Publicar
