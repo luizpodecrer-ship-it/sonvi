@@ -45,13 +45,13 @@ S.ICON = {
   programacao:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
   mais:'<path d="M12 5v14M5 12h14"/>', check:'<path d="M5 12l5 5L20 7"/>', voltar:'<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
   baixar:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', seta:'<path d="M9 6l6 6-6 6"/>', baixo:'<path d="M6 9l6 6 6-6"/>', rota:'<path d="M3 11l19-9-9 19-2-8z"/>',
-  doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>', relogio:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/>' };
+  editar:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>', doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>', relogio:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/>' };
 S.svg = (k, size) => `<svg viewBox="0 0 24 24"${size ? ` width="${size}" height="${size}"` : ''} aria-hidden="true">${S.ICON[k]}</svg>`;
 // Selo da rádio: a sigla quando é curta (CBN), senão as iniciais do nome sem "Rádio" (Rádio Verde → VE)
 S.selo = v => { const sg = String(v.sigla || '').trim(); if (sg && sg.length <= 3) return sg.toUpperCase();
   const ps = String(v.nome || '').replace(/\b(r[áa]dio|fm|am)\b/gi, '').trim().split(/\s+/).filter(Boolean);
   return (ps.length > 1 ? ps[0][0] + ps[1][0] : (ps[0] || sg || '?').slice(0, 2)).toUpperCase(); };
-S.vav = v => `<span class="vav" style="background:${S.esc(v.cor || '#0055ff')}">${S.esc(S.selo(v))}</span>`;
+S.vav = v => `<span class="vav" style="background:var(--accent)">${S.esc(S.selo(v))}</span>`;
 
 // ---------- consultas ao que está carregado ----------
 S.veh = id => S.db.veiculos.find(v => v.id === (id || S.ui.vehicleId));
@@ -70,15 +70,26 @@ S.go = path => { if (location.hash === '#' + path) S.render(); else location.has
 // ---------- diálogo, formulário e aviso ----------
 S.dialog = (html, onOk) => { const d = document.getElementById('dlg'); d.innerHTML = `<form method="dialog">${html}</form>`; d.onclose = () => { if (d.returnValue === 'ok' && onOk) onOk(Object.fromEntries(new FormData(d.querySelector('form')))); }; S.mascarar(d); d.showModal(); };
 // Formulário genérico: campos = [{ k, label, type, options, req, full }]
-S.form = (title, fields, v, onOk, ok = 'Salvar') => {
+// Cadastro já existente abre só para consulta, com o botão "Editar"; um novo já abre editável.
+S.form = (title, fields, v, onOk, ok = 'Salvar', opts = {}) => {
+  const ver = !!v.id && !opts.editar, trava = ver ? ' disabled data-trava="1"' : '';
   const inp = f => { const val = v[f.k] ?? '', m = f.mask || S.CAMPO_MASCARA[f.k], ph = f.ph || S.CAMPO_EXEMPLO[f.k] || (m && S.MASK[m].ph) || '';
-    const a = `name="${f.k}"${f.req ? ' required' : ''}${m ? ` data-mask="${m}" inputmode="${S.MASK[m].modo}" autocomplete="off"` : ''}${ph && !['select', 'checkbox', 'color', 'date', 'datetime-local'].includes(f.type) ? ` placeholder="${S.esc(ph)}"` : ''}`;
+    const a = `name="${f.k}"${f.req ? ' required' : ''}${trava}${m ? ` data-mask="${m}" inputmode="${S.MASK[m].modo}" autocomplete="off"` : ''}${ph && !['select', 'checkbox', 'color', 'date', 'datetime-local'].includes(f.type) ? ` placeholder="${S.esc(ph)}"` : ''}`;
     if (f.type === 'select') return `<select ${a}>${f.options.map(([k, n]) => `<option value="${S.esc(k)}"${String(k) === String(val) ? ' selected' : ''}>${S.esc(n)}</option>`).join('')}</select>`;
     if (f.type === 'textarea') return `<textarea ${a}>${S.esc(val)}</textarea>`;
     if (f.type === 'checkbox') return `<input type="checkbox" ${a}${val ? ' checked' : ''}>`;
     return `<input type="${f.type || 'text'}" ${a} value="${S.esc(val)}"${f.id ? ` id="${f.id}"` : ''}>`; };
   const row = f => f.html || `<label class="f${f.type === 'checkbox' ? ' chk' : ''}"${f.full || f.type === 'textarea' ? ' style="grid-column:1/-1"' : ''}>${f.type === 'checkbox' ? inp(f) + S.esc(f.label) : S.esc(f.label) + inp(f)}</label>`;
-  S.dialog(`<h2>${title}</h2><div class="g2">${fields.map(row).join('')}</div><div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${ok}</button></div>`, onOk);
+  S.dialog(`<h2>${title}</h2><div class="g2">${fields.map(row).join('')}</div>
+    <div class="row so-ver"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Fechar</button><button type="button" class="btn pri" data-act="formEditar">${S.svg('editar')}Editar</button></div>
+    <div class="row so-editar"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${ok}</button></div>`, onOk);
+  if (ver) document.querySelector('#dlg form').classList.add('ver');
+};
+// Libera os campos do cadastro aberto para edição
+S.actions.formEditar = () => {
+  const f = document.querySelector('#dlg form'); f.classList.remove('ver');
+  f.querySelectorAll('[data-trava]').forEach(el => { el.disabled = false; el.removeAttribute('data-trava'); });
+  const p = f.querySelector('input:not([type=checkbox]), select, textarea'); if (p) p.focus();
 };
 // ---------- máscaras dos campos ----------
 // Cada campo com data-mask é formatado enquanto a pessoa digita e mostra o exemplo em cinza (placeholder).

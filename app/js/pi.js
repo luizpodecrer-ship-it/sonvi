@@ -161,20 +161,36 @@
 
   Object.assign(S.actions, {
     piTab: d => { S.ui.tab = d.tab; S.render(); },
+    // Novo PI: o cliente pode ser escolhido da lista ou cadastrado ali mesmo, sem sair da tela
     piNew: () => {
-      const clientes = S.pessoas('cliente');
-      if (!clientes.length) { S.toast('Cadastre um cliente antes de criar o PI.'); return S.go('/clientes'); }
+      const clientes = S.pessoas('cliente'), NOVO = '__novo';
+      const novoCli = `<div id="novoCli" class="caixa" style="grid-column:1/-1;display:none"><div class="g2">
+        <label class="f" style="grid-column:1/-1">Nome do cliente<input name="novo_nome" placeholder="Ex.: Supermercado Três Irmãos" disabled></label>
+        <label class="f">CNPJ / CPF<input name="novo_doc" data-mask="doc" inputmode="numeric" autocomplete="off" placeholder="00.000.000/0000-00" disabled></label>
+        <label class="f">Telefone<input name="novo_tel" data-mask="tel" inputmode="tel" autocomplete="off" placeholder="(65) 99999-9999" disabled></label></div>
+        <p class="muted small" style="margin-top:10px">O cliente fica salvo nesta rádio. Os demais dados você completa depois em Clientes.</p></div>`;
       S.form(`Novo PI · ${esc(S.veh().nome)}`, [
         { k:'titulo', label:'Título', req:true, full:true },
-        { k:'cliente_id', label:'Cliente', type:'select', req:true, options:[['', 'Escolha o cliente'], ...clientes.map(p => [p.id, p.nome])] },
+        { k:'cliente_id', label:'Cliente', type:'select', req:true, options:[['', 'Escolha o cliente'], ...clientes.map(p => [p.id, p.nome]), [NOVO, '+ Cadastrar novo cliente']] },
         { k:'agencia_id', label:'Agência', type:'select', options:[['', 'Venda direta'], ...S.pessoas('agencia').map(p => [p.id, p.nome])] },
-        { k:'projeto', label:'Projeto / campanha', full:true }, { k:'briefing', label:'Briefing', type:'textarea' }], {},
+        { html:novoCli },
+        { k:'projeto', label:'Projeto / campanha', full:true }, { k:'briefing', label:'Briefing', type:'textarea', ph:'O que o cliente quer comunicar, público, ofertas e tom da campanha' }], { cliente_id:clientes.length ? '' : NOVO },
         v => S.run(async () => {
+          if (v.cliente_id === NOVO) { // cadastra o cliente antes de criar o PI (ou usa o que já tem o mesmo CNPJ/CPF)
+            const doc = (v.novo_doc || '').trim(), igual = doc && S.pessoas('cliente').find(p => (p.documento || '').replace(/\D/g, '') === doc.replace(/\D/g, ''));
+            const cli = igual || await S.salvar('pessoas', { veiculo_id:S.ui.vehicleId, tipo:'cliente', pessoa:doc.replace(/\D/g, '').length === 11 ? 'pf' : 'pj', nome:v.novo_nome.trim(), documento:doc, telefone:v.novo_tel || '', situacao:'ativo', consultor_id:S.pode('consultor') ? S.me.id : null });
+            v.cliente_id = cli.id;
+          }
           const ag = S.pessoa(v.agencia_id) || S.pessoa((S.pessoa(v.cliente_id) || {}).agencia_id);
           if (ag && !v.agencia_id) v.agencia_id = ag.id; // cliente atendido por agência já entra com ela
           const dados = S.piNorm({ dados:{ briefing:v.briefing, commission:{ type:'pct', value:ag ? num(ag.comissao) : 0 }, grids:[{ id:uid(), period:today().slice(0, 7), items:[blankItem()] }] } }).dados;
           const pi = S.piNorm(await criar(v, dados)); S.db.pis.push(pi); S.ui.tab = 'detalhes'; location.hash = '/pi/' + pi.id;
-        }, 'PI criado'), 'Criar e editar');
+        }, 'PI criado'), 'Criar PI');
+      // Mostra os campos do cliente novo só quando essa opção está escolhida
+      const sel = document.querySelector('#dlg [name="cliente_id"]'), box = document.getElementById('novoCli');
+      const alterna = () => { const on = sel.value === NOVO; box.style.display = on ? '' : 'none';
+        box.querySelectorAll('input').forEach(i => { i.disabled = !on; }); box.querySelector('[name="novo_nome"]').required = on; if (on && document.activeElement === sel) box.querySelector('input').focus(); };
+      sel.addEventListener('change', alterna); alterna();
     },
     piMore: () => { const pi = cur(), gestor = S.pode('diretor', 'gerente');
       S.dialog(`<h2>${S.piNo(pi)}</h2><div class="row"><button class="btn" value="dup">Duplicar pedido</button>${gestor && !['cancelado', 'faturado'].includes(pi.status) ? '<button class="btn danger" value="cancelar">Cancelar pedido</button>' : ''}${pi.status === 'rascunho' ? '<button class="btn danger" value="excluir">Excluir rascunho</button>' : ''}<span class="grow"></span><button class="btn" value="x">Fechar</button></div>`);
@@ -239,7 +255,7 @@
     const box = (title, nome, doc, end, email) => `<div class="box"><b>${title}:</b> ${esc(nome)}<br>${doc ? 'CNPJ/CPF: ' + esc(doc) + '<br>' : ''}${end ? esc(end) + '<br>' : ''}${email ? esc(email) : ''}</div>`;
     const bills = S.billingEntries(pi, c).filter(e => o.commission || e.what !== 'Comissão').flatMap(e => S.parcels(pi, e.value).map(p => `<tr><td>${esc(e.from)} → ${esc(e.to)}</td><td>${esc(e.what)}</td><td>${p.n}</td><td>${dfmt(p.due)}</td><td class="r">${nfmt(p.value) || '0,00'}</td><td>${esc(b.method)}</td></tr>`)).join('');
     const signs = [o.signClient && (cli.contato_assina || cli.nome), o.signVehicle && v.nome, o.signAgency && ag && ag.nome].filter(Boolean);
-    document.getElementById('print').innerHTML = `<h1 style="border-left:6px solid ${esc(v.cor)};padding-left:8px">${esc(v.nome)} · Pedido de Inserção ${S.piNo(pi)}</h1><div>${esc(pi.titulo)}</div>
+    document.getElementById('print').innerHTML = `<h1 style="border-left:6px solid #0055ff;padding-left:8px">${esc(v.nome)} · Pedido de Inserção ${S.piNo(pi)}</h1><div>${esc(pi.titulo)}</div>
       <div class="meta"><div><b>Anunciante:</b> ${esc(cli.nome)}</div><div><b>Agência:</b> ${ag ? esc(ag.nome) : 'Venda direta'}</div><div><b>Data:</b> ${dfmt(o.date)}</div><div><b>Projeto:</b> ${esc(pi.projeto)}</div><div><b>Consultor:</b> ${esc(S.usuario(pi.consultor_id))}</div><div><b>Total de inserções:</b> ${c.ins}</div></div>
       <div><b>Peças:</b> ${pi.dados.pieces.map((p, i) => `<b>${String.fromCharCode(65 + i)}</b> - ${esc(p.name)}`).join(' &nbsp; ')}</div>
       ${grids}
