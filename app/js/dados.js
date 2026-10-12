@@ -51,7 +51,7 @@
   // Tudo o que pertence ao veículo selecionado. O banco só devolve o que o perfil pode ver.
   S.carregarVeiculo = async () => {
     const v = S.ui.vehicleId;
-    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], pis:[], agenda:[], lancamentos:[], hist:{} });
+    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], pis:[], agenda:[], lancamentos:[], hist:{}, midias:{} });
     if (!v) { S.perfil = S.me && S.me.diretor ? 'diretor' : null; return; }
     S.perfil = S.me.diretor ? 'diretor' : (S.db.vinculos.find(x => x.usuario_id === S.me.id && x.veiculo_id === v) || {}).perfil || null;
     const de = t => q(S.sb.from(t).select('*').eq('veiculo_id', v));

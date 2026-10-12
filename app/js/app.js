@@ -26,14 +26,16 @@
     if (!itens.some(n => n[0] === view) && view !== 'pi') view = itens[0][0];
     if (semVeiculo) view = 'admin';
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, veh = semVeiculo ? null : S.veh();
-    document.getElementById('side').innerHTML = `<a class="brand" data-go="/painel" aria-label="SONVI · Painel">${S.logo()}</a>
+    document.getElementById('side').innerHTML = `<a class="brand" data-go="/painel" aria-label="SONVI · Painel">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" alt=""></a>
       ${semVeiculo ? '' : `<label class="veh" title="Trocar de rádio">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc([veh.frequencia, veh.cidade].filter(Boolean).join(' · ') || 'Rádio selecionada')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Rádio">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}
-      <nav aria-label="Menu principal">${itens.map(([k, n]) => `<a data-go="/${k}" class="${active === k ? 'on' : ''}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}</a>`).join('')}
+      <nav aria-label="Menu principal">${itens.map(([k, n]) => `<a data-go="/${k}" title="${n}" class="${active === k ? 'on' : ''}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}</a>`).join('')}
       <div class="sec">Em breve</div>${SOON.map(n => `<span class="soon">${S.svg('programacao')}${n}</span>`).join('')}</nav>
       <div class="eu"><span class="av" aria-hidden="true">${esc(S.iniciais(S.me.nome || S.me.email))}</span><div><b>${esc(S.me.nome || S.me.email)}</b><small>${S.PERFIS[S.perfil] || ''}${S.perfil === 'diretor' ? ' · todas as rádios' : ''}</small></div><button class="btn sm" data-act="sair">Sair</button></div>`;
     const v = S.views[view](id), chave = `${view}/${id || ''}/${S.ui.vehicleId}/${S.ui.tab}`;
     const anima = chave !== ultima; ultima = chave;
     bar.classList.toggle('entra', anima); content.classList.toggle('entra', anima);
+    // O PI usa a largura toda da tela; a barra lateral fica só com os ícones
+    const largo = view === 'pi'; bar.classList.toggle('largo', largo); content.classList.toggle('largo', largo); document.body.classList.toggle('compacto', largo);
     bar.innerHTML = `<h1>${v.title}</h1>${v.actions}`;
     content.innerHTML = v.body;
     document.title = 'SONVI' + (semVeiculo ? '' : ' · ' + veh.nome);
@@ -55,6 +57,7 @@
   document.addEventListener('change', async e => {
     const el = e.target, d = el.dataset;
     if (el.closest('dialog')) return;
+    if (d.ui === 'vehicleId' && S.piEd && S.piEd.sujo) { el.value = S.ui.vehicleId; return S.toast('Salve ou cancele as alterações do PI antes de trocar de rádio.'); }
     if (d.ui === 'vehicleId') { // troca de rádio: busca na nuvem só os dados dela
       S.ui.vehicleId = el.value; S.ui.q = '';
       if (S.route().view === 'pi') location.hash = '/pis';
@@ -66,6 +69,9 @@
     S.changes.some(handler => handler(el, d));
   });
   window.addEventListener('hashchange', () => { if (!S.carregando) S.render(); window.scrollTo(0, 0); });
+  // Celular ou computador: algumas telas (como o PI) mudam de forma, então redesenha ao cruzar o limite
+  const mqCel = window.matchMedia('(max-width: 820px)'); S.celular = mqCel.matches;
+  mqCel.addEventListener('change', e => { S.celular = e.matches; if (!S.carregando && S.me) S.render(); });
 
   S.iniciar();
 })();

@@ -22,6 +22,9 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - Tudo é individual por veículo (rádio): clientes, agências, PIs e numeração (`PI VERDE 0001`). Nenhum dado de uma rádio aparece em outra.
 - Fluxo do PI: Rascunho → Na OPEC → Devolvido ou Aprovado → Programado → Faturado. Só se edita em Rascunho ou Devolvido.
+- Tela do PI (referência aprovada): abas Detalhes · Faturamento · Mídias · Histórico; faixa de informações (tipo de mídia, projeto, cliente, agência, veículo; comissão, honorários, desconto geral, prazo); peças com letra e cor; grades por praça e mês com os dias para digitar; resumo financeiro; observações (saem no PI exportado). Sem Resultados e sem Briefing.
+- O PI abre para consulta. "Editar" libera os campos; nada vai para a nuvem até "Salvar". "Cancelar" desfaz. Sair do PI ou trocar de rádio com alterações pendentes pergunta antes.
+- Arquivos do PI ficam no armazenamento privado "midias", em `<veiculo>/<pi>/arquivo` (regras em `database/002_midias_do_pi.sql`).
 
 ## Visual
 
