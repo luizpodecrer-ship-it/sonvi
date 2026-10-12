@@ -2,3 +2,9 @@
 [build]
   publish = "app"
   command = ""
+
+# O navegador sempre confere se há versão nova da página e dos arquivos do sistema (evita o Safari mostrar versão antiga)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache"
