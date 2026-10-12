@@ -169,6 +169,7 @@ input[type="search"] { border-radius:999px; padding-left:40px; background:var(--
 input[type="checkbox"] { accent-color:var(--accent); width:18px; height:18px; }
 input[type="color"] { padding:3px; height:42px; }
 textarea { width:100%; min-height:84px; resize:vertical; }
+small.dica { color:var(--ink-2); font-size:12px; font-weight:500; }
 small.aviso { color:var(--red); font-size:12px; font-weight:500; }
 ::placeholder { color:var(--ink-3); opacity:.7; }
 input:user-invalid, textarea:user-invalid { border-color:var(--red); box-shadow:0 0 0 3px color-mix(in srgb, var(--red) 15%, transparent); }

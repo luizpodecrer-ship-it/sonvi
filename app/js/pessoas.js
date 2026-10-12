@@ -22,8 +22,8 @@
       { k:'pessoa', label:'Tipo', type:'select', options:[['pj', 'Pessoa jurídica'], ['pf', 'Pessoa física']] },
       { k:'documento', label:'CNPJ / CPF' }, buscar('pesCnpj', 'Preencher pelo CNPJ'),
       { k:'razao_social', label:'Razão social' }, { k:'inscricao_estadual', label:'Inscrição estadual' },
-      { k:'cep', label:'CEP' }, buscar('pesCep', 'Preencher pelo CEP'),
-      { k:'endereco', label:'Endereço' }, { k:'cidade', label:'Cidade / UF' },
+      { k:'cep', label:'CEP' }, { k:'cidade', label:'Cidade / UF' },
+      { k:'endereco', label:'Endereço', full:true },
       { k:'telefone', label:'Telefone' }, { k:'whatsapp', label:'WhatsApp' }, { k:'email', label:'E-mail', type:'email' },
       ...(cliente ? [
         { k:'segmento', label:'Segmento' }, { k:'contato_decide', label:'Contato que decide' }, { k:'contato_assina', label:'Contato que assina' },
@@ -43,7 +43,7 @@
     d.onclose = () => { if (d.returnValue === 'excluir') { if (confirm('Excluir este cadastro?')) S.run(() => S.excluir('pessoas', p.id), 'Cadastro excluído'); } else ok(); };
   }
 
-  // Preenchimento automático: consulta serviços públicos de CNPJ e CEP só quando o usuário pede
+  // Preenchimento pelo CNPJ (botão). O CEP se preenche sozinho ao completar os 8 números (core.js).
   const campo = n => document.querySelector(`#dlg [name="${n}"]`);
   async function buscar(url, usar) {
     try { const r = await fetch(url); if (!r.ok) throw new Error(); usar(await r.json()); S.mascarar(document.getElementById('dlg')); S.toast('Dados preenchidos. Confira antes de salvar.'); }
@@ -55,8 +55,6 @@
     pesNovo: () => formulario({ tipo:aba, pessoa:'pj', situacao:'prospect', comissao:20, consultor_id:S.pode('consultor') ? S.me.id : '' }),
     pesEditar: d => { const p = S.pessoa(d.id); if (S.pode('diretor', 'gerente') || (S.pode('consultor') && (p.tipo === 'agencia' || p.consultor_id === S.me.id))) formulario(p); else S.toast('Seu perfil só pode consultar este cadastro.'); },
     pesCnpj: () => { const n = campo('documento').value.replace(/\D/g, ''); if (n.length !== 14) return S.toast('Digite os 14 números do CNPJ.');
-      buscar('https://brasilapi.com.br/api/cnpj/v1/' + n, j => { campo('razao_social').value = j.razao_social || ''; if (!campo('nome').value) campo('nome').value = j.nome_fantasia || j.razao_social || ''; campo('cep').value = j.cep || ''; campo('endereco').value = [j.logradouro, j.numero, j.bairro].filter(Boolean).join(', '); campo('cidade').value = [j.municipio, j.uf].filter(Boolean).join(' / '); if (!campo('telefone').value) campo('telefone').value = j.ddd_telefone_1 || ''; }); },
-    pesCep: () => { const n = campo('cep').value.replace(/\D/g, ''); if (n.length !== 8) return S.toast('Digite os 8 números do CEP.');
-      buscar(`https://viacep.com.br/ws/${n}/json/`, j => { if (j.erro) throw new Error(); campo('endereco').value = [j.logradouro, j.bairro].filter(Boolean).join(', '); campo('cidade').value = [j.localidade, j.uf].filter(Boolean).join(' / '); }); }
+      buscar('https://brasilapi.com.br/api/cnpj/v1/' + n, j => { campo('razao_social').value = j.razao_social || ''; if (!campo('nome').value) campo('nome').value = j.nome_fantasia || j.razao_social || ''; campo('cep').value = j.cep || ''; campo('endereco').value = [j.logradouro, j.numero, j.bairro].filter(Boolean).join(', '); campo('cidade').value = [j.municipio, j.uf].filter(Boolean).join(' / '); if (!campo('telefone').value) campo('telefone').value = j.ddd_telefone_1 || ''; }); }
   });
 })();

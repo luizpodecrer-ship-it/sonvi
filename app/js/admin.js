@@ -73,8 +73,8 @@
         { html:S.campoLogo(v, !!v.id && !d.editar) },
         { k:'nome', label:'Nome da rádio', req:true, ph:'Ex.: Rádio Verde' }, { k:'sigla', label:'Sigla do PI', req:true, ph:'Ex.: VERDE' },
         { k:'razao_social', label:'Razão social' }, { k:'cnpj', label:'CNPJ' }, { k:'inscricao_estadual', label:'Inscrição estadual' }, { k:'frequencia', label:'Frequência' },
-        { k:'rede_afiliada', label:'Rede afiliada' }, { k:'cidade', label:'Cidade / UF' }, { k:'endereco', label:'Endereço', full:true },
-        { k:'telefone', label:'Telefone' }, { k:'email', label:'E-mail', type:'email' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
+        { k:'rede_afiliada', label:'Rede afiliada' }, { k:'cep', label:'CEP' }, { k:'endereco', label:'Endereço', full:true },
+        { k:'cidade', label:'Cidade / UF' }, { k:'telefone', label:'Telefone' }, { k:'email', label:'E-mail', type:'email' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
         f => S.run(async () => { const row = Object.assign({}, f, { sigla:f.sigla.toUpperCase().trim(), logo:f.logo || null, cor:(f.cor || S.COR_PADRAO).toLowerCase() }); if (v.id) row.id = v.id;
           const novo = await S.salvar('veiculos', row); if (!v.id) { S.ui.vehicleId = novo.id; S.guardarRadio(novo.id); await S.carregarVeiculo(); } }, 'Veículo salvo'), 'Salvar', { editar:!!d.editar }); },
     admUsuario: d => formUsuario(d.id ? S.db.usuarios.find(x => x.id === d.id) : {}, false),

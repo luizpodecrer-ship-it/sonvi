@@ -235,6 +235,31 @@ S.actions.formEditar = () => {
   };
   S.mascarar = raiz => (raiz || document).querySelectorAll('input[data-mask]').forEach(el => { if (!el.placeholder && S.MASK[el.dataset.mask]) el.placeholder = S.MASK[el.dataset.mask].ph; aplicar(el); });
   document.addEventListener('input', e => { if (e.target.dataset && e.target.dataset.mask) aplicar(e.target, true); });
+  // CEP: ao completar os 8 números, busca o endereço (ViaCEP; se falhar, BrasilAPI) e preenche endereço e cidade
+  const dica = (el, txt, erro) => { let a = el.parentElement.querySelector(':scope > .dica'); if (!txt) { if (a) a.remove(); return; }
+    if (!a) { a = document.createElement('small'); el.insertAdjacentElement('afterend', a); } a.className = 'dica' + (erro ? ' aviso' : ''); a.textContent = txt; };
+  S.buscarCep = async cep => {
+    const n = String(cep).replace(/\D/g, ''); if (n.length !== 8) return null;
+    try { const r = await fetch(`https://viacep.com.br/ws/${n}/json/`); const j = await r.json();
+      if (r.ok && !j.erro) return { logradouro:j.logradouro || '', bairro:j.bairro || '', cidade:j.localidade || '', uf:j.uf || '' }; } catch (e) { /* tenta o outro serviço */ }
+    try { const r = await fetch(`https://brasilapi.com.br/api/cep/v2/${n}`); if (r.ok) { const j = await r.json(); return { logradouro:j.street || '', bairro:j.neighborhood || '', cidade:j.city || '', uf:j.state || '' }; } } catch (e) { /* sem conexão */ }
+    return false;
+  };
+  document.addEventListener('input', async e => {
+    const el = e.target; if (el.name !== 'cep' || !el.form) return;
+    const n = el.value.replace(/\D/g, ''); if (n.length !== 8) { dica(el, ''); el._cep = ''; return; }
+    if (el._cep === n) return; el._cep = n;
+    dica(el, 'Buscando o endereço…');
+    const r = await S.buscarCep(n); if (el._cep !== n) return; // o CEP mudou enquanto buscava
+    if (!r) return dica(el, r === false ? 'CEP não encontrado. Preencha o endereço à mão.' : '', true);
+    const f = el.form, end = f.elements.endereco, cid = f.elements.cidade;
+    const rua = r.logradouro, resto = [r.bairro].filter(Boolean).join(', ');
+    if (end) { end.value = [rua, resto].filter(Boolean).join(', '); }
+    if (cid) cid.value = [r.cidade, r.uf].filter(Boolean).join(' / ');
+    dica(el, rua ? 'Endereço preenchido. Complete o número.' : 'Cidade preenchida. Este CEP não tem rua: preencha o endereço.');
+    // Deixa o cursor logo depois do nome da rua, para digitar o número
+    if (end) { end.focus(); const pos = rua ? rua.length : end.value.length; try { end.setSelectionRange(pos, pos); } catch (er) { /* campo sem cursor */ } }
+  });
   // Ao sair do campo, avisa na hora se o número está errado
   document.addEventListener('focusout', e => { const el = e.target; if (el.dataset && el.dataset.mask && el.validationMessage) avisar(el); });
 })();
