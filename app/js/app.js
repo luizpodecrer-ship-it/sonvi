@@ -60,7 +60,7 @@
     if (el.closest('dialog')) return;
     if (d.ui === 'vehicleId' && S.piEd && S.piEd.sujo) { el.value = S.ui.vehicleId; return S.toast('Salve ou cancele as alterações do PI antes de trocar de rádio.'); }
     if (d.ui === 'vehicleId') { // troca de rádio: busca na nuvem só os dados dela
-      S.ui.vehicleId = el.value; S.ui.q = '';
+      S.ui.vehicleId = el.value; S.ui.q = ''; S.guardarRadio(el.value);
       if (S.route().view === 'pi') location.hash = '/pis';
       S.carregando = true; S.render();
       try { await S.carregarVeiculo(); } catch (err) { S.toast(S.erro(err)); }

@@ -7,6 +7,11 @@
   S.sb = supabase.createClient(window.SONVI_CONFIG.url, window.SONVI_CONFIG.key);
   S.limparEndereco = () => { if (/access_token|error_code|type=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + '#/painel'); };
 
+  // Lembra só qual rádio estava aberta (preferência de tela, não é dado do sistema), por usuário
+  const chaveRadio = () => 'sonvi-radio-' + ((S.me && S.me.id) || '');
+  S.radioGuardada = () => { try { return localStorage.getItem(chaveRadio()) || null; } catch (e) { return null; } };
+  S.guardarRadio = id => { try { if (id) localStorage.setItem(chaveRadio(), id); } catch (e) { /* navegador sem armazenamento */ } };
+
   const q = S.q = async promise => { const { data, error } = await promise; if (error) throw error; return data; };
 
   // Mensagens do banco em linguagem de gente
@@ -52,7 +57,10 @@
       q(S.sb.from('usuarios').select('*').order('nome'))]);
     S.me = me || { id:session.user.id, nome:'', email:session.user.email, ativo:true, diretor:false };
     Object.assign(S.db, { veiculos, vinculos, usuarios });
+    // Volta para a rádio que estava aberta (guardada neste navegador); se ela não existir mais, abre a primeira
+    if (!S.ui.vehicleId) S.ui.vehicleId = S.radioGuardada();
     if (!veiculos.some(v => v.id === S.ui.vehicleId)) S.ui.vehicleId = veiculos.length ? veiculos[0].id : null;
+    S.guardarRadio(S.ui.vehicleId);
   };
 
   // Tudo o que pertence ao veículo selecionado. O banco só devolve o que o perfil pode ver.

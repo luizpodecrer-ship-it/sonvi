@@ -31,7 +31,7 @@
 
   Object.assign(S.actions, {
     authRecarregar: () => S.iniciar(),
-    sair: async () => { await S.sb.auth.signOut(); S.me = null; S.db = {}; location.hash = ''; S.render(); }
+    sair: async () => { await S.sb.auth.signOut(); S.me = null; S.db = {}; S.ui.vehicleId = null; location.hash = ''; S.render(); }
   });
 
   document.addEventListener('submit', async e => {

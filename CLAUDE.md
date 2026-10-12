@@ -12,7 +12,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 ## Nuvem (Supabase, projeto "SONVI", id `ccfsyhniwwspnpnpkjzf`)
 
-- Nenhum dado fica no navegador. `S.db` é só uma cópia em memória do que veio da nuvem; gravações usam `S.salvar` / `S.excluir` / `S.run` de `dados.js`. Não usar `localStorage` para conteúdo (a sessão de login do Supabase é a única exceção).
+- Nenhum dado fica no navegador. `S.db` é só uma cópia em memória do que veio da nuvem; gravações usam `S.salvar` / `S.excluir` / `S.run` de `dados.js`. Não usar `localStorage` para conteúdo (exceções: a sessão de login do Supabase e qual rádio estava aberta, `sonvi-radio-<usuário>`, para voltar nela ao recarregar).
 - A estrutura do banco está em `database/`, em arquivos numerados. Toda mudança de tabela, função ou política entra como arquivo novo ali e é aplicada como migração.
 - Quem protege os dados é o banco (RLS por veículo e por perfil); esconder um botão na tela não é segurança. Perfis: diretor (todas as rádios), gerente, consultor, opec, financeiro.
 - Usuários: só o diretor cadastra (Administração → Usuários). A conta nasce na função de borda `usuarios` (`supabase/functions/usuarios`), que gera um link de acesso para enviar pelo WhatsApp (o e-mail grátis do Supabase não entrega para fora da equipe); a pessoa abre o link e cria a senha. Nome, função e rádios mudam por `salvar_usuario`. Não há mais "Criar conta" na tela de entrada.
