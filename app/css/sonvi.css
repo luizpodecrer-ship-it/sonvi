@@ -505,6 +505,37 @@ input.day:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-
   .gr .dias { gap:1px; } .day, .dh, .dt { width:21px; } .day { height:22px; border-radius:6px; font-size:11px; } .dh { font-size:9px; } .dh b { font-size:11px; }
   .gr-r .vals { grid-template-columns:30px 72px 108px 84px; gap:5px; } .gr-r input.n { width:72px; } .gr-r .duo input { width:44px; } .gr-r .duo select { width:64px; }
 }
+/* Lista de PIs: linhas de uma só altura, colunas alinhadas, textos longos cortados com "…" */
+.pl { display:flex; flex-direction:column; font-variant-numeric:tabular-nums; }
+.pl-l { display:grid; grid-template-columns:118px minmax(0, 1.5fr) minmax(0, 1.3fr) minmax(0, 1fr) 100px 88px 150px 44px; gap:16px; align-items:center; padding:12px 10px; border-top:1px solid var(--line-2); border-radius:var(--radius-s); }
+.pl-l.click { cursor:pointer; transition:background .2s; } .pl-l.click:hover, .pl-l.click:focus-visible { background:var(--fill); outline:none; }
+.pl-l > span { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.pl-l b, .pl-l .pl-c > span, .pl-l small, .pl-un { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pl-l small { color:var(--ink-2); font-size:12.5px; }
+.pl-cab { border-top:0; padding-top:4px; padding-bottom:8px; font-size:12px; color:var(--ink-2); font-weight:500; }
+.pl-n { color:var(--ink-2); white-space:nowrap; font-size:14px; }
+.pl-t b { font-weight:600; }
+.pl-u { flex-direction:row !important; align-items:center; gap:8px !important; } .pl-u .av { width:30px; height:30px; font-size:11px; flex:none; }
+.pl-p, .pl-i { text-align:right; align-items:flex-end; } .pl-p small, .pl-i small { display:none; }
+.pl-v { text-align:right; align-items:flex-end; } .pl-v b { font:600 15px/1.2 var(--display); }
+.pl-m { align-items:flex-end; }
+.pl-cab .pl-p, .pl-cab .pl-i, .pl-cab .pl-v { display:block; }
+.pl-tot { border-top:1px solid var(--line); margin-top:4px; font-weight:600; } .pl-tot .pl-n { color:var(--ink); font-weight:600; }
+/* Notebook: consultor só com as iniciais */
+@media (min-width:821px) and (max-width:1439px) {
+  .pl-l { grid-template-columns:108px minmax(0, 1.5fr) minmax(0, 1.3fr) 36px 92px 76px 140px 40px; gap:12px; }
+  .pl-un { display:none; } .pl-cab .pl-u { font-size:0; }
+}
+/* Celular: cada PI vira um cartão */
+@media (max-width:820px) {
+  .pl-cab { display:none; }
+  .pl-l { grid-template-columns:minmax(0, 1fr) auto; grid-template-areas:"n m" "t t" "c c" "u v" "p i"; gap:6px 12px; padding:14px 12px; border:1px solid var(--line); border-radius:var(--radius-m); margin-bottom:10px; }
+  .pl-n { grid-area:n; font-size:13px; } .pl-m { grid-area:m; margin:-6px -6px 0 0; } .pl-t { grid-area:t; } .pl-t b { font-size:16px; white-space:normal; }
+  .pl-c { grid-area:c; } .pl-u { grid-area:u; } .pl-v { grid-area:v; }
+  .pl-p, .pl-i { flex-direction:row !important; gap:6px !important; align-items:baseline; font-size:13px; } .pl-p { grid-area:p; justify-content:flex-start; text-align:left; align-items:flex-start; } .pl-i { grid-area:i; justify-content:flex-end; }
+  .pl-p small, .pl-i small { display:inline; }
+  .pl-tot { grid-template-areas:"n v" "i i"; border-style:dashed; } .pl-tot .pl-t, .pl-tot .pl-c, .pl-tot .pl-u, .pl-tot .pl-p, .pl-tot .pl-m { display:none; }
+}
 #print { display:none; }
 #print .cab, .previa .cab { display:flex; align-items:center; gap:14px; margin-bottom:6px; } #print .cab img, .previa .cab img { width:64px; height:64px; max-height:none; object-fit:contain; flex:none; }
 /* Visualizar: o documento do PI numa folha branca, igual ao que sai no PDF */

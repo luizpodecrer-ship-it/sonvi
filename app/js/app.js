@@ -49,6 +49,8 @@
     S.carregando = false; S.render();
   };
 
+  // Linhas clicáveis (ex.: lista de PIs) também abrem com Enter pelo teclado
+  document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-go][tabindex]')) e.target.click(); });
   document.addEventListener('click', e => {
     const act = e.target.closest('[data-act]');
     if (act) { if (act.tagName === 'A') e.preventDefault(); S.actions[act.dataset.act](act.dataset, act); return; }

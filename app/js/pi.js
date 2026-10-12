@@ -13,12 +13,26 @@
   S.views.pis = () => {
     const q = S.ui.q.toLowerCase();
     const pis = S.db.pis.filter(p => !q || [p.titulo, S.nome(p.cliente_id), S.nome(p.agencia_id), S.usuario(p.consultor_id), p.projeto, S.piNo(p)].join(' ').toLowerCase().includes(q));
+    // Cada PI é uma linha de uma só altura: textos longos são cortados com "…" (o nome completo aparece ao passar o mouse).
+    // No notebook o consultor vira só o selo com as iniciais; no celular cada PI vira um cartão.
     const groups = Object.keys(S.STATUS).map(s => {
       const rows = pis.filter(p => p.status === s).sort((a, b) => b.numero - a.numero); if (!rows.length) return '';
-      const t = { commission:0, net:0, total:0 };
-      const body = rows.map(p => { const c = S.calc(p); t.commission += c.commission; t.net += c.net; t.total += c.total;
-        return `<tr class="click" data-go="/pi/${p.id}"><td class="muted" style="white-space:nowrap">${S.piNo(p)}</td><td><b>${esc(p.titulo) || 'Sem título'}</b><div class="muted small">${esc(p.projeto)}</div></td><td>${esc(S.nome(p.cliente_id))}</td><td>${esc(S.nome(p.agencia_id)) || '<span class="muted">Direto</span>'}</td><td>${esc(S.usuario(p.consultor_id))}</td><td>${dfmt(p.prazo)}</td><td class="r">${c.ins}</td><td class="r">${brl(c.commission)}</td><td class="r">${brl(c.net)}</td><td class="r"><b>${brl(c.total)}</b></td><td class="r" style="width:44px"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></td></tr>`; }).join('');
-      return `<div class="card"><h3>${S.pill(s)} <span class="muted small">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h3><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Agência</th><th>Consultor</th><th>Prazo</th><th class="r">Inserções</th><th class="r">Comissão</th><th class="r">Líquido</th><th class="r">Total</th><th></th></tr></thead><tbody>${body}<tr class="tot"><td colspan="7">Total</td><td class="r">${brl(t.commission)}</td><td class="r">${brl(t.net)}</td><td class="r">${brl(t.total)}</td><td></td></tr></tbody></table></div></div>`;
+      const t = { ins:0, net:0, total:0 };
+      const body = rows.map(p => { const c = S.calc(p); t.ins += c.ins; t.net += c.net; t.total += c.total;
+        const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id), cons = S.usuario(p.consultor_id), tit = p.titulo || 'Sem título';
+        return `<div class="pl-l click" data-go="/pi/${p.id}" role="link" tabindex="0">
+          <span class="pl-n">${S.piNo(p)}</span>
+          <span class="pl-t"><b title="${esc(tit)}">${esc(tit)}</b>${p.projeto ? `<small title="${esc(p.projeto)}">${esc(p.projeto)}</small>` : ''}</span>
+          <span class="pl-c"><span title="${esc(cli)}">${esc(cli)}</span><small title="${esc(ag || 'Venda direta')}">${ag ? esc(ag) : 'Venda direta'}</small></span>
+          <span class="pl-u" title="${esc(cons)}">${cons ? `<span class="av soft" aria-hidden="true">${esc(S.iniciais(cons))}</span><span class="pl-un">${esc(S.celular ? cons : cons.split(' ')[0])}</span>` : '<span class="muted">—</span>'}</span>
+          <span class="pl-p"><small>Prazo</small>${p.prazo ? dfmt(p.prazo) : '—'}</span>
+          <span class="pl-i"><small>Inserções</small>${c.ins}</span>
+          <span class="pl-v"><b>${brl(c.total)}</b>${c.commission ? `<small>Líquido ${brl(c.net)}</small>` : ''}</span>
+          <span class="pl-m"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
+      return `<section class="card pis-g"><div class="hd"><h3>${S.pill(s)} <span class="muted small">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h3></div>
+        <div class="pl"><div class="pl-l pl-cab"><span class="pl-n">Nº</span><span class="pl-t">Título</span><span class="pl-c">Cliente · agência</span><span class="pl-u">Consultor</span><span class="pl-p">Prazo</span><span class="pl-i">Inserções</span><span class="pl-v">Total</span><span class="pl-m"></span></div>
+        ${body}
+        <div class="pl-l pl-tot"><span class="pl-n">Total</span><span class="pl-t"></span><span class="pl-c"></span><span class="pl-u"></span><span class="pl-p"></span><span class="pl-i"><small>Inserções</small>${t.ins}</span><span class="pl-v"><b>${brl(t.total)}</b>${t.total !== t.net ? `<small>Líquido ${brl(t.net)}</small>` : ''}</span><span class="pl-m"></span></div></div></section>`;
     }).join('');
     return { title:`<span class="sub">${esc(S.veh().nome)} · ${pis.length} ${pis.length === 1 ? 'pedido' : 'pedidos'}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="piNew">${S.svg('mais')}Novo PI</button>` : '',
       body:`<div style="margin-bottom:16px"><input type="search" style="width:100%;height:44px" placeholder="Buscar por número, título, cliente, agência ou consultor" value="${esc(S.ui.q)}" data-ui="q"></div>${groups || `<div class="card empty"><b>Nenhum pedido${q ? ' encontrado' : ''}</b>${q ? 'Tente outra busca.' : 'Os pedidos desta rádio aparecem aqui.'}</div>`}` };
