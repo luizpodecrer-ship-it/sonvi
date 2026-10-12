@@ -12,7 +12,7 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 const resposta = (corpo: unknown, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
-const PERFIS = ['gerente', 'consultor', 'opec', 'financeiro'];
+const PERFIS = ['gerente', 'consultor', 'opec', 'financeiro', 'programador'];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });

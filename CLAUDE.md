@@ -37,6 +37,15 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - Cor da rádio: cada veículo tem logo quadrado (500 × 500, coluna `logo` em `veiculos`) e uma `cor` tirada do logo. `S.temaRadio` troca o `--accent` do sistema pela cor da rádio selecionada (ajustada para manter contraste); o logo e a cor saem no PI. Sem logo, fica o azul SONVI. Cores de status continuam fixas.
 - Todo o sistema é responsivo, sem exceção: cada tela precisa funcionar bem no celular (375 px), em notebook (1366–1440 px) e em tela grande (1920 px). No celular a barra lateral vira barra de abas flutuante, tabelas viram listas ou cartões e grades de dias viram calendário; em telas menores o conteúdo se reorganiza, nunca fica cortado.
 
+## Programação musical
+
+- Módulo `musical` (`app/js/musical.js`), com as regras e a geração automática em funções puras em `musical-regras.js` (`S.mus`). Tabelas em `database/006_programacao_musical.sql`; perfil "programador" em `007`.
+- Programam: diretor, gerente e programador (`programa_musica`). A OPEC só consulta (`ve_musica`). Os dados carregam só ao abrir o módulo (`S.carregarMusical`), a semana com o dia anterior junto.
+- A rádio nova começa vazia; "Preparar a programação musical" chama `mus_iniciar` (categorias, vinhetas, formatos Dia/Noite/Madrugada e grade da semana).
+- Semana de segunda (dia 0) a domingo (dia 6). `mus_config.grade` = 7 × 24 ids de formato; `musicas.bloqueios` = "dia-hora" bloqueados. Cada hora gravada é uma linha de `mus_programacao` com `itens` (MUS, VIN, BRK, INF).
+- Geração em camadas pela prioridade da categoria; em cada posição vence a música que quebra menos regras e, no empate, a que está há mais tempo sem tocar. Escolhas à mão ficam marcadas `manual`.
+- Pendente: `salvar_usuario` ainda não aceita "programador" na edição de um usuário (a mudança precisa de aprovação no Supabase; o cadastro novo já aceita).
+
 ## Publicar
 
 - O site (Netlify) publica sozinho a cada envio ao GitHub. A cada publicação, trocar o número `?v=` dos arquivos em `app/index.html` (data-hora), para o navegador baixar a versão nova.

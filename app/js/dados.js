@@ -66,12 +66,29 @@
   // Tudo o que pertence ao veículo selecionado. O banco só devolve o que o perfil pode ver.
   S.carregarVeiculo = async () => {
     const v = S.ui.vehicleId;
-    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], pis:[], agenda:[], lancamentos:[], hist:{}, midias:{} });
+    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], pis:[], agenda:[], lancamentos:[], hist:{}, midias:{}, musVeiculo:null, musSemana:null });
     if (!v) { S.perfil = S.me && S.me.diretor ? 'diretor' : null; return; }
     S.perfil = S.me.diretor ? 'diretor' : (S.db.vinculos.find(x => x.usuario_id === S.me.id && x.veiculo_id === v) || {}).perfil || null;
     const de = t => q(S.sb.from(t).select('*').eq('veiculo_id', v));
     const [pessoas, produtos, precos, pis, agenda, lancamentos] = await Promise.all([de('pessoas'), de('produtos'), de('precos'), de('pis'), de('agenda'), de('lancamentos')]);
     Object.assign(S.db, { pessoas, produtos, precos, pis:pis.map(S.piNorm), agenda, lancamentos });
+  };
+
+  // Programação musical: carrega só quando a pessoa abre o módulo (acervo, categorias, formatos, regras e a semana escolhida).
+  // A semana vem com o dia anterior junto, para as regras que olham "ontem".
+  const todos = async (tabela, v) => { const out = [];
+    for (let i = 0; ; i += 1000) { const parte = await q(S.sb.from(tabela).select('*').eq('veiculo_id', v).order('id').range(i, i + 999)); out.push(...parte); if (parte.length < 1000) return out; } };
+  S.carregarMusical = async (tudo) => {
+    const v = S.ui.vehicleId; if (!v) return;
+    if (tudo || S.db.musVeiculo !== v) {
+      const [mus_categorias, mus_subcategorias, mus_grupos, mus_vinhetas, musicas, mus_formatos, cfg] = await Promise.all(
+        ['mus_categorias', 'mus_subcategorias', 'mus_grupos', 'mus_vinhetas', 'musicas', 'mus_formatos'].map(t => todos(t, v))
+          .concat(q(S.sb.from('mus_config').select('*').eq('veiculo_id', v).maybeSingle())));
+      Object.assign(S.db, { mus_categorias, mus_subcategorias, mus_grupos, mus_vinhetas, musicas, mus_formatos, mus_config:cfg ? [cfg] : [], musVeiculo:v, musSemana:null });
+    }
+    const sem = S.ui.musSemana, ini = S.mus.somaDias(sem, -1), fim = S.mus.somaDias(sem, 6);
+    S.db.mus_programacao = await q(S.sb.from('mus_programacao').select('*').eq('veiculo_id', v).gte('data', ini).lte('data', fim));
+    S.db.musSemana = v + '|' + sem;
   };
 
   S.recarregar = async () => { await S.carregarBase(); if (S.me) await S.carregarVeiculo(); };
