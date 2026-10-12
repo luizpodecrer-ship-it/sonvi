@@ -75,7 +75,7 @@
 
   // Preço vigente na tabela para um programa e formato (a vigência mais recente que já começou)
   S.preco = (programa, formato) => {
-    const p = S.db.produtos.find(x => x.tipo === 'programa' && x.nome === programa), f = S.db.produtos.find(x => x.tipo === 'formato' && x.nome === formato);
+    const p = S.db.produtos.find(x => x.tipo === 'programa' && x.nome.trim() === String(programa || '').trim()), f = S.db.produtos.find(x => x.tipo === 'formato' && x.nome.trim() === String(formato || '').trim());
     if (!p || !f) return null;
     return S.db.precos.filter(x => x.programa_id === p.id && x.formato_id === f.id && x.vigencia_inicio <= S.today()).sort((a, b) => b.vigencia_inicio.localeCompare(a.vigencia_inicio))[0] || null;
   };

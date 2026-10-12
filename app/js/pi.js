@@ -146,17 +146,28 @@
         ${chip('Prazo', em ? `<input type="date" value="${pi.prazo || ''}" data-f="prazo">` : `<b>${dfmt(pi.prazo)}</b>`)}</div></section>`;
     const pecas = `<section class="pecas" aria-label="Peças">${d.pieces.map(p => `<span class="peca">${selo(pi, p.id)}${em ? `<input value="${esc(p.name)}" placeholder="Nome da peça" data-f="name" data-piece="${p.id}" data-rerender="1" aria-label="Nome da peça ${letter(pi, p.id)}"><button class="x" data-act="piRmPiece" data-id="${p.id}" aria-label="Remover peça">×</button>` : `<span>${esc(p.name) || 'Peça sem nome'}</span>`}</span>`).join('')}
       ${em ? '<button class="btn sm tracej" data-act="piAddPiece">+ Adicionar peça</button>' : d.pieces.length ? '' : '<span class="muted small">Nenhuma peça cadastrada.</span>'}</section>`;
+    const avisoTab = em && (semCadastro('programa') || semCadastro('formato')) ? `<div class="note info">Para escolher programa e formato na grade, cadastre-os antes em <a data-go="/cadastros">Tabelas</a>.</div>` : '';
     const grades = d.grids.map((g, i) => (S.celular ? gradeCelular : gradeTela)(pi, g, i, em)).join('') + (em ? '<p><button class="btn pri" data-act="piAddGrid">+ Adicionar grade</button></p>' : '');
     const obs = `<section class="card"><div class="hd"><h3>Observações</h3><span>saem no PI exportado</span></div>${em ? `<textarea data-f="dados.billing.obsClient" placeholder="Ex.: veicular longe de concorrentes; material enviado pela agência até o dia 29">${esc(d.billing.obsClient)}</textarea>` : `<p class="obs">${esc(d.billing.obsClient) || '<span class="muted">Sem observações.</span>'}</p>`}</section>`;
     const totalCel = S.celular ? `<button class="pi-total" data-act="piVerResumo"><span><small>Valor total · ver resumo</small><b id="totalCel">${brl(c.total)}</b></span>${S.svg('baixo')}</button>` : '';
-    return `${info}${pecas}<div class="pi-corpo"><div class="pi-grades">${grades}${obs}</div><aside class="card pi-sum" id="sum">${summary(c)}</aside></div>${totalCel}
-      ${S.datalist('dl-f1', produtos('programa'))}${S.datalist('dl-f2', produtos('formato'))}${S.datalist('dl-praca', [S.veh(pi.veiculo_id).cidade].filter(Boolean))}`;
+    return `${info}${pecas}${avisoTab}<div class="pi-corpo"><div class="pi-grades">${grades}${obs}</div><aside class="card pi-sum" id="sum">${summary(c)}</aside></div>${totalCel}
+      ${S.datalist('dl-praca', [S.veh(pi.veiculo_id).cidade].filter(Boolean))}`;
   }
 
   const cabGrade = (g, i, em) => `<div class="g-hd"><h3>Grade ${String.fromCharCode(65 + i)}</h3>
     <label>Praça ${em ? `<input list="dl-praca" value="${esc(g.praca || '')}" placeholder="Ex.: Cuiabá" data-f="praca" data-g="${g.id}">` : `<b>${esc(g.praca) || '—'}</b>`}</label>
-    <label>Período ${em ? `<input type="month" value="${g.period}" data-f="period" data-g="${g.id}" data-rerender="1">` : `<b>${mesExt(g.period)}</b>`}</label>
+    <label>Período ${em ? `<select data-f="period" data-g="${g.id}" data-rerender="1" aria-label="Período">${meses(g.period)}</select>` : `<b>${mesExt(g.period)}</b>`}</label>
     ${em ? `<button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button>` : ''}</div>`;
+  // Listas de escolha vindas do cadastro (Tabelas). Um valor antigo que não está mais no cadastro continua aparecendo.
+  const escolha = (tipo, atual, rotulo) => { const lista = S.db.produtos.filter(p => p.tipo === tipo && p.ativo).sort((a, b) => a.nome.localeCompare(b.nome)), at = String(atual || '').trim();
+    const ops = lista.map(p => `<option value="${esc(p.nome.trim())}"${p.nome.trim() === at ? ' selected' : ''}${p.detalhe ? ` title="${esc(p.detalhe)}"` : ''}>${esc(p.nome.trim())}${p.detalhe && tipo === 'programa' ? ' · ' + esc(p.detalhe) : ''}</option>`).join('');
+    const antigo = at && !lista.some(p => p.nome.trim() === at) ? `<option value="${esc(at)}" selected>${esc(at)}</option>` : '';
+    return `<option value="">${rotulo}</option>${antigo}${ops}`; };
+  const semCadastro = tipo => !S.db.produtos.some(p => p.tipo === tipo && p.ativo);
+  // Meses para o período da grade: do ano passado até dois anos à frente
+  const meses = atual => { const h = new Date(), out = []; for (let k = -12; k <= 24; k++) { const d = new Date(h.getFullYear(), h.getMonth() + k, 1); out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); }
+    if (atual && !out.includes(atual)) out.unshift(atual);
+    return out.map(m => `<option value="${m}"${m === atual ? ' selected' : ''}>${mesExt(m)}</option>`).join(''); };
   const opcPecas = (pi, it) => `<option value="">—</option>${pi.dados.pieces.map(p => `<option value="${p.id}"${it.piece === p.id ? ' selected' : ''} title="${esc(p.name)}">${letter(pi, p.id)}</option>`).join('')}`;
 
   // Computador: programa à esquerda, os dias do mês no meio e os valores à direita
@@ -168,7 +179,7 @@
     g.items.forEach(it => {
       const c = S.itemCalc(it); tIns += c.ins; tSub += c.sub; days.forEach(d => { if (it.days[d]) porDia[d] = (porDia[d] || 0) + num(it.days[d]); });
       L.push(`<div class="ln">${em ? `<select class="pc-sel" style="--pc:${corPeca(pi, it.piece)}" data-f="piece" data-rerender="1" ${a(it)} aria-label="Peça">${opcPecas(pi, it)}</select>
-          <input list="dl-f1" placeholder="Programa" value="${esc(it.f1)}" data-f="f1" ${a(it)} aria-label="Programa"><input list="dl-f2" placeholder="Formato" value="${esc(it.f2)}" data-f="f2" ${a(it)} aria-label="Formato">`
+          <select data-f="f1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato')}</select>`
         : `${selo(pi, it.piece)}<b class="tx">${esc(it.f1) || '—'}</b><span class="tx muted">${esc(it.f2)}</span>`}</div>`);
       M.push(`<div class="ln dias" style="--pc:${corPeca(pi, it.piece)}">${days.map(d => em
         ? `<input class="day${it.days[d] ? ' has' : ''}" inputmode="numeric" data-mask="int" value="${it.days[d] || ''}" data-day="${d}" ${a(it)} aria-label="Dia ${d}">`
@@ -205,7 +216,7 @@
           : `<span class="cd${w === 0 || w === 6 ? ' we' : ''}"><small>${d}</small><span class="day${it.days[d] ? ' has' : ''}">${it.days[d] || ''}</span></span>`; })];
       return `<article class="it-ab" style="--pc:${corPeca(pi, it.piece)}">
         <div class="it-cab">${em ? `<select class="pc-sel" style="--pc:${corPeca(pi, it.piece)}" data-f="piece" data-rerender="1" ${a(it)} aria-label="Peça">${opcPecas(pi, it)}</select>` : selo(pi, it.piece)}
-          ${em ? `<span class="tx"><input list="dl-f1" placeholder="Programa" value="${esc(it.f1)}" data-f="f1" ${a(it)} aria-label="Programa"><input list="dl-f2" placeholder="Formato" value="${esc(it.f2)}" data-f="f2" ${a(it)} aria-label="Formato"></span>` : `<span class="tx"><b>${esc(it.f1) || '—'}</b><small>${esc(it.f2)}</small></span>`}
+          ${em ? `<span class="tx"><select data-f="f1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato')}</select></span>` : `<span class="tx"><b>${esc(it.f1) || '—'}</b><small>${esc(it.f2)}</small></span>`}
           <b id="sub-${it.id}">${brl(c.sub)}</b></div>
         <div class="cal">${WD.map((w, k) => `<small class="${k === 0 || k === 6 ? 'we' : ''}">${w}</small>`).join('')}${cal.join('')}</div>
         ${em ? '<small class="muted" style="text-align:center">Toque no dia e digite quantas inserções</small>' : ''}
