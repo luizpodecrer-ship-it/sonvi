@@ -41,6 +41,8 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - O site (Netlify) publica sozinho a cada envio ao GitHub. A cada publicação, trocar o número `?v=` dos arquivos em `app/index.html` (data-hora), para o navegador baixar a versão nova.
 
+- Função de borda `usuarios`: publicar pela ferramenta do Supabase com o arquivo nomeado `source/index.ts` e `entrypoint_path` = `source/index.ts`, `verify_jwt` = false (a própria função confere se quem chama é diretor). Com o nome `index.ts` sozinho o envio falha com "internal error".
+
 ## Testar
 
 - O servidor de preview não tem permissão de leitura em `~/Documents`. Para testar no navegador, copie `app/` para uma pasta temporária e sirva de lá.
