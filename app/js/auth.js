@@ -1,7 +1,7 @@
-// SONVI · acesso: entrar, criar conta e as telas de quem ainda não foi liberado.
+// SONVI · acesso: entrar, criar a senha pelo link de acesso e as telas de quem ainda não foi liberado.
+// Contas novas são criadas pelo diretor (Administração → Usuários), que envia o link de acesso pelo WhatsApp.
 (() => {
   const { esc } = S;
-  let modo = 'entrar';
 
   // Devolve o HTML da tela de acesso, ou null quando o usuário pode usar o app
   // Moldura das telas de acesso: painel azul da marca à esquerda (some no celular) e o conteúdo à direita
@@ -12,38 +12,40 @@
 
   // Devolve o HTML da tela de acesso, ou null quando o usuário pode usar o app
   S.telaDeAcesso = () => {
-    if (!S.me) {
-      const criar = modo === 'criar';
-      return moldura(`<form class="auth" data-form="auth">${S.logo('logo')}<h1>${criar ? 'Criar acesso' : 'Entrar'}</h1><p class="muted">${criar ? 'Crie o seu acesso. A direção libera a sua rádio em seguida.' : 'Bem-vindo de volta. Use o e-mail e a senha do seu cadastro.'}</p>
-        ${criar ? '<label class="f">Nome<input name="nome" required autocomplete="name" placeholder="Seu nome completo"></label>' : ''}
+    if (!S.me) return moldura(`<form class="auth" data-form="auth">${S.logo('logo')}<h1>Entrar</h1><p class="muted">Bem-vindo de volta. Use o e-mail e a senha do seu cadastro.</p>
         <label class="f">E-mail<input name="email" type="email" required autocomplete="email" placeholder="seu@email.com.br"></label>
-        <label class="f">Senha<input name="senha" type="password" required minlength="${criar ? 8 : 6}" autocomplete="${criar ? 'new-password' : 'current-password'}" placeholder="${criar ? 'Mínimo de 8 caracteres' : 'Sua senha'}"></label>
-        ${criar ? '<p class="muted small" style="margin-top:-6px">Mínimo de 8 caracteres, com letras e números.</p>' : ''}
-        <button class="btn pri">${criar ? 'Criar conta' : 'Entrar'}</button>
-        <a data-act="authModo">${criar ? 'Já tenho conta' : 'Criar conta'}</a></form>`);
-    }
+        <label class="f">Senha<input name="senha" type="password" required minlength="6" autocomplete="current-password" placeholder="Sua senha"></label>
+        <button class="btn pri">Entrar</button>
+        <p class="muted small">Ainda não tem acesso ou esqueceu a senha? Peça ao diretor da rádio um link de acesso.</p></form>`);
+    // Veio pelo link de acesso: cria a senha antes de usar o sistema
+    if (S.definirSenha) return moldura(`<form class="auth" data-form="senha">${S.logo('logo')}<h1>Crie sua senha</h1><p class="muted">Olá, ${esc((S.me.nome || '').split(' ')[0] || S.me.email)}! Escolha a senha que você vai usar para entrar no SONVI com o e-mail <b>${esc(S.me.email)}</b>.</p>
+        <label class="f">Nova senha<input name="senha" type="password" required minlength="8" autocomplete="new-password" placeholder="Mínimo de 8 caracteres"></label>
+        <label class="f">Repita a senha<input name="senha2" type="password" required minlength="8" autocomplete="new-password" placeholder="Digite de novo"></label>
+        <p class="muted small" style="margin-top:-6px">Use pelo menos 8 caracteres, com letras e números.</p>
+        <button class="btn pri">Salvar senha e entrar</button></form>`);
     const sair = '<button class="btn" data-act="sair">Sair</button>';
     if (!S.me.ativo) return moldura(`<div class="auth">${S.logo('logo')}<h1>Acesso desativado</h1><p class="muted">Fale com a direção para reativar o seu usuário.</p>${sair}</div>`);
-    if (!S.db.veiculos.length && !S.me.diretor) return moldura(`<div class="auth">${S.logo('logo')}<h1>Olá, ${esc(S.me.nome || S.me.email)}</h1><p class="muted">Sua conta foi criada. Assim que a direção vincular você a uma rádio, o sistema abre aqui.</p><button class="btn pri" data-act="authRecarregar">Verificar novamente</button>${sair}</div>`);
+    if (!S.db.veiculos.length && !S.me.diretor) return moldura(`<div class="auth">${S.logo('logo')}<h1>Olá, ${esc(S.me.nome || S.me.email)}</h1><p class="muted">Seu acesso ainda não tem nenhuma rádio. Peça ao diretor para escolher a sua rádio e o seu perfil.</p><button class="btn pri" data-act="authRecarregar">Verificar novamente</button>${sair}</div>`);
     return null;
   };
 
   Object.assign(S.actions, {
-    authModo: () => { modo = modo === 'criar' ? 'entrar' : 'criar'; S.render(); },
     authRecarregar: () => S.iniciar(),
     sair: async () => { await S.sb.auth.signOut(); S.me = null; S.db = {}; location.hash = ''; S.render(); }
   });
 
   document.addEventListener('submit', async e => {
-    if (e.target.dataset.form !== 'auth') return;
+    const tipo = e.target.dataset.form;
+    if (tipo !== 'auth' && tipo !== 'senha') return;
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target)), btn = e.target.querySelector('button');
+    if (tipo === 'senha' && f.senha !== f.senha2) return S.toast('As duas senhas não são iguais.');
     btn.disabled = true;
     try {
-      if (modo === 'criar') {
-        const { data, error } = await S.sb.auth.signUp({ email:f.email, password:f.senha, options:{ data:{ nome:f.nome } } });
+      if (tipo === 'senha') {
+        const { error } = await S.sb.auth.updateUser({ password:f.senha });
         if (error) throw error;
-        if (!data.session) { modo = 'entrar'; S.render(); return S.toast('Conta criada. Confirme pelo link enviado ao seu e-mail e depois entre.'); }
+        S.definirSenha = false; S.toast('Senha criada. Bem-vindo ao SONVI!');
       } else {
         const { error } = await S.sb.auth.signInWithPassword({ email:f.email, password:f.senha });
         if (error) throw error;

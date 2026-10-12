@@ -1,6 +1,11 @@
 // SONVI · dados: toda conversa com a nuvem (Supabase) passa por aqui.
 (() => {
+  // Link de acesso (convite ou nova senha) chega com os dados no endereço; guardamos o tipo antes do Supabase ler e limpar
+  const h = location.hash;
+  S.definirSenha = /type=(invite|recovery)/.test(h);
+  S.erroLink = /error_code=/.test(h) ? (/expired/.test(h) ? 'Este link de acesso expirou. Peça um novo ao diretor.' : 'Este link de acesso não vale mais. Peça um novo ao diretor.') : '';
   S.sb = supabase.createClient(window.SONVI_CONFIG.url, window.SONVI_CONFIG.key);
+  S.limparEndereco = () => { if (/access_token|error_code|type=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + '#/painel'); };
 
   const q = S.q = async promise => { const { data, error } = await promise; if (error) throw error; return data; };
 
@@ -37,6 +42,8 @@
   // Quem está logado, seus veículos e colegas
   S.carregarBase = async () => {
     const { data:{ session } } = await S.sb.auth.getSession();
+    S.limparEndereco();
+    if (S.erroLink) { S.toast(S.erroLink); S.erroLink = ''; }
     if (!session) { S.me = null; return; }
     const [me, veiculos, vinculos, usuarios] = await Promise.all([
       q(S.sb.from('usuarios').select('*').eq('id', session.user.id).maybeSingle()),
