@@ -45,7 +45,7 @@ S.ICON = {
   programacao:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
   mais:'<path d="M12 5v14M5 12h14"/>', check:'<path d="M5 12l5 5L20 7"/>', voltar:'<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
   baixar:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', seta:'<path d="M9 6l6 6-6 6"/>', baixo:'<path d="M6 9l6 6 6-6"/>', rota:'<path d="M3 11l19-9-9 19-2-8z"/>',
-  editar:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>', doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>', relogio:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/>' };
+  editar:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>', doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>', whats:'<path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 10c.5 2 2 3.5 4 4l1.2-1.2 2 .8-.3 1.6c-3.5.3-7-3.2-6.7-6.7L10.8 8.2l.8 2z"/>', lixo:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>', copia:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>', abrir:'<path d="M14 3h7v7M10 14L21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>', mais3:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>', relogio:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/>' };
 S.svg = (k, size) => `<svg viewBox="0 0 24 24"${size ? ` width="${size}" height="${size}"` : ''} aria-hidden="true">${S.ICON[k]}</svg>`;
 // Selo da rádio: a sigla quando é curta (CBN), senão as iniciais do nome sem "Rádio" (Rádio Verde → VE)
 S.selo = v => { const sg = String(v.sigla || '').trim(); if (sg && sg.length <= 3) return sg.toUpperCase();
@@ -85,6 +85,24 @@ S.form = (title, fields, v, onOk, ok = 'Salvar', opts = {}) => {
     <div class="row so-editar"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${ok}</button></div>`, onOk);
   if (ver) document.querySelector('#dlg form').classList.add('ver');
 };
+// Menu de opções (os "três pontinhos"): abre junto do botão e fecha ao clicar fora ou apertar Esc.
+// itens = [{ label, icon, act, data:{…}, perigo }] — cada item dispara a ação S.actions[act] com data.
+S.menu = (botao, itens) => {
+  S.fecharMenu();
+  const m = document.createElement('div'); m.className = 'menu'; m.setAttribute('role', 'menu');
+  m.innerHTML = itens.map((it, i) => it === '-' ? '<hr>' : `<button role="menuitem" data-i="${i}" class="${it.perigo ? 'perigo' : ''}">${it.icon ? S.svg(it.icon) : ''}${S.esc(it.label)}</button>`).join('');
+  document.body.appendChild(m);
+  const r = botao.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
+  m.style.top = (r.bottom + h + 8 > window.innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+  m.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; const it = itens[+b.dataset.i]; S.fecharMenu(); S.actions[it.act](it.data || {}, botao); });
+  S._menu = m; const f = m.querySelector('button'); if (f) f.focus();
+};
+S.fecharMenu = () => { if (S._menu) { S._menu.remove(); S._menu = null; } };
+document.addEventListener('mousedown', e => { if (S._menu && !S._menu.contains(e.target)) S.fecharMenu(); }, true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') S.fecharMenu(); });
+window.addEventListener('scroll', () => S.fecharMenu(), true);
+
 // Libera os campos do cadastro aberto para edição
 S.actions.formEditar = () => {
   const f = document.querySelector('#dlg form'); f.classList.remove('ver');

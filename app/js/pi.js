@@ -17,8 +17,8 @@
       const rows = pis.filter(p => p.status === s).sort((a, b) => b.numero - a.numero); if (!rows.length) return '';
       const t = { commission:0, net:0, total:0 };
       const body = rows.map(p => { const c = S.calc(p); t.commission += c.commission; t.net += c.net; t.total += c.total;
-        return `<tr class="click" data-go="/pi/${p.id}"><td class="muted" style="white-space:nowrap">${S.piNo(p)}</td><td><b>${esc(p.titulo) || 'Sem título'}</b><div class="muted small">${esc(p.projeto)}</div></td><td>${esc(S.nome(p.cliente_id))}</td><td>${esc(S.nome(p.agencia_id)) || '<span class="muted">Direto</span>'}</td><td>${esc(S.usuario(p.consultor_id))}</td><td>${dfmt(p.prazo)}</td><td class="r">${c.ins}</td><td class="r">${brl(c.commission)}</td><td class="r">${brl(c.net)}</td><td class="r"><b>${brl(c.total)}</b></td></tr>`; }).join('');
-      return `<div class="card"><h3>${S.pill(s)} <span class="muted small">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h3><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Agência</th><th>Consultor</th><th>Prazo</th><th class="r">Inserções</th><th class="r">Comissão</th><th class="r">Líquido</th><th class="r">Total</th></tr></thead><tbody>${body}<tr class="tot"><td colspan="7">Total</td><td class="r">${brl(t.commission)}</td><td class="r">${brl(t.net)}</td><td class="r">${brl(t.total)}</td></tr></tbody></table></div></div>`;
+        return `<tr class="click" data-go="/pi/${p.id}"><td class="muted" style="white-space:nowrap">${S.piNo(p)}</td><td><b>${esc(p.titulo) || 'Sem título'}</b><div class="muted small">${esc(p.projeto)}</div></td><td>${esc(S.nome(p.cliente_id))}</td><td>${esc(S.nome(p.agencia_id)) || '<span class="muted">Direto</span>'}</td><td>${esc(S.usuario(p.consultor_id))}</td><td>${dfmt(p.prazo)}</td><td class="r">${c.ins}</td><td class="r">${brl(c.commission)}</td><td class="r">${brl(c.net)}</td><td class="r"><b>${brl(c.total)}</b></td><td class="r" style="width:44px"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></td></tr>`; }).join('');
+      return `<div class="card"><h3>${S.pill(s)} <span class="muted small">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h3><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Agência</th><th>Consultor</th><th>Prazo</th><th class="r">Inserções</th><th class="r">Comissão</th><th class="r">Líquido</th><th class="r">Total</th><th></th></tr></thead><tbody>${body}<tr class="tot"><td colspan="7">Total</td><td class="r">${brl(t.commission)}</td><td class="r">${brl(t.net)}</td><td class="r">${brl(t.total)}</td><td></td></tr></tbody></table></div></div>`;
     }).join('');
     return { title:`<span class="sub">${esc(S.veh().nome)} · ${pis.length} ${pis.length === 1 ? 'pedido' : 'pedidos'}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="piNew">${S.svg('mais')}Novo PI</button>` : '',
       body:`<div style="margin-bottom:16px"><input type="search" style="width:100%;height:44px" placeholder="Buscar por número, título, cliente, agência ou consultor" value="${esc(S.ui.q)}" data-ui="q"></div>${groups || `<div class="card empty"><b>Nenhum pedido${q ? ' encontrado' : ''}</b>${q ? 'Tente outra busca.' : 'Os pedidos desta rádio aparecem aqui.'}</div>`}` };
@@ -110,8 +110,8 @@
     const body = S.ui.tab === 'faturamento' ? tabBilling(pi, c, em ? '' : ' disabled') : S.ui.tab === 'historico' ? tabHistory(pi) : S.ui.tab === 'midias' ? tabMidias(pi, em) : tabDetails(pi, c, em);
     const titulo = em ? `<input class="titulo-in" value="${esc(pi.titulo)}" placeholder="Título do PI" data-f="titulo" aria-label="Título do PI">` : (esc(pi.titulo) || 'Novo pedido');
     const acoes = em
-      ? `<span class="sujo" ${ed.sujo ? '' : 'hidden'}><i></i>Alterações não salvas</span><button class="btn" data-act="piCancelar">Cancelar</button><button class="btn pri" data-act="piSalvar">${S.svg('check')}Salvar</button>`
-      : `<span class="muted small salvo">${salvoEm(pi)}</span>${comercial(pi) ? '<button class="btn" data-act="piMore" aria-label="Mais opções">···</button>' : ''}<button class="btn" data-act="piExport">${S.svg('baixar')}Exportar PI</button>${editavel(pi) ? `<button class="btn" data-act="piEditar">${S.svg('editar')}Editar</button>` : ''}${flow(pi)}`;
+      ? `<span class="sujo" ${ed.sujo ? '' : 'hidden'}><i></i>Alterações não salvas</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piCancelar">Cancelar</button><button class="btn pri" data-act="piSalvar">${S.svg('check')}Salvar</button>`
+      : `<span class="muted small salvo">${salvoEm(pi)}</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piExport">${S.svg('baixar')}Exportar PI</button>${editavel(pi) ? `<button class="btn" data-act="piEditar">${S.svg('editar')}Editar</button>` : ''}${flow(pi)}`;
     return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
       actions:acoes, body:abas + notas + body };
   };
@@ -321,13 +321,40 @@
         box.querySelectorAll('input').forEach(i => { i.disabled = !on; }); box.querySelector('[name="novo_nome"]').required = on; if (on && document.activeElement === sel) box.querySelector('input').focus(); };
       sel.addEventListener('change', alterna); alterna();
     },
-    piMore: () => { const pi = cur(), gestor = S.pode('diretor', 'gerente');
-      S.dialog(`<h2>${S.piNo(pi)}</h2><div class="row" style="flex-wrap:wrap"><button class="btn" value="dup">Duplicar PI</button>${gestor && !['cancelado', 'faturado'].includes(pi.status) ? '<button class="btn danger" value="cancelar">Cancelar PI</button>' : ''}${pi.status === 'rascunho' ? '<button class="btn danger" value="excluir">Excluir rascunho</button>' : ''}<span class="grow"></span><button class="btn" value="x">Fechar</button></div>`);
-      const d = document.getElementById('dlg'); d.onclose = () => {
-        if (d.returnValue === 'dup') S.run(async () => { const novo = S.piNorm(await criar({ titulo:pi.titulo + ' (cópia)', cliente_id:pi.cliente_id, agencia_id:pi.agencia_id, projeto:pi.projeto }, JSON.parse(JSON.stringify(pi.dados)))); S.db.pis.push(novo); S.piEntrar(novo); location.hash = '/pi/' + novo.id; }, 'PI duplicado');
-        if (d.returnValue === 'cancelar') S.setStatus(pi, 'cancelado');
-        if (d.returnValue === 'excluir') { if (confirm('Excluir este rascunho? Não dá para desfazer.')) S.run(async () => { sairEdicao(); await S.excluir('pis', pi.id); location.hash = '/pis'; }, 'Rascunho excluído'); }
-      }; },
+    // Menu "três pontinhos" do PI (na lista e dentro do PI): só mostra o que vale para o status e o perfil
+    piOpcoes: (d, botao) => {
+      const pi = S.db.pis.find(p => p.id === d.id), gestor = S.pode('diretor', 'gerente'), dentro = S.route().view === 'pi', id = { id:pi.id };
+      const itens = [];
+      if (!dentro) itens.push({ label:'Abrir', icon:'abrir', act:'piAbrir', data:id });
+      if (editavel(pi) && !editando(pi)) itens.push({ label:'Editar', icon:'editar', act:'piEditarId', data:id });
+      if (S.EDITABLE.includes(pi.status) && comercial(pi)) itens.push({ label:pi.status === 'devolvido' ? 'Reenviar para a OPEC' : 'Enviar para a OPEC', icon:'seta', act:'piEnviarId', data:id });
+      itens.push({ label:'Enviar por WhatsApp', icon:'whats', act:'piWhats', data:id });
+      if (comercial(pi)) itens.push({ label:'Duplicar', icon:'copia', act:'piDuplicar', data:id });
+      const fim = [];
+      if (gestor && !['cancelado', 'faturado', 'rascunho'].includes(pi.status)) fim.push({ label:'Cancelar PI', icon:'voltar', act:'piCancelarPI', data:id, perigo:true });
+      if (pi.status === 'rascunho' && comercial(pi)) fim.push({ label:'Excluir', icon:'lixo', act:'piExcluir', data:id, perigo:true });
+      S.menu(botao, fim.length ? [...itens, '-', ...fim] : itens);
+    },
+    piAbrir: d => S.go('/pi/' + d.id),
+    piEditarId: d => { const pi = S.db.pis.find(p => p.id === d.id); S.piEntrar(pi); S.ui.tab = 'detalhes'; S.go('/pi/' + d.id); },
+    piEnviarId: d => { const pi = S.db.pis.find(p => p.id === d.id); if (editando(pi) && ed.sujo) return S.toast('Salve o PI antes de enviar para a OPEC.'); const probs = S.piProblems(pi); if (probs.length) return S.toast('Antes de enviar: ' + probs[0]); S.setStatus(pi, 'opec'); },
+    // WhatsApp: abre a conversa com o contato do cliente (ou escolhe o contato) com o resumo do PI
+    piWhats: d => {
+      const pi = S.db.pis.find(p => p.id === d.id), c = S.calc(pi), cli = S.pessoa(pi.cliente_id) || {}, v = S.veh(pi.veiculo_id);
+      const meses = [...new Set(pi.dados.grids.map(g => g.period.split('-').reverse().join('/')))].join(', ');
+      const texto = [`*${v.nome} · ${S.piNo(pi)}*`, pi.titulo, cli.nome ? `Cliente: ${cli.nome}` : '', meses ? `Período: ${meses}` : '', `Inserções: ${c.ins}`, `Valor total: ${brl(c.total)}`, pi.dados.billing.obsClient ? `Observações: ${pi.dados.billing.obsClient}` : '', '', `Consultor(a): ${S.usuario(pi.consultor_id)}`].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
+      let fone = String(cli.whatsapp || cli.telefone || '').replace(/\D/g, ''); if (fone && fone.length <= 11) fone = '55' + fone;
+      window.open(`https://wa.me/${fone}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+      if (!fone) S.toast('Este cliente não tem WhatsApp cadastrado: escolha o contato no WhatsApp.');
+    },
+    piDuplicar: d => { const pi = S.db.pis.find(p => p.id === d.id);
+      S.run(async () => { const novo = S.piNorm(await criar({ titulo:pi.titulo + ' (cópia)', cliente_id:pi.cliente_id, agencia_id:pi.agencia_id, projeto:pi.projeto }, JSON.parse(JSON.stringify(pi.dados)))); S.db.pis.push(novo); S.piEntrar(novo); S.ui.tab = 'detalhes'; location.hash = '/pi/' + novo.id; }, 'PI duplicado'); },
+    piCancelarPI: d => { const pi = S.db.pis.find(p => p.id === d.id); if (confirm(`Cancelar o ${S.piNo(pi)}? Ele sai da OPEC e do faturamento.`)) S.setStatus(pi, 'cancelado'); },
+    piExcluir: d => { const pi = S.db.pis.find(p => p.id === d.id);
+      if (!confirm(`Excluir o ${S.piNo(pi)} (${pi.titulo || 'sem título'})? Não dá para desfazer.`)) return;
+      S.run(async () => { if (ed.id === pi.id) sairEdicao(); await S.excluir('pis', pi.id);
+        try { const { data } = await S.sb.storage.from(BUCKET).list(pasta(pi)); if (data && data.length) await S.sb.storage.from(BUCKET).remove(data.map(f => `${pasta(pi)}/${f.name}`)); } catch (e) { console.error(e); } /* apaga também as mídias do PI */
+        if (S.route().view === 'pi') location.hash = '/pis'; }, 'PI excluído'); },
     piSend: () => { const pi = cur(), probs = S.piProblems(pi); if (probs.length) return S.toast('Antes de enviar: ' + probs[0]); S.setStatus(pi, 'opec'); },
     piStatus: d => S.setStatus(d.id ? S.db.pis.find(p => p.id === d.id) : cur(), d.to),
     piReturn: d => { const pi = d.id ? S.db.pis.find(p => p.id === d.id) : cur();
