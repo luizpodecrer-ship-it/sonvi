@@ -51,8 +51,8 @@ S.svg = (k, size) => `<svg viewBox="0 0 24 24"${size ? ` width="${size}" height=
 S.selo = v => { const sg = String(v.sigla || '').trim(); if (sg && sg.length <= 3) return sg.toUpperCase();
   const ps = String(v.nome || '').replace(/\b(r[áa]dio|fm|am)\b/gi, '').trim().split(/\s+/).filter(Boolean);
   return (ps.length > 1 ? ps[0][0] + ps[1][0] : (ps[0] || sg || '?').slice(0, 2)).toUpperCase(); };
-// Selo da rádio: o logo dela, ou a sigla sobre a cor dela
-S.vav = v => v && v.logo ? `<span class="vav img"><img src="${v.logo}" alt=""></span>` : `<span class="vav" style="background:${v && v.cor && v.cor !== S.COR_PADRAO ? v.cor : 'var(--accent)'}">${S.esc(S.selo(v || {}))}</span>`;
+// Selo da rádio: o logo dela, ou a sigla sobre a cor DELA (nunca a cor da rádio selecionada)
+S.vav = v => v && v.logo ? `<span class="vav img"><img src="${v.logo}" alt=""></span>` : `<span class="vav" style="background:${v && /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : S.COR_PADRAO}">${S.esc(S.selo(v || {}))}</span>`;
 
 // ---------- cor da rádio: personaliza o sistema todo ----------
 S.COR_PADRAO = '#0055ff';
