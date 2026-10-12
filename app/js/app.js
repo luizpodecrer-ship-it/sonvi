@@ -10,7 +10,7 @@
     ['opec', 'OPEC', ['diretor', 'opec']],
     ['financeiro', 'Financeiro', ['diretor', 'financeiro']],
     ['musical', 'Programação musical', ['diretor', 'gerente', 'programador', 'opec']],
-    ['cadastros', 'Tabelas', ['diretor', 'gerente']],
+    ['cadastros', 'Tabela de preços', ['diretor', 'gerente']],
     ['admin', 'Administração', ['diretor']]];
   const SOON = [];
 

@@ -654,3 +654,43 @@ form.ver .g2 .mus-mapa button { display:block; }
   .mus-regra { grid-template-columns:minmax(0, 1fr) 52px; } .mus-regra .mus-par { grid-column:1 / -1; grid-row:2; } .mus-regra > .small { grid-column:1; }
   .mus-luzes { grid-template-columns:minmax(0, 1fr); }
 }
+
+/* ---------- Tabela de preços (grade programa × formato) ---------- */
+.tp-faixa { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; padding:14px 20px; }
+.tp-ink { color:var(--ink); }
+.tp-versao { display:flex; align-items:center; gap:8px; } .tp-versao select { height:38px; }
+.tp-grade { padding:12px 12px 16px; }
+.tp-tab { min-width:calc(360px + var(--n, 3) * 130px); }
+.tp-cab, .tp-row { display:grid; grid-template-columns:minmax(220px, 1.6fr) repeat(var(--n, 3), minmax(120px, 1fr)) minmax(110px, auto); gap:8px; align-items:center; padding:12px; }
+.tp-cab { align-items:end; border-bottom:1px solid var(--line); }
+.tp-row { border-bottom:1px solid var(--line-2); border-radius:var(--radius-s); transition:background .2s; }
+.tp-row:hover { background:color-mix(in srgb, var(--fill) 55%, transparent); }
+.tp-form { display:flex; align-items:flex-start; justify-content:flex-end; gap:2px; text-align:right; }
+.tp-form > span { display:flex; flex-direction:column; min-width:0; } .tp-form b { font:600 15px/1.2 var(--display); } .tp-form small { color:var(--ink-2); font-size:12px; }
+.tp-form .btn.tres { width:30px; height:30px; margin-top:-4px; }
+.tp-mais { display:flex; justify-content:flex-end; }
+.tp-prog { display:flex; flex-direction:column; gap:4px; min-width:0; } .tp-prog b { font-size:16px; } .tp-prog small { color:var(--ink-2); font-size:13px; }
+.inativo .tp-prog b, .tp-form.inativo b { color:var(--ink-3); }
+.tp-cel { display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:0; }
+.tp-cel small.aviso { color:var(--orange); text-align:right; }
+.tp-preco { padding:8px 12px; border:1px solid transparent; border-radius:12px; background:var(--fill); font:600 16px/1.2 var(--display); color:var(--ink); font-variant-numeric:tabular-nums; cursor:pointer; white-space:nowrap; transition:background .2s, border-color .2s, transform .15s; }
+.tp-preco:hover:not(:disabled) { background:var(--surface); border-color:var(--accent); }
+.tp-preco:active:not(:disabled) { transform:scale(.97); }
+.tp-preco:disabled { cursor:default; background:transparent; }
+.tp-preco.aviso { background:color-mix(in srgb, var(--orange) 12%, transparent); border-color:color-mix(in srgb, var(--orange) 35%, transparent); }
+.tp-preco.herdado { color:var(--ink-3); background:transparent; border:1px dashed var(--line); }
+.tp-vazio { padding:8px 12px; border:1px dashed var(--line); border-radius:12px; background:transparent; font:inherit; font-size:13px; font-weight:600; color:var(--ink-2); cursor:pointer; }
+.tp-vazio:hover { border-color:var(--accent); color:var(--accent-text); }
+.tp-ed { display:flex; align-items:center; gap:6px; padding:4px 4px 4px 10px; border:1px solid var(--accent); border-radius:12px; background:var(--surface); box-shadow:0 0 0 3px var(--accent-soft); }
+.tp-ed label { font-size:13px; color:var(--ink-2); }
+.tp-ed input { width:84px; padding:4px 2px; border:0; background:transparent; box-shadow:none; font:600 16px/1.2 var(--display); text-align:right; }
+.tp-ed input:focus { box-shadow:none; background:transparent; }
+.tp-ed .btn { width:32px; padding:0; }
+.tp-rodape { padding:14px 12px 0; }
+.tp-cartao .hd { align-items:flex-start; margin-bottom:6px; }
+.tp-lin { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:52px; border-top:1px solid var(--line-2); }
+.tp-previa { border-radius:var(--radius-m); background:var(--fill); padding:4px 14px; max-height:300px; overflow-y:auto; }
+.tp-previa > div { display:grid; grid-template-columns:minmax(0, 1fr) 84px 16px 84px; gap:8px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; font-variant-numeric:tabular-nums; }
+.tp-previa > div > span:nth-child(2), .tp-previa > div > b { text-align:right; }
+.tp-previa .tp-pv-cab { border-top:0; font-size:12px; color:var(--ink-2); font-weight:500; } .tp-previa .tp-pv-cab span:nth-child(2), .tp-previa .tp-pv-cab span:nth-child(4) { text-align:right; }
+@media (max-width:820px) { .tp-faixa .grow { display:none; } .tp-versao { width:100%; } .tp-versao select { flex:1; } }
