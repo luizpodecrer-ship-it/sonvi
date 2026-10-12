@@ -62,7 +62,8 @@ Deno.serve(async (req) => {
 
     if (b.acao === 'excluir') {
       const id = String(b.usuario_id ?? '');
-      const { data: { user: eu } } = await quem.auth.getUser();
+      const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+      const { data: { user: eu } } = await quem.auth.getUser(token);
       if (eu && eu.id === id) return resposta({ erro: 'Você não pode excluir o seu próprio usuário.' }, 400);
       // Quem já tem trabalho no sistema não é apagado: some do histórico e a agenda iria junto
       const conta = async (tabela: string, coluna: string) => { const { count } = await adm.from(tabela).select('*', { count: 'exact', head: true }).eq(coluna, id); return count ?? 0; };
