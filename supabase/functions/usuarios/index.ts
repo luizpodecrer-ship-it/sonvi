@@ -3,6 +3,7 @@
 // Só o diretor pode usar. Não manda e-mail: devolve um link que o diretor envia pelo WhatsApp.
 //   { acao: "criar", nome, email, celular, diretor, vinculos: [{ veiculo_id, perfil }], destino }
 //   { acao: "link", usuario_id, destino }
+//   { acao: "excluir", usuario_id }  (só quem não tem PI, cliente, agenda nem histórico; os outros se desativam)
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const cors = {
@@ -57,6 +58,22 @@ Deno.serve(async (req) => {
       const { data, error: e1 } = await adm.auth.admin.generateLink({ type: 'recovery', email: u.user.email, options: { redirectTo: destino } });
       if (e1) return resposta({ erro: e1.message }, 400);
       return resposta({ link: data.properties.action_link });
+    }
+
+    if (b.acao === 'excluir') {
+      const id = String(b.usuario_id ?? '');
+      const { data: { user: eu } } = await quem.auth.getUser();
+      if (eu && eu.id === id) return resposta({ erro: 'Você não pode excluir o seu próprio usuário.' }, 400);
+      // Quem já tem trabalho no sistema não é apagado: some do histórico e a agenda iria junto
+      const conta = async (tabela: string, coluna: string) => { const { count } = await adm.from(tabela).select('*', { count: 'exact', head: true }).eq(coluna, id); return count ?? 0; };
+      const [pis, clientes, agenda, hist] = await Promise.all([conta('pis', 'consultor_id'), conta('pessoas', 'consultor_id'), conta('agenda', 'consultor_id'), conta('pi_historico', 'usuario_id')]);
+      if (pis + clientes + agenda + hist > 0) {
+        const partes = [pis && `${pis} PI${pis > 1 ? 's' : ''}`, clientes && `${clientes} cliente${clientes > 1 ? 's' : ''}`, agenda && `${agenda} compromisso${agenda > 1 ? 's' : ''} na agenda`, hist && 'movimentações no histórico de PIs'].filter(Boolean).join(', ');
+        return resposta({ erro: `Não dá para excluir: este usuário já tem ${partes}. Use "Desativar acesso" para bloquear a entrada sem perder o histórico.` }, 409);
+      }
+      const { error } = await adm.auth.admin.deleteUser(id);
+      if (error) return resposta({ erro: error.message }, 400);
+      return resposta({ ok: true });
     }
 
     return resposta({ erro: 'Ação desconhecida.' }, 400);

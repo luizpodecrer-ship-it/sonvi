@@ -81,7 +81,11 @@
     admUsuarioMenu: (d, botao) => { const u = S.db.usuarios.find(x => x.id === d.id), eu = u.id === S.me.id;
       S.menu(botao, [{ label:'Editar', icon:'editar', act:'admUsuarioEditar', data:{ id:u.id } },
         { label:eu ? 'Gerar link para trocar a senha' : 'Gerar link de acesso', icon:'whats', act:'admLink', data:{ id:u.id } },
-        ...(eu ? [] : ['-', u.ativo ? { label:'Desativar acesso', icon:'lixo', act:'admAtivo', data:{ id:u.id }, perigo:true } : { label:'Reativar acesso', icon:'check', act:'admAtivo', data:{ id:u.id } }])]); },
+        ...(eu ? [] : ['-', u.ativo ? { label:'Desativar acesso', icon:'bloqueio', act:'admAtivo', data:{ id:u.id } } : { label:'Reativar acesso', icon:'check', act:'admAtivo', data:{ id:u.id } },
+          { label:'Excluir usuário', icon:'lixo', act:'admExcluir', data:{ id:u.id }, perigo:true }])]); },
+    admExcluir: d => { const u = S.db.usuarios.find(x => x.id === d.id);
+      if (!confirm(`Excluir ${u.nome || u.email} de vez? Não dá para desfazer.\n\nSe a pessoa já trabalhou no sistema (PIs, clientes ou agenda), o SONVI não deixa excluir: use "Desativar acesso".`)) return;
+      S.run(async () => { await servidor({ acao:'excluir', usuario_id:u.id }); await S.carregarBase(); }, 'Usuário excluído'); },
     admUsuarioEditar: d => formUsuario(S.db.usuarios.find(x => x.id === d.id), true),
     admLink: d => { const u = S.db.usuarios.find(x => x.id === d.id); S.run(async () => { const r = await servidor({ acao:'link', usuario_id:u.id }); mostrarLink(u, r.link, false); }); },
     admAtivo: d => { const u = S.db.usuarios.find(x => x.id === d.id), ativo = !u.ativo;
