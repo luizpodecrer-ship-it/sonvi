@@ -8,18 +8,18 @@
     const seg = `<div class="seg">${[['veiculos', 'Veículos'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
     let body;
     if (aba === 'veiculos') {
-      body = `<div class="card">${S.db.veiculos.length ? `<div class="scroll"><table><thead><tr><th>Rádio</th><th>Sigla do PI</th><th>CNPJ</th><th>Frequência</th><th>Cidade</th><th class="r">PIs emitidos</th></tr></thead><tbody>${S.db.veiculos.map(v => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><span class="dot" style="background:${esc(v.cor)}"></span> <b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td><td>${esc(v.frequencia)}</td><td>${esc(v.cidade)}</td><td class="r">${v.pi_seq}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><b>Cadastre a primeira rádio</b>Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div>'}</div>`;
+      body = `<div class="card">${S.db.veiculos.length ? `<div class="scroll"><table><thead><tr><th>Rádio</th><th>Sigla do PI</th><th>CNPJ</th><th>Frequência</th><th>Cidade</th><th class="r">PIs emitidos</th></tr></thead><tbody>${S.db.veiculos.map(v => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td><td>${esc(v.frequencia)}</td><td>${esc(v.cidade)}</td><td class="r">${v.pi_seq}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><b>Cadastre a primeira rádio</b>Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div>'}</div>`;
     } else {
       body = `<div class="card"><div class="scroll"><table><thead><tr><th>Usuário</th><th>Acesso</th><th>Rádios e perfis</th></tr></thead><tbody>${S.db.usuarios.map(u => { const vs = S.db.vinculos.filter(x => x.usuario_id === u.id);
-        return `<tr class="click" data-act="admUsuario" data-id="${u.id}"><td><b>${esc(u.nome) || '—'}</b><div class="muted small">${esc(u.email)}</div></td><td>${!u.ativo ? S.tag('Inativo', 'gray') : u.diretor ? S.tag('Diretor', 'purple') : vs.length ? S.tag('Ativo', 'green') : S.tag('Aguardando liberação', 'orange')}</td><td>${u.diretor ? 'Todas as rádios' : vs.map(x => `${esc((S.veh(x.veiculo_id) || {}).nome)} · ${S.PERFIS[x.perfil]}`).join('<br>') || '<span class="muted">Nenhuma</span>'}</td></tr>`; }).join('')}</tbody></table></div>
+        return `<tr class="click" data-act="admUsuario" data-id="${u.id}"><td><div style="display:flex;align-items:center;gap:12px"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><div><b>${esc(u.nome) || '—'}</b><div class="muted small">${esc(u.email)}</div></div></div></td><td>${!u.ativo ? S.tag('Inativo', 'gray') : u.diretor ? S.tag('Diretor', 'purple') : vs.length ? S.tag('Ativo', 'green') : S.tag('Aguardando liberação', 'orange')}</td><td>${u.diretor ? 'Todas as rádios' : vs.map(x => `${esc((S.veh(x.veiculo_id) || {}).nome)} · ${S.PERFIS[x.perfil]}`).join('<br>') || '<span class="muted">Nenhuma</span>'}</td></tr>`; }).join('')}</tbody></table></div>
         <p class="muted small" style="margin-top:12px">Para incluir alguém, peça que a pessoa abra o SONVI e toque em "Criar conta". Ela aparece aqui como "Aguardando liberação" e você define a rádio e o perfil.</p></div>`;
     }
-    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'veiculos' ? '<button class="btn pri" data-act="admVeiculo">Novo veículo</button>' : '', body:seg + body };
+    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : '', body:seg + body };
   };
 
   Object.assign(S.actions, {
     admAba: d => { aba = d.tab; S.render(); },
-    admVeiculo: d => { const v = d.id ? S.veh(d.id) : { cor:'#0071e3' };
+    admVeiculo: d => { const v = d.id ? S.veh(d.id) : { cor:'#0055ff' };
       S.form(v.id ? esc(v.nome) : 'Novo veículo', [
         { k:'nome', label:'Nome da rádio', req:true }, { k:'sigla', label:'Sigla do PI (ex.: CBN)', req:true },
         { k:'razao_social', label:'Razão social' }, { k:'cnpj', label:'CNPJ' }, { k:'inscricao_estadual', label:'Inscrição estadual' }, { k:'frequencia', label:'Frequência (ex.: 101,9 FM)' },

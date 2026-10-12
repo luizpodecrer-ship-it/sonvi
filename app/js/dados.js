@@ -13,7 +13,7 @@
     if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
     if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail pelo link que enviamos antes de entrar.';
     if (/already registered/i.test(m)) return 'Este e-mail já tem cadastro. Use "Entrar".';
-    if (/Password should be/i.test(m)) return 'A senha precisa ter pelo menos 6 caracteres.';
+    if (/Password should be|weak/i.test(m)) return 'Senha fraca: use pelo menos 8 caracteres, com letras e números.';
     if (/Failed to fetch|NetworkError/i.test(m)) return 'Sem conexão com a nuvem. Verifique a internet e tente de novo.';
     return m;
   };

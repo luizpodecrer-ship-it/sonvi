@@ -43,21 +43,35 @@
         return `<tr class="click" data-go="/pi/${p.id}"><td class="muted" style="white-space:nowrap">${S.piNo(p)}</td><td><b>${esc(p.titulo) || 'Sem título'}</b><div class="muted small">${esc(p.projeto)}</div></td><td>${esc(S.nome(p.cliente_id))}</td><td>${esc(S.nome(p.agencia_id)) || '<span class="muted">Direto</span>'}</td><td>${esc(S.usuario(p.consultor_id))}</td><td>${dfmt(p.prazo)}</td><td class="r">${c.ins}</td><td class="r">${brl(c.commission)}</td><td class="r">${brl(c.net)}</td><td class="r"><b>${brl(c.total)}</b></td></tr>`; }).join('');
       return `<div class="card"><h3>${S.pill(s)} <span class="muted small">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h3><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Agência</th><th>Consultor</th><th>Prazo</th><th class="r">Inserções</th><th class="r">Comissão</th><th class="r">Líquido</th><th class="r">Total</th></tr></thead><tbody>${body}<tr class="tot"><td colspan="7">Total</td><td class="r">${brl(t.commission)}</td><td class="r">${brl(t.net)}</td><td class="r">${brl(t.total)}</td></tr></tbody></table></div></div>`;
     }).join('');
-    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? '<button class="btn pri" data-act="piNew">Novo PI</button>' : '',
-      body:`<div style="margin-bottom:16px"><input type="search" style="width:100%;padding:10px 14px" placeholder="Buscar por número, título, cliente, agência ou consultor" value="${esc(S.ui.q)}" data-ui="q"></div>${groups || `<div class="card empty"><b>Nenhum pedido${q ? ' encontrado' : ''}</b>${q ? 'Tente outra busca.' : 'Os pedidos desta rádio aparecem aqui.'}</div>`}` };
+    return { title:`<span class="sub">${esc(S.veh().nome)} · ${pis.length} ${pis.length === 1 ? 'pedido' : 'pedidos'}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="piNew">${S.svg('mais')}Novo PI</button>` : '',
+      body:`<div style="margin-bottom:16px"><input type="search" style="width:100%;height:44px" placeholder="Buscar por número, título, cliente, agência ou consultor" value="${esc(S.ui.q)}" data-ui="q"></div>${groups || `<div class="card empty"><b>Nenhum pedido${q ? ' encontrado' : ''}</b>${q ? 'Tente outra busca.' : 'Os pedidos desta rádio aparecem aqui.'}</div>`}` };
   };
 
   // ---------- edição ----------
   const duo = (path, rule, ro) => `<span class="duo"><input value="${nfmt(num(rule.value))}" data-f="${path}.value" data-k="num"${ro}><select data-f="${path}.type"${ro}><option value="pct"${rule.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${rule.type === 'brl' ? ' selected' : ''}>R$</option></select></span>`;
   const flow = pi => {
-    const b = (act, label, extra = '', pri = true) => `<button class="btn${pri ? ' pri' : ''}" data-act="${act}"${extra}>${label}</button>`;
-    if (S.EDITABLE.includes(pi.status)) return comercial(pi) ? b('piSend', pi.status === 'devolvido' ? 'Reenviar para a OPEC' : 'Enviar para a OPEC') : '';
-    if (pi.status === 'opec') return S.pode('diretor', 'opec') ? b('piReturn', 'Devolver', '', false) + b('piStatus', 'Aprovar', ' data-to="aprovado"') : '';
+    const b = (act, label, extra = '', pri = true, icon = '') => `<button class="btn${pri === true ? ' pri' : pri ? ' ' + pri : ''}" data-act="${act}"${extra}>${icon ? S.svg(icon) : ''}${label}</button>`;
+    if (S.EDITABLE.includes(pi.status)) return comercial(pi) ? b('piSend', pi.status === 'devolvido' ? 'Reenviar para a OPEC' : 'Enviar para a OPEC', '', true, 'seta') : '';
+    if (pi.status === 'opec') return S.pode('diretor', 'opec') ? b('piReturn', 'Devolver', '', 'warn', 'voltar') + b('piStatus', 'Aprovar PI', ' data-to="aprovado"', true, 'check') : '';
     const faturar = S.pode('diretor', 'financeiro') ? b('finFaturar', 'Faturar', ` data-id="${pi.id}"`, pi.status === 'programado') : '';
-    if (pi.status === 'aprovado') return faturar + (S.pode('diretor', 'opec') ? b('piStatus', 'Marcar como programado', ' data-to="programado"') : '');
+    if (pi.status === 'aprovado') return faturar + (S.pode('diretor', 'opec') ? b('piStatus', 'Marcar como programado', ' data-to="programado"', true, 'check') : '');
     if (pi.status === 'programado') return faturar;
     if (pi.status === 'cancelado') return S.pode('diretor', 'gerente') ? b('piStatus', 'Reabrir como rascunho', ' data-to="rascunho"', false) : '';
     return '';
+  };
+
+  // Etapas do PI: o que já passou, onde ele está agora e o que falta
+  const ETAPAS = ['rascunho', 'opec', 'aprovado', 'programado', 'faturado'];
+  const etapas = pi => {
+    if (pi.status === 'cancelado') return '';
+    const h = S.db.hist[pi.id] || [], quando = st => { const x = h.find(e => e.status === st); return x ? dfmt(S.dia(x.em)).slice(0, 5) + ' · ' + S.hora(x.em) : ''; };
+    const atual = pi.status === 'devolvido' ? 0 : ETAPAS.indexOf(pi.status), fim = pi.status === 'faturado';
+    const itens = ETAPAS.map((st, i) => {
+      const devol = i === 0 && pi.status === 'devolvido', estado = i < atual || (fim && i === atual) ? 'ok' : i === atual ? 'now' : 'todo';
+      const nome = devol ? 'Devolvido' : S.STATUS[st].label, data = devol ? quando('devolvido') : estado === 'todo' ? (i === atual + 1 ? 'próxima etapa' : '') : quando(st) || (i === 0 ? dfmt(S.dia(pi.criado_em)).slice(0, 5) : '');
+      return `<div class="${estado}"${devol ? ' style="--tone:var(--orange)"' : ''}><span class="mark" style="--i:${i}">${estado === 'ok' ? S.svg('check') : ''}</span><span><b>${nome}</b><small>${data || '&nbsp;'}</small></span></div>`;
+    });
+    return `<section class="card" aria-label="Andamento do PI"><div class="steps" style="--n:5;--p:${(fim ? 4 : Math.max(0, atual)) / 4}">${itens.join('')}</div></section>`;
   };
 
   S.views.pi = () => {
@@ -65,13 +79,13 @@
     const ro = editavel(pi) ? '' : ' disabled', c = S.calc(pi), h = S.db.hist[pi.id];
     const devol = pi.status === 'devolvido' && h ? h.find(x => x.status === 'devolvido') : null;
     if (!h) carregarHistorico(pi);
-    const head = `${devol && devol.nota ? `<div class="note"><b>Devolvido pela OPEC:</b> ${esc(devol.nota)}</div>` : ''}
+    const head = `${etapas(pi)}${devol && devol.nota ? `<div class="note"><b>Devolvido pela OPEC:</b> ${esc(devol.nota)}</div>` : ''}
       ${ro && S.EDITABLE.includes(pi.status) ? '<div class="note info">Este pedido é de outro consultor ou o seu perfil só pode consultar.</div>' : ''}
       ${ro && !S.EDITABLE.includes(pi.status) && pi.status !== 'cancelado' ? '<div class="note info">Este pedido já saiu do rascunho e está somente leitura.</div>' : ''}
       <div class="seg">${[['detalhes', 'Detalhes'], ['faturamento', 'Faturamento'], ['historico', 'Histórico']].map(([t, n]) => `<button class="${S.ui.tab === t ? 'on' : ''}" data-act="piTab" data-tab="${t}">${n}</button>`).join('')}</div>`;
     const body = S.ui.tab === 'faturamento' ? tabBilling(pi, c, ro) : S.ui.tab === 'historico' ? tabHistory(pi) : tabDetails(pi, c, ro);
-    return { title:`<span class="sub"><a data-go="/pis">Pedidos</a> · ${S.piNo(pi)} &nbsp;${S.pill(pi.status)} &nbsp;<span id="saveState"></span></span>${esc(pi.titulo) || 'Novo pedido'}`,
-      actions:`${comercial(pi) ? '<button class="btn" data-act="piMore">Mais</button>' : ''}<button class="btn" data-act="piExport">Exportar PDF</button>${flow(pi)}`, body:head + body };
+    return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}${pi.cliente_id ? `<span>· ${esc(S.nome(pi.cliente_id))}</span>` : ''}<span id="saveState"></span></span>${esc(pi.titulo) || 'Novo pedido'}`,
+      actions:`${comercial(pi) ? '<button class="btn" data-act="piMore">Mais</button>' : ''}<button class="btn" data-act="piExport">${S.svg('baixar')}PDF</button>${flow(pi)}`, body:head + body };
   };
 
   async function carregarHistorico(pi) {
@@ -79,9 +93,8 @@
     try { S.db.hist[pi.id] = await S.q(S.sb.from('pi_historico').select('*').eq('pi_id', pi.id).order('em', { ascending:false })); if (cur() === pi) S.render(); } catch (e) { console.error(e); }
   }
 
-  const summary = c => `<h3>Resumo financeiro</h3>
-    <div><small>Total da mídia</small><b>${brl(c.media)}</b></div><div><small>Desconto geral</small><b>${brl(c.discount)}</b></div><hr>
-    <div><small>Valor total</small><b>${brl(c.total)}</b></div><div class="g"><small>Comissão da agência</small><b>${brl(c.commission)}</b></div>
+  const summary = c => `<h3>Valor do PI</h3><p class="big">${brl(c.total)}</p>
+    <div><small>Total da mídia</small><b>${brl(c.media)}</b></div><div><small>Desconto geral</small><b>${c.discount ? '− ' + brl(c.discount) : '—'}</b></div><hr><div class="g"><small>Comissão da agência</small><b>${brl(c.commission)}</b></div>
     <div><small>Valor líquido da rádio</small><b>${brl(c.net)}</b></div><hr>
     <div><small>Bonificação</small><b>${c.bonus ? brl(c.bonus) : '—'}</b></div><div><small>Honorários</small><b>${c.fee ? brl(c.fee) : '—'}</b></div><div><small>Inserções</small><b>${c.ins}</b></div>`;
 

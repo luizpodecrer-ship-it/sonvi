@@ -19,7 +19,7 @@
       const lista = doTipo(aba); botao = aba === 'programa' ? 'Novo programa' : 'Novo formato';
       body = `<div class="card">${lista.length ? `<div class="scroll"><table><thead><tr><th>${TIPOS[aba][1]}</th><th>Detalhe</th><th></th></tr></thead><tbody>${lista.map(p => `<tr class="click" data-act="cadProduto" data-id="${p.id}"><td><b>${esc(p.nome)}</b></td><td>${esc(p.detalhe)}</td><td>${p.ativo ? '' : S.tag('Inativo', 'gray')}</td></tr>`).join('')}</tbody></table></div>` : `<div class="empty"><b>Nenhum cadastro</b>Ex.: ${aba === 'programa' ? 'Manhã Total, Rotativo 06h-19h, Jornal da Cidade' : 'Spot 30", Testemunhal, Patrocínio de programa'}.</div>`}</div>`;
     }
-    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Tabelas comerciais`, actions:`<button class="btn pri" data-act="${aba === 'precos' ? 'cadPreco' : 'cadProduto'}">${botao}</button>`, body:seg + body };
+    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Tabelas comerciais`, actions:`<button class="btn pri" data-act="${aba === 'precos' ? 'cadPreco' : 'cadProduto'}">${S.svg('mais')}${botao}</button>`, body:seg + body };
   };
 
   const comExcluir = (tabela, id) => { const d = document.getElementById('dlg'), ok = d.onclose; d.onclose = () => { if (d.returnValue === 'excluir') { if (confirm('Excluir este cadastro?')) S.run(() => S.excluir(tabela, id), 'Excluído'); } else ok(); }; };

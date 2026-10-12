@@ -25,9 +25,11 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 ## Visual
 
-- Limpo, profissional, estilo Apple: muito espaço em branco, fonte do sistema, poucos elementos por tela, cartões brancos sobre cinza claro, botões em pílula, um único azul de destaque.
-- Usar sempre as variáveis e classes de `app/css/sonvi.css` (`.card`, `.btn`, `.pill`, `.seg`, `.tile`); não criar cores ou estilos soltos nos módulos.
-- Claro e escuro automáticos. No celular a barra lateral vira barra de abas; toda tela precisa funcionar em 375 px de largura.
+- Identidade SONVI (logo e paleta em `marca/` na pasta do projeto; versões do logo em `app/img/`): azul `#0055FF` como destaque, azul-claro `#0199FF` para o que está em andamento, preto e branco. Títulos e números em Sora, textos em Geist (Google Fonts).
+- Limpo e sofisticado: muito espaço em branco, cartões brancos com cantos de 22 px sobre cinza claro, botões em pílula, poucos elementos por tela. O mockup aprovado é a referência ("SONVI — Novo visual").
+- Usar sempre as variáveis e classes de `app/css/sonvi.css` (`.card`, `.hd`, `.cols`, `.btn`, `.pill`, `.seg`, `.tile`/`.tile.hero`, `.bars`, `.stack`, `.legend`, `.prog`, `.people`, `.list`, `.steps`, `.next`, `.agenda`); ícones por `S.svg(nome)` e selo da rádio por `S.vav(veiculo)`. Não criar cores ou estilos soltos nos módulos.
+- Movimento: os blocos entram em sequência só quando a tela muda (classe `entra`, controlada em `app.js`), gráficos crescem, status "Na OPEC" pulsa. Respeitar "reduzir movimento" do sistema.
+- Claro e escuro automáticos. No celular a barra lateral vira barra de abas flutuante; toda tela precisa funcionar em 375 px de largura.
 
 ## Testar
 
