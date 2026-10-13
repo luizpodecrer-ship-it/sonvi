@@ -86,7 +86,7 @@
     const buscar = (id, label) => ({ html:`<div style="display:flex;align-items:flex-end"><button type="button" class="btn sm" data-act="${id}">${label}</button></div>` });
     const bloco = novo && cad.destinos.length ? [{ html:`<div class="cad-bloco" style="grid-column:1/-1"><div class="cad-hd"><b>Cadastrar também em</b><small>${S.pode('consultor') ? 'Aparecem as rádios que você atende' : 'Aparecem as rádios em que você trabalha'}</small></div>
         ${blocoRadios({ tipo, consultor:p.consultor_id, agencia:p.agencia_id })}
-        <small class="muted">Nome, CNPJ, endereço e contatos vão iguais. ${cliente ? 'Consultor, situação, PIs e financeiro ficam separados em cada rádio.' : 'Os PIs e o financeiro ficam separados em cada rádio.'}</small></div>` }] : [];
+        <small class="muted">Nome, CNPJ, endereço e contatos vão iguais. ${cliente ? 'A situação vai igual; consultor, PIs e financeiro ficam separados em cada rádio.' : 'Os PIs e o financeiro ficam separados em cada rádio.'}</small></div>` }] : [];
     const campos = [
       { k:'nome', label:cliente ? 'Nome fantasia ou nome' : 'Nome da agência', req:true, ph:cliente ? 'Ex.: Supermercado Três Irmãos' : 'Ex.: Agência Ponto Alto' },
       { k:'pessoa', label:'Tipo', type:'select', options:[['pj', 'Pessoa jurídica'], ['pf', 'Pessoa física']] },
@@ -157,7 +157,7 @@
     const ja = new Set(irmaos.map(r => r.veiculo_id)), livres = cad.destinos.filter(v => !ja.has(v.id));
     S.dialog(`<h2>Levar para outra rádio</h2><p class="muted" style="margin-top:-8px">${esc(p.nome)} · ${esc(S.veh().nome)}</p>
       ${blocoRadios({ tipo:p.tipo, consultor:p.consultor_id, agencia:p.agencia_id, ja, marcar:livres.length === 1 })}
-      <small class="muted">${S.pode('consultor') ? 'Aparecem só as rádios que você atende. ' : ''}${p.tipo === 'cliente' ? 'Na outra rádio o cliente nasce como Prospect. ' : ''}Nome, CNPJ, endereço e contatos vão iguais; PIs e financeiro ficam separados.</small>
+      <small class="muted">${S.pode('consultor') ? 'Aparecem só as rádios que você atende. ' : ''}${p.tipo === 'cliente' ? 'A situação (Ativo, Prospect, Inativo) vai igual. ' : ''}Nome, CNPJ, endereço e contatos vão iguais; PIs e financeiro ficam separados.</small>
       <div class="row cad-acoes"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>${livres.length ? 'Cancelar' : 'Fechar'}</button>${livres.length ? '<button class="btn pri" value="ok" data-cad-levar>Cadastrar</button>' : ''}</div>`,
     f => { const destinos = destinosMarcados(f); if (!destinos.length) return S.toast('Marque pelo menos uma rádio.');
       S.run(async () => { const r = await levar(p.id, destinos); const atual = await S.q(S.sb.from('pessoas').select('*').eq('id', p.id).single()); Object.assign(S.pessoa(p.id) || {}, atual);
