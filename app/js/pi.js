@@ -474,10 +474,15 @@
     const descLinhas = tabela - c.media;
     // Quem paga a rádio recebe a fatura: o e-mail de faturamento é o dele
     const entradas = S.billingEntries(pi, c), pagador = (entradas.find(e => e.para === 'V') || {}).de, emailFat = pagador === 'A' && ag ? ag.email : cli.email;
-    const parcelas = entradas.filter(e => o.commission || e.what !== 'Comissão').flatMap(e => S.parcels(pi, e.value).map(p => ({ e, p })));
+    // A agência aparece uma única vez no PI (no quadro do cliente). No pagamento entram só as parcelas que a rádio
+    // recebe, sem repetir quem paga; o que a rádio paga à agência vira uma linha só, quando houver.
     const nParc = Math.max(1, parseInt(b.installments) || 1);
+    const recebe = entradas.filter(e => e.para === 'V'), paga = entradas.filter(e => e.de === 'V' && (o.commission || e.what !== 'Comissão'));
+    const linhasParc = recebe.flatMap(e => S.parcels(pi, e.value).map(p => `<tr><td>${p.n}/${nParc}${recebe.length > 1 ? ` · ${esc(e.what)}` : ''}</td><td>${p.due ? dfmt(p.due) : 'a combinar'}</td><td>${esc(b.method)}</td><td class="r">${brl(p.value)}</td></tr>`)).join('');
+    const regra = !ag ? 'Faturamento direto ao cliente' : (S.BILLING[b.type] || S.BILLING[10]).replace(/ contra o Cliente$/, ' contra o anunciante').replace(/ contra a Agência$/, ' contra a agência');
     const pagamento = `<div class="pd-box"><b class="pd-tit">Condições e forma de pagamento</b>
-      ${o.billing ? `<table class="pd-parc"><tr class="mut"><td>Parcela</td><td>Vencimento</td><td>Forma</td><td>Fatura de → para</td><td class="r">Valor</td></tr>${parcelas.map(({ e, p }) => `<tr><td>${p.n}/${nParc}${e.what !== 'Valor total' && e.what !== 'Valor líquido' ? ` · ${esc(e.what)}` : ''}</td><td>${p.due ? dfmt(p.due) : 'a combinar'}</td><td>${esc(b.method)}</td><td>${esc(e.from)} → ${esc(e.to)}</td><td class="r">${brl(p.value)}</td></tr>`).join('')}</table>` : ''}
+      ${o.billing ? `<div class="mut">${esc(regra)}${nParc > 1 ? ` · ${nParc} parcelas` : ''}</div><table class="pd-parc"><tr class="mut"><td>Parcela</td><td>Vencimento</td><td>Forma</td><td class="r">Valor</td></tr>${linhasParc}</table>
+        ${paga.map(e => `<div class="mut">${esc(e.what)} paga pela rádio à agência: <b class="tx">${brl(e.value)}</b></div>`).join('')}` : ''}
       ${v.pi_pagamento || emailFat ? `<div class="mut">${esc(v.pi_pagamento)}${v.pi_pagamento && emailFat ? '. ' : ''}${emailFat ? `E-mail de faturamento: <b class="tx">${esc(emailFat)}</b>` : ''}</div>` : ''}</div>`;
     const linhaT = (rot, val, cls = '') => `<span class="${cls}">${rot}</span><span class="r ${cls}">${val}</span>`;
     const totais = `<div class="pd-box pd-tot">${linhaT('Valor de tabela', brl(tabela))}${descLinhas > 0.004 ? linhaT('Descontos nas linhas', '− ' + brl(descLinhas)) : ''}${c.discount ? linhaT('Desconto geral', '− ' + brl(c.discount)) : ''}
@@ -497,7 +502,7 @@
     const numero = `<div class="pd-num" style="border-color:${cor}"><div class="pd-no" style="color:${cor}">${S.piNo(pi)}</div><div class="pd-kv">
       <span>Veículo</span><b>${esc(v.nome)}${v.frequencia ? ' ' + esc(v.frequencia) : ''}</b><span>Período</span><b>${periodo}</b><span>Campanha</span><b>${esc(pi.titulo)}</b>${pi.projeto ? `<span>Projeto</span><b>${esc(pi.projeto)}</b>` : ''}<span>Emitido em</span><b>${dfmt(o.date)}</b></div></div>`;
     const aprov = (S.db.hist[pi.id] || []).find(h => h.status === 'aprovado');
-    const signs = [o.signClient && ['Anunciante / Contratante', cli.contato_assina || cli.nome], o.signAgency && ag && ['Agência', ag.nome], o.signVehicle && ['Veículo / Contratada', v.nome]].filter(Boolean);
+    const signs = [o.signClient && ['Anunciante / Contratante', cli.contato_assina || cli.nome], o.signAgency && ag && ['Agência', ''], o.signVehicle && ['Veículo / Contratada', v.nome]].filter(Boolean);
     const cidade = (v.pi_cidade || v.cidade || '').split('/')[0].trim();
     document.getElementById('print').innerHTML = `<div class="pidoc">
       <div class="pd-topo">${radio}<div class="pd-meio"><div class="pd-titulo">PEDIDO DE INSERÇÃO</div>${cliente}</div>${numero}</div>
@@ -507,7 +512,7 @@
       <div class="pd-baixo">${pagamento}<div class="pd-box"><b class="pd-tit">Observações</b><div>${o.obs && b.obsClient ? esc(b.obsClient).replace(/\n/g, '<br>') : ''}</div></div>${totais}</div>
       <div class="pd-fecho"><div><div>E, por estarem de acordo com as especificações e condições deste pedido${o.conds ? ' e das condições gerais abaixo' : ''}, as partes assinam o presente para todos os efeitos legais.</div>
         <div>${esc(cidade ? cidade + ', ' : '')}${dataExt(o.date)}.</div>
-        ${signs.length ? `<div class="pd-ass" style="--n:${signs.length}">${signs.map(([r, n]) => `<div><b>${r}</b><br><span>${esc(n)}</span></div>`).join('')}</div>` : ''}</div>
+        ${signs.length ? `<div class="pd-ass" style="--n:${signs.length}">${signs.map(([r, n]) => `<div><b>${r}</b>${n ? `<br><span>${esc(n)}</span>` : ''}</div>`).join('')}</div>` : ''}</div>
         <div class="pd-box pd-aprov"><b>Aprovação OPEC</b>${aprov ? `<span class="ok">Aprovado em ${dfmt(S.dia(aprov.em))}</span><span>por ${esc(S.usuario(aprov.usuario_id))}</span>` : '<span class="mut">Aguardando</span>'}</div></div>
       ${o.conds ? `<div class="pd-conds"><b>CONDIÇÕES GERAIS</b> — ${condicoesHtml(v.pi_condicoes, v)}</div>` : ''}
       <div class="pd-rodape"><span>Gerado pelo SONVI · ${S.piNo(pi)}</span></div></div>`;
