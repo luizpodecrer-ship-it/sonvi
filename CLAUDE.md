@@ -49,7 +49,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 ## Financeiro
 
 - `app/js/financeiro.js`: filtros (período, situação, tipo, busca), indicadores do período, fluxo de 6 meses, idade dos recebíveis, lista por mês, baixa em lote. Baixa e estorno só pelas funções `baixar_lancamentos` (juros, desconto, valor parcial gera parcela "restante" com `origem_id`, NF, observação) e `estornar_baixa` (`database/011_baixa_de_lancamentos.sql`). Recebido = `valor_pago` (vazio em baixas antigas = `valor`).
-- Relatórios (botão no topo do Financeiro): contas a receber/pagar, recebimentos, inadimplência, faturamento por cliente/agência, vendas por consultor, previsão de caixa, NF pendentes; PDF (A4 deitado) e planilha CSV (; e vírgula decimal).
+- Relatórios (botão no topo do Financeiro): contas a receber/pagar, recebimentos, inadimplência, faturamento por cliente/agência, vendas por consultor, previsão de caixa, NF pendentes; PDF (A4 em pé: cabeçalho da rádio, quadros de resumo, participação, tabela por mês, "como ler", rodapé) e planilha CSV (; e vírgula decimal). Na impressão, tudo fora de #print fica escondido (inclusive o selo do Netlify).
 - Lançamento avulso (sem PI, com `categoria`): o financeiro cria e exclui enquanto em aberto (políticas em `database/012_lancamentos_avulsos.sql`).
 
 ## Programação musical

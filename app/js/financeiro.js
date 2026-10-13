@@ -192,89 +192,149 @@
       S.run(async () => { const r = await S.q(S.sb.from('lancamentos').insert(rows).select()); S.db.lancamentos.push(...r); }, n > 1 ? `${n} lançamentos criados` : 'Lançamento criado'); }, 'Criar', { editar:true });
 
   // ---------- relatórios ----------
+  // Cada relatório devolve: resumo (quadros), participação (barras, opcional), colunas, linhas (com grupo e subtítulo),
+  // total, explicação e "como ler". A mesma estrutura desenha a tela, o PDF (A4 em pé) e a planilha.
   const rel = { id:'receber', per:'ano', de:'', ate:'', consultor:'' };
   const REL = [
-    ['receber', 'Contas a receber', 'Parcelas em aberto por vencimento'],
-    ['recebimentos', 'Recebimentos', 'O que entrou no período, por data e forma'],
-    ['inadimplencia', 'Inadimplência', 'Vencidos por cliente e faixa de atraso'],
-    ['cliente', 'Faturamento por cliente', 'PIs faturados: valor, comissão, recebido e em aberto'],
-    ['agencia', 'Faturamento por agência', 'PIs e comissões de cada agência'],
-    ['consultor', 'Vendas por consultor', 'Base para a comissão da equipe comercial'],
-    ['caixa', 'Previsão de caixa', 'Entradas e saídas previstas mês a mês'],
-    ['nf', 'Notas fiscais pendentes', 'Parcelas de PIs faturados sem nota fiscal'],
-    ['pagar', 'Contas a pagar', 'Comissões e despesas em aberto']];
+    ['receber', 'Contas a receber', 'Recebimentos', 'Parcelas em aberto, mês a mês, com o que já venceu.'],
+    ['recebimentos', 'Recebimentos', 'Recebimentos', 'O que entrou no caixa no período, com juros e descontos.'],
+    ['inadimplencia', 'Inadimplência', 'Recebimentos', 'Quem está com parcelas vencidas e há quanto tempo.'],
+    ['nf', 'Notas fiscais pendentes', 'Recebimentos', 'Parcelas de PIs faturados que ainda não têm nota fiscal.'],
+    ['cliente', 'Faturamento por cliente', 'Vendas', 'Quanto cada cliente comprou, quanto fica com a rádio e quanto já foi recebido.'],
+    ['agencia', 'Faturamento por agência', 'Vendas', 'O que veio por cada agência e a comissão de cada uma.'],
+    ['consultor', 'Vendas por consultor', 'Vendas', 'O que cada consultor vendeu: base para a comissão da equipe.'],
+    ['caixa', 'Previsão de caixa', 'Caixa', 'Entradas e saídas previstas mês a mês e o saldo acumulado.'],
+    ['pagar', 'Contas a pagar', 'Caixa', 'Comissões de agência e despesas em aberto, mês a mês.']];
   const RPER = [['mes', 'Este mês'], ['passado', 'Mês passado'], ['trimestre', 'Este trimestre'], ['ano', 'Este ano'], ['tudo', 'Tudo'], ['datas', 'Escolher datas…']];
   const relIntervalo = hoje => { const d = dia(hoje), y = d.getFullYear(), m = d.getMonth(), mes = (a, b, n = 1) => [iso(new Date(a, b, 1)), iso(new Date(a, b + n, 0))];
     return { mes:mes(y, m), passado:mes(y, m - 1), trimestre:mes(y, m - m % 3, 3), ano:[`${y}-01-01`, `${y}-12-31`], tudo:['', ''], datas:[rel.de, rel.ate] }[rel.per] || ['', '']; };
   const entre = (d, [de, ate]) => !!d && (!de || d >= de) && (!ate || d <= ate);
   const piDe = id => S.db.pis.find(p => p.id === id);
   const doConsultor = l => !rel.consultor || (piDe(l.pi_id) || {}).consultor_id === rel.consultor;
-  // Meses de veiculação do PI que caem no intervalo
   const piNoPeriodo = (pi, [de, ate]) => (pi.dados.grids || []).some(g => { const ini = g.period + '-01', fim = iso(new Date(+g.period.slice(0, 4), +g.period.slice(5), 0)); return (!de || fim >= de) && (!ate || ini <= ate); });
-  const C = (t, tipo) => ({ t, tipo }); // tipo: 'brl' | 'num' | 'data' | ''
+  const C = (t, tipo) => ({ t, tipo }); // tipo: 'brl' | 'num' | 'data' | 'sit' | ''
   const agrupa = (ls, chave) => { const m = new Map(); ls.forEach(x => { const k = chave(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return [...m.entries()]; };
+  const nomeMesLongo = m => m ? `${MESES[+m.slice(5) - 1][0].toUpperCase()}${MESES[+m.slice(5) - 1].slice(1)} ${m.slice(0, 4)}` : 'Sem data';
+  const pct = (a, b) => b ? `${(a / b * 100).toLocaleString('pt-BR', { maximumFractionDigits:1 })}%` : '0%';
+  const plural = (n, s, p) => `${n} ${n === 1 ? s : p || s + 's'}`;
+  const K = (rot, val, sub, extra = {}) => Object.assign({ rot, val, sub }, extra);
+  const situ = (l, hoje) => l.pago_em ? 'Pago' : atraso(l, hoje) ? `Vencida há ${plural(atraso(l, hoje), 'dia')}` : 'A vencer';
+  const partDe = (pares, total) => pares.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([nome, v]) => ({ nome, v, p:total ? v / total : 0 }));
 
   const montar = () => {
     const hoje = S.today(), I = relIntervalo(hoje), L = S.db.lancamentos, nomeMes = m => `${MES3[+m.slice(5) - 1]}/${m.slice(0, 4)}`;
     const recPi = pi => L.filter(l => l.pi_id === pi.id && l.sentido === 'receber');
     const faturados = S.db.pis.filter(p => p.status === 'faturado' && piNoPeriodo(p, I) && (!rel.consultor || p.consultor_id === rel.consultor));
+    const porVenc = (a, b) => (a.vencimento || '9').localeCompare(b.vencimento || '9');
+    const linhaParc = (l, extra) => ({ grupo:(l.vencimento || '').slice(0, 7), c:[l.vencimento, l.contraparte, `${l.descricao}${l.parcela ? ` · parcela ${l.parcela}` : ''}`, ...extra] });
     switch (rel.id) {
-      case 'receber': { const ls = L.filter(l => l.sentido === 'receber' && !l.pago_em && (rel.per === 'tudo' || entre(l.vencimento, I)) && doConsultor(l)).sort((a, b) => (a.vencimento || '').localeCompare(b.vencimento || ''));
-        return { cols:[C('Vencimento', 'data'), C('Cliente'), C('Descrição'), C('Parcela', 'num'), C('Forma'), C('NF'), C('Atraso (dias)', 'num'), C('Valor', 'brl')],
-          rows:ls.map(l => [l.vencimento, l.contraparte, l.descricao, l.parcela, l.forma, l.nota_fiscal, atraso(l, hoje) || '', Number(l.valor)]), total:['Total', '', `${ls.length} parcelas`, '', '', '', '', soma(ls)] }; }
-      case 'pagar': { const ls = L.filter(l => l.sentido === 'pagar' && !l.pago_em && (rel.per === 'tudo' || entre(l.vencimento, I))).sort((a, b) => (a.vencimento || '').localeCompare(b.vencimento || ''));
-        return { cols:[C('Vencimento', 'data'), C('Para quem'), C('Descrição'), C('Categoria'), C('Forma'), C('Valor', 'brl')],
-          rows:ls.map(l => [l.vencimento, l.contraparte, l.descricao, l.categoria || (l.pi_id ? 'Comissão' : ''), l.forma, Number(l.valor)]), total:['Total', '', `${ls.length} parcelas`, '', '', soma(ls)] }; }
-      case 'recebimentos': { const ls = L.filter(l => l.sentido === 'receber' && l.pago_em && entre(l.pago_em, rel.per === 'tudo' ? ['', ''] : I) && doConsultor(l)).sort((a, b) => a.pago_em.localeCompare(b.pago_em));
-        return { cols:[C('Recebido em', 'data'), C('Cliente'), C('Descrição'), C('Forma'), C('NF'), C('Parcela', 'brl'), C('Juros', 'brl'), C('Desconto', 'brl'), C('Recebido', 'brl')],
-          rows:ls.map(l => [l.pago_em, l.contraparte, l.descricao, l.forma, l.nota_fiscal, Number(l.valor), Number(l.juros) || 0, Number(l.desconto) || 0, recebidoDe(l)]),
-          total:['Total', '', `${ls.length} recebimentos`, '', '', soma(ls), soma(ls, l => Number(l.juros) || 0), soma(ls, l => Number(l.desconto) || 0), soma(ls, recebidoDe)] }; }
-      case 'inadimplencia': { const ls = L.filter(l => l.sentido === 'receber' && atraso(l, hoje) && doConsultor(l));
-        const g = agrupa(ls, l => l.contraparte || '—').map(([k, xs]) => { const fx = id => soma(xs.filter(l => faixaDe(l, hoje) === id)); return [k, xs.length, Math.max(...xs.map(l => atraso(l, hoje))), fx('1-30'), fx('31-60'), fx('60+'), soma(xs)]; }).sort((a, b) => b[6] - a[6]);
-        return { cols:[C('Cliente'), C('Parcelas', 'num'), C('Maior atraso (dias)', 'num'), C('1 a 30 dias', 'brl'), C('31 a 60 dias', 'brl'), C('Mais de 60', 'brl'), C('Total vencido', 'brl')],
-          rows:g, total:['Total', ls.length, '', soma(g, r => r[3]), soma(g, r => r[4]), soma(g, r => r[5]), soma(ls)], nota:'Considera tudo o que está vencido hoje, de qualquer período.' }; }
+      case 'receber': { const ls = L.filter(l => l.sentido === 'receber' && !l.pago_em && (rel.per === 'tudo' || entre(l.vencimento, I)) && doConsultor(l)).sort(porVenc);
+        const venc = ls.filter(l => atraso(l, hoje)), em30 = ls.filter(l => !atraso(l, hoje) && l.vencimento && l.vencimento <= somaDias(hoje, 30));
+        return { resumo:[K('Total a receber', brl(soma(ls)), `${plural(ls.length, 'parcela')} · ${plural(new Set(ls.map(l => l.contraparte)).size, 'cliente')}`, { dest:true }),
+            K('Vence nos próximos 30 dias', brl(soma(em30)), plural(em30.length, 'parcela')),
+            K('Vencido', brl(soma(venc)), venc.length ? `${plural(venc.length, 'parcela')} em atraso` : 'nenhuma parcela em atraso', { tom:venc.length ? 'ruim' : 'bom' })],
+          cols:[C('Vencimento', 'data'), C('Cliente'), C('Descrição'), C('Forma'), C('Situação', 'sit'), C('Valor', 'brl')],
+          rows:ls.map(l => linhaParc(l, [l.forma, situ(l, hoje), Number(l.valor)])), grupos:true, total:['Total', '', plural(ls.length, 'parcela'), '', '', soma(ls)],
+          ler:['Mostra só parcelas ainda não pagas, pelo vencimento.', '"Vencida há N dias" conta a partir do vencimento até hoje.'] }; }
+      case 'pagar': { const ls = L.filter(l => l.sentido === 'pagar' && !l.pago_em && (rel.per === 'tudo' || entre(l.vencimento, I))).sort(porVenc);
+        const com = ls.filter(l => l.pi_id), desp = ls.filter(l => !l.pi_id), venc = ls.filter(l => atraso(l, hoje));
+        return { resumo:[K('Total a pagar', brl(soma(ls)), plural(ls.length, 'parcela'), { dest:true }), K('Comissões de agência', brl(soma(com)), plural(com.length, 'parcela')), K('Despesas avulsas', brl(soma(desp)), plural(desp.length, 'parcela')), K('Vencido', brl(soma(venc)), venc.length ? plural(venc.length, 'parcela') : 'nada vencido', { tom:venc.length ? 'ruim' : 'bom' })],
+          cols:[C('Vencimento', 'data'), C('Para quem'), C('Descrição'), C('Categoria'), C('Situação', 'sit'), C('Valor', 'brl')],
+          rows:ls.map(l => linhaParc(l, [l.categoria || (l.pi_id ? 'Comissão' : ''), situ(l, hoje), Number(l.valor)])), grupos:true, total:['Total', '', plural(ls.length, 'parcela'), '', '', soma(ls)],
+          ler:['Comissões nascem do faturamento dos PIs; despesas são os lançamentos avulsos a pagar.'] }; }
+      case 'recebimentos': { const ls = L.filter(l => l.sentido === 'receber' && l.pago_em && (rel.per === 'tudo' || entre(l.pago_em, I)) && doConsultor(l)).sort((a, b) => a.pago_em.localeCompare(b.pago_em));
+        const formas = agrupa(ls, l => l.forma || 'Sem forma').map(([k, xs]) => [k, soma(xs, recebidoDe)]), tot = soma(ls, recebidoDe);
+        return { resumo:[K('Total recebido', brl(tot), plural(ls.length, 'recebimento'), { dest:true }), K('Juros e multas', brl(soma(ls, l => Number(l.juros) || 0)), 'cobrados a mais'), K('Descontos concedidos', brl(soma(ls, l => Number(l.desconto) || 0)), 'abatidos na baixa')],
+          partTit:'Por forma de pagamento', part:partDe(formas, tot),
+          cols:[C('Recebido em', 'data'), C('Cliente'), C('Descrição'), C('Forma'), C('Nota fiscal'), C('Recebido', 'brl')],
+          rows:ls.map(l => ({ grupo:l.pago_em.slice(0, 7), c:[l.pago_em, l.contraparte, `${l.descricao}${l.parcela ? ` · parcela ${l.parcela}` : ''}`, l.forma, l.nota_fiscal, recebidoDe(l)] })), grupos:true,
+          total:['Total', '', plural(ls.length, 'recebimento'), '', '', tot], ler:['Pela data em que o dinheiro entrou, já com juros e descontos da baixa.'] }; }
+      case 'inadimplencia': { const ls = L.filter(l => l.sentido === 'receber' && atraso(l, hoje) && doConsultor(l)), tot = soma(ls);
+        const g = agrupa(ls, l => l.contraparte || '—').map(([k, xs]) => { const fx = id => soma(xs.filter(l => faixaDe(l, hoje) === id)); return { c:[k, xs.length, Math.max(...xs.map(l => atraso(l, hoje))), fx('1-30'), fx('31-60'), fx('60+'), soma(xs)] }; }).sort((a, b) => b.c[6] - a.c[6]);
+        const venceram = soma(L.filter(l => l.sentido === 'receber' && l.vencimento && l.vencimento < hoje && doConsultor(l)));
+        return { resumo:[K('Total vencido', brl(tot), plural(ls.length, 'parcela'), { dest:true, tom:tot ? 'ruim' : '' }), K('Clientes em atraso', String(g.length), g.length ? `maior atraso: ${plural(Math.max(...ls.map(l => atraso(l, hoje))), 'dia')}` : 'ninguém em atraso'), K('Inadimplência', pct(tot, venceram), 'do que já venceu')],
+          partTit:'Quem mais deve', part:partDe(g.map(r => [r.c[0], r.c[6]]), tot),
+          cols:[C('Cliente'), C('Parcelas', 'num'), C('Maior atraso (dias)', 'num'), C('1 a 30 dias', 'brl'), C('31 a 60 dias', 'brl'), C('Mais de 60', 'brl'), C('Total vencido', 'brl')],
+          rows:g, total:['Total', ls.length, '', soma(g, r => r.c[3]), soma(g, r => r.c[4]), soma(g, r => r.c[5]), tot],
+          ler:['Considera tudo o que está vencido hoje, de qualquer período.', 'Inadimplência = vencido em aberto ÷ tudo o que já venceu.'] }; }
       case 'cliente': case 'agencia': {
-        const chave = rel.id === 'cliente' ? p => S.nome(p.cliente_id) || '—' : p => p.agencia_id ? S.nome(p.agencia_id) : 'Venda direta';
-        const g = agrupa(faturados, chave).map(([k, ps]) => { const cs = ps.map(S.calc), ls = ps.flatMap(recPi); return [k, ps.length, soma(cs, c => c.total), soma(cs, c => c.commission), soma(cs, c => c.net), soma(ls.filter(l => l.pago_em), recebidoDe), soma(ls.filter(l => !l.pago_em))]; }).sort((a, b) => b[2] - a[2]);
-        return { cols:[C(rel.id === 'cliente' ? 'Cliente' : 'Agência'), C('PIs', 'num'), C('Valor dos PIs', 'brl'), C('Comissão agência', 'brl'), C('Líquido da rádio', 'brl'), C('Recebido', 'brl'), C('Em aberto', 'brl')],
-          rows:g, total:['Total', faturados.length, ...[2, 3, 4, 5, 6].map(i => soma(g, r => r[i]))], nota:'PIs faturados com veiculação no período.' }; }
+        const porCli = rel.id === 'cliente', chave = porCli ? p => S.nome(p.cliente_id) || '—' : p => p.agencia_id ? S.nome(p.agencia_id) : 'Venda direta';
+        const g = agrupa(faturados, chave).map(([k, ps]) => { const cs = ps.map(S.calc), ls = ps.flatMap(recPi), ags = [...new Set(ps.map(p => p.agencia_id).filter(Boolean))];
+          const sub = porCli ? (ags.length ? 'via ' + ags.map(S.nome).join(', ') : 'venda direta') : plural(new Set(ps.map(p => p.cliente_id)).size, 'cliente');
+          return { sub, c:[k, ps.length, soma(cs, c => c.total), soma(cs, c => c.commission), soma(cs, c => c.net), soma(ls.filter(l => l.pago_em), recebidoDe), soma(ls.filter(l => !l.pago_em))] }; }).sort((a, b) => b.c[2] - a.c[2]);
+        const T = i => soma(g, r => r.c[i]);
+        return { resumo:[K('Valor dos PIs', brl(T(2)), `${plural(faturados.length, 'PI')} · ${plural(g.length, porCli ? 'cliente' : 'agência', porCli ? 'clientes' : 'agências')}`), K('Comissão de agência', brl(T(3)), `${pct(T(3), T(2))} do valor dos PIs`), K('Líquido da rádio', brl(T(4)), 'o que a rádio recebe', { dest:true }), K('Recebido', brl(T(5)), `${pct(T(5), T(4))} · em aberto ${brl(T(6))}`, { prog:T(4) ? T(5) / T(4) : 0 })],
+          partTit:'Participação no valor dos PIs', part:partDe(g.map(r => [r.c[0], r.c[2]]), T(2)),
+          cols:[C(porCli ? 'Cliente' : 'Agência'), C('PIs', 'num'), C('Valor dos PIs', 'brl'), C('Comissão', 'brl'), C('Líquido', 'brl'), C('Recebido', 'brl'), C('Em aberto', 'brl')],
+          rows:g, total:['Total', faturados.length, T(2), T(3), T(4), T(5), T(6)],
+          ler:['Valor dos PIs: o que o cliente paga pela mídia, já com descontos. Entram os PIs faturados com veiculação no período.', 'Comissão: a parte da agência. Líquido: valor dos PIs menos a comissão, o que fica com a rádio.', 'Recebido e Em aberto: parcelas do líquido já pagas e ainda a receber.'] }; }
       case 'consultor': { const ps = S.db.pis.filter(p => ['aprovado', 'programado', 'faturado'].includes(p.status) && piNoPeriodo(p, I) && (!rel.consultor || p.consultor_id === rel.consultor));
-        const g = agrupa(ps, p => S.usuario(p.consultor_id) || '—').map(([k, xs]) => { const cs = xs.map(S.calc); return [k, xs.length, soma(cs, c => c.ins), soma(cs, c => c.total), soma(cs, c => c.net), xs.filter(p => p.status === 'faturado').length]; }).sort((a, b) => b[3] - a[3]);
-        return { cols:[C('Consultor'), C('PIs', 'num'), C('Inserções', 'num'), C('Valor dos PIs', 'brl'), C('Líquido da rádio', 'brl'), C('Já faturados', 'num')],
-          rows:g, total:['Total', ps.length, soma(g, r => r[2]), soma(g, r => r[3]), soma(g, r => r[4]), soma(g, r => r[5])], nota:'PIs aprovados, programados ou faturados com veiculação no período.' }; }
+        const g = agrupa(ps, p => S.usuario(p.consultor_id) || '—').map(([k, xs]) => { const cs = xs.map(S.calc); return { sub:plural(new Set(xs.map(p => p.cliente_id)).size, 'cliente'), c:[k, xs.length, soma(cs, c => c.ins), soma(cs, c => c.total), soma(cs, c => c.net), xs.filter(p => p.status === 'faturado').length] }; }).sort((a, b) => b.c[3] - a.c[3]);
+        const T = i => soma(g, r => r.c[i]);
+        return { resumo:[K('Valor vendido', brl(T(3)), plural(ps.length, 'PI'), { dest:true }), K('Líquido da rádio', brl(T(4)), 'depois da comissão de agência'), K('Inserções', T(2).toLocaleString('pt-BR'), 'vendidas no período'), K('Já faturados', String(T(5)), `de ${plural(ps.length, 'PI')}`)],
+          partTit:'Participação nas vendas', part:partDe(g.map(r => [r.c[0], r.c[3]]), T(3)),
+          cols:[C('Consultor'), C('PIs', 'num'), C('Inserções', 'num'), C('Valor vendido', 'brl'), C('Líquido da rádio', 'brl'), C('Já faturados', 'num')],
+          rows:g, total:['Total', ps.length, T(2), T(3), T(4), T(5)], ler:['PIs aprovados, programados ou faturados com veiculação no período.'] }; }
       case 'caixa': { const [de, ate] = I, ini = de || hoje.slice(0, 8) + '01', fim = ate || somaMeses(hoje, 6), ms = []; for (let m = ini.slice(0, 7); m <= fim.slice(0, 7) && ms.length < 36; m = somaMeses(m + '-01', 1).slice(0, 7)) ms.push(m);
-        let acum = 0; const rows = ms.map(m => { const doMes = L.filter(l => (l.vencimento || '').startsWith(m)), e = soma(doMes.filter(l => l.sentido === 'receber')), sd = soma(doMes.filter(l => l.sentido === 'pagar')), rcb = soma(doMes.filter(l => l.sentido === 'receber' && l.pago_em), recebidoDe); acum += e - sd; return [nomeMes(m), e, rcb, sd, e - sd, acum]; });
-        return { cols:[C('Mês'), C('Entradas previstas', 'brl'), C('Já recebido', 'brl'), C('Saídas previstas', 'brl'), C('Saldo do mês', 'brl'), C('Saldo acumulado', 'brl')],
-          rows, total:['Total', soma(rows, r => r[1]), soma(rows, r => r[2]), soma(rows, r => r[3]), soma(rows, r => r[4]), ''], nota:'Pelo vencimento das parcelas, pagas ou não.' }; }
-      case 'nf': { const ls = L.filter(l => l.sentido === 'receber' && l.pi_id && !l.nota_fiscal && (rel.per === 'tudo' || entre(l.vencimento, I)) && doConsultor(l)).sort((a, b) => (a.vencimento || '').localeCompare(b.vencimento || ''));
-        return { cols:[C('Vencimento', 'data'), C('Cliente'), C('Descrição'), C('Parcela', 'num'), C('Situação'), C('Valor', 'brl')],
-          rows:ls.map(l => [l.vencimento, l.contraparte, l.descricao, l.parcela, l.pago_em ? 'Pago' : atraso(l, hoje) ? 'Vencido' : 'Em aberto', Number(l.valor)]), total:['Total', '', `${ls.length} parcelas`, '', '', soma(ls)] }; }
+        let acum = 0; const rows = ms.map(m => { const doMes = L.filter(l => (l.vencimento || '').startsWith(m)), e = soma(doMes.filter(l => l.sentido === 'receber')), sd = soma(doMes.filter(l => l.sentido === 'pagar')), rcb = soma(doMes.filter(l => l.sentido === 'receber' && l.pago_em), recebidoDe); acum += e - sd; return { c:[nomeMes(m), e, rcb, sd, e - sd, acum] }; });
+        const T = i => soma(rows, r => r.c[i]);
+        return { resumo:[K('Entradas previstas', brl(T(1)), `já recebido ${brl(T(2))}`), K('Saídas previstas', brl(T(3)), 'comissões e despesas'), K('Saldo do período', brl(T(4)), plural(ms.length, 'mês', 'meses'), { dest:true, tom:T(4) < 0 ? 'ruim' : '' })],
+          cols:[C('Mês'), C('Entradas', 'brl'), C('Já recebido', 'brl'), C('Saídas', 'brl'), C('Saldo do mês', 'brl'), C('Saldo acumulado', 'brl')],
+          rows, total:['Total', T(1), T(2), T(3), T(4), ''], ler:['Pelo vencimento das parcelas, pagas ou não.', 'Saldo acumulado: soma dos saldos desde o primeiro mês da tabela.'] }; }
+      case 'nf': { const ls = L.filter(l => l.sentido === 'receber' && l.pi_id && !l.nota_fiscal && (rel.per === 'tudo' || entre(l.vencimento, I)) && doConsultor(l)).sort(porVenc);
+        const pagas = ls.filter(l => l.pago_em);
+        return { resumo:[K('Parcelas sem nota', String(ls.length), plural(new Set(ls.map(l => l.contraparte)).size, 'cliente'), { dest:true }), K('Valor sem nota', brl(soma(ls)), 'a emitir'), K('Já pagas sem nota', String(pagas.length), brl(soma(pagas)), { tom:pagas.length ? 'ruim' : '' })],
+          cols:[C('Vencimento', 'data'), C('Cliente'), C('Descrição'), C('Forma'), C('Situação', 'sit'), C('Valor', 'brl')],
+          rows:ls.map(l => linhaParc(l, [l.forma, situ(l, hoje), Number(l.valor)])), grupos:true, total:['Total', '', plural(ls.length, 'parcela'), '', '', soma(ls)],
+          ler:['Para informar a nota: Financeiro › três pontinhos da parcela › Informar nota fiscal.'] }; }
     }
   };
-  const fmt = (v, tipo) => v === '' || v === null || v === undefined ? '' : tipo === 'brl' ? (typeof v === 'number' ? brl(v) : v) : tipo === 'data' ? dfmt(v) : tipo === 'num' && typeof v === 'number' ? v.toLocaleString('pt-BR') : String(v);
-  const tabelaHtml = r => `<table class="fin-rel-tab"><thead><tr>${r.cols.map(c => `<th${c.tipo === 'brl' || c.tipo === 'num' ? ' class="r"' : ''}>${esc(c.t)}</th>`).join('')}</tr></thead>
-    <tbody>${r.rows.map(row => `<tr>${row.map((v, i) => `<td${['brl', 'num'].includes(r.cols[i].tipo) ? ' class="r"' : ''}>${esc(fmt(v, r.cols[i].tipo))}</td>`).join('')}</tr>`).join('')}</tbody>
-    ${r.rows.length ? `<tfoot><tr>${r.total.map((v, i) => `<td${['brl', 'num'].includes(r.cols[i].tipo) ? ' class="r"' : ''}>${esc(fmt(v, r.cols[i].tipo))}</td>`).join('')}</tr></tfoot>` : ''}</table>`;
-  const cartoesHtml = r => r.rows.map(row => `<div class="fin-rel-cartao"><b>${esc(fmt(row[r.cols[0].tipo === 'data' ? 1 : 0], r.cols[r.cols[0].tipo === 'data' ? 1 : 0].tipo))}</b>${row.map((v, i) => (r.cols[0].tipo === 'data' ? i === 1 : i === 0) || v === '' ? '' : `<div><span>${esc(r.cols[i].t)}</span><span>${esc(fmt(v, r.cols[i].tipo))}</span></div>`).join('')}</div>`).join('')
-    + (r.rows.length ? `<div class="fin-rel-cartao total">${r.total.map((v, i) => v === '' || i === 0 ? '' : `<div><span>${esc(r.cols[i].t)}</span><b>${esc(fmt(v, r.cols[i].tipo))}</b></div>`).join('')}</div>` : '');
-  const periodoTxt = () => { const [de, ate] = relIntervalo(S.today()); return rel.per === 'tudo' ? 'todo o período' : `${dfmt(de)} a ${dfmt(ate)}`; };
+  const fmt = (v, tipo) => v === '' || v === null || v === undefined ? '' : tipo === 'brl' ? (typeof v === 'number' ? (Math.abs(v) < 0.005 ? '—' : brl(v)) : v) : tipo === 'data' ? dfmt(v) : tipo === 'num' && typeof v === 'number' ? v.toLocaleString('pt-BR') : String(v);
+  const cel = (v, col) => col.tipo === 'sit' && v ? `<span class="rr-sit ${/^Venc/.test(v) ? 'ruim' : v === 'Pago' ? 'bom' : ''}">${esc(v)}</span>` : esc(fmt(v, col.tipo));
+  const num2 = c => ['brl', 'num'].includes(c.tipo) ? ' class="r"' : '';
+  const resumoHtml = r => `<div class="rr-res" style="--n:${r.resumo.length}">${r.resumo.map(k => `<div class="rr-k${k.dest ? ' dest' : ''}${k.tom ? ' ' + k.tom : ''}"><small>${esc(k.rot)}</small><b>${esc(k.val)}</b>${k.prog !== undefined ? `<i class="rr-prog"><i style="width:${Math.round(Math.min(1, k.prog) * 100)}%"></i></i>` : ''}<span>${esc(k.sub || '')}</span></div>`).join('')}</div>`;
+  const partHtml = r => r.part && r.part.length > 1 ? `<div class="rr-part"><b class="rr-tit">${esc(r.partTit)}</b>${r.part.map((x, i) => `<div><span class="rr-nome">${esc(x.nome)}</span><span class="rr-barra"><i class="${i ? '' : 'pri'}" style="width:${Math.max(1, x.p * 100).toFixed(1)}%"></i></span><b>${pct(x.p, 1)}</b><span class="rr-val">${brl(x.v)}</span></div>`).join('')}</div>` : '';
+  const tabelaHtml = r => {
+    const linha = row => `<tr>${row.c.map((v, i) => `<td${num2(r.cols[i])}>${i === 0 && row.sub ? `<b>${esc(fmt(v, r.cols[i].tipo))}</b><small>${esc(row.sub)}</small>` : cel(v, r.cols[i])}</td>`).join('')}</tr>`;
+    let corpo = '';
+    if (r.grupos) agrupa(r.rows, x => x.grupo).forEach(([g, xs]) => { const iv = r.cols.findIndex(c => c.tipo === 'brl');
+      corpo += `<tr class="rr-grp"><td colspan="${r.cols.length}">${nomeMesLongo(g)}</td></tr>${xs.map(linha).join('')}<tr class="rr-sub"><td colspan="${iv}">Subtotal · ${plural(xs.length, rel.id === 'recebimentos' ? 'recebimento' : 'parcela')}</td><td class="r">${brl(soma(xs, x => x.c[iv]))}</td>${r.cols.slice(iv + 1).map(() => '<td></td>').join('')}</tr>`; });
+    else corpo = r.rows.map(linha).join('');
+    return `<table class="rr-tab"><thead><tr>${r.cols.map(c => `<th${num2(c)}>${esc(c.t)}</th>`).join('')}</tr></thead><tbody>${corpo}</tbody>
+      ${r.rows.length ? `<tfoot><tr>${r.total.map((v, i) => `<td${num2(r.cols[i])}>${esc(fmt(v, r.cols[i].tipo))}</td>`).join('')}</tr></tfoot>` : ''}</table>`; };
+  const cartoesHtml = r => {
+    const cartao = row => `<div class="fin-rel-cartao"><b>${esc(fmt(row.c[r.cols[0].tipo === 'data' ? 1 : 0], ''))}</b>${row.sub ? `<small class="muted">${esc(row.sub)}</small>` : ''}${row.c.map((v, i) => (r.cols[0].tipo === 'data' ? i === 1 : i === 0) || v === '' ? '' : `<div><span>${esc(r.cols[i].t)}</span><span>${cel(v, r.cols[i])}</span></div>`).join('')}</div>`;
+    const corpo = r.grupos ? agrupa(r.rows, x => x.grupo).map(([g, xs]) => `<div class="fin-mes"><b>${nomeMesLongo(g)}</b><span>${brl(soma(xs, x => x.c[r.cols.findIndex(c => c.tipo === 'brl')]))}</span></div>${xs.map(cartao).join('')}`).join('') : r.rows.map(cartao).join('');
+    return corpo + (r.rows.length ? `<div class="fin-rel-cartao total">${r.total.map((v, i) => v === '' || i === 0 ? '' : `<div><span>${esc(r.cols[i].t)}</span><b>${esc(fmt(v, r.cols[i].tipo))}</b></div>`).join('')}</div>` : ''); };
+  const lerHtml = r => r.ler && r.ler.length ? `<div class="rr-ler"><b>Como ler este relatório</b>${r.ler.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : '';
+  const periodoTxt = () => { const [de, ate] = relIntervalo(S.today()); return rel.id === 'inadimplencia' ? `posição em ${dfmt(S.today())}` : rel.per === 'tudo' ? 'todo o período' : `${dfmt(de)} a ${dfmt(ate)}`; };
+  const filtrosTxt = () => `Período: ${periodoTxt()} · ${rel.consultor ? 'consultor ' + S.usuario(rel.consultor) : 'todos os consultores'}`;
 
   const telaRelatorios = () => {
     const r = montar(), atual = REL.find(x => x[0] === rel.id), consultores = [...new Set(S.db.pis.map(p => p.consultor_id).filter(Boolean))].map(id => [id, S.usuario(id) || '—']);
-    const lado = S.celular ? `<label class="f fin-rel-sel">Relatório<select data-rel="id">${REL.map(([k, n]) => `<option value="${k}"${k === rel.id ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`
-      : `<nav class="card fin-rel-menu" aria-label="Relatórios">${REL.map(([k, n, dsc]) => `<button class="${k === rel.id ? 'on' : ''}" data-act="finRel" data-id="${k}"><b>${n}</b><span>${dsc}</span></button>`).join('')}</nav>`;
-    const filtros = `<div class="fin-rel-filtros"><label class="f">Período<select data-rel="per">${RPER.map(([k, n]) => `<option value="${k}"${k === rel.per ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
-      ${rel.per === 'datas' ? `<label class="f">De<input type="date" data-rel="de" value="${rel.de}"></label><label class="f">Até<input type="date" data-rel="ate" value="${rel.ate}"></label>` : ''}
-      ${['caixa', 'pagar'].includes(rel.id) ? '' : `<label class="f">Consultor<select data-rel="consultor"><option value="">Todos</option>${consultores.map(([id, n]) => `<option value="${id}"${id === rel.consultor ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`}</div>`;
+    const grupos = [...new Set(REL.map(x => x[2]))];
+    const lado = S.celular ? `<label class="f fin-rel-sel">Relatório<select data-rel="id">${grupos.map(g => `<optgroup label="${g}">${REL.filter(x => x[2] === g).map(([k, n]) => `<option value="${k}"${k === rel.id ? ' selected' : ''}>${n}</option>`).join('')}</optgroup>`).join('')}</select></label>`
+      : `<nav class="card fin-rel-menu" aria-label="Relatórios">${grupos.map(g => `<span class="fin-rel-grupo">${g}</span>${REL.filter(x => x[2] === g).map(([k, n]) => `<button class="${k === rel.id ? 'on' : ''}" data-act="finRel" data-id="${k}">${n}</button>`).join('')}`).join('')}</nav>`;
+    const filtros = `<div class="fin-rel-filtros">${rel.id === 'inadimplencia' ? '' : `<label class="fin-rel-f"><span>Período</span><select data-rel="per">${RPER.map(([k, n]) => `<option value="${k}"${k === rel.per ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`}
+      ${rel.per === 'datas' && rel.id !== 'inadimplencia' ? `<label class="fin-rel-f"><span>De</span><input type="date" data-rel="de" value="${rel.de}"></label><label class="fin-rel-f"><span>Até</span><input type="date" data-rel="ate" value="${rel.ate}"></label>` : ''}
+      ${['caixa', 'pagar'].includes(rel.id) ? '' : `<label class="fin-rel-f"><span>Consultor</span><select data-rel="consultor"><option value="">Todos</option>${consultores.map(([id, n]) => `<option value="${id}"${id === rel.consultor ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`}
+      <span class="muted small">${periodoTxt()}</span></div>`;
     const corpo = r.rows.length ? (S.celular ? cartoesHtml(r) : `<div class="scroll">${tabelaHtml(r)}</div>`) : '<div class="empty"><b>Nada neste relatório</b>Experimente outro período.</div>';
     return { title:`<span class="sub"><a data-act="finVoltar">← Financeiro</a></span>Relatórios`, actions:'',
-      body:`<div class="fin-rel">${lado}<section class="card fin-rel-corpo"><div class="hd"><h3>${atual[1]}</h3><span class="row mid" style="gap:8px"><button class="btn sm" data-act="finCsv"${r.rows.length ? '' : ' disabled'}>${S.svg('baixar')}Planilha</button><button class="btn sm pri" data-act="finPdf"${r.rows.length ? '' : ' disabled'}>${S.svg('baixar')}PDF</button></span></div>
-        ${filtros}<p class="muted small">${periodoTxt()}${r.nota ? ' · ' + esc(r.nota) : ''}</p>${corpo}</section></div>` };
+      body:`<div class="fin-rel">${lado}<section class="card fin-rel-corpo">
+        <div class="fin-rel-topo"><div class="grow"><h3>${atual[1]}</h3><p class="muted">${atual[3]}</p></div><button class="btn sm" data-act="finCsv"${r.rows.length ? '' : ' disabled'}>${S.svg('baixar')}Planilha</button><button class="btn sm pri" data-act="finPdf"${r.rows.length ? '' : ' disabled'}>${S.svg('baixar')}Baixar PDF</button></div>
+        ${filtros}${r.rows.length ? resumoHtml(r) + partHtml(r) : ''}${corpo}${r.rows.length ? lerHtml(r) : ''}</section></div>` };
   };
   // Planilha: CSV com ; e vírgula decimal, que o Excel em português abre direto
-  const csv = r => { const cel = (v, tipo) => { if (v === '' || v === null || v === undefined) return ''; const t = typeof v === 'number' ? (tipo === 'num' ? String(v) : v.toFixed(2).replace('.', ',')) : tipo === 'data' ? dfmt(v) : String(v); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
-    return '﻿' + [r.cols.map(c => cel(c.t)).join(';'), ...r.rows.map(row => row.map((v, i) => cel(v, r.cols[i].tipo)).join(';')), r.total.map((v, i) => cel(v, r.cols[i].tipo)).join(';')].join('\r\n'); };
+  const csv = r => { const c1 = (v, tipo) => { if (v === '' || v === null || v === undefined) return ''; const t = typeof v === 'number' ? (tipo === 'num' ? String(v) : v.toFixed(2).replace('.', ',')) : tipo === 'data' ? dfmt(v) : String(v); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    return '﻿' + [r.cols.map(c => c1(c.t)).join(';'), ...r.rows.map(row => row.c.map((v, i) => c1(v, r.cols[i].tipo)).join(';')), r.total.map((v, i) => c1(v, r.cols[i].tipo)).join(';')].join('\r\n'); };
   const arquivo = () => `${REL.find(x => x[0] === rel.id)[1].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\W+/g, '-')}-${S.veh().sigla || 'radio'}-${S.today()}`.toLowerCase();
+  const pdfHtml = r => { const v = S.veh(), cor = v.cor || S.COR_PADRAO, agora = new Date(), hora = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
+    return `<div class="rdoc" style="--rcor:${cor}"><header class="rd-cab">${v.logo ? `<img src="${v.logo}" alt="">` : `<span class="rd-selo" style="background:${cor}">${esc(v.sigla || '')}</span>`}
+        <div class="rd-radio"><b>${esc(v.nome)}</b>${[v.razao_social && v.cnpj ? `${v.razao_social} · CNPJ ${v.cnpj}` : v.razao_social || (v.cnpj && 'CNPJ ' + v.cnpj), v.cidade].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('')}</div>
+        <div class="rd-tit"><small>RELATÓRIO FINANCEIRO</small><b>${esc(REL.find(x => x[0] === rel.id)[1])}</b><span>${rel.id === 'inadimplencia' ? 'Posição em' : 'Período:'} <b>${rel.id === 'inadimplencia' ? dfmt(S.today()) : periodoTxt()}</b></span></div></header>
+      ${resumoHtml(r)}${partHtml(r)}${tabelaHtml(r)}<p class="rd-nota">Valores em reais. "—" = sem valor.</p>${lerHtml(r)}
+      <footer class="rd-rod"><span>${esc(filtrosTxt())}</span><span>Gerado pelo SONVI em ${dfmt(S.today())} às ${hora}${S.me && S.me.nome ? ' por ' + esc(S.me.nome) : ''}</span></footer></div>`; };
 
   Object.assign(S.actions, {
     finAvulso: () => formAvulso(),
@@ -284,11 +344,11 @@
     finVoltar: () => { modo = 'lista'; S.render(); },
     finRel: d => { rel.id = d.id; S.render(); },
     finCsv: () => { const r = montar(), b = new Blob([csv(r)], { type:'text/csv;charset=utf-8' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = arquivo() + '.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); },
-    finPdf: () => { const r = montar(), v = S.veh(), cons = rel.consultor ? ` · consultor ${S.usuario(rel.consultor)}` : '';
+    finPdf: () => { const r = montar();
       let st = document.getElementById('pagina'); if (!st) { st = document.createElement('style'); st.id = 'pagina'; document.head.appendChild(st); }
-      st.textContent = '@media print { @page { size:A4 landscape; margin:10mm; } }';
-      document.getElementById('print').innerHTML = `<div class="fin-rel-doc"><div class="cab">${v.logo ? `<img src="${v.logo}" alt="">` : ''}<div><h1 style="border-left:6px solid ${v.cor || S.COR_PADRAO};padding-left:8px">${esc(v.nome)} · ${esc(REL.find(x => x[0] === rel.id)[1])}</h1><div>${periodoTxt()}${esc(cons)}${r.nota ? ' · ' + esc(r.nota) : ''}</div></div></div>${tabelaHtml(r)}<p>Gerado pelo SONVI em ${dfmt(S.today())}.</p></div>`;
-      setTimeout(() => window.print(), 60); }
+      st.textContent = '@media print { @page { size:A4 portrait; margin:12mm; } }';
+      document.getElementById('print').innerHTML = pdfHtml(r);
+      const t = document.title; document.title = arquivo(); setTimeout(() => { window.print(); document.title = t; }, 80); }
   });
   S.changes.push((el, d) => { if (!d.rel) return false; rel[d.rel] = el.value; if (d.rel === 'per' && el.value === 'datas' && !rel.de) { const h = S.today(); rel.de = h.slice(0, 8) + '01'; rel.ate = h; } S.render(); return true; });
   // Ao sair do Financeiro, volta para a lista na próxima visita
