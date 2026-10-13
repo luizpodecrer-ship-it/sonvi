@@ -300,7 +300,7 @@
   const opcoes = (lista, sel) => lista.map(([k, n]) => `<option value="${esc(k)}"${String(k) === String(sel ?? '') ? ' selected' : ''}>${esc(n)}</option>`).join('');
   const horas24 = Array.from({ length:24 }, (_, h) => [h, M.pad(h) + 'h']);
   S.actions.musFicha = d => {
-    const novo = !d.id, m = novo ? { ativa:true, ritmo:'M', peso:3, voz:'M', origem:'N', duracao:0, entrada:0, termino:0, intervalo_h:0, espera_h:2, deve_tocar:0, deve_de:6, deve_ate:22, limite_dia:0, bloqueios:[], categoria_id:(S.db.mus_categorias[0] || {}).id, novidade:true }
+    const novo = !d.id, m = novo ? { ativa:true, ritmo:'M', peso:3, voz:'M', origem:'N', duracao:0, entrada:0, termino:0, intervalo_h:0, espera_h:2, deve_tocar:0, deve_de:6, deve_ate:22, limite_dia:0, bloqueios:[], categoria_id:(S.db.mus_categorias[0] || {}).id, novidade:true, ...(d.pre || {}) }
       : S.db.musicas.find(x => x.id === d.id);
     if (novo && !pode()) return;
     const v = Object.assign({}, m, { duracao_t:m.duracao ? M.mmss(m.duracao) : '', entrada_t:m.entrada ? M.mmss(m.entrada) : '', termino_t:m.termino ? M.mmss(m.termino) : '', bpm:m.bpm || '' });

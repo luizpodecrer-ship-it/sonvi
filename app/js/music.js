@@ -9,6 +9,7 @@
   S.MUSIC_NAV = [
     ['hoje', 'Hoje no ar', TODOS],
     ['programacao', 'Programação', TODOS],
+    ['radar', 'Radar', PROG],
     ['acervo', 'Acervo', CONSULTA],
     ['relogios', 'Relógios', PROG],
     ['categorias', 'Categorias', PROG],
