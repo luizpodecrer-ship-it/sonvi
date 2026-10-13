@@ -73,11 +73,27 @@
     return out;
   };
 
-  // Preço vigente na tabela para um programa e formato (a vigência mais recente que já começou)
+  // ---------- tabelas de preço ----------
+  // Situação de uma tabela: rascunho (só se prepara), agendada (publicada, ainda não começou),
+  // vigente (a publicada mais recente que já começou) ou encerrada (substituída por outra).
+  S.tabelaVigente = (data = S.today()) => (S.db.tabelas || []).filter(t => t.situacao === 'publicada' && t.inicio <= data).sort((a, b) => b.inicio.localeCompare(a.inicio))[0] || null;
+  S.situacaoTabela = t => { if (!t) return null; if (t.situacao !== 'publicada') return 'rascunho'; if (t.inicio > S.today()) return 'agendada';
+    const v = S.tabelaVigente(); return v && v.id === t.id ? 'vigente' : 'encerrada'; };
+  S.SITUACAO_TABELA = { rascunho:['Rascunho', 'gray'], agendada:['Agendada', 'blue'], vigente:['Vigente', 'green'], encerrada:['Encerrada', 'gray'] };
+  // Preço de um programa × formato numa tabela (a vigente, se nenhuma for indicada). Rascunhos nunca entram no PI.
+  S.precoNaTabela = (tabelaId, programaId, formatoId) => S.db.precos.find(x => x.tabela_id === tabelaId && x.programa_id === programaId && x.formato_id === formatoId) || null;
   S.preco = (programa, formato) => {
     const p = S.db.produtos.find(x => x.tipo === 'programa' && x.nome.trim() === String(programa || '').trim()), f = S.db.produtos.find(x => x.tipo === 'formato' && x.nome.trim() === String(formato || '').trim());
-    if (!p || !f) return null;
-    return S.db.precos.filter(x => x.programa_id === p.id && x.formato_id === f.id && x.vigencia_inicio <= S.today()).sort((a, b) => b.vigencia_inicio.localeCompare(a.vigencia_inicio))[0] || null;
+    const t = S.tabelaVigente();
+    if (!p || !f || !t) return null;
+    return S.precoNaTabela(t.id, p.id, f.id);
+  };
+  // Reajuste: aumenta/reduz em % ou soma/subtrai em R$, com arredondamento (0 = centavos)
+  S.reajustar = (valor, op, quanto, arred) => {
+    let v = Number(valor) || 0, q = Number(quanto) || 0;
+    v = op === 'pct-' ? v * (1 - q / 100) : op === 'brl+' ? v + q : op === 'brl-' ? v - q : v * (1 + q / 100);
+    v = arred ? Math.round(v / arred) * arred : Math.round(v * 100) / 100;
+    return Math.max(0, v);
   };
 
   // O que falta para o PI poder seguir para a OPEC

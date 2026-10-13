@@ -66,13 +66,18 @@
   // Tudo o que pertence ao veículo selecionado. O banco só devolve o que o perfil pode ver.
   S.carregarVeiculo = async () => {
     const v = S.ui.vehicleId;
-    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], pis:[], agenda:[], lancamentos:[], hist:{}, midias:{}, musVeiculo:null, musSemana:null });
+    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], tabelas:[], pis:[], agenda:[], lancamentos:[], hist:{}, midias:{}, musVeiculo:null, musSemana:null });
     if (!v) { S.perfil = S.me && S.me.diretor ? 'diretor' : null; return; }
     S.perfil = S.me.diretor ? 'diretor' : (S.db.vinculos.find(x => x.usuario_id === S.me.id && x.veiculo_id === v) || {}).perfil || null;
     const de = t => q(S.sb.from(t).select('*').eq('veiculo_id', v));
-    const [pessoas, produtos, precos, pis, agenda, lancamentos] = await Promise.all([de('pessoas'), de('produtos'), de('precos'), de('pis'), de('agenda'), de('lancamentos')]);
-    Object.assign(S.db, { pessoas, produtos, precos, pis:pis.map(S.piNorm), agenda, lancamentos });
+    const [pessoas, produtos, precos, tabelas, pis, agenda, lancamentos] = await Promise.all([de('pessoas'), de('produtos'), de('precos'), de('tabelas_preco'), de('pis'), de('agenda'), de('lancamentos')]);
+    Object.assign(S.db, { pessoas, produtos, precos, tabelas, pis:pis.map(S.piNorm), agenda, lancamentos });
   };
+
+  // Tabelas de preço e seus preços (depois de criar, salvar ou publicar uma tabela)
+  S.recarregarTabelas = async () => { const v = S.ui.vehicleId;
+    const [tabelas, precos] = await Promise.all([q(S.sb.from('tabelas_preco').select('*').eq('veiculo_id', v)), q(S.sb.from('precos').select('*').eq('veiculo_id', v))]);
+    Object.assign(S.db, { tabelas, precos }); };
 
   // Programação musical: carrega só quando a pessoa abre o módulo (acervo, categorias, formatos, regras e a semana escolhida).
   // A semana vem com o dia anterior junto, para as regras que olham "ontem".

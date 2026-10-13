@@ -62,6 +62,7 @@
     const el = e.target, d = el.dataset;
     if (el.closest('dialog')) return;
     if (d.ui === 'vehicleId' && S.piEd && S.piEd.sujo) { el.value = S.ui.vehicleId; return S.toast('Salve ou cancele as alterações do PI antes de trocar de rádio.'); }
+    if (d.ui === 'vehicleId' && S.tpSujo && S.tpSujo()) { el.value = S.ui.vehicleId; return S.toast('Salve ou descarte as alterações da tabela de preços antes de trocar de rádio.'); }
     if (d.ui === 'vehicleId') { // troca de rádio: busca na nuvem só os dados dela
       S.ui.vehicleId = el.value; S.ui.q = ''; S.guardarRadio(el.value);
       if (S.route().view === 'pi') location.hash = '/pis';

@@ -41,6 +41,10 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - `app/js/cadastros.js`: grade com programas nas linhas, agrupados em seções (`produtos.secao`: programa, quadro, rotativo), e formatos nas colunas. Formato cobrado por duração (`cobranca` = duracao, spot 15"/30"...) ou com preço único (`unico`, ex.: testemunhal), numa coluna à parte. "Dias e horário" aceita uma linha por faixa. Migração em `database/009_secoes_e_preco_unico.sql`.
 
+- Tabelas de preço (`tabelas_preco`, `database/013_tabelas_de_preco.sql`): cada tabela tem nome e situação, Rascunho → Agendada → Vigente → Encerrada (`S.situacaoTabela`, `S.tabelaVigente` em `pi-regras.js`). Cada preço pertence a uma tabela (`precos.tabela_id`); a tabela é completa (um preço por programa × formato). Rascunho: diretor e gerente; publicar (`publicar_tabela`, com data de início ≥ hoje), voltar para rascunho (`despublicar_tabela`) e corrigir agendada ou vigente: só o diretor. Encerradas são só consulta.
+- Tela: `/cadastros` = lista de tabelas (cartões + prévia da vigente); `/cadastros/<id>` = editor. No editor as mudanças ficam na tela (`ed`) até "Salvar" (`salvar_tabela` grava/atualiza; o que saiu da tabela é apagado em `precos`); "Descartar" volta; sair ou trocar de rádio com alterações pendentes pergunta. Cada preço mostra o da tabela de origem (`base_id`) e a diferença; "Reajustar vários de uma vez" calcula a partir da tabela de origem.
+- O PI pega o preço da tabela vigente no dia em que é criado (`S.preco`); rascunhos e agendadas nunca entram no PI.
+
 ## PI impresso
 
 - `S.buildPrint` (`pi.js`) monta o contrato de publicidade numa folha deitada: Ofício/Legal por padrão ou A4 (`veiculos.pi_papel`, regra `@page` em `<style id="pagina">`). Estilos `.pidoc`/`.pd-*` em `sonvi.css` valem na prévia e no PDF.
