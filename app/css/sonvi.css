@@ -694,3 +694,21 @@ form.ver .g2 .mus-mapa button { display:block; }
 .tp-previa > div > span:nth-child(2), .tp-previa > div > b { text-align:right; }
 .tp-previa .tp-pv-cab { border-top:0; font-size:12px; color:var(--ink-2); font-weight:500; } .tp-previa .tp-pv-cab span:nth-child(2), .tp-previa .tp-pv-cab span:nth-child(4) { text-align:right; }
 @media (max-width:820px) { .tp-faixa .grow { display:none; } .tp-versao { width:100%; } .tp-versao select { flex:1; } }
+/* Tabela de preços · seções (programa, quadro, rotativo) e formatos de preço único */
+.tp-grupos { border-bottom:0; padding-bottom:0; }
+.tp-grupo { text-align:center; font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-2); padding-bottom:6px; border-bottom:2px solid var(--line); }
+.tp-cel.uni1, .tp-form.uni1, .tp-grupo.uni1 { border-left:1px solid var(--line); padding-left:12px; margin-left:4px; }
+.tp-cel.uni .tp-preco { background:var(--accent-soft); }
+.tp-secao { padding:20px 12px 6px; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent-text); }
+.tp-vazio.leve { border-color:transparent; color:var(--ink-3); font-weight:500; padding:8px 14px; }
+.tp-vazio.leve:hover { border-color:var(--accent); border-style:dashed; color:var(--accent-text); }
+.tp-novos { display:flex; flex-wrap:wrap; gap:8px; }
+.tp-seg { margin-bottom:0; display:flex; } .tp-seg button { flex:1; }
+.tp-minis { display:grid; grid-template-columns:repeat(auto-fill, minmax(68px, 1fr)); gap:6px; margin-top:6px; }
+.tp-mini { display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 4px; border:1px solid transparent; border-radius:12px; background:var(--fill); font:inherit; color:var(--ink); cursor:pointer; min-width:0; }
+.tp-mini small { font-size:12px; color:var(--ink-2); } .tp-mini b { font:600 13px/1.2 var(--display); letter-spacing:-.02em; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.tp-mini.vazio b { color:var(--ink-3); } .tp-mini.aviso { border-color:color-mix(in srgb, var(--orange) 45%, transparent); }
+.tp-mini:disabled, .tp-unico:disabled { cursor:default; }
+.tp-unico { display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; margin-top:8px; padding:10px 12px; border:0; border-radius:12px; background:var(--accent-soft); font:inherit; font-weight:600; color:var(--ink); cursor:pointer; text-align:left; }
+.tp-unico b { font:600 16px/1.2 var(--display); font-variant-numeric:tabular-nums; }
+.tp-unicos-novos { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; } .tp-unicos-novos .tp-vazio { display:inline-flex; align-items:center; gap:4px; padding:6px 10px; font-size:12px; }
