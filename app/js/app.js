@@ -21,12 +21,13 @@
     body:`<div class="card empty"><b>O seu trabalho fica no Sonvi Music</b>A programação musical e o estúdio ficam num sistema à parte, com login próprio.<div style="margin-top:18px"><a class="btn pri" href="music/">Abrir o Sonvi Music</a></div></div>` });
 
   let ultima = ''; // última tela desenhada: a animação de entrada só roda quando a tela muda
+  let ultimoSide = ''; // barra lateral desenhada (sem o item marcado)
 
   S.render = () => {
     const content = document.getElementById('content'), bar = document.getElementById('bar');
     const acesso = S.carregando ? `<div class="carregando"><div style="display:grid;justify-items:center;gap:18px"><img src="img/simbolo.svg" alt="${MUSIC ? 'Sonvi Music' : 'SONVI'}"><div class="eq" aria-label="Carregando"><span></span><span></span><span></span><span></span><span></span></div></div></div>` : S.telaDeAcesso();
     document.body.classList.toggle('fora', !!acesso);
-    if (acesso) { S.temaRadio(null); document.getElementById('side').innerHTML = ''; bar.innerHTML = ''; content.innerHTML = acesso; document.title = MUSIC ? 'Sonvi Music' : 'SONVI'; ultima = ''; return; }
+    if (acesso) { S.temaRadio(null); document.getElementById('side').innerHTML = ''; ultimoSide = ''; bar.innerHTML = ''; content.innerHTML = acesso; document.title = MUSIC ? 'Sonvi Music' : 'SONVI'; ultima = ''; return; }
 
     const semVeiculo = !S.ui.vehicleId, itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || n[0] === 'admin')), telas = itens.filter(n => !n[3]);
     let { view, id } = S.route();
@@ -34,17 +35,22 @@
     if (semVeiculo) view = MUSIC ? (telas[0] || ['hoje'])[0] : 'admin';
     S.temaRadio(semVeiculo ? null : S.veh());
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, veh = semVeiculo ? null : S.veh();
-    document.getElementById('side').innerHTML = `<a class="brand" data-go="/${MUSIC ? 'hoje' : 'painel'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Painel'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" alt=""></a>
+    const side = document.getElementById('side'), sideHtml = `<a class="brand" data-go="/${MUSIC ? 'hoje' : 'painel'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Painel'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" alt=""></a>
       ${semVeiculo ? '' : `<label class="veh" title="Trocar de rádio">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc([veh.frequencia, veh.cidade].filter(Boolean).join(' · ') || 'Rádio selecionada')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Rádio">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}
       <nav aria-label="Menu principal">${itens.map(([k, n, , href]) => href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
         : `<a data-go="/${k}" title="${n}" class="${active === k ? 'on' : ''}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}</a>`).join('')}
       ${SOON.length ? '<div class="sec">Em breve</div>' : ''}${SOON.map(n => `<span class="soon">${S.svg('programacao')}${n}</span>`).join('')}</nav>
       <div class="eu"><span class="av" aria-hidden="true">${esc(S.iniciais(S.me.nome || S.me.email))}</span><div><b>${esc(S.me.nome || S.me.email)}</b><small>${S.PERFIS[S.perfil] || ''}${S.perfil === 'diretor' ? ' · todas as rádios' : ''}</small></div><button class="btn sm" data-act="sair">Sair</button></div>`;
+    // Mesma barra com outro item marcado: só troca a marcação (o logo e os itens não são recriados e nada pisca)
+    const molde = sideHtml.replace(/ class="on" aria-current="page"/g, ' class=""');
+    if (molde === ultimoSide) side.querySelectorAll('nav a[data-go]').forEach(a => { const on = a.dataset.go === '/' + active; a.className = on ? 'on' : ''; if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    else { side.innerHTML = sideHtml; ultimoSide = molde; }
     const v = (S.views[view] || S.views.soMusic)(id), chave = `${view}/${id || ''}/${S.ui.vehicleId}/${S.ui.tab}`;
     const anima = chave !== ultima; ultima = chave;
     bar.classList.toggle('entra', anima); content.classList.toggle('entra', anima);
     // O PI usa a largura toda da tela; a barra lateral fica só com os ícones
-    const largo = view === 'pi' || (MUSIC && view === 'programacao'); bar.classList.toggle('largo', largo); content.classList.toggle('largo', largo); document.body.classList.toggle('compacto', largo);
+    // No Sonvi Music a barra lateral nunca recolhe: ao trocar de item nada sai do lugar
+    const largo = !MUSIC && view === 'pi'; bar.classList.toggle('largo', largo); content.classList.toggle('largo', largo); document.body.classList.toggle('compacto', largo);
     bar.innerHTML = `<h1>${v.title}</h1>${v.actions}`;
     content.innerHTML = v.body;
     document.title = (MUSIC ? 'Sonvi Music' : 'SONVI') + (semVeiculo ? '' : ' · ' + veh.nome);
