@@ -55,7 +55,7 @@
     const seg = `<div class="seg">${[['veiculos', 'Veículos'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
     let body;
     if (aba === 'veiculos') {
-      body = `<div class="card">${S.db.veiculos.length ? `<div class="scroll"><table><thead><tr><th>Rádio</th><th>Sigla do PI</th><th>CNPJ</th><th>Frequência</th><th>Cidade</th><th class="r">PIs emitidos</th><th></th></tr></thead><tbody>${S.db.veiculos.map(v => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td><td>${esc(v.frequencia)}</td><td>${esc(v.cidade)}</td><td class="r">${v.pi_seq}</td><td class="r"><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><b>Cadastre a primeira rádio</b>Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div>'}</div>`;
+      body = `<div class="card">${S.db.veiculos.length ? `<div class="scroll"><table><thead><tr><th>Rádio</th><th>Sigla do PI</th><th>CNPJ</th><th>Frequência</th><th>Cidade</th><th class="r">PIs emitidos</th><th></th></tr></thead><tbody>${S.db.veiculos.map(v => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td><td>${esc(v.frequencia)}</td><td>${esc(v.cidade)}</td><td class="r">${v.pi_seq}</td><td class="r"><span class="row mid" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-act="admTextosPI" data-id="${v.id}">${S.svg('pis')}Textos do PI</button><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button></span></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><b>Cadastre a primeira rádio</b>Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div>'}</div>`;
     } else {
       const us = S.db.usuarios;
       body = S.celular
@@ -77,6 +77,20 @@
         { k:'cidade', label:'Cidade / UF' }, { k:'telefone', label:'Telefone' }, { k:'email', label:'E-mail', type:'email' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
         f => S.run(async () => { const row = Object.assign({}, f, { sigla:f.sigla.toUpperCase().trim(), logo:f.logo || null, cor:(f.cor || S.COR_PADRAO).toLowerCase() }); if (v.id) row.id = v.id;
           const novo = await S.salvar('veiculos', row); if (!v.id) { S.ui.vehicleId = novo.id; S.guardarRadio(novo.id); await S.carregarVeiculo(); } }, 'Veículo salvo'), 'Salvar', { editar:!!d.editar }); },
+    // Textos que saem no PI impresso desta rádio: papel, cidade, condição de pagamento e condições gerais
+    admTextosPI: d => { const v = S.veh(d.id);
+      S.form(`Textos do PI · ${esc(v.nome)}`, [
+        { k:'pi_papel', label:'Tamanho do papel', type:'select', options:[['legal', 'Ofício (Legal), deitado'], ['a4', 'A4, deitado']] },
+        { k:'pi_cidade', label:'Cidade da assinatura e do foro', ph:'Ex.: Cuiabá/MT' },
+        { k:'pi_pagamento', label:'Condição de pagamento padrão (sai no quadro de pagamento)', full:true, ph:'Ex.: Faturamento no mês da veiculação, vencimento dia 15 do mês seguinte' },
+        { k:'pi_condicoes', label:'Condições gerais (dizeres obrigatórios no rodapé do PI) · uma cláusula por linha; {RADIO} e {CIDADE} viram o nome da rádio e a cidade', type:'textarea' },
+        { html:`<div class="row mid" style="grid-column:1/-1;gap:10px"><button type="button" class="btn sm" data-act="admTextoPadrao">Usar o texto padrão do SONVI</button><span class="muted small">Revise cláusulas, prazos e multas com o jurídico da rádio. PIs já exportados não mudam.</span></div>` }],
+        Object.assign({}, v, { pi_papel:v.pi_papel || 'legal', pi_cidade:v.pi_cidade || v.cidade || '', pi_condicoes:v.pi_condicoes || S.PI_CONDICOES_PADRAO }),
+        f => S.run(async () => { const txt = (f.pi_condicoes || '').trim();
+          await S.salvar('veiculos', { id:v.id, pi_papel:f.pi_papel, pi_cidade:(f.pi_cidade || '').trim(), pi_pagamento:(f.pi_pagamento || '').trim(), pi_condicoes:txt === S.PI_CONDICOES_PADRAO.trim() ? '' : txt }); }, 'Textos do PI salvos'), 'Salvar', { editar:true });
+      const ta = document.querySelector('#dlg textarea[name=pi_condicoes]'); if (ta) ta.classList.add('alto');
+      document.getElementById('dlg').classList.add('largo'); const dl = document.getElementById('dlg'), antes = dl.onclose; dl.onclose = e => { dl.classList.remove('largo'); if (antes) antes(e); }; },
+    admTextoPadrao: () => { const ta = document.querySelector('#dlg textarea[name=pi_condicoes]'); if (ta) ta.value = S.PI_CONDICOES_PADRAO; },
     admUsuario: d => formUsuario(d.id ? S.db.usuarios.find(x => x.id === d.id) : {}, false),
     admUsuarioMenu: (d, botao) => { const u = S.db.usuarios.find(x => x.id === d.id), eu = u.id === S.me.id;
       S.menu(botao, [{ label:'Editar', icon:'editar', act:'admUsuarioEditar', data:{ id:u.id } },

@@ -41,6 +41,11 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - `app/js/cadastros.js`: grade com programas nas linhas, agrupados em seções (`produtos.secao`: programa, quadro, rotativo), e formatos nas colunas. Formato cobrado por duração (`cobranca` = duracao, spot 15"/30"...) ou com preço único (`unico`, ex.: testemunhal), numa coluna à parte. "Dias e horário" aceita uma linha por faixa. Migração em `database/009_secoes_e_preco_unico.sql`.
 
+## PI impresso
+
+- `S.buildPrint` (`pi.js`) monta o contrato de publicidade numa folha deitada: Ofício/Legal por padrão ou A4 (`veiculos.pi_papel`, regra `@page` em `<style id="pagina">`). Estilos `.pidoc`/`.pd-*` em `sonvi.css` valem na prévia e no PDF.
+- Textos por rádio em Administração → Veículos → "Textos do PI": `pi_cidade`, `pi_pagamento`, `pi_condicoes` (vazio = `S.PI_CONDICOES_PADRAO` de `pi-regras.js`; `{RADIO}` e `{CIDADE}` são trocados). Migração `database/010_textos_do_pi.sql`.
+
 ## Programação musical
 
 - Módulo `musical` (`app/js/musical.js`), com as regras e a geração automática em funções puras em `musical-regras.js` (`S.mus`). Tabelas em `database/006_programacao_musical.sql`; perfil "programador" em `007`.

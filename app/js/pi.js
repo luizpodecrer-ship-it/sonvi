@@ -312,7 +312,7 @@
       S.dialog(`<h2>Descartar alterações?</h2><p class="muted">O PI volta a ficar como estava quando foi salvo pela última vez.</p><div class="row"><span class="grow"></span><button class="btn" value="x">Continuar editando</button><button class="btn danger" value="ok">Descartar</button></div>`, () => { desfazer(pi); sairEdicao(); S.render(); }); },
     // Visualizar: o PI como vai sair no documento (o mesmo do PDF), para conferir antes de salvar ou exportar
     piVer: () => { const pi = cur();
-      S.buildPrint(pi, { date:today(), to:'client', commission:true, billing:true, clientData:true, vehicleData:true, obs:true, signClient:true, signVehicle:true, signAgency:!!pi.agencia_id });
+      S.buildPrint(pi, { date:today(), to:'client', commission:true, billing:true, clientData:true, vehicleData:true, obs:true, signClient:true, signVehicle:true, signAgency:!!pi.agencia_id, conds:true });
       const doc = document.getElementById('print').innerHTML, probs = S.piProblems(pi);
       S.dialog(`<div class="row mid"><h2 class="grow">Visualizar ${S.piNo(pi)}</h2><button class="btn" value="x">Fechar</button><button class="btn pri" value="exp" type="submit">${S.svg('baixar')}Exportar PI</button></div>
         ${probs.length ? `<div class="note">Falta preencher: ${probs.map(esc).join('; ')}.</div>` : '<div class="note info">Tudo preenchido para enviar.</div>'}
@@ -406,7 +406,7 @@
     piExport: () => { const c = (n, t) => `<label class="f chk"><input type="checkbox" name="${n}" checked>${t}</label>`;
       S.dialog(`<h2>Exportar pedido de inserção</h2>
         <div class="g2"><label class="f">Data do documento<input type="date" name="date" value="${today()}"></label><label class="f">Para<select name="to"><option value="client">Cliente</option><option value="agency">Agência</option></select></label></div>
-        <div class="g2">${c('commission', 'Comissão e valor líquido')}${c('billing', 'Faturamento e parcelas')}${c('clientData', 'Dados do cliente')}${c('vehicleData', 'Dados da rádio')}${c('obs', 'Observações ao cliente')}${c('signClient', 'Assinatura do cliente')}${c('signVehicle', 'Assinatura da rádio')}${c('signAgency', 'Assinatura da agência')}</div>
+        <div class="g2">${c('commission', 'Comissão e valor líquido')}${c('billing', 'Faturamento e parcelas')}${c('clientData', 'Dados do cliente')}${c('vehicleData', 'Dados da rádio')}${c('obs', 'Observações ao cliente')}${c('signClient', 'Assinatura do cliente')}${c('signVehicle', 'Assinatura da rádio')}${c('signAgency', 'Assinatura da agência')}${c('conds', 'Condições gerais')}</div>
         <div class="row"><span class="grow"></span><button class="btn" value="cancel">Cancelar</button><button class="btn pri" value="ok">Exportar</button></div>`,
         v => { S.buildPrint(cur(), v); setTimeout(() => window.print(), 60); }); }
   });
@@ -440,26 +440,78 @@
   });
 
   // ---------- documento para impressão / PDF ----------
+  // Uma folha Ofício (Legal) ou A4 deitada, no modelo de contrato de publicidade: rádio, cliente e número no topo,
+  // a grade com os dias, pagamento, observações e totais, assinaturas e as condições gerais da rádio no rodapé.
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const mesCurto = p => { const [y, m] = p.split('-').map(Number); return `${MESES[m - 1][0].toUpperCase()}${MESES[m - 1].slice(1)}/${y}`; };
+  const dataExt = d => { const [y, m, dd] = d.split('-').map(Number); return `${dd} de ${MESES[m - 1]} de ${y}`; };
+  // Condições gerais: uma cláusula por linha; o número (1., 1.1.) e o título da cláusula saem em negrito
+  const condicoesHtml = (texto, v) => S.piCondicoes(texto, v).split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const m = /^(\d+(?:\.\d+)*\.?-?)\s+(.*)$/.exec(l); if (!m) return esc(l);
+    const sub = m[1].replace(/\.$/, '').includes('.'), t = !sub && /^(D[aoe]s?\s[^.]{2,40}\.)\s*(.*)$/.exec(m[2]);
+    return `<b>${esc(m[1])}</b> ${t ? `<b>${esc(t[1])}</b> ${esc(t[2])}` : esc(m[2])}`; }).join('<br>');
+  // Tamanho da folha vai numa regra @page própria, trocada a cada impressão
+  const papel = tam => { let st = document.getElementById('pagina'); if (!st) { st = document.createElement('style'); st.id = 'pagina'; document.head.appendChild(st); }
+    st.textContent = `@media print { @page { size:${tam === 'a4' ? 'A4' : 'legal'} landscape; margin:8mm; } }`; };
+
   S.buildPrint = (pi, o) => {
-    const c = S.calc(pi), v = S.veh(pi.veiculo_id), cli = S.pessoa(pi.cliente_id) || {}, ag = S.pessoa(pi.agencia_id), b = pi.dados.billing;
+    const c = S.calc(pi), v = S.veh(pi.veiculo_id), cli = S.pessoa(pi.cliente_id) || {}, ag = S.pessoa(pi.agencia_id), b = pi.dados.billing, cor = v.cor || S.COR_PADRAO;
+    papel(v.pi_papel);
+    let tabela = 0;
     const grids = pi.dados.grids.map(g => {
       const [y, m] = g.period.split('-').map(Number), nd = new Date(y, m, 0).getDate(), days = Array.from({ length:nd }, (_, i) => i + 1);
-      let sub = 0;
-      const rows = g.items.map(it => { const k = S.itemCalc(it); sub += k.sub; const dv = num(it.disc.value);
-        return `<tr><td>${esc(it.f1)}</td><td>${esc(it.f2)}</td>${days.map(d => `<td style="text-align:center">${it.days[d] || ''}</td>`).join('')}<td class="r">${k.ins}</td><td class="r">${nfmt(num(it.unit)) || '0,00'}</td><td class="r">${it.bonus ? 'Bonificado' : dv ? (it.disc.type === 'pct' ? dv + '%' : nfmt(dv)) : '-'}</td><td class="r">${nfmt(k.sub) || '0,00'}</td></tr>`; }).join('');
-      return `<div><b>Período de veiculação:</b> ${mesExt(g.period)}</div><table><thead><tr><th>Programa / faixa</th><th>Formato</th>${days.map(d => `<th>${WD[new Date(y, m - 1, d).getDay()]}<br>${d}</th>`).join('')}<th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table><div style="text-align:right"><b>Subtotal: ${brl(sub)}</b></div>`;
+      const fim = d => [0, 6].includes(new Date(y, m - 1, d).getDay());
+      let sub = 0, ins = 0;
+      const rows = g.items.map(it => { const k = S.itemCalc(it); sub += k.sub; ins += k.ins; if (!it.bonus) tabela += k.gross; const dv = num(it.disc.value);
+        return `<tr><td class="pg">${esc(it.f1)}</td><td>${esc(it.f2)}</td><td class="c"><b>${letter(pi, it.piece)}</b></td>${days.map(d => `<td class="c${fim(d) ? ' fim' : ''}">${it.days[d] || ''}</td>`).join('')}<td class="c"><b>${k.ins}</b></td><td class="r">${nfmt(num(it.unit)) || '0,00'}</td><td class="c">${it.bonus ? 'Bonif.' : dv ? (it.disc.type === 'pct' ? dv + '%' : nfmt(dv)) : '—'}</td><td class="r"><b>${it.bonus ? 'Bonificado' : nfmt(k.sub) || '0,00'}</b></td></tr>`; }).join('');
+      const varias = pi.dados.grids.length > 1;
+      return `${varias ? `<div class="pd-per"><b>${mesCurto(g.period)}</b>${g.praca ? ` · ${esc(g.praca)}` : ''}</div>` : ''}<table class="pd-grade"><colgroup><col class="k-pg"><col class="k-fm"><col class="k-pc">${days.map(() => '<col>').join('')}<col class="k-qt"><col class="k-un"><col class="k-ds"><col class="k-tt"></colgroup>
+        <thead><tr><th rowspan="2" class="l">Programa / faixa</th><th rowspan="2" class="l">Formato</th><th rowspan="2">Peça</th>${days.map(d => `<th class="${fim(d) ? 'fim' : ''}">${WD[new Date(y, m - 1, d).getDay()]}</th>`).join('')}<th rowspan="2">Qtd</th><th rowspan="2" class="r">Valor unit.</th><th rowspan="2">Desc.</th><th rowspan="2" class="r">Total</th></tr>
+        <tr>${days.map(d => `<th class="${fim(d) ? 'fim' : ''}">${String(d).padStart(2, '0')}</th>`).join('')}</tr></thead><tbody>${rows}</tbody>
+        ${varias ? `<tfoot><tr><td colspan="${3 + nd}" class="r">Subtotal ${mesCurto(g.period)}</td><td class="c"><b>${ins}</b></td><td colspan="3" class="r"><b>${brl(sub)}</b></td></tr></tfoot>` : ''}</table>`;
     }).join('');
-    const box = (title, nome, doc, end, email) => `<div class="box"><b>${title}:</b> ${esc(nome)}<br>${doc ? 'CNPJ/CPF: ' + esc(doc) + '<br>' : ''}${end ? esc(end) + '<br>' : ''}${email ? esc(email) : ''}</div>`;
-    const bills = S.billingEntries(pi, c).filter(e => o.commission || e.what !== 'Comissão').flatMap(e => S.parcels(pi, e.value).map(p => `<tr><td>${esc(e.from)} → ${esc(e.to)}</td><td>${esc(e.what)}</td><td>${p.n}</td><td>${dfmt(p.due)}</td><td class="r">${nfmt(p.value) || '0,00'}</td><td>${esc(b.method)}</td></tr>`)).join('');
-    const signs = [o.signClient && (cli.contato_assina || cli.nome), o.signVehicle && v.nome, o.signAgency && ag && ag.nome].filter(Boolean);
-    document.getElementById('print').innerHTML = `<div class="cab">${v.logo ? `<img src="${v.logo}" alt="">` : ''}<div><h1 style="border-left:6px solid ${v.cor || S.COR_PADRAO};padding-left:8px">${esc(v.nome)} · Pedido de Inserção ${S.piNo(pi)}</h1><div>${esc(pi.titulo)}</div></div></div>
-      <div class="meta"><div><b>Anunciante:</b> ${esc(cli.nome)}</div><div><b>Agência:</b> ${ag ? esc(ag.nome) : 'Venda direta'}</div><div><b>Data:</b> ${dfmt(o.date)}</div><div><b>Projeto:</b> ${esc(pi.projeto)}</div><div><b>Consultor:</b> ${esc(S.usuario(pi.consultor_id))}</div><div><b>Total de inserções:</b> ${c.ins}</div></div>
-      <div><b>Peças:</b> ${pi.dados.pieces.map((p, i) => `<b>${String.fromCharCode(65 + i)}</b> - ${esc(p.name)}`).join(' &nbsp; ')}</div>
+    const periodos = [...new Set(pi.dados.grids.map(g => g.period))].sort(), periodo = !periodos.length ? '—' : periodos.length === 1 ? mesCurto(periodos[0]) : `${mesCurto(periodos[0])} a ${mesCurto(periodos[periodos.length - 1])}`;
+    const descLinhas = tabela - c.media;
+    // Quem paga a rádio recebe a fatura: o e-mail de faturamento é o dele
+    const entradas = S.billingEntries(pi, c), pagador = (entradas.find(e => e.para === 'V') || {}).de, emailFat = pagador === 'A' && ag ? ag.email : cli.email;
+    const parcelas = entradas.filter(e => o.commission || e.what !== 'Comissão').flatMap(e => S.parcels(pi, e.value).map(p => ({ e, p })));
+    const nParc = Math.max(1, parseInt(b.installments) || 1);
+    const pagamento = `<div class="pd-box"><b class="pd-tit">Condições e forma de pagamento</b>
+      ${o.billing ? `<table class="pd-parc"><tr class="mut"><td>Parcela</td><td>Vencimento</td><td>Forma</td><td>Fatura de → para</td><td class="r">Valor</td></tr>${parcelas.map(({ e, p }) => `<tr><td>${p.n}/${nParc}${e.what !== 'Valor total' && e.what !== 'Valor líquido' ? ` · ${esc(e.what)}` : ''}</td><td>${p.due ? dfmt(p.due) : 'a combinar'}</td><td>${esc(b.method)}</td><td>${esc(e.from)} → ${esc(e.to)}</td><td class="r">${brl(p.value)}</td></tr>`).join('')}</table>` : ''}
+      ${v.pi_pagamento || emailFat ? `<div class="mut">${esc(v.pi_pagamento)}${v.pi_pagamento && emailFat ? '. ' : ''}${emailFat ? `E-mail de faturamento: <b class="tx">${esc(emailFat)}</b>` : ''}</div>` : ''}</div>`;
+    const linhaT = (rot, val, cls = '') => `<span class="${cls}">${rot}</span><span class="r ${cls}">${val}</span>`;
+    const totais = `<div class="pd-box pd-tot">${linhaT('Valor de tabela', brl(tabela))}${descLinhas > 0.004 ? linhaT('Descontos nas linhas', '− ' + brl(descLinhas)) : ''}${c.discount ? linhaT('Desconto geral', '− ' + brl(c.discount)) : ''}
+      ${linhaT('Valor do PI', brl(c.total), 'forte')}${c.bonus ? linhaT('Bonificação (sem custo)', brl(c.bonus), 'mut') : ''}
+      ${o.commission && ag ? linhaT(`Comissão da agência${d_pct(pi)}`, '− ' + brl(c.commission), 'mut') + linhaT('Total líquido', brl(c.net), 'final') : ''}
+      ${o.commission && c.fee ? linhaT('Honorários da agência', brl(c.fee), 'mut') : ''}</div>`;
+    const celCli = (rot, val, span) => `<th>${rot}</th><td${span ? ' colspan="3"' : ''}>${val || ''}</td>`;
+    const cliente = o.clientData ? `<table class="pd-cli">
+        <tr>${celCli('Razão social', esc(cli.razao_social || cli.nome), true)}</tr>
+        <tr>${celCli('Anunciante', esc(cli.nome))}${celCli('Agência', ag ? esc(ag.nome) + (o.commission && d_pct(pi, true) ? ` · comissão ${d_pct(pi, true)}` : '') : 'Venda direta')}</tr>
+        <tr>${celCli(cli.pessoa === 'pf' ? 'CPF' : 'CNPJ', esc(cli.documento))}${celCli('IE', esc(cli.inscricao_estadual))}</tr>
+        <tr>${celCli('Endereço', esc(cli.endereco))}${celCli('Cidade', esc([cli.cidade, cli.cep && 'CEP ' + cli.cep].filter(Boolean).join(' · ')))}</tr>
+        <tr>${celCli('Contato', esc([cli.contato_assina || cli.contato_decide, cli.telefone || cli.whatsapp].filter(Boolean).join(' · ')))}${celCli('Consultor', esc(S.usuario(pi.consultor_id)))}</tr></table>`
+      : `<table class="pd-cli"><tr>${celCli('Anunciante', esc(cli.nome))}${celCli('Agência', ag ? esc(ag.nome) : 'Venda direta')}</tr><tr>${celCli('Consultor', esc(S.usuario(pi.consultor_id)), true)}</tr></table>`;
+    const radio = `<div class="pd-radio">${v.logo ? `<img src="${v.logo}" alt="">` : `<span class="pd-selo" style="background:${cor}">${esc(v.sigla)}</span>`}<div><b class="pd-nome">${esc(v.nome)}</b>
+      ${o.vehicleData ? [v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, [v.endereco, v.cidade].filter(Boolean).join(' · '), [v.cep && 'CEP ' + v.cep, v.telefone && 'Fone ' + v.telefone].filter(Boolean).join(' · '), v.email].filter(Boolean).map(x => `<div>${esc(x)}</div>`).join('') : ''}</div></div>`;
+    const numero = `<div class="pd-num" style="border-color:${cor}"><div class="pd-no" style="color:${cor}">${S.piNo(pi)}</div><div class="pd-kv">
+      <span>Veículo</span><b>${esc(v.nome)}${v.frequencia ? ' ' + esc(v.frequencia) : ''}</b><span>Período</span><b>${periodo}</b><span>Campanha</span><b>${esc(pi.titulo)}</b>${pi.projeto ? `<span>Projeto</span><b>${esc(pi.projeto)}</b>` : ''}<span>Emitido em</span><b>${dfmt(o.date)}</b></div></div>`;
+    const aprov = (S.db.hist[pi.id] || []).find(h => h.status === 'aprovado');
+    const signs = [o.signClient && ['Anunciante / Contratante', cli.contato_assina || cli.nome], o.signAgency && ag && ['Agência', ag.nome], o.signVehicle && ['Veículo / Contratada', v.nome]].filter(Boolean);
+    const cidade = (v.pi_cidade || v.cidade || '').split('/')[0].trim();
+    document.getElementById('print').innerHTML = `<div class="pidoc">
+      <div class="pd-topo">${radio}<div class="pd-meio"><div class="pd-titulo">PEDIDO DE INSERÇÃO</div>${cliente}</div>${numero}</div>
+      <div class="pd-autoriza">AUTORIZAMOS EXECUTAR ESTE PLANO DE MÍDIA DE ACORDO COM AS CONDIÇÕES ABAIXO DISCRIMINADAS</div>
       ${grids}
-      <div class="cols"><div class="box"><b>Valor total: ${brl(c.total)}</b>${c.discount ? ` (desconto geral ${brl(c.discount)})` : ''}${c.bonus ? ` &nbsp; Bonificação: ${brl(c.bonus)}` : ''}${o.commission && ag ? `<br>Comissão da agência: ${brl(c.commission)} &nbsp; Valor líquido: ${brl(c.net)}` : ''}${o.commission && c.fee ? `<br>Honorários da agência: ${brl(c.fee)}` : ''}
-        ${o.billing ? `<h2>${ag ? S.BILLING[b.type] : 'Faturamento direto ao cliente'}</h2><table><thead><tr><th>De → para</th><th>Lançamento</th><th>Parc.</th><th>Vencimento</th><th>Valor (R$)</th><th>Forma</th></tr></thead><tbody>${bills}</tbody></table>` : ''}</div>
-        <div>${o.vehicleData ? box('Veículo', v.razao_social || v.nome, v.cnpj, [v.endereco, v.cidade].filter(Boolean).join(' · '), v.email) : ''}${o.clientData ? box('Cliente', cli.razao_social || cli.nome, cli.documento, [cli.endereco, cli.cidade].filter(Boolean).join(' · '), cli.email) : ''}${o.to === 'agency' && ag ? box('Agência', ag.razao_social || ag.nome, ag.documento, [ag.endereco, ag.cidade].filter(Boolean).join(' · '), ag.email) : ''}</div></div>
-      ${o.obs && b.obsClient ? `<h2>Observações</h2><div>${esc(b.obsClient).replace(/\n/g, '<br>')}</div>` : ''}
-      ${signs.length ? `<div class="sign">${signs.map(s => `<div>${esc(s)}</div>`).join('')}</div>` : ''}`;
+      <div class="pd-pecas"><span><b>Peças:</b> ${pi.dados.pieces.map((p, i) => `${String.fromCharCode(65 + i)} · ${esc(p.name)}`).join(' &nbsp; ') || '—'}</span><span>Total de inserções: <b>${c.ins}</b></span></div>
+      <div class="pd-baixo">${pagamento}<div class="pd-box"><b class="pd-tit">Observações</b><div>${o.obs && b.obsClient ? esc(b.obsClient).replace(/\n/g, '<br>') : ''}</div></div>${totais}</div>
+      <div class="pd-fecho"><div><div>E, por estarem de acordo com as especificações e condições deste pedido${o.conds ? ' e das condições gerais abaixo' : ''}, as partes assinam o presente para todos os efeitos legais.</div>
+        <div>${esc(cidade ? cidade + ', ' : '')}${dataExt(o.date)}.</div>
+        ${signs.length ? `<div class="pd-ass" style="--n:${signs.length}">${signs.map(([r, n]) => `<div><b>${r}</b><br><span>${esc(n)}</span></div>`).join('')}</div>` : ''}</div>
+        <div class="pd-box pd-aprov"><b>Aprovação OPEC</b>${aprov ? `<span class="ok">Aprovado em ${dfmt(S.dia(aprov.em))}</span><span>por ${esc(S.usuario(aprov.usuario_id))}</span>` : '<span class="mut">Aguardando</span>'}</div></div>
+      ${o.conds ? `<div class="pd-conds"><b>CONDIÇÕES GERAIS</b> — ${condicoesHtml(v.pi_condicoes, v)}</div>` : ''}
+      <div class="pd-rodape"><span>Gerado pelo SONVI · ${S.piNo(pi)}</span></div></div>`;
   };
+  // Percentual da comissão, quando ela é em %
+  const d_pct = (pi, so) => { const r = pi.dados.commission; if (r.type !== 'pct' || !num(r.value)) return ''; const t = nfmt(num(r.value)).replace(/,00$/, '') + '%'; return so ? t : ' ' + t; };
 })();

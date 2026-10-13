@@ -89,4 +89,20 @@
     if (pi.dados.grids.some(g => g.items.some(it => S.itemCalc(it).ins && !num(it.unit) && !it.bonus))) out.push('há itens com inserções e sem valor unitário');
     return out;
   };
+  // Condições gerais do PI (dizeres obrigatórios). Cada rádio pode ter o seu texto (veiculos.pi_condicoes);
+  // vazio usa este padrão. {RADIO} e {CIDADE} viram o nome da rádio e a cidade do foro.
+  S.PI_CONDICOES_PADRAO = [
+    'A {RADIO} cumpre o Código Civil Brasileiro e o Código Brasileiro de Autorregulamentação Publicitária, e acata as decisões do CONAR.',
+    '1. Do objeto. A CONTRATADA veiculará a publicidade descrita neste pedido, nos programas, datas e quantidades indicados.',
+    '1.1. A inserção não transmitida por força maior, caso fortuito ou motivo legal será compensada em horário equivalente, sem caracterizar descumprimento.',
+    '1.2. Se a veiculação for suspensa por ordem judicial, infração legal ou recomendação do CONAR, o ANUNCIANTE poderá substituir o material; não o fazendo, o faturamento segue normalmente, sem direito a crédito ou abatimento.',
+    '1.3. O ANUNCIANTE declara conhecer e aceitar as normas do CONAR, que passam a integrar este instrumento.',
+    '1.4. O ANUNCIANTE, ou sua agência, entrega o material com até 2 dias úteis de antecedência e responde por seu conteúdo e pelos direitos autorais.',
+    '2. Da representação. Este pedido é assinado pelos representantes legais das partes ou por seus procuradores e vale a partir da assinatura.',
+    '3. Do cancelamento. O ANUNCIANTE pode cancelar este pedido com aviso por escrito de 30 dias. As inserções do período de aviso são devidas e, sobre o saldo restante, incide multa de 20%.',
+    '4. Do pagamento. O ANUNCIANTE autoriza a emissão de faturas, boletos e duplicatas, que podem ser cobrados pela rede bancária.',
+    '4.1. O atraso sujeita o devedor a juros de 1% ao mês, multa de 2% sobre o valor em atraso e às despesas de cobrança, inclusive honorários advocatícios de 20% se houver cobrança judicial.',
+    '5. Do faturamento. O faturamento é feito no mês da veiculação, com vencimento nas datas indicadas em "Condições e forma de pagamento".',
+    '6. Do foro. Fica eleito o foro da comarca de {CIDADE} para resolver qualquer questão deste pedido.'].join('\n');
+  S.piCondicoes = (texto, v) => String(texto || S.PI_CONDICOES_PADRAO).replace(/\{RADIO\}/g, v.nome || 'rádio').replace(/\{CIDADE\}/g, v.pi_cidade || v.cidade || '[cidade]');
 })();
