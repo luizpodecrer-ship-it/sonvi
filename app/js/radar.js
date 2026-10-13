@@ -15,7 +15,8 @@
   const PROG = ['diretor', 'gerente', 'programador'];
 
   const idApp = () => (window.SONVI_CONFIG || {}).spotifyClientId || '';
-  const volta = () => location.origin + location.pathname;
+  // Sempre o mesmo endereço cadastrado no Spotify, venha a pessoa por /music, /music/ ou /music/index.html
+  const volta = () => location.origin + location.pathname.replace(/index\.html$/, '').replace(/\/?$/, '/');
   const chave = () => 'sonvi-spotify-' + ((S.me && S.me.id) || '');
   const ler = (k, area = localStorage) => { try { return JSON.parse(area.getItem(k) || 'null'); } catch (e) { return null; } };
   const gravar = (k, v, area = localStorage) => { try { v === null ? area.removeItem(k) : area.setItem(k, JSON.stringify(v)); } catch (e) { /* sem armazenamento: conecta de novo na próxima vez */ } };
