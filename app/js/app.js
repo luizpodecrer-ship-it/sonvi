@@ -25,7 +25,7 @@
 
   S.render = () => {
     const content = document.getElementById('content'), bar = document.getElementById('bar');
-    const acesso = S.carregando ? `<div class="carregando"><div style="display:grid;justify-items:center;gap:18px"><img src="img/simbolo.svg" alt="${MUSIC ? 'Sonvi Music' : 'SONVI'}"><div class="eq" aria-label="Carregando"><span></span><span></span><span></span><span></span><span></span></div></div></div>` : S.telaDeAcesso();
+    const acesso = S.carregando ? `<div class="carregando"><div style="display:grid;justify-items:center;gap:18px"><img src="img/simbolo.svg" width="66" height="78" alt="${MUSIC ? 'Sonvi Music' : 'SONVI'}"><div class="eq" aria-label="Carregando"><span></span><span></span><span></span><span></span><span></span></div></div></div>` : S.telaDeAcesso();
     document.body.classList.toggle('fora', !!acesso);
     if (acesso) { S.temaRadio(null); document.getElementById('side').innerHTML = ''; ultimoSide = ''; bar.innerHTML = ''; content.innerHTML = acesso; document.title = MUSIC ? 'Sonvi Music' : 'SONVI'; ultima = ''; return; }
 
@@ -35,17 +35,17 @@
     if (semVeiculo) view = MUSIC ? (telas[0] || ['hoje'])[0] : 'admin';
     S.temaRadio(semVeiculo ? null : S.veh());
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, veh = semVeiculo ? null : S.veh();
-    const side = document.getElementById('side'), sideHtml = `<a class="brand" data-go="/${MUSIC ? 'hoje' : 'painel'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Painel'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" alt=""></a>
+    const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${MUSIC ? 'hoje' : 'painel'}" data-go="/${MUSIC ? 'hoje' : 'painel'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Painel'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
       ${semVeiculo ? '' : `<label class="veh" title="Trocar de rádio">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc([veh.frequencia, veh.cidade].filter(Boolean).join(' · ') || 'Rádio selecionada')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Rádio">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}
       <nav aria-label="Menu principal">${itens.map(([k, n, , href]) => href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
-        : `<a data-go="/${k}" title="${n}" class="${active === k ? 'on' : ''}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}</a>`).join('')}
+        : `<a href="#/${k}" data-go="/${k}" title="${n}" class="${active === k ? 'on' : ''}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}</a>`).join('')}
       ${SOON.length ? '<div class="sec">Em breve</div>' : ''}${SOON.map(n => `<span class="soon">${S.svg('programacao')}${n}</span>`).join('')}</nav>
       <div class="eu"><span class="av" aria-hidden="true">${esc(S.iniciais(S.me.nome || S.me.email))}</span><div><b>${esc(S.me.nome || S.me.email)}</b><small>${S.PERFIS[S.perfil] || ''}${S.perfil === 'diretor' ? ' · todas as rádios' : ''}</small></div><button class="btn sm" data-act="sair">Sair</button></div>`;
     // Mesma barra com outro item marcado: só troca a marcação (o logo e os itens não são recriados e nada pisca)
     const molde = sideHtml.replace(/ class="on" aria-current="page"/g, ' class=""');
     if (molde === ultimoSide) side.querySelectorAll('nav a[data-go]').forEach(a => { const on = a.dataset.go === '/' + active; a.className = on ? 'on' : ''; if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     else { side.innerHTML = sideHtml; ultimoSide = molde; }
-    const v = (S.views[view] || S.views.soMusic)(id), chave = `${view}/${id || ''}/${S.ui.vehicleId}/${S.ui.tab}`;
+    const v = (S.views[view] || S.views.soMusic)(id), chave = `${view}/${view === 'clientes' ? '' : id || ''}/${S.ui.vehicleId}/${S.ui.tab}`; // abas dentro da mesma tela não animam
     const anima = chave !== ultima; ultima = chave;
     bar.classList.toggle('entra', anima); content.classList.toggle('entra', anima);
     // O PI usa a largura toda da tela; a barra lateral fica só com os ícones
@@ -63,13 +63,28 @@
     S.carregando = false; S.render();
   };
 
-  // Linhas clicáveis (ex.: lista de PIs) também abrem com Enter pelo teclado
-  document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-go][tabindex]')) e.target.click(); });
+  // Tudo o que é clicável também funciona pelo teclado: linhas, itens de lista e links internos recebem Tab
+  // e abrem com Enter (ou Espaço, nos que fazem papel de botão). Vale para o que for desenhado depois, inclusive diálogos.
+  const CLICAVEIS = '[data-act]:not(button):not(input):not(select):not(textarea):not(label):not([tabindex]), [data-go]:not(a[href]):not(button):not([tabindex])';
+  const prepararTeclado = raiz => (raiz.querySelectorAll ? raiz.querySelectorAll(CLICAVEIS) : []).forEach(el => {
+    if (el.tagName === 'A' && !el.hasAttribute('href') && el.dataset.go) { el.setAttribute('href', '#' + el.dataset.go); return; }
+    el.tabIndex = 0; if (el.tagName !== 'TR' && !el.getAttribute('role')) el.setAttribute('role', 'button');
+  });
+  new MutationObserver(lista => lista.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) { prepararTeclado(n); if (n.matches && n.matches(CLICAVEIS)) prepararTeclado(n.parentNode); } })))
+    .observe(document.body, { childList:true, subtree:true });
+  // "Pular para o conteúdo": primeiro item do Tab em cada tela
+  S.actions.pular = () => { const c = document.getElementById('content'); c.tabIndex = -1; c.focus(); };
+  document.addEventListener('keydown', e => {
+    const el = e.target; if (!el.matches || !el.matches('[data-act][tabindex], [data-go][tabindex]')) return;
+    if (e.key === 'Enter' || (e.key === ' ' && el.getAttribute('role') === 'button')) { e.preventDefault(); el.click(); }
+  });
   document.addEventListener('click', e => {
+    // Ctrl/Cmd/Shift+clique ou botão do meio num link do menu: o navegador abre em outra aba ou janela
+    const link = e.target.closest('a[href^="#/"]'); if (link && (e.metaKey || e.ctrlKey || e.shiftKey || e.button)) return;
     const act = e.target.closest('[data-act]');
     if (act) { if (act.tagName === 'A') e.preventDefault(); S.actions[act.dataset.act](act.dataset, act); return; }
     const go = e.target.closest('[data-go]');
-    if (go && !e.target.closest('input, select, button')) { if (go.dataset.go.startsWith('/pi/')) S.ui.tab = 'detalhes'; if (!go.dataset.go.startsWith('/pi')) S.ui.q = ''; S.go(go.dataset.go); }
+    if (go && !e.target.closest('input, select, button')) { if (go.tagName === 'A') e.preventDefault(); if (go.dataset.go.startsWith('/pi/')) S.ui.tab = 'detalhes'; if (!go.dataset.go.startsWith('/pi')) S.ui.q = ''; S.go(go.dataset.go); }
   });
   document.addEventListener('change', async e => {
     const el = e.target, d = el.dataset;

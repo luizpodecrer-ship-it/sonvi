@@ -334,7 +334,12 @@
   };
   const salvarMusica = (m, f) => {
     const dur = M.lerTempo(f.duracao_t);
-    if (dur === null || dur < 10) { S.toast('Duração inválida. Use minutos e segundos, ex.: 03:25'); return S.actions.musFicha({ id:m.id, editar:1 }); }
+    if (dur === null || dur < 10) { // reabre a ficha com o que foi digitado e mostra o erro embaixo do campo
+      S.actions.musFicha({ id:m.id, editar:1 });
+      document.querySelectorAll('#dlg [name]').forEach(c => { if (c.type === 'checkbox') c.checked = f[c.name] === 'on'; else if (c.name in f) c.value = f[c.name]; });
+      const c = document.querySelector('#dlg [name="duracao_t"]');
+      if (c) { c.setAttribute('aria-invalid', 'true'); c.setAttribute('aria-describedby', 'erroDuracao'); c.insertAdjacentHTML('afterend', '<small class="erro-campo" id="erroDuracao">Duração inválida. Use minutos e segundos, ex.: 03:25</small>'); c.focus(); c.addEventListener('input', () => { c.removeAttribute('aria-invalid'); const e = document.getElementById('erroDuracao'); if (e) e.remove(); }, { once:true }); }
+      return; }
     const n = k => parseInt(f[k], 10) || 0;
     const row = { titulo:f.titulo.trim(), interprete:f.interprete.trim(), interprete2:(f.interprete2 || '').trim(), compositor:f.compositor || '', gravadora:f.gravadora || '', disco:f.disco || '', ano:f.ano || '',
       bpm:f.bpm ? n('bpm') : null, categoria_id:f.categoria_id, subcategoria_id:f.subcategoria_id || null, ritmo:f.ritmo, peso:n('peso'), voz:f.voz, origem:f.origem, novidade:f.novidade === 'on',

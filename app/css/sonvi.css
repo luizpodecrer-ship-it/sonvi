@@ -1050,3 +1050,19 @@ dialog.medio { width:min(880px, 96vw); }
 @media (max-width:640px) { .cad-det { grid-template-columns:1fr; margin-left:0; } .cad-mud { grid-template-columns:1fr; gap:2px; } }
 .cad-acoes { flex-wrap:nowrap; }
 @media (max-width:640px) { .cad-acoes .grow { display:none; } .cad-acoes .btn { flex:1 1 0; min-width:0; white-space:normal; line-height:1.15; text-align:center; } }
+
+/* ---------- acessibilidade e toque (Web Interface Guidelines) ---------- */
+.pular { position:fixed; left:12px; top:12px; z-index:100; padding:10px 18px; border-radius:999px; background:var(--ink); color:var(--surface); font-weight:600; transform:translateY(-200%); transition:transform .2s var(--ease); }
+.pular:focus { transform:none; color:var(--surface); }
+#content:focus { outline:none; }
+/* Tudo o que se clica pelo teclado mostra onde está o foco */
+[data-act][tabindex]:focus-visible, [data-go]:focus-visible, #side nav a:focus-visible, .btn:focus-visible, .seg button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+tr[data-act]:focus-visible { outline-offset:-2px; }
+/* Toque no celular sem atraso e sem zoom de toque duplo */
+a, button, input, select, textarea, label, [data-act], [data-go] { touch-action:manipulation; }
+/* Ao rolar um formulário aberto por cima, a página de trás não rola junto */
+dialog form, .menu { overscroll-behavior:contain; }
+.acesso .lado img.simbolo { height:auto; }
+/* Erro mostrado embaixo do campo */
+.erro-campo { color:var(--red); font-size:13px; font-weight:500; }
+[aria-invalid="true"] { border-color:var(--red) !important; box-shadow:0 0 0 3px color-mix(in srgb, var(--red) 18%, transparent) !important; }

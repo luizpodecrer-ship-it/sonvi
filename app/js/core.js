@@ -35,8 +35,8 @@ S.tag = (text, tone) => `<span class="pill" style="--tone:var(--${tone})">${S.es
 // ---------- marca e ícones ----------
 // Logo azul no claro e branco no escuro
 S.logo = (cls = '') => S.APP === 'music'
-  ? `<picture><source srcset="img/sonvi-music-branco.png" media="(prefers-color-scheme: dark)"><img src="img/sonvi-music.png?v=2" alt="Sonvi Music"${cls ? ` class="${cls}"` : ''}></picture>`
-  : `<picture><source srcset="img/sonvi-branco.svg" media="(prefers-color-scheme: dark)"><img src="img/sonvi.svg" alt="SONVI"${cls ? ` class="${cls}"` : ''}></picture>`;
+  ? `<picture><source srcset="img/sonvi-music-branco.png" media="(prefers-color-scheme: dark)"><img src="img/sonvi-music.png?v=2" width="1071" height="298" alt="Sonvi Music"${cls ? ` class="${cls}"` : ''}></picture>`
+  : `<picture><source srcset="img/sonvi-branco.svg" media="(prefers-color-scheme: dark)"><img src="img/sonvi.svg" width="343" height="78" alt="SONVI"${cls ? ` class="${cls}"` : ''}></picture>`;
 S.iniciais = nome => String(nome || '?').trim().split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
 S.ICON = {
   painel:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
@@ -58,7 +58,7 @@ S.selo = v => { const sg = String(v.sigla || '').trim(); if (sg && sg.length <= 
   const ps = String(v.nome || '').replace(/\b(r[áa]dio|fm|am)\b/gi, '').trim().split(/\s+/).filter(Boolean);
   return (ps.length > 1 ? ps[0][0] + ps[1][0] : (ps[0] || sg || '?').slice(0, 2)).toUpperCase(); };
 // Selo da rádio: o logo dela, ou a sigla sobre a cor DELA (nunca a cor da rádio selecionada)
-S.vav = v => v && v.logo ? `<span class="vav img"><img src="${v.logo}" alt=""></span>` : `<span class="vav" style="background:${v && /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : S.COR_PADRAO}">${S.esc(S.selo(v || {}))}</span>`;
+S.vav = v => v && v.logo ? `<span class="vav img"><img src="${v.logo}" width="500" height="500" alt=""></span>` : `<span class="vav" style="background:${v && /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : S.COR_PADRAO}">${S.esc(S.selo(v || {}))}</span>`;
 
 // ---------- cor da rádio: personaliza o sistema todo ----------
 S.COR_PADRAO = '#0055ff';
@@ -110,7 +110,7 @@ S.lerLogo = arquivo => new Promise((ok, erro) => {
 S.campoLogo = (v, travado) => {
   const t = travado ? ' disabled data-trava="1"' : '', cor = v.cor || S.COR_PADRAO;
   return `<div class="logo-campo" style="grid-column:1/-1">
-    <div class="logo-prev">${v.logo ? `<img src="${v.logo}" alt="Logo da rádio">` : `<span>${S.svg('imagem', 26)}</span>`}</div>
+    <div class="logo-prev">${v.logo ? `<img src="${v.logo}" width="500" height="500" alt="Logo da rádio">` : `<span>${S.svg('imagem', 26)}</span>`}</div>
     <div class="logo-info"><b>Logo da rádio</b><small class="muted">Quadrado, 500 × 500 px (PNG, JPG ou WebP). Sai no PI e a cor dele personaliza o sistema.</small>
       <div class="row"><button type="button" class="btn sm" data-act="logoEscolher"${t}>${S.svg('baixar')}${v.logo ? 'Trocar logo' : 'Enviar logo'}</button>${v.logo ? `<button type="button" class="btn sm" data-act="logoRemover"${t}>Remover</button>` : ''}</div>
       <div class="cores" role="radiogroup" aria-label="Cor da rádio"><span class="muted small">Cor</span>${[...new Set([cor, ...(v._cores || [])])].slice(0, 6).map(c => `<button type="button" class="cor${c === cor ? ' on' : ''}" style="background:${c}" data-act="logoCor" data-cor="${c}" role="radio" aria-checked="${c === cor}" aria-label="Cor ${c}" title="${c}"${t}></button>`).join('')}</div>

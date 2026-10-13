@@ -6,11 +6,11 @@
   // Devolve o HTML da tela de acesso, ou null quando o usuário pode usar o app
   // Moldura das telas de acesso: painel azul da marca à esquerda (some no celular) e o conteúdo à direita
   // Sonvi Music: tela escura com a marca do Sonvi Music
-  const molduraMusic = miolo => `<div class="acesso music"><div class="lado"><img class="marca" src="img/sonvi-music-branco.png" alt="Sonvi Music">
+  const molduraMusic = miolo => `<div class="acesso music"><div class="lado"><img class="marca" src="img/sonvi-music-branco.png" width="1074" height="300" alt="Sonvi Music">
     <div><h2>A programação da rádio, do acervo ao ar.</h2><p>Para programadores e locutores. Os comerciais vendidos chegam prontos da OPEC do SONVI.</p></div>
     <div class="eq" style="--tone:#0199ff" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div></div>
     <div class="forma">${miolo}</div></div>`;
-  const moldura_ = miolo => `<div class="acesso"><div class="lado"><img class="marca" src="img/sonvi-branco.svg" alt="SONVI"><img class="simbolo" src="img/simbolo-branco.svg" alt="">
+  const moldura_ = miolo => `<div class="acesso"><div class="lado"><img class="marca" src="img/sonvi-branco.svg" width="343" height="78" alt="SONVI"><img class="simbolo" src="img/simbolo-branco.svg" width="66" height="78" alt="">
     <div><h2>Do primeiro contato ao comercial no ar.</h2><p>Comercial, PI, OPEC, programação e financeiro da sua rádio em um só lugar.</p></div>
     <div class="eq" style="--tone:#fff;opacity:.6" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div></div>
     <div class="forma">${miolo}</div></div>`;

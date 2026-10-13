@@ -67,14 +67,15 @@
     return [c.length && 'cadastrado também na ' + c.join(' e na '), j.length && 'já existia na ' + j.join(' e na ')].filter(Boolean).join('; '); };
 
   // ---------- lista ----------
-  S.views.clientes = () => {
+  S.views.clientes = id => {
+    aba = id === 'agencias' ? 'agencia' : 'cliente';
     const q = S.ui.q.toLowerCase(), lista = S.pessoas(aba).filter(p => !q || [p.nome, p.razao_social, p.documento, p.cidade, p.segmento].join(' ').toLowerCase().includes(q));
     const podeCriar = S.pode('diretor', 'gerente', 'consultor'), outras = radiosDestino().length > 0;
     const tres = p => outras && podeAlterarLa(p) ? `<button class="btn tres" data-act="pesMenu" data-id="${p.id}" aria-label="Opções de ${esc(p.nome)}">${S.svg('mais3')}</button>` : '';
     const linhas = lista.map(p => `<tr class="click" data-act="pesEditar" data-id="${p.id}"><td><div style="display:flex;align-items:center;gap:12px"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><div><b>${esc(p.nome)}</b><div class="muted small">${esc(p.razao_social)}</div></div></div></td><td>${esc(p.documento)}</td><td>${esc(p.cidade)}</td><td>${esc(p.telefone || p.whatsapp)}</td>
       ${aba === 'cliente' ? `<td>${esc(S.usuario(p.consultor_id))}</td><td>${esc(S.nome(p.agencia_id))}</td><td>${S.tag(...SIT[p.situacao])}</td>` : `<td class="r">${S.nfmt(Number(p.comissao)) || '0'}%</td>`}<td class="r">${tres(p)}</td></tr>`).join('');
-    return { title:`<span class="sub">${esc(S.veh().nome)} · ${S.pessoas(aba).length} ${aba === 'cliente' ? 'clientes' : 'agências'}</span>${aba === 'cliente' ? 'Clientes' : 'Agências'}`, actions:podeCriar ? `<button class="btn pri" data-act="pesNovo">${S.svg('mais')}${aba === 'cliente' ? 'Novo cliente' : 'Nova agência'}</button>` : '',
-      body:`<div class="row mid" style="margin-bottom:16px"><div class="seg" style="margin:0">${[['cliente', 'Clientes'], ['agencia', 'Agências']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="pesAba" data-tab="${k}">${n}</button>`).join('')}</div><input type="search" class="grow" style="height:42px" placeholder="Buscar por nome, CNPJ, cidade ou segmento" value="${esc(S.ui.q)}" data-ui="q"></div>
+    return { title:`<span class="sub">${esc(S.veh().nome)} · ${S.pessoas(aba).length} ${aba === 'cliente' ? (S.pessoas(aba).length === 1 ? 'cliente' : 'clientes') : (S.pessoas(aba).length === 1 ? 'agência' : 'agências')}</span>${aba === 'cliente' ? 'Clientes' : 'Agências'}`, actions:podeCriar ? `<button class="btn pri" data-act="pesNovo">${S.svg('mais')}${aba === 'cliente' ? 'Novo cliente' : 'Nova agência'}</button>` : '',
+      body:`<div class="row mid" style="margin-bottom:16px"><div class="seg" style="margin:0">${[['cliente', 'Clientes'], ['agencia', 'Agências']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="pesAba" data-tab="${k}">${n}</button>`).join('')}</div><input type="search" class="grow" style="height:42px" placeholder="Buscar por nome, CNPJ, cidade ou segmento" aria-label="Buscar clientes e agências" value="${esc(S.ui.q)}" data-ui="q"></div>
         <div class="card">${lista.length ? `<div class="scroll"><table><thead><tr><th>Nome</th><th>CNPJ / CPF</th><th>Cidade</th><th>Telefone</th>${aba === 'cliente' ? '<th>Consultor</th><th>Agência</th><th>Situação</th>' : '<th class="r">Comissão</th>'}<th></th></tr></thead><tbody>${linhas}</tbody></table></div>` : `<div class="empty"><b>Nenhum cadastro${q ? ' encontrado' : ''}</b>${S.pode('consultor') && aba === 'cliente' ? 'Aqui aparecem os clientes da sua carteira.' : ''}</div>`}</div>` };
   };
 
@@ -240,7 +241,7 @@
   }
 
   Object.assign(S.actions, {
-    pesAba: d => { aba = d.tab; S.render(); },
+    pesAba: d => S.go(d.tab === 'agencia' ? '/clientes/agencias' : '/clientes'),
     pesNovo: () => formulario({ tipo:aba, pessoa:'pj', situacao:'prospect', comissao:20, consultor_id:S.pode('consultor') ? S.me.id : '' }),
     pesEditar: d => { const p = S.pessoa(d.id); if (S.pode('diretor', 'gerente') || (S.pode('consultor') && (p.tipo === 'agencia' || p.consultor_id === S.me.id))) formulario(p); else S.toast('Seu perfil só pode consultar este cadastro.'); },
     pesMenu: (d, botao) => S.menu(botao, [{ label:'Abrir', icon:'abrir', act:'pesEditar', data:{ id:d.id } }, { label:'Levar para outra rádio', icon:'copia', act:'pesLevar', data:{ id:d.id } }]),
