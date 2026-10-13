@@ -206,10 +206,37 @@
   }
 
   // Preenchimento pelo CNPJ (botão). O CEP se preenche sozinho ao completar os 8 números (core.js).
+  // Três serviços públicos, um de reserva do outro: se um estiver fora do ar ou limitando consultas, tenta o próximo.
   const campo = n => document.querySelector(`#dlg [name="${n}"]`);
-  async function buscar(url, usar) {
-    try { const r = await fetch(url); if (!r.ok) throw new Error(); usar(await r.json()); S.mascarar(document.getElementById('dlg')); S.toast('Dados preenchidos. Confira antes de salvar.'); }
-    catch (e) { S.toast('Não encontrei. Confira o número e tente de novo.'); }
+  const FONTES_CNPJ = [
+    n => ['https://brasilapi.com.br/api/cnpj/v1/' + n, j => j],
+    n => ['https://minhareceita.org/' + n, j => j],
+    n => ['https://publica.cnpj.ws/cnpj/' + n, j => { const e = j.estabelecimento || {};
+      return { razao_social:j.razao_social, nome_fantasia:e.nome_fantasia, cep:e.cep, logradouro:[e.tipo_logradouro, e.logradouro].filter(Boolean).join(' '), numero:e.numero, bairro:e.bairro,
+        municipio:(e.cidade || {}).nome, uf:(e.estado || {}).sigla, ddd_telefone_1:[e.ddd1, e.telefone1].filter(Boolean).join('') }; }]];
+  async function dadosDoCnpj(n) {
+    let naoExiste = 0;
+    for (const fonte of FONTES_CNPJ) {
+      const [url, ler] = fonte(n);
+      try {
+        const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 8000);
+        const r = await fetch(url, { signal:ctrl.signal }); clearTimeout(t);
+        if (r.ok) { const j = ler(await r.json()); if (j && j.razao_social) return j; }
+        else if (r.status === 404 || r.status === 400) naoExiste++;
+      } catch (e) { /* fora do ar ou demorou: tenta o próximo */ }
+    }
+    throw new Error(naoExiste >= 2 ? 'naoexiste' : 'fora');
+  }
+  async function preencherCnpj(n) {
+    const btn = document.querySelector('#dlg [data-act="pesCnpj"]'); if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
+    try {
+      const j = await dadosDoCnpj(n);
+      campo('razao_social').value = j.razao_social || ''; if (!campo('nome').value) campo('nome').value = j.nome_fantasia || j.razao_social || '';
+      campo('cep').value = j.cep || ''; campo('endereco').value = [j.logradouro, j.numero, j.bairro].filter(Boolean).join(', ');
+      campo('cidade').value = [j.municipio, j.uf].filter(Boolean).join(' / '); if (!campo('telefone').value) campo('telefone').value = j.ddd_telefone_1 || '';
+      S.mascarar(document.getElementById('dlg')); S.toast('Dados preenchidos. Confira antes de salvar.');
+    } catch (e) { S.toast(e.message === 'naoexiste' ? 'Esse CNPJ não foi encontrado na Receita. Confira os números.' : 'Os serviços de consulta de CNPJ não responderam agora. Tente de novo em instantes ou preencha à mão.'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = 'Preencher pelo CNPJ'; } }
   }
 
   Object.assign(S.actions, {
@@ -223,7 +250,6 @@
       cad.trazido = grupoDe(a); S.mascarar(document.getElementById('dlg'));
       document.querySelector('#dlg #cadAchado').innerHTML = `<div class="cad-achado ok">${S.svg('check')}<span>Dados trazidos da ${esc(nomeRadio(a.veiculo_id))}. Confira e salve: os dois cadastros ficam ligados.</span></div>`; },
     pesIgnorar: () => { cad.ignorar = soNumeros((campo('documento') || {}).value); const b = document.querySelector('#dlg #cadAchado'); if (b) b.hidden = true; },
-    pesCnpj: () => { const n = campo('documento').value.replace(/\D/g, ''); if (n.length !== 14) return S.toast('Digite os 14 números do CNPJ.');
-      buscar('https://brasilapi.com.br/api/cnpj/v1/' + n, j => { campo('razao_social').value = j.razao_social || ''; if (!campo('nome').value) campo('nome').value = j.nome_fantasia || j.razao_social || ''; campo('cep').value = j.cep || ''; campo('endereco').value = [j.logradouro, j.numero, j.bairro].filter(Boolean).join(', '); campo('cidade').value = [j.municipio, j.uf].filter(Boolean).join(' / '); if (!campo('telefone').value) campo('telefone').value = j.ddd_telefone_1 || ''; }); }
+    pesCnpj: () => { const n = (campo('documento').value || '').replace(/\D/g, ''); if (n.length !== 14) return S.toast('Digite os 14 números do CNPJ.'); preencherCnpj(n); }
   });
 })();
