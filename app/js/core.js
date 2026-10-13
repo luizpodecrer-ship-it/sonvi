@@ -35,7 +35,7 @@ S.tag = (text, tone) => `<span class="pill" style="--tone:var(--${tone})">${S.es
 // ---------- marca e ícones ----------
 // Logo azul no claro e branco no escuro
 S.logo = (cls = '') => S.APP === 'music'
-  ? `<picture><source srcset="img/sonvi-music-branco.png" media="(prefers-color-scheme: dark)"><img src="img/sonvi-music.png" alt="Sonvi Music"${cls ? ` class="${cls}"` : ''}></picture>`
+  ? `<picture><source srcset="img/sonvi-music-branco.png" media="(prefers-color-scheme: dark)"><img src="img/sonvi-music.png?v=2" alt="Sonvi Music"${cls ? ` class="${cls}"` : ''}></picture>`
   : `<picture><source srcset="img/sonvi-branco.svg" media="(prefers-color-scheme: dark)"><img src="img/sonvi.svg" alt="SONVI"${cls ? ` class="${cls}"` : ''}></picture>`;
 S.iniciais = nome => String(nome || '?').trim().split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
 S.ICON = {
