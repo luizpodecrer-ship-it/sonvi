@@ -573,6 +573,22 @@ input.day:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-
   .tp-barra .row { gap:8px; } .tp-barra .btn { flex:1; }
   .tp-topo { display:none; }
 }
+/* ---------- Sonvi Music ---------- */
+#side nav a.externo svg:last-child { width:14px; height:14px; margin-left:auto; opacity:.55; }
+.app-music #side .brand picture img { width:148px; height:auto; }
+.acesso.music { background:#0a0b0d; color:#f5f6f8; }
+.acesso.music .lado { background:radial-gradient(120% 90% at 0% 100%, #0b2a66 0%, #0a0b0d 62%); }
+.acesso.music .lado img.marca { width:200px; }
+.acesso.music .lado p { color:#9ba1ad; opacity:1; }
+.acesso.music .forma { background:#121316; }
+.acesso.music .auth h1, .acesso.music .auth { color:#f5f6f8; }
+.acesso.music .auth .muted { color:#9ba1ad; }
+.acesso.music .auth input { background:#1b1d22; border-color:#26282e; color:#f5f6f8; }
+.acesso.music .auth input:focus { border-color:#0199ff; box-shadow:0 0 0 3px rgba(1,153,255,.25); }
+.acesso.music .auth .btn.pri { background:#0199ff; border-color:#0199ff; color:#0a0b0d; }
+.acesso.music .auth .btn:not(.pri) { background:transparent; color:#f5f6f8; border-color:#2c3038; }
+@media (min-width:821px) { .acesso.music .auth picture { display:none; } }
+@media (max-width:820px) { .acesso.music .auth picture img { width:150px; } }
 #print { display:none; }
 #print .cab, .previa .cab { display:flex; align-items:center; gap:14px; margin-bottom:6px; } #print .cab img, .previa .cab img { width:64px; height:64px; max-height:none; object-fit:contain; flex:none; }
 /* Visualizar: o documento do PI numa folha branca, igual ao que sai no PDF */

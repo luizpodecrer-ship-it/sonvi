@@ -56,6 +56,14 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - Relatórios (botão no topo do Financeiro): contas a receber/pagar, recebimentos, inadimplência, faturamento por cliente/agência, vendas por consultor, previsão de caixa, NF pendentes; PDF (A4 em pé: cabeçalho da rádio, quadros de resumo, participação, tabela por mês, "como ler", rodapé) e planilha CSV (; e vírgula decimal). Na impressão, tudo fora de #print fica escondido (inclusive o selo do Netlify).
 - Lançamento avulso (sem PI, com `categoria`): o financeiro cria e exclui enquanto em aberto (políticas em `database/012_lancamentos_avulsos.sql`).
 
+## Sonvi Music
+
+- Aplicativo separado para programadores e locutores, em `app/music/` (depois `music.sonvi.com.br` aponta para lá). `music/index.html` usa `<base href="../">` e carrega os mesmos arquivos do SONVI com `window.SONVI_APP = 'music'` (`S.APP`). Login, marca (`img/sonvi-music*.png`) e menu próprios; a sessão fica guardada à parte (`storageKey` 'sonvi-music-auth'), então entrar num não entra no outro.
+- Menu em `app/js/music.js` (`S.MUSIC_NAV`): Hoje no ar, Programação, Acervo, Relógios, Categorias, Regras, Painéis, Comerciais da OPEC, Relatórios e ECAD. Cada item abre uma parte de `musical.js` (`S.musAba`). Perfis do Sonvi Music: `S.MUSIC_PERFIS` (diretor, gerente, programador, locutor, opec); só aparecem as rádios em que a pessoa trabalha com a programação.
+- No SONVI, o item "Sonvi Music" (abaixo de Tabela de preços) abre `music/` em outra aba. Quem só tem perfil musical vê no SONVI um atalho para o Sonvi Music.
+- Proposta visual aprovada no quadro de design (seção "Sonvi Music · proposta"): login escuro, semana do programador, editar a hora, estúdio do locutor (escuro, letras grandes) e celular.
+- Perfil "locutor": vê a programação e troca músicas (`ve_musica` e política `mus_programacao_locutor`, `database/014_sonvi_music_locutor.sql`). Pendente de aprovação no Supabase: aceitar "locutor" em `usuario_veiculos` e em `salvar_usuario` (parte que troca a regra existente).
+
 ## Programação musical
 
 - Módulo `musical` (`app/js/musical.js`), com as regras e a geração automática em funções puras em `musical-regras.js` (`S.mus`). Tabelas em `database/006_programacao_musical.sql`; perfil "programador" em `007`.

@@ -89,10 +89,13 @@
     const pronto = S.db.musVeiculo === S.ui.vehicleId && S.db.musSemana === S.ui.vehicleId + '|' + S.ui.musSemana;
     if (!pronto && !u.carregando) {
       u.carregando = true;
-      S.carregarMusical().catch(e => { console.error(e); S.toast(S.erro(e)); }).finally(() => { u.carregando = false; if (S.route().view === 'musical') S.render(); });
+      S.carregarMusical().catch(e => { console.error(e); S.toast(S.erro(e)); }).finally(() => { u.carregando = false; if (S.APP === 'music' || S.route().view === 'musical') S.render(); });
     }
     return pronto;
   };
+
+  // O Sonvi Music escolhe a parte pelo menu lateral
+  S.musAba = a => { if (u.aba !== a) { u.aba = a; u.pick = null; } };
 
   S.views.musical = () => {
     const titulo = `<span class="sub">${esc(S.veh().nome)}</span>Programação musical`;
@@ -102,7 +105,8 @@
       : 'Ainda não foi preparada. Peça ao programador, ao gerente ou ao diretor.'}</div>` };
     const seg = `<div class="seg">${ABAS.map(([k, n]) => `<button class="${u.aba === k ? 'on' : ''}" data-act="musAba" data-aba="${k}">${n}</button>`).join('')}</div>`;
     const w = montar(), tela = { prog:telaProg, paineis:telaPaineis, acervo:telaAcervo, cats:telaCats, formatos:telaFormatos, regras:telaRegras, rel:telaRel }[u.aba](w);
-    return { title:titulo, actions:tela.acoes || '', body:seg + tela.corpo };
+    // No Sonvi Music cada parte é um item do menu lateral, sem as abas
+    return { title:titulo, actions:tela.acoes || '', body:(S.APP === 'music' ? '' : seg) + tela.corpo };
   };
 
   // ---------- navegação da semana (dia e hora) ----------

@@ -4,7 +4,8 @@
   const h = location.hash;
   S.definirSenha = /type=(invite|recovery)/.test(h);
   S.erroLink = /error_code=/.test(h) ? (/expired/.test(h) ? 'Este link de acesso expirou. Peça um novo ao diretor.' : 'Este link de acesso não vale mais. Peça um novo ao diretor.') : '';
-  S.sb = supabase.createClient(window.SONVI_CONFIG.url, window.SONVI_CONFIG.key);
+  // O Sonvi Music guarda a sessão à parte: entrar no SONVI não entra no Sonvi Music, e vice-versa (como serão em endereços separados)
+  S.sb = supabase.createClient(window.SONVI_CONFIG.url, window.SONVI_CONFIG.key, S.APP === 'music' ? { auth:{ storageKey:'sonvi-music-auth' } } : undefined);
   S.limparEndereco = () => { if (/access_token|error_code|type=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + '#/painel'); };
 
   // Lembra só qual rádio estava aberta (preferência de tela, não é dado do sistema), por usuário
@@ -57,9 +58,11 @@
       q(S.sb.from('usuarios').select('*').order('nome'))]);
     S.me = me || { id:session.user.id, nome:'', email:session.user.email, ativo:true, diretor:false };
     Object.assign(S.db, { veiculos, vinculos, usuarios });
+    // No Sonvi Music aparecem só as rádios em que a pessoa trabalha com a programação
+    if (S.APP === 'music' && !S.me.diretor) S.db.veiculos = veiculos.filter(v => vinculos.some(x => x.usuario_id === S.me.id && x.veiculo_id === v.id && S.MUSIC_PERFIS.includes(x.perfil)));
     // Volta para a rádio que estava aberta (guardada neste navegador); se ela não existir mais, abre a primeira
     if (!S.ui.vehicleId) S.ui.vehicleId = S.radioGuardada();
-    if (!veiculos.some(v => v.id === S.ui.vehicleId)) S.ui.vehicleId = veiculos.length ? veiculos[0].id : null;
+    if (!S.db.veiculos.some(v => v.id === S.ui.vehicleId)) S.ui.vehicleId = S.db.veiculos.length ? S.db.veiculos[0].id : null;
     S.guardarRadio(S.ui.vehicleId);
   };
 
