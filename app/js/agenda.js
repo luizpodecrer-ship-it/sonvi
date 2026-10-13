@@ -14,7 +14,7 @@
       <span class="tx"><b>${esc(S.nome(a.cliente_id)) || '—'}</b><small>${esc(a.assunto)}${gestor() ? ` · ${esc(S.usuario(a.consultor_id))}` : ''}</small>
         ${a.realizado ? `<small class="res">${esc(a.resultado)}${a.proxima_data ? ` · próximo passo em ${dfmt(a.proxima_data)}` : ''}</small>` : ''}</span>
       <span class="ac">${S.tag(TIPOS[a.tipo], COR[a.tipo])}${a.realizado ? '' : `<button class="btn sm pri" data-act="agFeito" data-id="${a.id}">Registrar</button>`}<button class="x" data-act="agExcluir" data-id="${a.id}" title="Excluir" aria-label="Excluir compromisso">×</button></span></div>`;
-    const bloco = (titulo, lista, vazio) => `<div class="card"><h3>${titulo} <span class="muted small">${lista.length || ''}</span></h3>${lista.length ? `<div class="agenda">${lista.map(linha).join('')}</div>` : `<p class="muted">${vazio}</p>`}</div>`;
+    const bloco = (titulo, lista, vazio) => `<div class="card"><h2>${titulo} <span class="muted small">${lista.length || ''}</span></h2>${lista.length ? `<div class="agenda">${lista.map(linha).join('')}</div>` : `<p class="muted">${vazio}</p>`}</div>`;
     const tile = (l, v, h) => `<div class="tile"><small>${l}</small><b>${v}</b><span>${h}</span></div>`;
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>Agenda`, actions:`<button class="btn pri" data-act="agNovo">${S.svg('mais')}Novo compromisso</button>`,
       body:`<div class="tiles">${tile('Hoje', deHoje.length, 'compromissos do dia')}${tile('Atrasados', atras.length, 'sem registro de resultado')}${tile('Próximos', prox.length, 'já agendados')}${tile('Realizados', todos.filter(a => a.realizado).length, `de ${todos.length} planejados`)}</div>
@@ -42,6 +42,6 @@
           // O próximo passo já vira um retorno na agenda
           if (v.proxima_data) await S.salvar('agenda', { veiculo_id:a.veiculo_id, consultor_id:a.consultor_id, cliente_id:a.cliente_id, tipo:'retorno', quando:new Date(v.proxima_data + 'T09:00').toISOString(), assunto:'Retorno: ' + v.resultado.slice(0, 80) });
         }, 'Registro salvo'), 'Registrar'); },
-    agExcluir: d => { if (confirm('Excluir este compromisso?')) S.run(() => S.excluir('agenda', d.id), 'Compromisso excluído'); }
+    agExcluir: async d => { if (await S.confirmar('Excluir este compromisso?', { ok:'Excluir', perigo:true })) S.run(() => S.excluir('agenda', d.id), 'Compromisso excluído'); }
   });
 })();

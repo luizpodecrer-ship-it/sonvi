@@ -29,7 +29,7 @@
           <span class="pl-i"><small>Inserções</small>${c.ins}</span>
           <span class="pl-v"><b>${brl(c.total)}</b>${c.commission ? `<small>Líquido ${brl(c.net)}</small>` : ''}</span>
           <span class="pl-m"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
-      return `<section class="card pis-g"><div class="hd"><h3>${S.pill(s)} <span class="muted small">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h3></div>
+      return `<section class="card pis-g"><div class="hd"><h2>${S.pill(s)} <span class="muted small">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h2></div>
         <div class="pl"><div class="pl-l pl-cab"><span class="pl-n">Nº</span><span class="pl-t">Título</span><span class="pl-c">Cliente · agência</span><span class="pl-u">Consultor</span><span class="pl-p">Prazo</span><span class="pl-i">Inserções</span><span class="pl-v">Total</span><span class="pl-m"></span></div>
         ${body}
         <div class="pl-l pl-tot"><span class="pl-n">Total</span><span class="pl-t"></span><span class="pl-c"></span><span class="pl-u"></span><span class="pl-p"></span><span class="pl-i"><small>Inserções</small>${t.ins}</span><span class="pl-v"><b>${brl(t.total)}</b>${t.total !== t.net ? `<small>Líquido ${brl(t.net)}</small>` : ''}</span><span class="pl-m"></span></div></div></section>`;
@@ -141,7 +141,7 @@
   const duo = (path, rule, ro) => `<span class="duo"><input value="${nfmt(num(rule.value))}" data-f="${path}.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00"${ro}><select data-f="${path}.type"${ro}><option value="pct"${rule.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${rule.type === 'brl' ? ' selected' : ''}>R$</option></select></span>`;
   const regra = r => num(r.value) ? (r.type === 'pct' ? nfmt(num(r.value)).replace(/,00$/, '') + '%' : brl(num(r.value))) : (r.type === 'pct' ? '0%' : 'R$ 0,00');
 
-  const summary = c => `<h3>Resumo financeiro</h3>
+  const summary = c => `<h2>Resumo financeiro</h2>
     <div><small>Total da mídia</small><b>${brl(c.media)}</b></div><div><small>Desconto geral</small><b>${brl(c.discount)}</b></div>
     <div class="hr"><small>Valor total</small><b>${brl(c.total)}</b></div><div class="g"><small>Comissão da agência</small><b>${brl(c.commission)}</b></div><div><small>Valor líquido</small><b>${brl(c.net)}</b></div>
     <div class="hr"><small>Bonificação</small><b>${brl(c.bonus)}</b></div><div class="g"><small>Honorários</small><b>${brl(c.fee)}</b></div><div><small>Inserções</small><b>${c.ins}</b></div>`;
@@ -163,13 +163,13 @@
       ${em ? '<button class="btn sm tracej" data-act="piAddPiece">+ Adicionar peça</button>' : d.pieces.length ? '' : '<span class="muted small">Nenhuma peça cadastrada.</span>'}</section>`;
     const avisoTab = em && (semCadastro('programa') || semCadastro('formato')) ? `<div class="note info">Para escolher programa e formato na grade, cadastre-os antes em <a data-go="/cadastros">Tabelas</a>.</div>` : '';
     const grades = d.grids.map((g, i) => (S.celular ? gradeCelular : gradeTela)(pi, g, i, em)).join('') + (em ? '<p><button class="btn pri" data-act="piAddGrid">+ Adicionar grade</button></p>' : '');
-    const obs = `<section class="card"><div class="hd"><h3>Observações</h3><span>saem no PI exportado</span></div>${em ? `<textarea data-f="dados.billing.obsClient" placeholder="Ex.: veicular longe de concorrentes; material enviado pela agência até o dia 29">${esc(d.billing.obsClient)}</textarea>` : `<p class="obs">${esc(d.billing.obsClient) || '<span class="muted">Sem observações.</span>'}</p>`}</section>`;
+    const obs = `<section class="card"><div class="hd"><h2>Observações</h2><span>saem no PI exportado</span></div>${em ? `<textarea data-f="dados.billing.obsClient" placeholder="Ex.: veicular longe de concorrentes; material enviado pela agência até o dia 29">${esc(d.billing.obsClient)}</textarea>` : `<p class="obs">${esc(d.billing.obsClient) || '<span class="muted">Sem observações.</span>'}</p>`}</section>`;
     const totalCel = S.celular ? `<button class="pi-total" data-act="piVerResumo"><span><small>Valor total · ver resumo</small><b id="totalCel">${brl(c.total)}</b></span>${S.svg('baixo')}</button>` : '';
-    return `${info}${pecas}${avisoTab}<div class="pi-corpo"><div class="pi-grades">${grades}${obs}</div><aside class="card pi-sum" id="sum">${summary(c)}</aside></div>${totalCel}
+    return `${info}${pecas}${avisoTab}<div class="pi-corpo"><div class="pi-grades">${grades}${obs}</div><section class="card pi-sum" id="sum" aria-label="Resumo financeiro">${summary(c)}</section></div>${totalCel}
       ${S.datalist('dl-praca', [S.veh(pi.veiculo_id).cidade].filter(Boolean))}`;
   }
 
-  const cabGrade = (g, i, em) => `<div class="g-hd"><h3>Grade ${String.fromCharCode(65 + i)}</h3>
+  const cabGrade = (g, i, em) => `<div class="g-hd"><h2>Grade ${String.fromCharCode(65 + i)}</h2>
     <label>Período de veiculação ${em ? `<select data-f="period" data-g="${g.id}" data-rerender="1" aria-label="Período de veiculação">${meses(g.period)}</select>` : `<b>${mesExt(g.period)}</b>`}</label>
     ${em ? `<button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button>` : ''}</div>`;
   // Desconto da linha: em %, em R$ ou a linha inteira bonificada (sem cobrança)
@@ -245,7 +245,7 @@
 
   function tabBilling(pi, c, ro) {
     const b = pi.dados.billing, tile = (t, v) => `<div class="tile"><small>${t}</small><b style="font-size:20px">${brl(v)}</b></div>`;
-    const blocks = S.billingEntries(pi, c).map(e => `<div class="card"><h3>${esc(e.from)} paga ${e.what.toLowerCase()} para ${esc(e.to)}</h3><div class="scroll"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Lançamento</th><th class="r">Valor</th><th class="r">Forma</th></tr></thead><tbody>${S.parcels(pi, e.value).map(p => `<tr><td>${p.n}</td><td>${dfmt(p.due)}</td><td>${esc(e.what)}</td><td class="r">${brl(p.value)}</td><td class="r">${esc(b.method)}</td></tr>`).join('')}</tbody></table></div></div>`).join('');
+    const blocks = S.billingEntries(pi, c).map(e => `<div class="card"><h2>${esc(e.from)} paga ${e.what.toLowerCase()} para ${esc(e.to)}</h2><div class="scroll"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Lançamento</th><th class="r">Valor</th><th class="r">Forma</th></tr></thead><tbody>${S.parcels(pi, e.value).map(p => `<tr><td>${p.n}</td><td>${dfmt(p.due)}</td><td>${esc(e.what)}</td><td class="r">${brl(p.value)}</td><td class="r">${esc(b.method)}</td></tr>`).join('')}</tbody></table></div></div>`).join('');
     return `<div class="tiles">${tile('Valor total', c.total)}${tile('Comissão da agência', c.commission)}${tile('Valor líquido da rádio', c.net)}${tile('Bonificação', c.bonus)}</div>
       ${ro ? '<div class="note info">Clique em <b>Editar</b> para alterar as condições de faturamento.</div>' : ''}
       <div class="card"><div class="row">
@@ -254,10 +254,10 @@
       <label class="f">Parcelas<input type="number" min="1" max="24" style="width:84px" value="${b.installments}" data-f="dados.billing.installments" data-k="int" data-rerender="1"${ro}></label>
       <label class="f">Forma de pagamento<select data-f="dados.billing.method" data-rerender="1"${ro}>${S.opts(['Boleto', 'Pix', 'Transferência', 'Cartão'], b.method)}</select></label></div></div>
       ${blocks}
-      <div class="card"><div class="hd"><h3>Observações internas da rádio</h3><span>não saem no PI exportado</span></div><textarea data-f="dados.billing.obsVehicle" placeholder="Anotações só para a equipe da rádio"${ro}>${esc(b.obsVehicle)}</textarea></div>`;
+      <div class="card"><div class="hd"><h2>Observações internas da rádio</h2><span>não saem no PI exportado</span></div><textarea data-f="dados.billing.obsVehicle" placeholder="Anotações só para a equipe da rádio"${ro}>${esc(b.obsVehicle)}</textarea></div>`;
   }
 
-  const tabHistory = pi => `<div class="card"><h3>Histórico do pedido</h3><ul class="hist">${(S.db.hist[pi.id] || []).map(h => `<li><span class="muted">${dfmt(S.dia(h.em))} ${S.hora(h.em)}</span>${S.pill(h.status)}<span>${esc(S.usuario(h.usuario_id))}${h.nota ? ' · ' + esc(h.nota) : ''}</span></li>`).join('') || '<li class="muted">Carregando…</li>'}</ul></div>`;
+  const tabHistory = pi => `<div class="card"><h2>Histórico do pedido</h2><ul class="hist">${(S.db.hist[pi.id] || []).map(h => `<li><span class="muted">${dfmt(S.dia(h.em))} ${S.hora(h.em)}</span>${S.pill(h.status)}<span>${esc(S.usuario(h.usuario_id))}${h.nota ? ' · ' + esc(h.nota) : ''}</span></li>`).join('') || '<li class="muted">Carregando…</li>'}</ul></div>`;
 
   // ---------- aba Mídias: arquivos do PI (áudios, textos, autorizações) ----------
   const BUCKET = 'midias';
@@ -275,7 +275,7 @@
   const nomeArq = n => n.replace(/^\d+_/, '');
   function tabMidias(pi, em) {
     const lista = S.db.midias[pi.id] || [], pode = comercial(pi) || S.pode('opec');
-    return `<section class="card"><div class="hd"><h3>Mídias do PI</h3><span>áudios dos spots, textos de testemunhal, autorizações</span></div>
+    return `<section class="card"><div class="hd"><h2>Mídias do PI</h2><span>áudios dos spots, textos de testemunhal, autorizações</span></div>
       ${pode ? `<label class="drop"><input type="file" multiple data-act-file="piUpload" hidden><b>Clique para enviar arquivos</b><span>ou arraste aqui · até 50 MB por arquivo</span></label>` : ''}
       ${lista.length ? `<div class="list">${lista.map(f => `<div><span class="ic">${S.svg('doc')}</span><span class="tx"><b>${esc(nomeArq(f.name))}</b><small>${tamanho((f.metadata || {}).size || 0)} · ${dfmt(S.dia(f.created_at))}</small></span>
         <span class="row mid" style="gap:6px"><button class="btn sm" data-act="piBaixar" data-nome="${esc(f.name)}">${S.svg('baixar')}Baixar</button>${pode ? `<button class="x" data-act="piRmMidia" data-nome="${esc(f.name)}" aria-label="Excluir arquivo">×</button>` : ''}</span></div>`).join('')}</div>`
@@ -322,7 +322,7 @@
     piAbrirItem: d => { S.ui.piItem = Object.assign({}, S.ui.piItem, { [d.g]:d.id }); S.render(); },
     piVerResumo: () => { const s = document.getElementById('sum'); if (s) s.scrollIntoView({ behavior:'smooth', block:'start' }); },
     piBaixar: async d => { const pi = cur(); try { const { data, error } = await S.sb.storage.from(BUCKET).createSignedUrl(`${pasta(pi)}/${d.nome}`, 120, { download:nomeArq(d.nome) }); if (error) throw error; window.open(data.signedUrl, '_blank', 'noopener'); } catch (e) { S.toast(S.erro(e)); } },
-    piRmMidia: d => { const pi = cur(); if (!confirm(`Excluir o arquivo "${nomeArq(d.nome)}"?`)) return;
+    piRmMidia: async d => { const pi = cur(); if (!await S.confirmar(`Excluir o arquivo "${nomeArq(d.nome)}"?`, { ok:'Excluir arquivo', perigo:true })) return;
       S.run(async () => { const { error } = await S.sb.storage.from(BUCKET).remove([`${pasta(pi)}/${d.nome}`]); if (error) throw error; await carregarMidias(pi); }, 'Arquivo excluído'); },
     // Novo PI: o cliente pode ser escolhido da lista ou cadastrado ali mesmo, sem sair da tela
     piNew: () => {
@@ -383,9 +383,9 @@
     },
     piDuplicar: d => { const pi = S.db.pis.find(p => p.id === d.id);
       S.run(async () => { const novo = S.piNorm(await criar({ titulo:pi.titulo + ' (cópia)', cliente_id:pi.cliente_id, agencia_id:pi.agencia_id, projeto:pi.projeto }, JSON.parse(JSON.stringify(pi.dados)))); S.db.pis.push(novo); S.piEntrar(novo); S.ui.tab = 'detalhes'; location.hash = '/pi/' + novo.id; }, 'PI duplicado'); },
-    piCancelarPI: d => { const pi = S.db.pis.find(p => p.id === d.id); if (confirm(`Cancelar o ${S.piNo(pi)}? Ele sai da OPEC e do faturamento.`)) S.setStatus(pi, 'cancelado'); },
-    piExcluir: d => { const pi = S.db.pis.find(p => p.id === d.id);
-      if (!confirm(`Excluir o ${S.piNo(pi)} (${pi.titulo || 'sem título'})? Não dá para desfazer.`)) return;
+    piCancelarPI: async d => { const pi = S.db.pis.find(p => p.id === d.id); if (await S.confirmar(`Cancelar o ${S.piNo(pi)}? Ele sai da OPEC e do faturamento.`, { ok:'Cancelar o PI', voltar:'Manter', perigo:true })) S.setStatus(pi, 'cancelado'); },
+    piExcluir: async d => { const pi = S.db.pis.find(p => p.id === d.id);
+      if (!await S.confirmar(`Excluir o ${S.piNo(pi)} (${pi.titulo || 'sem título'})? Não dá para desfazer.`, { ok:'Excluir PI', perigo:true })) return;
       S.run(async () => { if (ed.id === pi.id) sairEdicao(); await S.excluir('pis', pi.id);
         try { const { data } = await S.sb.storage.from(BUCKET).list(pasta(pi)); if (data && data.length) await S.sb.storage.from(BUCKET).remove(data.map(f => `${pasta(pi)}/${f.name}`)); } catch (e) { console.error(e); } /* apaga também as mídias do PI */
         if (S.route().view === 'pi') location.hash = '/pis'; }, 'PI excluído'); },
@@ -398,8 +398,8 @@
     piAddGrid: () => mexer((pi, d) => { const last = d.grids[d.grids.length - 1];
       let period = today().slice(0, 7); if (last) { const [y, m] = last.period.split('-').map(Number), n = new Date(y, m, 1); period = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; }
       d.grids.push({ id:uid(), period, praca:last ? last.praca || '' : (S.veh(pi.veiculo_id).cidade || ''), items:[blankItem()] }); }),
-    piRmGrid: x => { const pi = cur(), g = pi.dados.grids.find(g => g.id === x.id);
-      if (g.items.some(it => S.itemCalc(it).ins) && !confirm('Remover esta grade com todas as inserções dela?')) return;
+    piRmGrid: async x => { const pi = cur(), g = pi.dados.grids.find(g => g.id === x.id);
+      if (g.items.some(it => S.itemCalc(it).ins) && !await S.confirmar('Remover esta grade com todas as inserções dela?', { ok:'Remover grade', perigo:true })) return;
       mexer((pi, d) => { d.grids = d.grids.filter(g => g.id !== x.id); }); },
     piAddItem: x => mexer((pi, d) => { const it = blankItem(), g = d.grids.find(g => g.id === x.id); it.piece = (d.pieces[0] || {}).id || ''; g.items.push(it); S.ui.piItem = Object.assign({}, S.ui.piItem, { [g.id]:it.id }); }),
     piRmItem: x => mexer((pi, d) => { const g = d.grids.find(g => g.id === x.g); g.items = g.items.filter(i => i.id !== x.id); }),

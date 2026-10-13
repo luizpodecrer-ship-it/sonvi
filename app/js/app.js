@@ -37,14 +37,17 @@
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, veh = semVeiculo ? null : S.veh();
     const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${MUSIC ? 'hoje' : 'painel'}" data-go="/${MUSIC ? 'hoje' : 'painel'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Painel'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
       ${semVeiculo ? '' : `<label class="veh" title="Trocar de rádio">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc([veh.frequencia, veh.cidade].filter(Boolean).join(' · ') || 'Rádio selecionada')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Rádio">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}
-      <nav aria-label="Menu principal">${itens.map(([k, n, , href]) => href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
-        : `<a href="#/${k}" data-go="/${k}" title="${n}" class="${active === k ? 'on' : ''}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}</a>`).join('')}
+      <nav aria-label="Menu principal">${itens.map(([k, n, , href], i) => { const ex = itens.length > 5 && i >= 4 ? ' extra' : ''; return href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo${ex}" data-ico="${k}">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
+        : `<a href="#/${k}" data-go="/${k}" title="${n}" data-ico="${k}" class="${(active === k ? 'on' : '') + ex}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}</a>`; }).join('')}
+      ${itens.length > 5 ? `<button type="button" class="nav-mais" data-act="navMais" aria-haspopup="menu">${S.svg('mais3')}Mais</button>` : ''}
       ${SOON.length ? '<div class="sec">Em breve</div>' : ''}${SOON.map(n => `<span class="soon">${S.svg('programacao')}${n}</span>`).join('')}</nav>
       <div class="eu"><span class="av" aria-hidden="true">${esc(S.iniciais(S.me.nome || S.me.email))}</span><div><b>${esc(S.me.nome || S.me.email)}</b><small>${S.PERFIS[S.perfil] || ''}${S.perfil === 'diretor' ? ' · todas as rádios' : ''}</small></div><button class="btn sm" data-act="sair">Sair</button></div>`;
     // Mesma barra com outro item marcado: só troca a marcação (o logo e os itens não são recriados e nada pisca)
-    const molde = sideHtml.replace(/ class="on" aria-current="page"/g, ' class=""');
-    if (molde === ultimoSide) side.querySelectorAll('nav a[data-go]').forEach(a => { const on = a.dataset.go === '/' + active; a.className = on ? 'on' : ''; if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    const molde = sideHtml.replace(/ class="on( extra)?" aria-current="page"/g, ' class="$1"').replace(/class=" extra"/g, 'class="extra"');
+    if (molde === ultimoSide) side.querySelectorAll('nav a[data-go]').forEach(a => { const on = a.dataset.go === '/' + active; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     else { side.innerHTML = sideHtml; ultimoSide = molde; }
+    const mais = side.querySelector('.nav-mais'); if (mais) { mais.classList.toggle('on', !!side.querySelector('nav a.extra.on'));
+      const bx = side.querySelector('nav a.extra .badge'), bm = mais.querySelector('.badge'); if (bm) bm.remove(); if (bx) mais.insertAdjacentHTML('beforeend', `<span class="badge" aria-label="${bx.textContent} pendentes">${bx.textContent}</span>`); }
     const v = (S.views[view] || S.views.soMusic)(id), chave = `${view}/${view === 'clientes' ? '' : id || ''}/${S.ui.vehicleId}/${S.ui.tab}`; // abas dentro da mesma tela não animam
     const anima = chave !== ultima; ultima = chave;
     bar.classList.toggle('entra', anima); content.classList.toggle('entra', anima);
@@ -53,6 +56,7 @@
     const largo = !MUSIC && view === 'pi'; bar.classList.toggle('largo', largo); content.classList.toggle('largo', largo); document.body.classList.toggle('compacto', largo);
     bar.innerHTML = `<h1>${v.title}</h1>${v.actions}`;
     content.innerHTML = v.body;
+    requestAnimationFrame(() => content.querySelectorAll('.scroll').forEach(sc => { if (sc.scrollWidth > sc.clientWidth + 2 && !sc.querySelector('a[href], button, input, select, textarea, [tabindex]')) { const t = sc.closest('.card') && sc.closest('.card').querySelector('h2'); sc.tabIndex = 0; sc.setAttribute('role', 'region'); sc.setAttribute('aria-label', (t ? t.textContent.trim() + ': ' : '') + 'tabela, role para o lado para ver tudo'); } }));
     document.title = (MUSIC ? 'Sonvi Music' : 'SONVI') + (semVeiculo ? '' : ' · ' + veh.nome);
   };
 
@@ -72,6 +76,11 @@
   });
   new MutationObserver(lista => lista.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) { prepararTeclado(n); if (n.matches && n.matches(CLICAVEIS)) prepararTeclado(n.parentNode); } })))
     .observe(document.body, { childList:true, subtree:true });
+  // Celular: o que não cabe na barra de abas fica no "Mais"
+  S.actions.navMais = (d, botao) => S.menu(botao, [...document.querySelectorAll('#side nav a.extra')].map(a => ({ label:(a.getAttribute('title') || a.textContent.trim()).replace(' (abre em outra aba)', '') + (a.querySelector('.badge') ? ` (${a.querySelector('.badge').textContent})` : ''), icon:a.dataset.ico,
+    act:a.dataset.go ? 'navIr' : 'navAbrir', data:a.dataset.go ? { go:a.dataset.go } : { href:a.getAttribute('href') } })));
+  S.actions.navIr = d => S.go(d.go);
+  S.actions.navAbrir = d => window.open(d.href, '_blank', 'noopener');
   // "Pular para o conteúdo": primeiro item do Tab em cada tela
   S.actions.pular = () => { const c = document.getElementById('content'); c.tabIndex = -1; c.focus(); };
   document.addEventListener('keydown', e => {

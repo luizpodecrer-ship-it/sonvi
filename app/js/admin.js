@@ -43,7 +43,7 @@
   };
   const salvarUsuario = (u, f) => {
     const diretor = f.funcao === 'diretor', vinculos = S.db.veiculos.map(v => ({ veiculo_id:v.id, perfil:f['v_' + v.id] || '' })).filter(x => x.perfil);
-    if (!diretor && !vinculos.length) { S.toast('Escolha pelo menos uma rádio e o perfil da pessoa nela.'); return formUsuario(u, true, f); }
+    if (!diretor && !vinculos.length) { formUsuario(u, true, f); return S.erroNoCampo('.acessos', 'Escolha pelo menos uma rádio e o perfil da pessoa nela.'); }
     if (!u.id) return S.run(async () => {
       const r = await servidor({ acao:'criar', nome:f.nome, email:f.email, celular:f.celular, diretor, vinculos });
       await S.carregarBase(); S.render(); mostrarLink({ nome:f.nome, email:f.email, celular:f.celular }, r.link, true);
@@ -55,12 +55,12 @@
     const seg = `<div class="seg">${[['veiculos', 'Veículos'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
     let body;
     if (aba === 'veiculos') {
-      body = `<div class="card">${S.db.veiculos.length ? `<div class="scroll"><table><thead><tr><th>Rádio</th><th>Sigla do PI</th><th>CNPJ</th><th>Frequência</th><th>Cidade</th><th class="r">PIs emitidos</th><th></th></tr></thead><tbody>${S.db.veiculos.map(v => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td><td>${esc(v.frequencia)}</td><td>${esc(v.cidade)}</td><td class="r">${v.pi_seq}</td><td class="r"><span class="row mid" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-act="admTextosPI" data-id="${v.id}">${S.svg('pis')}Textos do PI</button><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button></span></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><b>Cadastre a primeira rádio</b>Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div>'}</div>`;
+      body = `<div class="card">${S.db.veiculos.length ? `<div class="scroll"><table><thead><tr><th>Rádio</th><th>Sigla do PI</th><th>CNPJ</th><th>Frequência</th><th>Cidade</th><th class="r">PIs emitidos</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${S.db.veiculos.map(v => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td><td>${esc(v.frequencia)}</td><td>${esc(v.cidade)}</td><td class="r">${v.pi_seq}</td><td class="r"><span class="row mid" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-act="admTextosPI" data-id="${v.id}">${S.svg('pis')}Textos do PI</button><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button></span></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><b>Cadastre a primeira rádio</b>Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div>'}</div>`;
     } else {
       const us = S.db.usuarios;
       body = S.celular
         ? `<div class="card"><div class="list">${us.map(u => `<div><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome) || '—'}</b><small>${acessoTexto(u)}</small><span style="margin-top:4px">${situacao(u)}</span></span><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></div>`).join('')}</div></div>`
-        : `<div class="card"><div class="scroll"><table><thead><tr><th>Usuário</th><th>Situação</th><th>Rádios e perfis</th><th></th></tr></thead><tbody>${us.map(u =>
+        : `<div class="card"><div class="scroll"><table><thead><tr><th>Usuário</th><th>Situação</th><th>Rádios e perfis</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${us.map(u =>
           `<tr class="click" data-act="admUsuario" data-id="${u.id}"><td><div style="display:flex;align-items:center;gap:12px"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><div><b>${esc(u.nome) || '—'}</b><div class="muted small">${esc(u.email)}${u.celular ? ' · ' + esc(u.celular) : ''}</div></div></div></td><td>${situacao(u)}</td><td>${acessoTexto(u, '<br>')}</td><td class="r"><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></td></tr>`).join('')}</tbody></table></div></div>`;
     }
     return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:seg + body };
@@ -97,13 +97,13 @@
         { label:eu ? 'Gerar link para trocar a senha' : 'Gerar link de acesso', icon:'whats', act:'admLink', data:{ id:u.id } },
         ...(eu ? [] : ['-', u.ativo ? { label:'Desativar acesso', icon:'bloqueio', act:'admAtivo', data:{ id:u.id } } : { label:'Reativar acesso', icon:'check', act:'admAtivo', data:{ id:u.id } },
           { label:'Excluir usuário', icon:'lixo', act:'admExcluir', data:{ id:u.id }, perigo:true }])]); },
-    admExcluir: d => { const u = S.db.usuarios.find(x => x.id === d.id);
-      if (!confirm(`Excluir ${u.nome || u.email} de vez? Não dá para desfazer.\n\nSe a pessoa já trabalhou no sistema (PIs, clientes ou agenda), o SONVI não deixa excluir: use "Desativar acesso".`)) return;
+    admExcluir: async d => { const u = S.db.usuarios.find(x => x.id === d.id);
+      if (!await S.confirmar(`Excluir ${u.nome || u.email} de vez? Não dá para desfazer.\n\nSe a pessoa já trabalhou no sistema (PIs, clientes ou agenda), o SONVI não deixa excluir: use "Desativar acesso".`, { ok:'Excluir usuário', perigo:true })) return;
       S.run(async () => { await servidor({ acao:'excluir', usuario_id:u.id }); await S.carregarBase(); }, 'Usuário excluído'); },
     admUsuarioEditar: d => formUsuario(S.db.usuarios.find(x => x.id === d.id), true),
     admLink: d => { const u = S.db.usuarios.find(x => x.id === d.id); S.run(async () => { const r = await servidor({ acao:'link', usuario_id:u.id }); mostrarLink(u, r.link, false); }); },
-    admAtivo: d => { const u = S.db.usuarios.find(x => x.id === d.id), ativo = !u.ativo;
-      if (!ativo && !confirm(`Desativar o acesso de ${u.nome || u.email}? A pessoa não consegue mais entrar; o histórico dela continua no sistema.`)) return;
+    admAtivo: async d => { const u = S.db.usuarios.find(x => x.id === d.id), ativo = !u.ativo;
+      if (!ativo && !await S.confirmar(`Desativar o acesso de ${u.nome || u.email}? A pessoa não consegue mais entrar; o histórico dela continua no sistema.`, { ok:'Desativar acesso', perigo:true })) return;
       S.run(async () => { await S.q(S.sb.rpc('salvar_usuario', { p_usuario:u.id, p_nome:u.nome || u.email, p_celular:u.celular || '', p_ativo:ativo, p_diretor:u.diretor, p_vinculos:vinculosDe(u).map(x => ({ veiculo_id:x.veiculo_id, perfil:x.perfil })) })); await S.carregarBase(); }, ativo ? 'Acesso reativado' : 'Acesso desativado'); },
     admCopiar: d => { navigator.clipboard.writeText(d.link).then(() => S.toast('Link copiado'), () => S.toast('Não foi possível copiar; selecione o link e copie.')); },
   });

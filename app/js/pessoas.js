@@ -76,7 +76,10 @@
       ${aba === 'cliente' ? `<td>${esc(S.usuario(p.consultor_id))}</td><td>${esc(S.nome(p.agencia_id))}</td><td>${S.tag(...SIT[p.situacao])}</td>` : `<td class="r">${S.nfmt(Number(p.comissao)) || '0'}%</td>`}<td class="r">${tres(p)}</td></tr>`).join('');
     return { title:`<span class="sub">${esc(S.veh().nome)} · ${S.pessoas(aba).length} ${aba === 'cliente' ? (S.pessoas(aba).length === 1 ? 'cliente' : 'clientes') : (S.pessoas(aba).length === 1 ? 'agência' : 'agências')}</span>${aba === 'cliente' ? 'Clientes' : 'Agências'}`, actions:podeCriar ? `<button class="btn pri" data-act="pesNovo">${S.svg('mais')}${aba === 'cliente' ? 'Novo cliente' : 'Nova agência'}</button>` : '',
       body:`<div class="row mid" style="margin-bottom:16px"><div class="seg" style="margin:0">${[['cliente', 'Clientes'], ['agencia', 'Agências']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="pesAba" data-tab="${k}">${n}</button>`).join('')}</div><input type="search" class="grow" style="height:42px" placeholder="Buscar por nome, CNPJ, cidade ou segmento" aria-label="Buscar clientes e agências" value="${esc(S.ui.q)}" data-ui="q"></div>
-        <div class="card">${lista.length ? `<div class="scroll"><table><thead><tr><th>Nome</th><th>CNPJ / CPF</th><th>Cidade</th><th>Telefone</th>${aba === 'cliente' ? '<th>Consultor</th><th>Agência</th><th>Situação</th>' : '<th class="r">Comissão</th>'}<th></th></tr></thead><tbody>${linhas}</tbody></table></div>` : `<div class="empty"><b>Nenhum cadastro${q ? ' encontrado' : ''}</b>${S.pode('consultor') && aba === 'cliente' ? 'Aqui aparecem os clientes da sua carteira.' : ''}</div>`}</div>` };
+        <div class="card">${lista.length && S.celular ? `<div class="list cli-lista">${lista.map(p => `<div data-act="pesEditar" data-id="${p.id}" tabindex="-1"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span>
+            <span class="tx"><b><a href="#/clientes" data-act="pesEditar" data-id="${p.id}">${esc(p.nome)}</a></b><small>${esc([p.documento, p.cidade].filter(Boolean).join(' · ') || p.razao_social || '—')}</small>
+            ${aba === 'cliente' ? `<span class="cli-meta">${S.tag(...SIT[p.situacao])}${p.consultor_id ? `<small>${esc(S.usuario(p.consultor_id))}</small>` : ''}${p.agencia_id ? `<small>· ${esc(S.nome(p.agencia_id))}</small>` : ''}</span>` : `<span class="cli-meta"><small>Comissão ${S.nfmt(Number(p.comissao)) || '0'}%</small></span>`}</span>${tres(p)}</div>`).join('')}</div>`
+          : lista.length ? `<div class="scroll"><table><thead><tr><th>Nome</th><th>CNPJ / CPF</th><th>Cidade</th><th>Telefone</th>${aba === 'cliente' ? '<th>Consultor</th><th>Agência</th><th>Situação</th>' : '<th class="r">Comissão</th>'}<th><span class="sr">Opções</span></th></tr></thead><tbody>${linhas}</tbody></table></div>` : `<div class="empty"><b>Nenhum cadastro${q ? ' encontrado' : ''}</b>${S.pode('consultor') && aba === 'cliente' ? 'Aqui aparecem os clientes da sua carteira.' : ''}</div>`}</div>` };
   };
 
   // ---------- formulário ----------
@@ -109,7 +112,7 @@
     S.form(novo ? (cliente ? 'Novo cliente' : 'Nova agência') : esc(p.nome), campos, p, v => salvar(p, v, { cliente, gestor, novo, tipo }));
     const d = document.getElementById('dlg'), ok = d.onclose;
     if (bloco.length) d.classList.add('medio');
-    d.onclose = () => { d.classList.remove('medio'); if (d.returnValue === 'excluir') { if (confirm('Excluir este cadastro?')) S.run(() => S.excluir('pessoas', p.id), 'Cadastro excluído'); } else ok(); };
+    d.onclose = async () => { d.classList.remove('medio'); if (d.returnValue === 'excluir') { if (await S.confirmar('Excluir este cadastro?', { ok:'Excluir cadastro', perigo:true })) S.run(() => S.excluir('pessoas', p.id), 'Cadastro excluído'); } else ok(); };
     contarRadios();
   }
 

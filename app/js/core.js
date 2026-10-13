@@ -58,7 +58,9 @@ S.selo = v => { const sg = String(v.sigla || '').trim(); if (sg && sg.length <= 
   const ps = String(v.nome || '').replace(/\b(r[áa]dio|fm|am)\b/gi, '').trim().split(/\s+/).filter(Boolean);
   return (ps.length > 1 ? ps[0][0] + ps[1][0] : (ps[0] || sg || '?').slice(0, 2)).toUpperCase(); };
 // Selo da rádio: o logo dela, ou a sigla sobre a cor DELA (nunca a cor da rádio selecionada)
-S.vav = v => v && v.logo ? `<span class="vav img"><img src="${v.logo}" width="500" height="500" alt=""></span>` : `<span class="vav" style="background:${v && /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : S.COR_PADRAO}">${S.esc(S.selo(v || {}))}</span>`;
+S.vav = v => { if (v && v.logo) return `<span class="vav img"><img src="${v.logo}" width="500" height="500" alt=""></span>`;
+  const cor = v && /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : S.COR_PADRAO, letra = contraste(cor, '#ffffff') >= 4.5 ? '#ffffff' : '#0a0b0d'; // sigla sempre legível
+  return `<span class="vav" style="background:${cor};color:${letra}">${S.esc(S.selo(v || {}))}</span>`; };
 
 // ---------- cor da rádio: personaliza o sistema todo ----------
 S.COR_PADRAO = '#0055ff';
@@ -75,10 +77,13 @@ S.temaRadio = v => {
   if (cor === S.COR_PADRAO) { if (st) st.remove(); return; }
   if (st && st.dataset.cor === cor) return;
   if (!st) { st = document.createElement('style'); st.id = 'tema-radio'; document.head.appendChild(st); }
-  const ac = ajusta(cor, '#ffffff', 3, '#000000'), tx = ajusta(cor, '#ffffff', 4.5, '#000000'), txd = ajusta(cor, '#121316', 4.5, '#ffffff'), [r, g, b] = rgb(ac);
+  // Botões com texto branco pedem 4,5:1; o texto na cor da rádio é conferido sobre o fundo clarinho onde ele aparece (item marcado, avatar)
+  const ac = ajusta(cor, '#ffffff', 4.5, '#000000'), soft = mistura(ac, '#ffffff', .9), softD = mistura('#121316', ac, .24);
+  const tx = ajusta(cor, soft, 4.5, '#000000'), txd = ajusta(cor, softD, 4.5, '#ffffff'), [r, g, b] = rgb(ac);
   st.dataset.cor = cor;
-  st.textContent = `:root{--accent:${ac};--accent-hover:${mistura(ac, '#000000', .14)};--accent-2:${mistura(ac, '#ffffff', .3)};--accent-ink:#fff;--accent-soft:${mistura(ac, '#ffffff', .9)};--accent-text:${tx};--bar-soft:${mistura(ac, '#ffffff', .78)};--blue:${tx}}
-@media (prefers-color-scheme: dark){:root{--accent-hover:${mistura(ac, '#ffffff', .12)};--accent-soft:rgba(${r},${g},${b},.24);--accent-text:${txd};--bar-soft:${mistura(ac, '#121316', .65)};--blue:${txd}}}`;
+  // As cores de status (azul, verde, laranja…) não mudam com a rádio
+  st.textContent = `:root{--accent:${ac};--accent-hover:${mistura(ac, '#000000', .14)};--accent-2:${mistura(ac, '#ffffff', .3)};--accent-ink:#fff;--accent-soft:${soft};--accent-text:${tx};--bar-soft:${mistura(ac, '#ffffff', .78)}}
+@media (prefers-color-scheme: dark){:root{--accent-hover:${mistura(ac, '#ffffff', .12)};--accent-soft:rgba(${r},${g},${b},.24);--accent-text:${txd};--bar-soft:${mistura(ac, '#121316', .65)}}}`;
 };
 
 // ---------- logo da rádio: quadrado 500 × 500, e as cores tiradas dele ----------
@@ -149,7 +154,70 @@ S.route = () => { const [view, id] = location.hash.replace(/^#\/?/, '').split('/
 S.go = path => { if (location.hash === '#' + path) S.render(); else location.hash = path; };
 
 // ---------- diálogo, formulário e aviso ----------
-S.dialog = (html, onOk) => { const d = document.getElementById('dlg'); d.innerHTML = `<form method="dialog">${html}</form>`; d.onclose = () => { if (d.returnValue === 'ok' && onOk) onOk(Object.fromEntries(new FormData(d.querySelector('form')))); }; S.mascarar(d); d.showModal(); };
+// Janela por cima da tela. Ao abrir: título ligado à janela (leitores de tela) e cursor no primeiro campo.
+// Ao fechar: o foco volta para o botão que abriu (ou o equivalente, se a tela foi redesenhada).
+S.dialog = (html, onOk) => {
+  const d = document.getElementById('dlg'), origem = document.activeElement;
+  const alvo = origem && origem.dataset && (origem.dataset.act || origem.dataset.go) ? ['act', 'id', 'go'].filter(k => origem.dataset[k]).map(k => `[data-${k}="${CSS.escape(origem.dataset[k])}"]`).join('') : '';
+  d.innerHTML = `<form method="dialog">${html}</form>`;
+  const h = d.querySelector('h2'); if (h) { h.id = 'dlgTitulo'; d.setAttribute('aria-labelledby', 'dlgTitulo'); } else d.removeAttribute('aria-labelledby');
+  delete d.dataset.guarda; delete d.dataset.sujo;
+  d.onclose = () => { if (d.returnValue === 'ok' && onOk) onOk(Object.fromEntries(new FormData(d.querySelector('form')))); };
+  d._volta = { origem, alvo };
+  S.mascarar(d); d.showModal(); S.focarPrimeiro(d);
+};
+S.focarPrimeiro = d => { const c = d.querySelector('form:not(.ver) :is(input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea):not([disabled])') || d.querySelector('.so-ver .btn.pri, button.pri, button:not([disabled])'); if (c) c.focus(); };
+(() => {
+  const d = document.getElementById('dlg'); if (!d) return;
+  const voltar = () => { const v = d._volta; if (!v) return; d._volta = null;
+    const tenta = () => { if (d.open || (document.getElementById('dlgConf') || {}).open) return true; if (document.activeElement && document.activeElement !== document.body) return true;
+      const el = v.origem && document.contains(v.origem) ? v.origem : (v.alvo && document.querySelector(v.alvo)); if (el) { el.focus(); return true; } return false; };
+    setTimeout(() => { if (!tenta()) setTimeout(tenta, 600); }, 60); };
+  d._voltar = voltar;
+  d.addEventListener('close', () => { if (!document.getElementById('dlgConf') || !document.getElementById('dlgConf').open) voltar(); });
+  // Formulário com algo digitado: Esc ou "Cancelar" perguntam antes de jogar fora
+  const marcar = e => { if (d.dataset.guarda && d.contains(e.target) && !e.target.closest('.dlg-aviso')) d.dataset.sujo = '1'; };
+  d.addEventListener('input', marcar); d.addEventListener('change', marcar);
+  const avisar = () => {
+    if (d.querySelector('.dlg-aviso')) return;
+    const f = d.querySelector('form'), a = document.createElement('div'); a.className = 'dlg-aviso'; a.setAttribute('role', 'alert');
+    a.innerHTML = '<b>Descartar o que você digitou?</b><span>As alterações deste formulário ainda não foram salvas.</span><div class="row"><button type="button" class="btn" data-dlg="seguir">Continuar editando</button><button type="button" class="btn perigo" data-dlg="descartar">Descartar</button></div>';
+    f.appendChild(a); a.querySelector('[data-dlg="seguir"]').focus();
+  };
+  d.addEventListener('cancel', e => { if (d.dataset.sujo) { e.preventDefault(); avisar(); } });
+  d.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.dlg === 'seguir') { b.closest('.dlg-aviso').remove(); S.focarPrimeiro(d); return; }
+    if (b.dataset.dlg === 'descartar') { delete d.dataset.sujo; d.close('cancel'); return; }
+    if (b.value === 'cancel' && d.dataset.sujo) { e.preventDefault(); avisar(); }
+  });
+})();
+
+// Erro embaixo do campo (ou do bloco) no formulário aberto: marca, explica e põe o cursor lá. Some quando a pessoa corrige.
+S.erroNoCampo = (alvo, msg) => {
+  const d = document.getElementById('dlg'), el = typeof alvo === 'string' ? d.querySelector(`[name="${alvo}"]`) || d.querySelector(alvo) : alvo; if (!el) return S.toast(msg);
+  const id = 'erro-' + Math.random().toString(36).slice(2, 8);
+  el.setAttribute('aria-invalid', 'true'); el.setAttribute('aria-describedby', id);
+  el.insertAdjacentHTML(el.matches('input, select, textarea') ? 'afterend' : 'beforeend', `<small class="erro-campo" id="${id}" role="alert">${S.esc(msg)}</small>`);
+  const foco = el.matches('input, select, textarea') ? el : el.querySelector('input, select, textarea'); if (foco) foco.focus();
+  const limpa = () => { el.removeAttribute('aria-invalid'); const e = document.getElementById(id); if (e) e.remove(); };
+  el.addEventListener('input', limpa, { once:true }); el.addEventListener('change', limpa, { once:true });
+};
+
+// Confirmação com a cara do sistema (no lugar da caixa do navegador). Devolve true/false.
+// O texto até o primeiro "?" vira o título; "\n\n" separa parágrafos.
+S.confirmar = (texto, { ok = 'Confirmar', voltar = 'Voltar', perigo = false } = {}) => new Promise(fim => {
+  let c = document.getElementById('dlgConf');
+  if (!c) { c = document.createElement('dialog'); c.id = 'dlgConf'; c.className = 'conf'; c.setAttribute('role', 'alertdialog'); c.setAttribute('aria-labelledby', 'confTitulo'); c.setAttribute('aria-describedby', 'confTexto'); document.body.appendChild(c); }
+  const partes = String(texto).split('\n\n'), p0 = partes[0], q = p0.indexOf('? ');
+  const titulo = q > 0 ? p0.slice(0, q + 1) : p0, resto = [q > 0 ? p0.slice(q + 2) : '', ...partes.slice(1)].filter(Boolean);
+  c.innerHTML = `<form method="dialog"><h2 id="confTitulo">${S.esc(titulo)}</h2><div id="confTexto">${resto.map(t => `<p class="muted">${S.esc(t)}</p>`).join('')}</div>
+    <div class="row cad-acoes"><span class="grow"></span><button class="btn" value="nao">${S.esc(voltar)}</button><button class="btn ${perigo ? 'perigo' : 'pri'}" value="sim">${S.esc(ok)}</button></div></form>`;
+  const origem = document.activeElement, dlg = document.getElementById('dlg');
+  c.returnValue = '';
+  c.onclose = () => { fim(c.returnValue === 'sim'); if (dlg && dlg.open) return; setTimeout(() => { if (origem && origem !== document.body && document.contains(origem)) origem.focus(); else if (dlg && dlg._voltar) dlg._voltar(); }, 60); };
+  c.showModal(); c.querySelector('button[value="nao"]').focus();
+});
 // Formulário genérico: campos = [{ k, label, type, options, req, full }]
 // Cadastro já existente abre só para consulta, com o botão "Editar"; um novo já abre editável.
 S.form = (title, fields, v, onOk, ok = 'Salvar', opts = {}) => {
@@ -165,6 +233,7 @@ S.form = (title, fields, v, onOk, ok = 'Salvar', opts = {}) => {
     <div class="row so-ver"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Fechar</button><button type="button" class="btn pri" data-act="formEditar">${S.svg('editar')}Editar</button></div>
     <div class="row so-editar"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${ok}</button></div>`, onOk);
   if (ver) document.querySelector('#dlg form').classList.add('ver');
+  document.getElementById('dlg').dataset.guarda = '1'; // formulário: pergunta antes de descartar o que foi digitado
 };
 // Menu de opções (os "três pontinhos"): abre junto do botão e fecha ao clicar fora ou apertar Esc.
 // itens = [{ label, icon, act, data:{…}, perigo }] — cada item dispara a ação S.actions[act] com data.
@@ -176,7 +245,7 @@ S.menu = (botao, itens) => {
   const r = botao.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
   m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
   m.style.top = (r.bottom + h + 8 > window.innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
-  m.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; const it = itens[+b.dataset.i]; S.fecharMenu(); S.actions[it.act](it.data || {}, botao); });
+  m.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; const it = itens[+b.dataset.i]; S.fecharMenu(); if (document.contains(botao)) botao.focus(); S.actions[it.act](it.data || {}, botao); });
   S._menu = m; const f = m.querySelector('button'); if (f) f.focus();
 };
 S.fecharMenu = () => { if (S._menu) { S._menu.remove(); S._menu = null; } };

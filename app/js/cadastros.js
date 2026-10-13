@@ -133,7 +133,7 @@
     const acao = s === 'rascunho' ? (pode() ? 'Continuar editando' : 'Abrir') : s === 'encerrada' ? 'Consultar' : 'Abrir';
     const info = s === 'rascunho' || s === 'agendada' ? ['Reajuste médio', c && c.media !== null ? fmtPct(c.media) : '—'] : ['PIs feitos no período', String(pisNoPeriodo(t))];
     const obs = s === 'rascunho' ? `Salvo em ${dfmt((t.atualizado_em || '').slice(0, 10))} às ${S.hora ? S.hora(t.atualizado_em) : ''} · ainda não vale` : s === 'agendada' ? 'Publicada. Até essa data vale a tabela atual.' : s === 'vigente' ? 'É a que os PIs novos usam hoje' : 'Só consulta';
-    return `<article class="card tp-tabela ${s}"><div class="tp-tabela-cab"><div><h3>${esc(t.nome)}</h3><small class="muted">${periodo(t)}</small></div>${S.tag(rot, tom)}</div>
+    return `<article class="card tp-tabela ${s}"><div class="tp-tabela-cab"><div><h2>${esc(t.nome)}</h2><small class="muted">${periodo(t)}</small></div>${S.tag(rot, tom)}</div>
       <div class="tp-tabela-num"><div><small>Preços</small><b>${Object.keys(cel).length}</b></div><div><small>${info[0]}</small><b>${info[1]}</b></div></div>
       <small class="muted">${esc(obs)}</small>
       <div class="row mid"><button class="btn${s === 'rascunho' && pode() ? ' pri' : ''}" data-go="/cadastros/${t.id}">${acao}</button><button class="btn tres" data-act="tpMenuTabela" data-id="${t.id}" aria-label="Opções de ${esc(t.nome)}">${S.svg('mais3')}</button></div></article>`;
@@ -144,7 +144,7 @@
       <span class="muted small">Prepare a tabela nova em rascunho, com calma. ${diretor() ? 'Ao publicar, você escolhe' : 'O diretor publica e escolhe'} a data de início, e ela entra sozinha no dia. PIs já feitos nunca mudam.</span></div>`;
     const cartoesT = ts.length ? `<div class="tp-tabelas">${ts.map(cartaoTabela).join('')}</div>`
       : `<div class="card empty"><b>Nenhuma tabela de preços ainda</b>Crie a primeira tabela, cadastre os programas e formatos e defina os preços.${pode() ? `<div class="row mid" style="justify-content:center;margin-top:18px"><button class="btn pri" data-act="tpNova">${S.svg('mais')}Nova tabela</button></div>` : ''}</div>`;
-    const previa = vig ? `<div class="hd tp-previa-cab"><h3>${esc(vig.nome)} · vigente</h3><a data-go="/cadastros/${vig.id}">Abrir</a></div>${corpoGrade(visaoVigente(), false)}<p class="muted small" style="margin-top:12px">Valores em R$ por inserção; "—" = não é vendido nesse espaço.</p>` : '';
+    const previa = vig ? `<div class="hd tp-previa-cab"><h2>${esc(vig.nome)} · vigente</h2><a data-go="/cadastros/${vig.id}">Abrir</a></div>${corpoGrade(visaoVigente(), false)}<p class="muted small" style="margin-top:12px">Valores em R$ por inserção; "—" = não é vendido nesse espaço.</p>` : '';
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>Tabelas de preços`,
       actions:`${vig ? `<button class="btn" data-act="tpPdf" data-id="${vig.id}">${S.svg('baixar')}Baixar PDF da vigente</button>` : ''}${pode() ? `<button class="btn pri" data-act="tpNova">${S.svg('mais')}Nova tabela</button>` : ''}`,
       body:(ts.length ? passos : '') + cartoesT + previa };
@@ -283,10 +283,10 @@
         ...(s === 'agendada' && diretor() ? ['-', { label:'Voltar para rascunho', icon:'voltar', act:'tpDespublicar', data:{ id:t.id } }] : []),
         ...(s === 'rascunho' && pode() ? ['-', { label:'Excluir rascunho', icon:'lixo', act:'tpExcluirTabela', data:{ id:t.id }, perigo:true }] : [])]); },
     tpAbrir: d => { location.hash = '/cadastros/' + d.id; },
-    tpExcluirTabela: d => { const t = tab(d.id); if (!confirm(`Excluir o rascunho "${t.nome}"? Não dá para desfazer.`)) return;
+    tpExcluirTabela: async d => { const t = tab(d.id); if (!await S.confirmar(`Excluir o rascunho "${t.nome}"? Não dá para desfazer.`, { ok:'Excluir rascunho', perigo:true })) return;
       S.run(async () => { await S.q(S.sb.from('tabelas_preco').delete().eq('id', t.id)); if (ed && ed.id === t.id) ed = null; await S.recarregarTabelas(); if (S.route().id === t.id) location.hash = '/cadastros'; }, 'Rascunho excluído'); },
-    tpDespublicar: d => { const t = tab(d.id);
-      if (!confirm(`Voltar a "${t.nome}" para rascunho? Ela deixa de estar agendada para ${dfmt(t.inicio)} e pode ser mudada de novo antes de publicar.`)) return;
+    tpDespublicar: async d => { const t = tab(d.id);
+      if (!await S.confirmar(`Voltar a "${t.nome}" para rascunho? Ela deixa de estar agendada para ${dfmt(t.inicio)} e pode ser mudada de novo antes de publicar.`, { ok:'Voltar para rascunho' })) return;
       S.run(async () => { await S.q(S.sb.rpc('despublicar_tabela', { p_tabela:t.id })); await S.recarregarTabelas(); if (ed && ed.id === t.id) abrir(tab(t.id)); }, 'Voltou para rascunho'); },
     tpPdf: d => imprimir(tab(d.id) || tab(ed && ed.id)),
     // Editor
@@ -313,7 +313,7 @@
         if (novo !== x.preco) { x.preco = novo; n++; } ed.mao.delete(k); }));
       if (n) ed.sujo = true; S.render(); S.toast(n ? `${n} preço${n > 1 ? 's' : ''} reajustado${n > 1 ? 's' : ''}. Confira e salve.` : 'Nenhum preço mudou.'); },
     tpVoltarBase: () => { let n = 0; Object.entries(ed.base).forEach(([k, b]) => { const x = ed.cel[k]; if (x && x.preco !== b) { x.preco = b; n++; } }); ed.mao.clear(); if (n) ed.sujo = true; S.render(); },
-    tpDescartar: () => { if (ed.sujo && !confirm('Descartar as alterações que ainda não foram salvas?')) return; abrir(tab(ed.id)); S.render(); },
+    tpDescartar: async () => { if (ed.sujo && !await S.confirmar('Descartar as alterações que ainda não foram salvas?', { ok:'Descartar', perigo:true })) return; abrir(tab(ed.id)); S.render(); },
     tpSalvarTabela: () => S.run(async () => { await gravar(); }, 'Tabela salva'),
     tpPublicar: () => {
       const vig = S.tabelaVigente(), c = ed.baseNome ? comparar(ed.cel, ed.base, ed.mao) : null, d0 = ed.inicio && ed.inicio >= S.today() ? ed.inicio : primeiroDoMes();
@@ -340,8 +340,8 @@
     tpEditarProd: d => { const p = prod(d.id); formProduto(p.tipo, p); },
     tpMover: d => S.run(() => mover(d.id, +d.dir)),
     tpAtivo: d => { const p = prod(d.id); S.run(() => S.salvar('produtos', { id:p.id, ativo:!p.ativo }), p.ativo ? 'Não aparece mais nos novos PIs' : 'Voltou para os novos PIs'); },
-    tpExcluir: d => { const p = prod(d.id), n = S.db.precos.filter(x => x.programa_id === p.id || x.formato_id === p.id).length;
-      if (!confirm(`Excluir "${p.nome}"${n ? ` e os ${n} preço(s) dele em todas as tabelas` : ''}? Os PIs já feitos não mudam.\n\nSe só quer que ele pare de aparecer nos PIs novos, use "Tirar dos novos PIs".`)) return;
+    tpExcluir: async d => { const p = prod(d.id), n = S.db.precos.filter(x => x.programa_id === p.id || x.formato_id === p.id).length;
+      if (!await S.confirmar(`Excluir "${p.nome}"${n ? ` e os ${n} preço(s) dele em todas as tabelas` : ''}? Os PIs já feitos não mudam.\n\nSe só quer que ele pare de aparecer nos PIs novos, use "Tirar dos novos PIs".`, { ok:'Excluir', perigo:true })) return;
       S.run(async () => { await S.excluir('produtos', p.id); S.db.precos = S.db.precos.filter(x => x.programa_id !== p.id && x.formato_id !== p.id);
         if (ed) Object.keys(ed.cel).forEach(k => { if (k.split('|').includes(p.id)) delete ed.cel[k]; }); }, 'Excluído'); },
   });
@@ -361,8 +361,12 @@
   window.addEventListener('hashchange', () => {
     if (voltando) { voltando = false; hashAnterior = location.hash; return; }
     const sai = ed && ed.sujo && location.hash !== '#/cadastros/' + ed.id;
-    if (sai && !confirm('As alterações da tabela de preços não foram salvas. Sair mesmo assim?')) { voltando = true; location.hash = hashAnterior; return; }
-    if (sai) ed = null;
+    if (sai) { // volta para a tabela e pergunta; se a pessoa confirmar, segue para onde ia
+      const destino = location.hash; voltando = true; location.hash = hashAnterior;
+      S.confirmar('Sair sem salvar a tabela de preços?\n\nAs alterações que ainda não foram salvas serão perdidas.', { ok:'Sair sem salvar', voltar:'Continuar editando', perigo:true })
+        .then(ok => { if (ok) { ed = null; location.hash = destino; } });
+      return;
+    }
     hashAnterior = location.hash;
   });
   window.addEventListener('beforeunload', e => { if (ed && ed.sujo) { e.preventDefault(); e.returnValue = ''; } });

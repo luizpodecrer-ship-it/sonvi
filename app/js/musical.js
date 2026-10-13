@@ -142,7 +142,7 @@
         <span class="mus-d num">${M.mmss(e.dur)}</span><span class="mus-a">${menu}</span></div>`;
     }).join('');
     const vazio = !idxs.length;
-    const lista = `<section class="card mus-grade"><div class="hd"><h3>${M.DIAS[u.dia]}, ${M.dm(data)} · ${M.pad(u.hora)}:00 às ${M.pad(u.hora)}:59</h3><span>${f ? `${catPill({ nome:f.nome, cor:f.cor })} ${f.automatico === false ? 'ao vivo' : 'automático'}` : 'Sem formato na grade'}</span></div>
+    const lista = `<section class="card mus-grade"><div class="hd"><h2>${M.DIAS[u.dia]}, ${M.dm(data)} · ${M.pad(u.hora)}:00 às ${M.pad(u.hora)}:59</h2><span>${f ? `${catPill({ nome:f.nome, cor:f.cor })} ${f.automatico === false ? 'ao vivo' : 'automático'}` : 'Sem formato na grade'}</span></div>
       ${vazio ? `<div class="empty"><b>Esta hora ainda não foi gerada</b>${ed ? 'Use "Gerar o dia" ou "Gerar a semana". As músicas são escolhidas pelas regras.' : 'O programador ainda não montou esta hora.'}</div>`
         : `<div class="mus-tot">${[['Vinhetas', M.mmss(tot.v)], ['Músicas', M.hms(tot.m)], ['Informativos', M.mmss(tot.i)], ['Breaks', M.mmss(tot.b)], ['Total', M.hms(tot.v + tot.m + tot.i + tot.b)]].map(([a, b]) => `<div><small>${a}</small><b class="num">${b}</b></div>`).join('')}</div>
           <div class="mus-lista">${linhas}</div>`}
@@ -157,7 +157,7 @@
   const luzes = (w, idxs) => {
     const R = regras(), acesas = {}, alertas = [];
     idxs.forEach(i => { const e = w.lista[i]; e.viol.forEach(v => { acesas[v.regra] = 1; }); if (e.viol.length) alertas.push(e); });
-    return `<section class="card"><h3>Indicador de regras</h3>
+    return `<section class="card"><h2>Indicador de regras</h2>
       <div class="mus-luzes">${M.REGRAS.map(([k, n]) => `<span class="mus-luz ${!R.on[k] ? 'off' : acesas[k] ? 'on' : 'ok'}" title="${esc(n)}">${esc(n)}</span>`).join('')}</div>
       <p class="muted small" style="margin:10px 0 12px">Vermelho: quebrada nesta hora. Cinza: regra desligada.</p>
       ${alertas.length ? `<div class="mus-alertas">${alertas.map(e => `<div><b>${M.relogio(e.inicio)} · ${esc(e.musica.titulo)}</b>${e.viol.map(v => `<small>${esc(M.NOME_REGRA[v.regra])}: ${esc(v.msg)}</small>`).join('')}</div>`).join('')}</div>`
@@ -180,7 +180,7 @@
     const idx = w.lista.findIndex(e => e.data === u.pick.data && e.h === u.pick.h && e.i === u.pick.i);
     if (idx < 0 || w.lista[idx].slot.k !== 'MUS') { u.pick = null; return ''; }
     const e = w.lista[idx], cat = catPorId()[e.slot.cat];
-    const topo = `<div class="hd"><h3>Escolher música</h3><button class="btn tres" data-act="musFechar" aria-label="Fechar">${S.svg('voltar')}</button></div>
+    const topo = `<div class="hd"><h2>Escolher música</h2><button class="btn tres" data-act="musFechar" aria-label="Fechar">${S.svg('voltar')}</button></div>
       <p class="muted small" style="margin:-8px 0 12px">${M.DC[e.wd]} ${M.relogio(e.inicio)} · posição ${e.i + 1} · ${cat ? esc(cat.nome) : ''}</p>
       <div class="seg" style="margin-bottom:14px">${[['auto', 'Busca automática'], ['busca', 'Localizar no acervo']].map(([k, n]) => `<button class="${u.modo === k ? 'on' : ''}" data-act="musModo" data-m="${k}">${n}</button>`).join('')}</div>`;
     const status = v => v.length ? v.map(x => `<small class="aviso">${esc(M.NOME_REGRA[x.regra])}: ${esc(x.msg)}</small>`).join('') : '<small class="mus-ok">Pode tocar aqui: nenhuma regra quebrada</small>';
@@ -208,7 +208,7 @@
     } else if (u.outra && u.outra.chave === rid + '|' + u.d2dia + '|' + u.d2hora) {
       corpo = u.outra.erro ? `<p class="muted">${esc(u.outra.erro)}</p>` : listaCurta(u.outra.itens, u.outra.porId, u.outra.vin, u.d2hora);
     } else { carregarOutra(rid); corpo = '<p class="muted">Carregando…</p>'; }
-    return `<section class="card"><h3>Segunda tela</h3>
+    return `<section class="card"><h2>Segunda tela</h2>
       <div class="g2" style="margin-bottom:12px"><label class="f">Rádio<select data-mus2="radio"><option value="${S.ui.vehicleId}">${esc(S.veh().nome)}</option>${vs.map(v => `<option value="${v.id}"${v.id === rid ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>
         <label class="f">Dia<select data-mus2="dia">${M.DC.map((d, i) => `<option value="${i}"${i === u.d2dia ? ' selected' : ''}>${d} ${M.dm(M.somaDias(semana(), i))}</option>`).join('')}</select></label>
         <label class="f">Hora<select data-mus2="hora">${Array.from({ length:24 }, (_, h) => `<option value="${h}"${h === u.d2hora ? ' selected' : ''}>${M.pad(h)}h</option>`).join('')}</select></label></div>${corpo}</section>`;
@@ -259,13 +259,13 @@
     const alvo = u.hist === 'musica' ? (w.porId[u.histId] ? `${w.porId[u.histId].titulo} · ${M.artistasTexto(w.porId[u.histId])}` : '') : u.histId;
     const ok = u.hist === 'musica' ? m => m.id === u.histId : m => M.artistas(m).includes(u.histId);
     return { corpo:`${navSemana(w)}
-      <section class="card"><div class="hd"><h3>Gráfico de peso · ${M.DIAS[u.dia]}</h3><span>colunas = horas · linhas = posições</span></div>
+      <section class="card"><div class="hd"><h2>Gráfico de peso · ${M.DIAS[u.dia]}</h2><span>colunas = horas · linhas = posições</span></div>
         ${maxPos ? mapa(peso) : '<p class="muted">Dia ainda não gerado.</p>'}
         <div class="legend mus-leg">${[1, 2, 3, 4, 5].map(p => `<div><span class="sq mus-pe-sq" style="--p:${p}"></span>Peso ${p}</div>`).join('')}<div><span class="sq" style="background:var(--fill-2)"></span>Vinheta, break ou informativo</div></div></section>
-      <section class="card"><div class="hd"><h3>Ritmo hora a hora · ${M.DIAS[u.dia]}</h3><span>lentas, médias e rápidas em cada hora</span></div>
+      <section class="card"><div class="hd"><h2>Ritmo hora a hora · ${M.DIAS[u.dia]}</h2><span>lentas, médias e rápidas em cada hora</span></div>
         <div class="scroll"><div class="mus-barras">${ritmo.map((c, h) => `<div title="${M.pad(h)}h: ${c.L} lentas, ${c.M} médias, ${c.R} rápidas">${['R', 'M', 'L'].map(k => `<i style="height:${c[k] / maxR * 150}px;--tone:var(--${RITMO_TOM[k]})"></i>`).join('')}<small>${M.pad(h)}</small></div>`).join('')}</div></div>
         <div class="legend mus-leg">${['L', 'M', 'R'].map(k => `<div><span class="sq" style="background:var(--${RITMO_TOM[k]})"></span>${esc(cfg().ritmos[k].nome)}</div>`).join('')}</div></section>
-      <section class="card"><div class="hd"><h3>Grade horária (histórico da semana)</h3><span>quantas vezes tocou em cada dia e hora</span></div>
+      <section class="card"><div class="hd"><h2>Grade horária (histórico da semana)</h2><span>quantas vezes tocou em cada dia e hora</span></div>
         <div class="mus-hist"><div class="mus-hist-esc"><div class="seg">${[['musica', 'Música'], ['interprete', 'Intérprete']].map(([k, n]) => `<button class="${u.hist === k ? 'on' : ''}" data-act="musHist" data-h="${k}">${n}</button>`).join('')}</div>
           <input type="search" id="musHistQ" data-musq="histQ" value="${esc(u.histQ)}" placeholder="Ex.: Facas" aria-label="Buscar">
           <div class="list mus-busca">${opcoes.map(([id, n]) => `<a data-act="musHistSel" data-id="${esc(id)}" class="${id === u.histId ? 'on' : ''}"><span class="tx"><b>${esc(n)}</b></span></a>`).join('')}</div></div>
@@ -282,7 +282,7 @@
       <select data-mus2="fcat" aria-label="Categoria" style="height:44px"><option value="">Todas as categorias</option>${S.db.mus_categorias.map(c => `<option value="${c.id}"${c.id === u.fcat ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></div>`;
     const corpo = !S.db.musicas.length ? `<div class="card empty"><b>O acervo está vazio</b>Cadastre as músicas uma a uma, importe os arquivos do HD (o SONVI lê o nome e as etiquetas de cada arquivo) ou traga uma planilha de outro programa.</div>`
       : S.celular ? `<div class="card"><div class="list">${lista.map(m => `<a data-act="musFicha" data-id="${m.id}"><span class="tx"><b>${esc(m.titulo)}${m.novidade ? ' <span class="chip">novidade</span>' : ''}</b><small>${esc(M.artistasTexto(m))}</small><span class="row mid" style="gap:6px;margin-top:6px">${catPill(cats[m.categoria_id])}${rtPill(m)}${pesoSel(m)}${m.ativa ? '' : S.tag('Desativada', 'red')}</span></span></a>`).join('')}</div></div>`
-      : `<div class="card"><div class="scroll"><table><thead><tr><th>Música</th><th>Intérprete</th><th>Categoria</th><th>Subcategoria</th><th>Ritmo</th><th>Peso</th><th class="r">Duração</th><th>Regras próprias</th><th></th></tr></thead><tbody>${lista.map(m => `<tr class="click" data-act="musFicha" data-id="${m.id}">
+      : `<div class="card"><div class="scroll"><table><thead><tr><th>Música</th><th>Intérprete</th><th>Categoria</th><th>Subcategoria</th><th>Ritmo</th><th>Peso</th><th class="r">Duração</th><th>Regras próprias</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${lista.map(m => `<tr class="click" data-act="musFicha" data-id="${m.id}">
           <td><b>${esc(m.titulo)}</b>${m.novidade ? ' <span class="chip">novidade</span>' : ''}</td><td>${esc(M.artistasTexto(m))}</td><td>${catPill(cats[m.categoria_id])}</td><td class="muted">${esc(subs[m.subcategoria_id] || '—')}</td>
           <td>${rtPill(m)}</td><td>${pesoSel(m)}</td><td class="r num">${M.mmss(m.duracao)}</td><td class="muted small">${esc(regrasDe(m)) || '—'}</td><td>${m.ativa ? '' : S.tag('Desativada', 'red')}</td></tr>`).join('')}</tbody></table></div>
           ${lista.length ? '' : '<p class="muted">Nada encontrado com esse filtro.</p>'}</div>`;
@@ -327,8 +327,8 @@
       ...(novo ? [] : [{ html:'<div style="grid-column:1/-1"><button class="btn sm danger" value="excluir" formnovalidate>Excluir música</button></div>' }])], v,
       f => salvarMusica(m, f), 'Salvar', { editar:!!d.editar });
     const dlg = document.getElementById('dlg'), ok = dlg.onclose; dlg.classList.add('largo');
-    dlg.onclose = () => { dlg.classList.remove('largo');
-      if (dlg.returnValue === 'excluir') { if (confirm(`Excluir "${m.titulo}" do acervo? Onde ela já foi programada, a posição fica vazia.`)) S.run(() => S.excluir('musicas', m.id), 'Música excluída'); return; }
+    dlg.onclose = async () => { dlg.classList.remove('largo');
+      if (dlg.returnValue === 'excluir') { if (await S.confirmar(`Excluir "${m.titulo}" do acervo? Onde ela já foi programada, a posição fica vazia.`, { ok:'Excluir', perigo:true })) S.run(() => S.excluir('musicas', m.id), 'Música excluída'); return; }
       if (ok) ok(); };
     if (!pode()) dlg.querySelectorAll('[data-act="formEditar"]').forEach(b => b.remove());
   };
@@ -337,8 +337,7 @@
     if (dur === null || dur < 10) { // reabre a ficha com o que foi digitado e mostra o erro embaixo do campo
       S.actions.musFicha({ id:m.id, editar:1 });
       document.querySelectorAll('#dlg [name]').forEach(c => { if (c.type === 'checkbox') c.checked = f[c.name] === 'on'; else if (c.name in f) c.value = f[c.name]; });
-      const c = document.querySelector('#dlg [name="duracao_t"]');
-      if (c) { c.setAttribute('aria-invalid', 'true'); c.setAttribute('aria-describedby', 'erroDuracao'); c.insertAdjacentHTML('afterend', '<small class="erro-campo" id="erroDuracao">Duração inválida. Use minutos e segundos, ex.: 03:25</small>'); c.focus(); c.addEventListener('input', () => { c.removeAttribute('aria-invalid'); const e = document.getElementById('erroDuracao'); if (e) e.remove(); }, { once:true }); }
+      S.erroNoCampo('duracao_t', 'Duração inválida. Use minutos e segundos, ex.: 03:25');
       return; }
     const n = k => parseInt(f[k], 10) || 0;
     const row = { titulo:f.titulo.trim(), interprete:f.interprete.trim(), interprete2:(f.interprete2 || '').trim(), compositor:f.compositor || '', gravadora:f.gravadora || '', disco:f.disco || '', ano:f.ano || '',
@@ -393,7 +392,7 @@
       peso:Math.min(5, Math.max(1, parseInt(pega(o, 'peso'), 10) || 3)) })).filter(r => r.titulo && r.interprete);
     const novas = rows.filter(r => !S.db.musicas.some(m => m.titulo.toLowerCase() === r.titulo.toLowerCase() && m.interprete.toLowerCase() === r.interprete.toLowerCase()));
     if (!novas.length) return S.toast(rows.length ? 'Todas as músicas da planilha já estão no acervo.' : 'Não achei as colunas "música" e "intérprete" na planilha.');
-    if (!confirm(`Importar ${novas.length} música(s) da planilha "${arquivo.name}"? ${rows.length - novas.length ? `${rows.length - novas.length} já estavam no acervo e serão puladas.` : ''}`)) return;
+    if (!await S.confirmar(`Importar ${novas.length} música(s) da planilha "${arquivo.name}"? ${rows.length - novas.length ? `${rows.length - novas.length} já estavam no acervo e serão puladas.` : ''}`, { ok:'Importar' })) return;
     S.run(async () => { for (let i = 0; i < novas.length; i += 500) { const r = await S.q(S.sb.from('musicas').insert(novas.slice(i, i + 500).map(x => Object.assign({ veiculo_id:S.ui.vehicleId }, x))).select()); S.db.musicas.push(...r); } },
       `${novas.length} música(s) importada(s) da planilha.`);
   };
@@ -411,7 +410,7 @@
   const telaCats = () => {
     const ed = pode(), n = id => S.db.musicas.filter(m => m.categoria_id === id && m.ativa).length;
     const cats = S.db.mus_categorias.slice().sort((a, b) => a.prioridade - b.prioridade || a.codigo.localeCompare(b.codigo));
-    const lista = (titulo, itens, act, vazio, botao) => `<section class="card"><div class="hd"><h3>${titulo}</h3>${ed && botao ? `<a data-act="${act}">${botao}</a>` : ''}</div>${itens || `<p class="muted">${vazio}</p>`}</section>`;
+    const lista = (titulo, itens, act, vazio, botao) => `<section class="card"><div class="hd"><h2>${titulo}</h2>${ed && botao ? `<a data-act="${act}">${botao}</a>` : ''}</div>${itens || `<p class="muted">${vazio}</p>`}</section>`;
     return { acoes:ed ? `<button class="btn pri" data-act="musCat">${S.svg('mais')}Nova categoria</button>` : '',
       corpo:`<section class="card"><div class="scroll"><table><thead><tr><th>Código</th><th>Categoria</th><th class="r">Máx. juntas</th><th class="r">Prioridade</th><th class="r">Rotatividade</th><th class="r">Músicas ativas</th></tr></thead><tbody>${cats.map(c => `<tr class="click" data-act="musCat" data-id="${c.id}"><td><span class="chip">${esc(c.codigo)}</span></td><td>${catPill(c)}</td><td class="r">${c.max_juntas}</td><td class="r">${c.prioridade}</td><td class="r">${c.rotatividade}%</td><td class="r">${n(c.id)}</td></tr>`).join('')}</tbody></table></div>
         <p class="muted small" style="margin-top:12px">Rotatividade 70% = antes de repetir, 70% das outras músicas da categoria precisam tocar. Prioridade 1 é preenchida primeiro na semana inteira, dando ênfase aos maiores sucessos.</p></section>
@@ -425,7 +424,7 @@
         </div>
         ${lista('Textos informativos', `<div class="legend">${(cfg().informativos || []).map(t => `<div><span class="grow">${esc(t)}</span></div>`).join('') || '<p class="muted">Nenhum.</p>'}</div>`, 'musInfos', '', 'Editar')}` };
   };
-  const excluirNoForm = (tabela, id, aviso) => { const d = document.getElementById('dlg'), ok = d.onclose; d.onclose = () => { if (d.returnValue === 'excluir') { if (confirm(aviso)) S.run(() => S.excluir(tabela, id), 'Excluído'); } else if (ok) ok(); }; };
+  const excluirNoForm = (tabela, id, aviso) => { const d = document.getElementById('dlg'), ok = d.onclose; d.onclose = async () => { if (d.returnValue === 'excluir') { if (await S.confirmar(aviso, { ok:'Excluir', perigo:true })) S.run(() => S.excluir(tabela, id), 'Excluído'); } else if (ok) ok(); }; };
   const btnExcluir = { html:'<div style="grid-column:1/-1"><button class="btn sm danger" value="excluir" formnovalidate>Excluir</button></div>' };
   const soLeitura = () => { if (!pode()) document.querySelectorAll('#dlg [data-act="formEditar"]').forEach(b => b.remove()); };
 
@@ -471,13 +470,13 @@
     const nomePos = p => p === 'VIN' ? ['Vinheta', 'gray'] : p === 'BRK' ? ['Break', 'ink-tone'] : p === 'INF' ? ['Informativo', 'sky'] : cats[p] ? [cats[p].nome, tom(cats[p].cor)] : ['Categoria apagada', 'red'];
     if (!u.pincel || !formato(u.pincel)) u.pincel = u.fmt;
     const cards = `<div class="tiles">${fs.map(x => `<button class="tile mus-fmt${x.id === u.fmt ? ' on' : ''}" style="--tone:var(--${tom(x.cor)})" data-act="musFmt" data-id="${x.id}"><small>${x.automatico ? 'Automático' : 'Ao vivo'} · ${horasDe(x.id)} h na semana</small><b>${esc(x.nome)}</b><span>${x.posicoes.length} posições · ${x.posicoes.filter(p => cats[p]).length} músicas</span></button>`).join('')}</div>`;
-    const editor = f ? `<section class="card"><div class="hd"><h3>${esc(f.nome)}</h3>${ed ? `<span class="row mid" style="gap:8px">${u.fmtRasc ? '<span class="sujo"><i></i>Alterações não salvas</span><button class="btn sm" data-act="musFmtDesfaz">Cancelar</button><button class="btn sm pri" data-act="musFmtSalvar">Salvar formato</button>' : `<button class="btn sm" data-act="musFmtProps">${S.svg('editar')}Nome e permissões</button>`}</span>` : ''}</div>
+    const editor = f ? `<section class="card"><div class="hd"><h2>${esc(f.nome)}</h2>${ed ? `<span class="row mid" style="gap:8px">${u.fmtRasc ? '<span class="sujo"><i></i>Alterações não salvas</span><button class="btn sm" data-act="musFmtDesfaz">Cancelar</button><button class="btn sm pri" data-act="musFmtSalvar">Salvar formato</button>' : `<button class="btn sm" data-act="musFmtProps">${S.svg('editar')}Nome e permissões</button>`}</span>` : ''}</div>
       <div class="row mid" style="gap:8px;margin-bottom:14px">${[['permitir_mover', 'Permitir mover'], ['permitir_excluir', 'Permitir excluir'], ['automatico', 'Permitir automático']].map(([k, n]) => S.tag(`${n}: ${f[k] ? 'sim' : 'não'}`, f[k] ? 'green' : 'gray')).join('')}
         ${S.tag(f.liberadas && f.liberadas.length ? 'Busca manual: ' + f.liberadas.map(id => cats[id] ? cats[id].nome : '').filter(Boolean).join(', ') : 'Busca manual: todas as categorias', 'blue')}</div>
       <div class="mus-pos">${f.posicoes.map((p, i) => { const [n, t] = nomePos(p);
         return `<span class="pill" style="--tone:var(--${t})">${i + 1}. ${esc(n)}${ed ? `<button class="x" data-act="musPos" data-i="${i}" data-o="esq" aria-label="Mover para a esquerda">‹</button><button class="x" data-act="musPos" data-i="${i}" data-o="dir" aria-label="Mover para a direita">›</button><button class="x" data-act="musPos" data-i="${i}" data-o="del" aria-label="Remover posição ${i + 1}">×</button>` : ''}</span>`; }).join('') || '<p class="muted">Nenhuma posição.</p>'}</div>
       ${ed ? `<p class="muted small" style="margin:14px 0 8px">Adicionar no fim</p><div class="row mid" style="gap:8px">${S.db.mus_categorias.map(c => [c.id, c.nome]).concat([['VIN', 'Vinheta'], ['INF', 'Informativo'], ['BRK', 'Break']]).map(([k, n]) => `<button class="btn sm tracej" data-act="musPos" data-o="add" data-k="${k}">${S.svg('mais')}${esc(n)}</button>`).join('')}</div>` : ''}</section>` : '<div class="card empty"><b>Nenhum formato</b>Crie o primeiro formato.</div>';
-    const gradeHtml = `<section class="card"><div class="hd"><h3>Grade da semana</h3>${ed ? (u.gradeRasc ? '<span class="row mid" style="gap:8px"><span class="sujo"><i></i>Alterações não salvas</span><button class="btn sm" data-act="musGradeDesfaz">Cancelar</button><button class="btn sm pri" data-act="musGradeSalvar">Salvar grade</button></span>' : '<span>Escolha um formato e clique nas horas</span>') : ''}</div>
+    const gradeHtml = `<section class="card"><div class="hd"><h2>Grade da semana</h2>${ed ? (u.gradeRasc ? '<span class="row mid" style="gap:8px"><span class="sujo"><i></i>Alterações não salvas</span><button class="btn sm" data-act="musGradeDesfaz">Cancelar</button><button class="btn sm pri" data-act="musGradeSalvar">Salvar grade</button></span>' : '<span>Escolha um formato e clique nas horas</span>') : ''}</div>
       ${ed ? `<div class="row mid" style="gap:8px;margin-bottom:12px">${fs.map(x => `<button class="btn sm${x.id === u.pincel ? ' pri' : ''}" data-act="musPincel" data-id="${x.id}"><span class="dot" style="background:var(--${tom(x.cor)})"></span>${esc(x.nome)}</button>`).join('')}</div>` : ''}
       <div class="scroll"><div class="mus-mapa grade"><span></span>${Array.from({ length:24 }, (_, h) => `<small>${M.pad(h)}</small>`).join('')}
         ${M.DC.map((d, di) => `<small>${d}</small>${Array.from({ length:24 }, (_, h) => { const x = formato((grade[di] || [])[h]);
@@ -487,7 +486,7 @@
   };
   const rascunhoFmt = () => { if (!u.fmtRasc || u.fmtRasc.id !== u.fmt) u.fmtRasc = JSON.parse(JSON.stringify(formato(u.fmt))); return u.fmtRasc; };
   Object.assign(S.actions, {
-    musFmt: d => { if (u.fmtRasc && u.fmtRasc.id !== d.id && !confirm('Descartar as alterações do formato?')) return; if (u.fmtRasc && u.fmtRasc.id !== d.id) u.fmtRasc = null; u.fmt = d.id; u.pincel = d.id; S.render(); },
+    musFmt: async d => { if (u.fmtRasc && u.fmtRasc.id !== d.id && !await S.confirmar('Descartar as alterações do formato?', { ok:'Descartar', perigo:true })) return; if (u.fmtRasc && u.fmtRasc.id !== d.id) u.fmtRasc = null; u.fmt = d.id; u.pincel = d.id; S.render(); },
     musPos: d => { const f = rascunhoFmt(), i = +d.i, p = f.posicoes;
       if (d.o === 'add') p.push(d.k); else if (d.o === 'del') p.splice(i, 1);
       else { const j = d.o === 'esq' ? i - 1 : i + 1; if (j >= 0 && j < p.length) [p[i], p[j]] = [p[j], p[i]]; }
@@ -523,9 +522,9 @@
     const comp = S.db.musicas.filter(m => m.deve_tocar > 0).map(m => { const n = dl.filter(e => e.musica.id === m.id && e.h >= m.deve_de && e.h <= m.deve_ate).length;
       return `<tr><td><b>${esc(m.titulo)}</b><div class="muted small">${esc(M.artistasTexto(m))}</div></td><td class="r">${m.deve_tocar}x</td><td>${M.pad(m.deve_de)}h às ${M.pad(m.deve_ate)}h</td><td class="r"><b>${n}</b></td><td>${rtPill(m)}</td><td>${n >= m.deve_tocar ? S.tag('Cumprido', 'green') : S.tag(`Faltam ${m.deve_tocar - n}`, 'orange')}</td></tr>`; }).join('');
     return { acoes:ed ? `<button class="btn pri" data-act="musRegraNova">${S.svg('mais')}Nova regra configurável</button>` : '',
-      corpo:`<section class="card"><h3>Regras da programação</h3><div class="mus-regras">${linhas}</div></section>
-        <section class="card"><h3>Regras configuráveis</h3>${(R.custom || []).length ? `<div class="legend">${R.custom.map(c => `<div><span class="grow">${esc(M.rotuloRegra(c, S.db.mus_subcategorias))}</span>${ed ? `<button class="x" data-act="musRegraDel" data-id="${c.id}" aria-label="Remover regra">×</button>` : ''}</div>`).join('')}</div>` : '<p class="muted">Nenhuma. Ex.: "No máximo 2 seguidas com voz feminina".</p>'}</section>
-        <section class="card"><div class="hd"><h3>Compromissos · ${M.DIAS[u.dia]} ${M.dm(M.somaDias(semana(), u.dia))}</h3><span>defina na ficha da música ("deve tocar")</span></div>
+      corpo:`<section class="card"><h2>Regras da programação</h2><div class="mus-regras">${linhas}</div></section>
+        <section class="card"><h2>Regras configuráveis</h2>${(R.custom || []).length ? `<div class="legend">${R.custom.map(c => `<div><span class="grow">${esc(M.rotuloRegra(c, S.db.mus_subcategorias))}</span>${ed ? `<button class="x" data-act="musRegraDel" data-id="${c.id}" aria-label="Remover regra">×</button>` : ''}</div>`).join('')}</div>` : '<p class="muted">Nenhuma. Ex.: "No máximo 2 seguidas com voz feminina".</p>'}</section>
+        <section class="card"><div class="hd"><h2>Compromissos · ${M.DIAS[u.dia]} ${M.dm(M.somaDias(semana(), u.dia))}</h2><span>defina na ficha da música ("deve tocar")</span></div>
           ${comp ? `<div class="scroll"><table><thead><tr><th>Música</th><th class="r">Deve tocar</th><th>Faixa</th><th class="r">Total</th><th>Ritmo</th><th>Situação</th></tr></thead><tbody>${comp}</tbody></table></div>` : '<p class="muted">Nenhuma música com compromisso.</p>'}
           <div class="seg mus-dias" style="margin:14px 0 0">${M.DC.map((d, i) => `<button class="${u.dia === i ? 'on' : ''}" data-act="musDia" data-dia="${i}">${d}</button>`).join('')}</div></section>` };
   };
@@ -544,7 +543,7 @@
         f => { const [campo, valor] = f.cv.split('|'), c = { id:S.uid(), tipo:f.tipo, campo, valor, max:Math.max(1, +f.max || 1) };
           S.run(() => salvarConfig({ regras:Object.assign(regras(), { custom:(regras().custom || []).concat([c]) }) }), 'Regra criada: ' + M.rotuloRegra(c, S.db.mus_subcategorias)); }, 'Criar regra', { editar:true });
     },
-    musRegraDel: d => { if (confirm('Remover esta regra?')) S.run(() => salvarConfig({ regras:Object.assign(regras(), { custom:(regras().custom || []).filter(c => c.id !== d.id) }) }), 'Regra removida'); },
+    musRegraDel: async d => { if (await S.confirmar('Remover esta regra?', { ok:'Remover', perigo:true })) S.run(() => salvarConfig({ regras:Object.assign(regras(), { custom:(regras().custom || []).filter(c => c.id !== d.id) }) }), 'Regra removida'); },
   });
 
   // ======================= RELATÓRIOS E ECAD =======================
@@ -561,9 +560,9 @@
       <label class="f">Gravadora<select data-mus2="rgrav"><option value="">Todas</option>${opcoes(gravs.map(g => [g, g]), u.rgrav)}</select></label>
       <label class="f">Intérprete<select data-mus2="rint"><option value="">Todos</option>${opcoes(arts.map(a => [a, a]), u.rint)}</select></label></div>
       <p class="muted small" style="margin-top:10px">Use as setas de semana e os dias na Programação para mudar o período.</p></section>`;
-    const maisTocadas = `<section class="card"><h3>Mais tocadas</h3>${top.length ? `<div class="people">${top.map((id, i) => { const m = w.porId[id];
+    const maisTocadas = `<section class="card"><h2>Mais tocadas</h2>${top.length ? `<div class="people">${top.map((id, i) => { const m = w.porId[id];
       return `<div><span class="av soft" aria-hidden="true">${i + 1}</span><div class="who"><div><b>${esc(m.titulo)}</b><span class="muted small num">${cont[id]}x</span></div><div class="prog"><i style="width:${cont[id] / max * 100}%;--i:${i}"></i></div></div><div class="val"><span class="muted small">${esc(M.artistasTexto(m))}</span></div></div>`; }).join('')}</div>` : '<p class="muted">Nada tocou com esses filtros.</p>'}</section>`;
-    const tabela = `<section class="card"><div class="hd"><h3>Músicas executadas</h3><span>${ex.length} execuções${ex.length > 400 ? ' · mostrando as 400 primeiras' : ''}</span></div>
+    const tabela = `<section class="card"><div class="hd"><h2>Músicas executadas</h2><span>${ex.length} execuções${ex.length > 400 ? ' · mostrando as 400 primeiras' : ''}</span></div>
       <div class="scroll"><table><thead><tr><th>Dia</th><th>Hora</th><th>Música</th><th>Intérprete</th><th>Gravadora</th><th>Execução</th></tr></thead><tbody>${ex.slice(0, 400).map(e => `<tr><td class="muted">${M.DC[e.wd]} ${M.dm(e.data)}</td><td class="num">${M.relogio(e.inicio)}</td><td><b>${esc(e.musica.titulo)}</b></td><td>${esc(M.artistasTexto(e.musica))}</td><td class="muted">${esc(e.musica.gravadora || '—')}</td><td>${tipoExec(e)}</td></tr>`).join('')}</tbody></table></div></section>`;
     return { acoes:`<button class="btn" data-act="musBaixar" data-o="html">${S.svg('baixar')}Página para o site</button><button class="btn pri" data-act="musBaixar" data-o="ecad">${S.svg('baixar')}Arquivo para o ECAD</button>`,
       corpo:`${filtros}<div class="note info">As execuções vêm da programação gerada. Quando o SONVI for ligado ao programa que toca no ar, passam a vir do que tocou de fato. O layout exato do arquivo do ECAD (EXP) precisa ser conferido com o manual do ECAD; por enquanto o arquivo sai com os campos exigidos, separados por ponto e vírgula.</div><div class="cols">${maisTocadas}</div>${tabela}` };
@@ -599,11 +598,11 @@ ${ex.map(e => `<tr><td>${M.dm(e.data)}</td><td>${M.relogio(e.inicio)}</td><td>${
     musDia: d => { u.dia = +d.dia; u.pick = null; S.render(); },
     musHora: d => { u.hora = +d.hora; u.pick = null; S.render(); },
     musDuas: () => { u.duas = !u.duas; u.pick = null; S.render(); },
-    musGerar: d => {
+    musGerar: async d => {
       const alvo = d.o === 'semana' ? [0, 1, 2, 3, 4, 5, 6] : [u.dia], datas = alvo.map(i => M.somaDias(semana(), i));
       const ja = S.db.mus_programacao.filter(r => datas.includes(r.data) && r.itens.length), manuais = ja.filter(r => r.itens.some(s => s.manual)).length;
       if (!S.db.musicas.some(m => m.ativa)) return S.toast('Cadastre ou importe músicas no Acervo antes de gerar.');
-      if (ja.length && !confirm(`${d.o === 'semana' ? 'Refazer a semana inteira' : `Refazer ${M.DIAS[u.dia].toLowerCase()}`}? ${ja.length} hora(s) já montada(s) serão refeitas${manuais ? `, incluindo ${manuais} com músicas escolhidas à mão` : ''}.`)) return;
+      if (ja.length && !await S.confirmar(`${d.o === 'semana' ? 'Refazer a semana inteira' : `Refazer ${M.DIAS[u.dia].toLowerCase()}`}? ${ja.length} hora(s) já montada(s) serão refeitas${manuais ? `, incluindo ${manuais} com músicas escolhidas à mão` : ''}.`, { ok:'Refazer' })) return;
       S.toast('Montando a programação…');
       setTimeout(() => S.run(() => gerarDias(alvo), d.o === 'semana' ? 'Semana montada em camadas, da prioridade 1 para a última' : 'Dia montado pelas regras'), 30);
     },

@@ -31,7 +31,7 @@
       return soma(pis.filter(p => VENDIDO.includes(p.status) && new Date(p.criado_em) >= ini && new Date(p.criado_em) < fim)); });
     const max = Math.max(...vals, 1);
     const k = v => v >= 1000 ? (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits:v >= 10000 ? 0 : 1 }) : Math.round(v);
-    return `<section class="card"><div class="hd"><h3>Vendas por semana</h3><span>em R$ mil</span></div>
+    return `<section class="card"><div class="hd"><h2>Vendas por semana</h2><span>em R$ mil</span></div>
       <div class="bars" role="img" aria-label="Vendas das últimas 8 semanas">${vals.map((v, i) => `<div class="${i === 7 ? 'on' : ''}"><b>${v ? k(v) : ''}</b><i style="height:${Math.max(2, v / max * 150)}px;--i:${i}"></i></div>`).join('')}</div>
       <div class="bars-x">${semanas.map((d, i) => `<span>${i === 7 ? 'Esta' : d.getDate() + ' ' + MESES[d.getMonth()]}</span>`).join('')}</div></section>`;
   }
@@ -40,7 +40,7 @@
   function caminho(pis) {
     const etapas = ['rascunho', 'opec', 'devolvido', 'aprovado', 'programado', 'faturado'].map(s => { const l = pis.filter(p => p.status === s); return { s, n:l.length, v:soma(l) }; });
     const total = etapas.reduce((t, e) => t + e.n, 0);
-    return `<section class="card"><div class="hd"><h3>Caminho dos PIs</h3><a data-go="/pis">Ver todos</a></div>
+    return `<section class="card"><div class="hd"><h2>Caminho dos PIs</h2><a data-go="/pis">Ver todos</a></div>
       ${total ? `<div class="stack" role="img" aria-label="Distribuição dos PIs por etapa">${etapas.filter(e => e.n).map(e => `<i style="flex:${e.n};background:${S.STATUS_COR[e.s]}"></i>`).join('')}</div>` : ''}
       <div class="legend">${etapas.map(e => `<a data-go="/pis"><span class="sq" style="background:${S.STATUS_COR[e.s]}"></span><span class="grow">${S.STATUS[e.s].label}</span><span class="muted num">${e.n ? brl(e.v).replace(/,00$/, '') : '—'}</span><span class="n">${e.n}</span></a>`).join('')}</div></section>`;
   }
@@ -53,7 +53,7 @@
       const ag = S.db.agenda.filter(a => a.consultor_id === u.id && mesDe(a.quando) === m);
       return { u, vendido:soma(meus), n:meus.length, feitas:ag.filter(a => a.realizado).length, plan:ag.length };
     }).sort((a, b) => b.vendido - a.vendido);
-    return `<section class="card"><div class="hd"><h3>Consultores</h3><span>visitas feitas / planejadas no mês</span></div>
+    return `<section class="card"><div class="hd"><h2>Consultores</h2><span>visitas feitas / planejadas no mês</span></div>
       ${linhas.length ? `<div class="people">${linhas.map((l, i) => { const r = l.plan ? l.feitas / l.plan : 0;
         return `<div><span class="av soft" aria-hidden="true">${esc(S.iniciais(l.u.nome || l.u.email))}</span>
           <div class="who"><div><b>${esc(l.u.nome || l.u.email)}</b><span class="muted small num">${l.feitas} / ${l.plan}</span></div><div class="prog"><i class="${l.plan && r < .6 ? 'ruim' : ''}" style="width:${Math.round(r * 100)}%;--i:${i}"></i></div></div>
@@ -62,7 +62,7 @@
   }
 
   // Lista de PIs (fila da OPEC, últimos pedidos…)
-  const fila = (titulo, lista, vazio, link) => `<section class="card"><div class="hd"><h3>${titulo}</h3>${link || ''}</div>
+  const fila = (titulo, lista, vazio, link) => `<section class="card"><div class="hd"><h2>${titulo}</h2>${link || ''}</div>
     ${lista.length ? `<div class="list">${lista.map(p => { const h = Math.floor((Date.now() - new Date(p.atualizado_em || p.criado_em)) / 864e5);
       return `<a data-go="/pi/${p.id}"><span class="ic">${S.svg('doc')}</span><span class="tx"><b>${esc(S.nome(p.cliente_id)) || esc(p.titulo) || 'Sem cliente'}</b><small>${S.piNo(p)}${S.pode('consultor') ? '' : ' · ' + esc(S.usuario(p.consultor_id))}</small></span>
         <span class="vl"><b class="num">${brl(p.valor_total)}</b>${p.status === 'opec' ? `<span class="pill" style="--tone:var(--${h >= 2 ? 'orange' : 'gray'})">${h < 1 ? 'Hoje' : h === 1 ? 'Há 1 dia' : `Há ${h} dias`}</span>` : S.pill(p.status)}</span></a>`; }).join('')}</div>`
@@ -106,7 +106,7 @@
     const depois = deHoje.filter(a => a !== prox);
     return `${lembretes}${proximo}
       <div class="tiles">${tile('Vendido no mês', curto(soma(vendidos)), `<span>${vendidos.length} ${vendidos.length === 1 ? 'PI enviado' : 'PIs enviados'}</span>`)}${tile('Visitas no mês', `${agMes.filter(a => a.realizado).length} / ${agMes.length}`, '<span>feitas / planejadas</span>')}</div>
-      ${depois.length ? `<section class="card"><div class="hd"><h3>Depois, hoje</h3><a data-go="/agenda">Agenda</a></div><div class="list">${depois.map(a => `<div><span class="ic" style="font:600 13px var(--display);color:var(--ink)">${S.hora(a.quando)}</span><span class="tx"><b>${esc(S.nome(a.cliente_id)) || TIPO[a.tipo]}</b><small>${esc(a.assunto)}</small></span><span class="pill" style="--tone:var(--gray)">${TIPO[a.tipo]}</span></div>`).join('')}</div></section>` : ''}
+      ${depois.length ? `<section class="card"><div class="hd"><h2>Depois, hoje</h2><a data-go="/agenda">Agenda</a></div><div class="list">${depois.map(a => `<div><span class="ic" style="font:600 13px var(--display);color:var(--ink)">${S.hora(a.quando)}</span><span class="tx"><b>${esc(S.nome(a.cliente_id)) || TIPO[a.tipo]}</b><small>${esc(a.assunto)}</small></span><span class="pill" style="--tone:var(--gray)">${TIPO[a.tipo]}</span></div>`).join('')}</div></section>` : ''}
       ${fila('Meus PIs', meus.slice().sort((a, b) => b.numero - a.numero).slice(0, 5), 'Você ainda não criou PIs nesta rádio.', '<a data-go="/pis">Ver todos</a>')}`;
   }
 

@@ -47,18 +47,18 @@
     const base = dia(hoje), meses = Array.from({ length:6 }, (_, k) => { const d = new Date(base.getFullYear(), base.getMonth() - 1 + k, 1); return iso(d).slice(0, 7); });
     const fluxo = meses.map(m => { const ls = L.filter(l => l.sentido === 'receber' && (l.vencimento || '').startsWith(m)); return { m, prev:soma(ls), rec:soma(ls.filter(l => l.pago_em), recebidoDe) }; });
     const maxF = Math.max(1, ...fluxo.map(x => Math.max(x.prev, x.rec))), k = v => v >= 1000 ? `${nfmt(v / 1000).replace(/,\d+$/, '')} mil` : v ? nfmt(v) : '';
-    const grafico = `<section class="card"><div class="hd"><h3>Fluxo previsto por mês</h3><span class="fin-leg"><i class="prev"></i>Previsto <i class="rec"></i>Recebido</span></div>
+    const grafico = `<section class="card"><div class="hd"><h2>Fluxo previsto por mês</h2><span class="fin-leg"><i class="prev"></i>Previsto <i class="rec"></i>Recebido</span></div>
       <div class="fin-bars" role="img" aria-label="A receber previsto e recebido nos últimos e próximos meses">${fluxo.map((x, i) => `<div class="${x.m === hoje.slice(0, 7) ? 'on' : ''}"><b>${k(x.prev)}</b><span><i class="prev" style="height:${x.prev ? Math.max(3, x.prev / maxF * 140) : 0}px;--i:${i}"></i><i class="rec" style="height:${x.rec ? Math.max(3, x.rec / maxF * 140) : 0}px;--i:${i}"></i></span></div>`).join('')}</div>
       <div class="bars-x">${fluxo.map(x => `<span>${MES3[+x.m.slice(5) - 1]}</span>`).join('')}</div></section>`;
     // Idade dos recebíveis em aberto (todos, independente do período)
     const abertos = L.filter(l => l.sentido === 'receber' && !l.pago_em), porFaixa = FAIXAS.map(([id, nome, tom]) => ({ id, nome, tom, v:soma(abertos.filter(l => faixaDe(l, hoje) === id)), n:abertos.filter(l => faixaDe(l, hoje) === id).length }));
-    const idade = `<section class="card"><div class="hd"><h3>Situação dos recebíveis</h3><span>tudo em aberto</span></div>
+    const idade = `<section class="card"><div class="hd"><h2>Situação dos recebíveis</h2><span>tudo em aberto</span></div>
       ${abertos.length ? `<div class="stack" role="img" aria-label="Recebíveis por atraso">${porFaixa.filter(x => x.v).map(x => `<i style="flex:${x.v};background:var(--${x.tom})"></i>`).join('')}</div>` : ''}
       <div class="legend">${porFaixa.map(x => `<a data-act="finFaixa" data-faixa="${x.id}" class="${f.faixa === x.id ? 'on' : ''}"><span class="sq" style="background:var(--${x.tom})"></span><span class="grow">${x.nome}</span><span class="muted small">${x.n}</span><b>${brl(x.v)}</b></a>`).join('')}</div></section>`;
 
     // Pedidos a faturar
     const aFaturar = S.db.pis.filter(p => ['aprovado', 'programado'].includes(p.status));
-    const faturar = aFaturar.length ? `<div class="card"><div class="hd"><h3>Pedidos a faturar</h3><span>${aFaturar.length} aguardando</span></div><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Status</th><th class="r">Total</th><th class="r">Líquido da rádio</th><th></th></tr></thead><tbody>${aFaturar.map(p => { const c = S.calc(p); return `<tr><td class="muted" style="white-space:nowrap">${S.piNo(p)}</td><td><a data-go="/pi/${p.id}" style="color:var(--ink)"><b>${esc(p.titulo)}</b></a></td><td>${esc(S.nome(p.cliente_id))}</td><td>${S.pill(p.status)}</td><td class="r">${brl(c.total)}</td><td class="r">${brl(c.net)}</td><td class="r"><button class="btn sm pri" data-act="finFaturar" data-id="${p.id}">Faturar</button></td></tr>`; }).join('')}</tbody></table></div></div>`
+    const faturar = aFaturar.length ? `<div class="card"><div class="hd"><h2>Pedidos a faturar</h2><span>${aFaturar.length} aguardando</span></div><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Status</th><th class="r">Total</th><th class="r">Líquido da rádio</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${aFaturar.map(p => { const c = S.calc(p); return `<tr><td class="muted" style="white-space:nowrap">${S.piNo(p)}</td><td><a data-go="/pi/${p.id}" style="color:var(--ink)"><b>${esc(p.titulo)}</b></a></td><td>${esc(S.nome(p.cliente_id))}</td><td>${S.pill(p.status)}</td><td class="r">${brl(c.total)}</td><td class="r">${brl(c.net)}</td><td class="r"><button class="btn sm pri" data-act="finFaturar" data-id="${p.id}">Faturar</button></td></tr>`; }).join('')}</tbody></table></div></div>`
       : `<div class="card fin-faturar"><b>Pedidos a faturar</b>${S.tag('nenhum aguardando', 'gray')}<span class="grow"></span><span class="muted small">Aparecem aqui quando a OPEC aprova ou programa um PI.</span></div>`;
 
     // Filtros
@@ -146,8 +146,8 @@
       S.dialog(`<h2>Baixa da parcela</h2><p class="muted small">${esc(l.contraparte)} · ${esc(l.descricao)} · parcela ${l.parcela}</p>
         <table>${lin('Vencimento', dfmt(l.vencimento))}${lin(l.sentido === 'pagar' ? 'Pago em' : 'Recebido em', dfmt(l.pago_em))}${lin('Forma', esc(l.forma))}${lin('Parcela', brl(l.valor))}${lin('Juros e multa', Number(l.juros) ? brl(l.juros) : '')}${lin('Desconto', Number(l.desconto) ? brl(l.desconto) : '')}${lin(l.sentido === 'pagar' ? 'Valor pago' : 'Valor recebido', brl(recebidoDe(l)))}${lin('Nota fiscal', esc(l.nota_fiscal))}${lin('Observação', esc(l.observacao))}</table>
         <div class="row"><span class="grow"></span><button class="btn" value="cancel">Fechar</button></div>`); },
-    finEstornar: d => { const l = S.db.lancamentos.find(x => x.id === d.id);
-      if (!confirm(`Estornar a baixa de ${l.contraparte} (${brl(recebidoDe(l))})? A parcela volta a ficar em aberto.`)) return;
+    finEstornar: async d => { const l = S.db.lancamentos.find(x => x.id === d.id);
+      if (!await S.confirmar(`Estornar a baixa de ${l.contraparte} (${brl(recebidoDe(l))})? A parcela volta a ficar em aberto.`, { ok:'Estornar' })) return;
       S.run(async () => { await S.q(S.sb.rpc('estornar_baixa', { p_id:l.id })); await recarregar(); }, 'Baixa estornada'); },
     finVenc: d => { const l = S.db.lancamentos.find(x => x.id === d.id);
       S.form('Mudar vencimento', [{ k:'vencimento', label:'Novo vencimento', type:'date', req:true }], { vencimento:l.vencimento || '' }, v => S.run(() => S.salvar('lancamentos', { id:l.id, vencimento:v.vencimento }), 'Vencimento alterado'), 'Salvar', { editar:true }); },
@@ -322,7 +322,7 @@
     const corpo = r.rows.length ? (S.celular ? cartoesHtml(r) : `<div class="scroll">${tabelaHtml(r)}</div>`) : '<div class="empty"><b>Nada neste relatório</b>Experimente outro período.</div>';
     return { title:`<span class="sub"><a data-act="finVoltar">← Financeiro</a></span>Relatórios`, actions:'',
       body:`<div class="fin-rel">${lado}<section class="card fin-rel-corpo">
-        <div class="fin-rel-topo"><div class="grow"><h3>${atual[1]}</h3><p class="muted">${atual[3]}</p></div><button class="btn sm" data-act="finCsv"${r.rows.length ? '' : ' disabled'}>${S.svg('baixar')}Planilha</button><button class="btn sm pri" data-act="finPdf"${r.rows.length ? '' : ' disabled'}>${S.svg('baixar')}Baixar PDF</button></div>
+        <div class="fin-rel-topo"><div class="grow"><h2>${atual[1]}</h2><p class="muted">${atual[3]}</p></div><button class="btn sm" data-act="finCsv"${r.rows.length ? '' : ' disabled'}>${S.svg('baixar')}Planilha</button><button class="btn sm pri" data-act="finPdf"${r.rows.length ? '' : ' disabled'}>${S.svg('baixar')}Baixar PDF</button></div>
         ${filtros}${r.rows.length ? resumoHtml(r) + partHtml(r) : ''}${corpo}${r.rows.length ? lerHtml(r) : ''}</section></div>` };
   };
   // Planilha: CSV com ; e vírgula decimal, que o Excel em português abre direto
@@ -338,7 +338,7 @@
 
   Object.assign(S.actions, {
     finAvulso: () => formAvulso(),
-    finExcluir: d => { const l = S.db.lancamentos.find(x => x.id === d.id); if (!confirm(`Excluir o lançamento "${l.descricao}" de ${brl(l.valor)}?`)) return;
+    finExcluir: async d => { const l = S.db.lancamentos.find(x => x.id === d.id); if (!await S.confirmar(`Excluir o lançamento "${l.descricao}" de ${brl(l.valor)}?`, { ok:'Excluir', perigo:true })) return;
       S.run(() => S.excluir('lancamentos', l.id), 'Lançamento excluído'); },
     finRelatorios: () => { modo = 'relatorios'; S.render(); window.scrollTo(0, 0); },
     finVoltar: () => { modo = 'lista'; S.render(); },

@@ -166,12 +166,12 @@
     const lista = { todas:fx, falta, tem, novas }[r.filtro] || fx;
     const comPop = fx.some(f => f.pop !== null);
     const subindo = tem.filter(f => f.pop !== null && f.pop >= 60 && (r.toques[f._m.id] || 0) <= 3).sort((a, b) => b.pop - a.pop).slice(0, 5);
-    const busca = `<div class="card"><h3>Buscar no Spotify</h3>
+    const busca = `<div class="card"><h2>Buscar no Spotify</h2>
       <form id="rdBusca" class="rad-busca"><input type="search" name="q" value="${esc(r.q)}" placeholder="Música ou artista" aria-label="Buscar no Spotify"><button class="btn sm pri" type="submit">${r.buscando ? '…' : 'Buscar'}</button></form>
       ${r.res.length ? `<div class="rad-res">${r.res.map(f => { const naLista = r.faixas.some(x => x.id === f.id);
         return `<div class="rad-r">${capaHtml(f, ' p')}<span class="rad-tit"><b>${esc(f.titulo)}</b><small>${esc(f.artistas.join(', '))}${f.lanc ? ' · ' + f.lanc.slice(0, 4) : ''}</small></span>
           ${naLista ? '<small class="muted">Na lista</small>' : `<button class="btn sm" data-act="rdPorNaLista" data-id="${esc(f.id)}">+ Lista</button>`}</div>`; }).join('')}</div>` : r.q && !r.buscando ? '<p class="muted small">Nada encontrado.</p>' : ''}</div>`;
-    const sobe = comPop ? `<div class="card rad-escuro"><h3>Subindo nos streams</h3><p class="small">Músicas do acervo com popularidade alta no Spotify e pouca rotação na rádio</p>
+    const sobe = comPop ? `<div class="card rad-escuro"><h2>Subindo nos streams</h2><p class="small">Músicas do acervo com popularidade alta no Spotify e pouca rotação na rádio</p>
         ${subindo.length ? subindo.map(f => `<div class="rad-sobe"><span><b>${esc(f.titulo)}</b><small>${esc(f.artistas[0] || '')} · ${r.toques[f._m.id] || 0} toque${(r.toques[f._m.id] || 0) === 1 ? '' : 's'} em 7 dias</small></span><b class="num">${f.pop}</b></div>`).join('')
           : '<p class="small">Nenhuma por enquanto: o que está em alta já toca bem na rádio.</p>'}</div>` : '';
     const tiles = `<div class="tiles rad-tiles">${[['Na sua lista', fx.length, 'músicas da playlist', true], ['Já no acervo', tem.length, `${tem.filter(f => (r.toques[f._m.id] || 0) > 0).length} tocando nos últimos 7 dias`], ['Fora do acervo', falta.length, 'para avaliar'], ['Lançadas há menos de 30 dias', novas.length, `${novas.filter(f => !f._m).length} fora do acervo`]]
@@ -183,7 +183,7 @@
       : `<div class="rad-cab"><span></span><span>Música</span><span>Popularidade</span><span>No acervo da ${esc(S.veh().nome)}</span><span></span></div>${lista.map(linhaFaixa).join('') || '<p class="muted">Nada neste filtro.</p>'}
         <p class="muted small" style="margin-top:12px">“Popularidade” é o índice de 0 a 100 do próprio Spotify, consultado agora e não guardado. Os toques vêm da programação da rádio, calculados pelo Sonvi.</p>`;
     return `${atalhos()}${r.playlist ? tiles : ''}
-      <div class="rad-cols"><div class="card rad-lista"><div class="hd"><h3>Lista de observação</h3>${r.playlist && fx.length ? filtros : ''}</div>${corpoLista}</div>
+      <div class="rad-cols"><div class="card rad-lista"><div class="hd"><h2>Lista de observação</h2>${r.playlist && fx.length ? filtros : ''}</div>${corpoLista}</div>
       <div>${r.playlist ? busca : ''}${sobe}<p class="rad-fonte"><small>Capas, nomes e popularidade fornecidos por</small>${logo(18)}</p></div></div>`;
   };
 
@@ -205,7 +205,7 @@
   const achar = id => r.faixas.find(f => f.id === id) || r.res.find(f => f.id === id);
   Object.assign(S.actions, {
     rdConectar: () => conectar().catch(e => S.toast(e.message)),
-    rdSair: () => { if (!confirm('Desconectar o Spotify deste navegador? Você pode conectar de novo quando quiser.')) return; gravar(chave(), null); r.perfil = null; zerar(); S.render(); },
+    rdSair: async () => { if (!await S.confirmar('Desconectar o Spotify deste navegador? Você pode conectar de novo quando quiser.', { ok:'Desconectar' })) return; gravar(chave(), null); r.perfil = null; zerar(); S.render(); },
     rdAtualizar: () => { r.perfil = null; r.erro = ''; carregar(); S.render(); },
     rdFiltro: d => { r.filtro = d.f; S.render(); },
     rdCriarPlaylist: async () => {
