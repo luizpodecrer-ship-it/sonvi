@@ -9,6 +9,12 @@
 <meta property="og:description" content="Comercial, PI, OPEC, programação musical e financeiro de todas as suas rádios em um só lugar.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sonvi.com.br/">
+<meta property="og:image" content="https://sonvi.com.br/site/sonvi-lancamento.jpg">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:image:alt" content="Logo SONVI com o slogan Som que se vê.">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://sonvi.com.br/">
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" type="image/svg+xml" href="/img/simbolo.svg">
@@ -48,14 +54,21 @@ img{max-width:100%}
 .btn-linha{background:var(--branco);color:var(--tinta);border-color:var(--linha)}
 .btn-claro{background:var(--azul-claro);color:var(--tinta)}
 .selo{display:inline-flex;align-items:center;gap:8px;color:var(--texto-azul);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
-.ponto{width:8px;height:8px;border-radius:50%;background:var(--azul-claro);animation:pulso 2s ease-out infinite}
+.ponto{width:8px;height:8px;border-radius:50%;background:var(--azul-claro);animation:pulso 2s ease-out 2}
 @keyframes pulso{0%{box-shadow:0 0 0 0 rgba(1,153,255,.55)}70%{box-shadow:0 0 0 10px rgba(1,153,255,0)}100%{box-shadow:0 0 0 0 rgba(1,153,255,0)}}
 .cartao{background:var(--branco);border-radius:22px;border:1px solid var(--linha);box-shadow:0 24px 48px -36px rgba(10,20,60,.28)}
 [data-v],[data-h]{will-change:transform}
 
 /* menu */
 .topo{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:rgba(255,255,255,.8);backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid rgba(230,233,240,.75)}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.pular{position:absolute;left:16px;top:-80px;z-index:100;background:var(--tinta);color:var(--branco);padding:12px 18px;border-radius:12px;font-weight:600;font-size:14px}
+.pular:focus{top:12px}
+[tabindex="-1"]:focus{outline:none}
+.curto{display:none}
 .topo .wrap{height:68px;display:flex;align-items:center;gap:40px}
+.topo .logo{flex:none;display:flex;align-items:center;min-height:44px}
+.topo nav a,.topo .entrar{display:inline-flex;align-items:center;min-height:44px}
 .topo nav{display:flex;gap:32px;color:var(--cinza);font-size:14px}
 .topo nav a:hover{color:var(--tinta)}
 .topo .direita{margin-left:auto;display:flex;align-items:center;gap:18px}
@@ -96,7 +109,7 @@ img{max-width:100%}
 .fone small{color:var(--noite-texto);font-size:10px;letter-spacing:.1em}
 .prog{height:5px;border-radius:9px;background:#26282E}.prog i{display:block;width:58%;height:100%;border-radius:9px;background:var(--azul-claro)}
 .eq{display:flex;align-items:flex-end;gap:4px;height:48px;margin-top:auto}
-.eq span{flex:1;height:100%;border-radius:5px;background:linear-gradient(var(--azul-claro),var(--azul));transform-origin:bottom;animation:eq 1.2s ease-in-out infinite}
+.eq span{flex:1;height:100%;border-radius:5px;background:linear-gradient(var(--azul-claro),var(--azul));transform-origin:bottom;animation:eq 1.2s ease-in-out 4}
 @keyframes eq{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
 
 /* faixa */
@@ -107,6 +120,7 @@ img{max-width:100%}
 .som{position:absolute;top:20px;right:20px;width:52px;height:52px;border-radius:50%;border:0;background:rgba(10,11,13,.72);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:transform .2s,background .2s}
 .som:hover{transform:scale(1.06);background:rgba(10,11,13,.9)}
 .som svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pausa{right:84px}
 .som .on{display:none}.som[aria-pressed="true"] .on{display:block}.som[aria-pressed="true"] .off{display:none}
 .faixa{background:var(--branco);color:var(--cinza);padding-block:36px;overflow:hidden;border-block:1px solid var(--linha)}
 .faixa .trilho{display:flex;gap:56px;white-space:nowrap;font-family:var(--display);font-size:17px;font-weight:500}
@@ -119,6 +133,7 @@ img{max-width:100%}
 .caminho{padding-block:180px 140px}
 .historia{display:grid;grid-template-columns:1fr 1fr;gap:96px;margin-top:80px}
 .passos{display:flex;flex-direction:column}
+.mini{display:none}
 .passo{min-height:72vh;display:flex;flex-direction:column;justify-content:center;gap:12px;transition:color .35s}
 @media (min-width:981px){.passo:not(.ativo) :is(.n,h3,p){color:var(--cinza-2)}.passo:not(.ativo) h3{font-weight:500}}
 .passo .n{font-size:12px;font-weight:600;color:var(--azul);letter-spacing:.12em}
@@ -230,7 +245,9 @@ img{max-width:100%}
 footer{background:var(--noite);color:var(--noite-texto);padding-block:80px 48px;font-size:13px}
 footer .grade{display:flex;flex-wrap:wrap;justify-content:space-between;gap:40px}
 footer .cols{display:flex;flex-wrap:wrap;gap:64px}
-footer .cols div{display:flex;flex-direction:column;gap:10px}
+footer .cols div{display:flex;flex-direction:column;gap:0}
+footer .cols b{margin-bottom:6px}
+footer .cols a{display:inline-flex;align-items:center;min-height:44px}
 footer .cols b{color:var(--branco)}
 footer a:hover{color:var(--branco)}
 footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-size:13px}
@@ -244,6 +261,11 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   .b-pi{grid-column:span 6;grid-template-columns:1fr}
   .b-opec,.b-peq{grid-column:span 3}
   .fixa{display:none}
+  .mini{display:block;width:100%;min-height:0;margin-top:14px;padding:18px}
+  .mini .cena-m{position:relative}
+  .passo .mini p{color:inherit;font-size:14px;max-width:none}
+  .passo .mini .grande{font-family:var(--display);font-size:26px;font-weight:600;letter-spacing:-.03em}
+  .mini .linha-tab{font-size:13px}
   .passo{min-height:auto;opacity:1;padding-block:32px;border-top:1px solid var(--linha)}
   .leque{height:400px}
 }
@@ -256,7 +278,9 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   .filme{padding-block:0 80px}
   .quadro{border-radius:18px}
   .som{top:12px;right:12px;width:44px;height:44px}
-  .topo .entrar{display:none}
+  .topo .wrap{gap:14px}
+  .topo .direita{gap:14px}
+  .pausa{right:64px}
   .palco{height:440px}
   .pi-card{left:0;width:100%}
   .dias span{height:24px;font-size:9px}
@@ -270,6 +294,9 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   .leque .cartao{width:240px}
   .faixa .trilho{font-size:17px}
 }
+@media (max-width:420px){
+  .longo{display:none}.curto{display:inline}
+}
 @media (prefers-reduced-motion:reduce){
   .anima .rv{opacity:1;translate:none;transition:none}
   [data-v]{transform:none!important}
@@ -279,11 +306,12 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
 </style>
 </head>
 <body>
+<a class="pular" href="#inicio">Pular para o conteúdo</a>
 <header class="topo">
   <div class="wrap">
-    <a href="#inicio" aria-label="SONVI, início"><img src="/img/sonvi.svg" alt="SONVI" width="118" height="27" style="width:118px;height:auto;display:block"></a>
+    <a href="#inicio" class="logo" aria-label="SONVI, início"><img src="/img/sonvi.svg" alt="SONVI" width="118" height="27" style="width:118px;height:auto;display:block"></a>
     <nav aria-label="Seções"><a href="#sonvi">Sonvi</a><a href="#music">Sonvi Music</a><a href="#como">Como funciona</a><a href="#contato">Contato</a></nav>
-    <div class="direita"><a class="entrar" href="https://teste.sonvi.com.br/" style="font-weight:500;font-size:14px">Entrar</a><a href="#contato" class="btn btn-azul">Agendar demonstração</a></div>
+    <div class="direita"><a class="entrar" href="https://teste.sonvi.com.br/" style="font-weight:500;font-size:14px">Entrar</a><a href="https://wa.me/5565998113738?text=Ol%C3%A1!%20Quero%20agendar%20uma%20demonstra%C3%A7%C3%A3o%20do%20SONVI." target="_blank" rel="noopener" class="btn btn-azul"><span class="longo">Agendar demonstração</span><span class="curto">Agendar</span><span class="sr"> (abre o WhatsApp)</span></a></div>
   </div>
 </header>
 
@@ -295,7 +323,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
         <span class="selo"><span class="ponto"></span>Feito para grupos de rádio e comunicação</span>
         <h1>A rádio inteira, do primeiro contato ao comercial <em>no ar.</em></h1>
         <p class="lead">Comercial, PI, OPEC, programação musical e financeiro de todas as suas rádios em um só lugar. Na nuvem, no computador e no celular.</p>
-        <div class="acoes"><a href="#contato" class="btn btn-azul">Agendar demonstração <span aria-hidden="true">→</span></a><a href="#como" class="btn btn-linha">Ver como funciona</a></div>
+        <div class="acoes"><a href="https://wa.me/5565998113738?text=Ol%C3%A1!%20Quero%20agendar%20uma%20demonstra%C3%A7%C3%A3o%20do%20SONVI." target="_blank" rel="noopener" class="btn btn-azul">Agendar demonstração <span aria-hidden="true">→</span><span class="sr"> (abre o WhatsApp)</span></a><a href="#como" class="btn btn-linha">Ver como funciona</a></div>
         <div class="fatos"><span><b>1 login</b>para todas as rádios</span><span><b>5 perfis</b>cada um vê o que precisa</span></div>
       </div>
       <div class="palco" aria-hidden="true">
@@ -316,13 +344,14 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
     <div class="wrap">
       <div class="quadro">
         <video id="filme" poster="/site/sonvi-lancamento.jpg" muted loop playsinline preload="none" width="1920" height="1080" aria-label="Vídeo de apresentação do SONVI: do PI ao faturamento, em 15 segundos"><source src="/site/sonvi-lancamento.mp4" type="video/mp4"><source src="/site/sonvi-lancamento.webm" type="video/webm"></video>
+        <button class="som pausa" id="pausa" type="button" aria-pressed="false" aria-label="Pausar vídeo"><svg class="off" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg><svg class="on" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg></button>
         <button class="som" id="som" type="button" aria-pressed="false" aria-label="Ativar som"><svg class="off" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg><svg class="on" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
       </div>
     </div>
   </section>
 
   <section class="faixa" aria-label="Destaques">
-    <div class="trilho" data-h="0.25"><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span><span>PI em PDF com um clique</span><span>OPEC em tempo real</span><span>Financeiro e relatórios</span><span>Programação musical</span><span>No computador e no celular</span><span>Na nuvem</span><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span></div>
+    <div class="trilho" data-h="0.25"><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span><span>PI em PDF com um clique</span><span>OPEC em tempo real</span><span>Financeiro e relatórios</span><span>Programação musical</span><span>No computador e no celular</span><span>Na nuvem</span><span aria-hidden="true">Várias rádios, uma conta</span><span aria-hidden="true">Cada rádio com sua cor e seu logo</span></div>
   </section>
 
   <!-- Como funciona -->
@@ -392,7 +421,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
       <div class="bento">
         <div class="cartao b-pi">
           <div><span class="selo">PI digital</span><h3>Do PI ao contrato em PDF, sem digitar duas vezes.</h3><p>Peças, grades por praça e mês, comissão, desconto e resumo financeiro calculados na hora. O contrato sai pronto, com o logo da rádio.</p></div>
-          <div class="grade-mes" data-v="0.05"><div class="t"><span>Grade A · Cuiabá · nov</span><b>48 ins.</b></div><div class="g" id="gradeMes"></div></div>
+          <div class="grade-mes" data-v="0.05" aria-hidden="true"><div class="t"><span>Grade A · Cuiabá · nov</span><b>48 ins.</b></div><div class="g" id="gradeMes"></div></div>
         </div>
         <div class="cartao b-opec"><h3>OPEC confere, aprova ou devolve.</h3><p>O status pulsa até alguém resolver. Nada se perde no caminho.</p></div>
         <div class="cartao b-peq"><span class="ic-q"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 10h16M10 4v16"/></svg></span><h3>Tabela de preços com vigência</h3><p>Rascunho, agendada, vigente. O PI pega o preço do dia certo, sozinho.</p></div>
@@ -433,7 +462,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
           <div><i>✓</i><p><b>Estúdio do locutor</b><span> · o que está no ar, o próximo break e o texto para ler</span></p></div>
           <div><i>✓</i><p><b>Radar dos streams</b><span> · o que está em alta comparado com o seu acervo</span></p></div>
         </div>
-        <a href="#contato" class="btn btn-claro" style="margin-top:48px">Conhecer o Sonvi Music <span aria-hidden="true">→</span></a>
+        <a href="https://wa.me/5565998113738?text=Ol%C3%A1!%20Quero%20conhecer%20o%20Sonvi%20Music." target="_blank" rel="noopener" class="btn btn-claro" style="margin-top:48px">Conhecer o Sonvi Music <span aria-hidden="true">→</span><span class="sr"> (abre o WhatsApp)</span></a>
       </div>
       <div class="palco" aria-hidden="true">
         <div class="semana" data-v="0.03"><div class="t"><b style="font-family:var(--display)">Semana de 12 a 18 de outubro</b><span>Gerar a semana</span></div><div class="g" id="semana"></div></div>
@@ -470,8 +499,8 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
       <div class="caixa">
         <div><h2>Leve suas rádios para o SONVI.</h2><p>Mostramos o sistema com os dados da sua rádio, em 30 minutos.</p></div>
         <div class="acoes">
-          <a href="https://wa.me/5565998113738?text=Ol%C3%A1!%20Quero%20agendar%20uma%20demonstra%C3%A7%C3%A3o%20do%20SONVI." target="_blank" rel="noopener" class="btn btn-branco">Agendar demonstração</a>
-          <a href="https://wa.me/5565998113738?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20SONVI." target="_blank" rel="noopener" class="btn btn-vazado"><svg class="wa" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>Falar no WhatsApp</a>
+          <a href="https://wa.me/5565998113738?text=Ol%C3%A1!%20Quero%20agendar%20uma%20demonstra%C3%A7%C3%A3o%20do%20SONVI." target="_blank" rel="noopener" class="btn btn-branco">Agendar demonstração<span class="sr"> (abre o WhatsApp)</span></a>
+          <a href="https://wa.me/5565998113738?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20SONVI." target="_blank" rel="noopener" class="btn btn-vazado"><svg class="wa" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>Falar no WhatsApp<span class="sr"> (abre o WhatsApp)</span></a>
         </div>
       </div>
     </div>
@@ -485,7 +514,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
       <div class="cols">
         <div><b>Produto</b><a href="#sonvi">Sonvi</a><a href="#music">Sonvi Music</a><a href="#como">Como funciona</a></div>
         <div><b>Acesso</b><a href="https://teste.sonvi.com.br/">Entrar no Sonvi</a><a href="https://teste.sonvi.com.br/music/">Entrar no Sonvi Music</a></div>
-        <div><b>Contato</b><a href="https://wa.me/5565998113738" target="_blank" rel="noopener" class="wa-link"><svg class="wa" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>WhatsApp</a></div>
+        <div><b>Contato</b><a href="https://wa.me/5565998113738" target="_blank" rel="noopener" class="wa-link"><svg class="wa" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>WhatsApp<span class="sr"> (abre o WhatsApp)</span></a></div>
       </div>
     </div>
     <p class="base">© 2026 SONVI · Todos os direitos reservados · All rights reserved.</p>
@@ -517,6 +546,8 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
     e.preventDefault();
     if (lenis) lenis.scrollTo(alvo, { offset:-72, duration:1.6, easing:t => 1 - Math.pow(1 - t, 4) });
     else alvo.scrollIntoView();
+    if (!alvo.hasAttribute('tabindex')) alvo.setAttribute('tabindex', '-1');
+    alvo.focus({ preventScroll:true });
     history.replaceState(null, '', a.getAttribute('href'));
   }));
 
@@ -554,11 +585,19 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   // Vídeo: carrega e toca (sem som) quando aparece na tela; pausa quando sai. Com "reduzir movimento", não toca sozinho.
   const filme = document.getElementById('filme'), som = document.getElementById('som');
   if (filme) {
-    if (calmo) filme.controls = true;
-    else new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { filme.preload = 'auto'; filme.play().catch(() => {}); } else filme.pause(); }), { threshold:.35 }).observe(filme);
-    som.addEventListener('click', () => { const liga = filme.muted; filme.muted = !liga; if (liga) { filme.currentTime = 0; filme.play().catch(() => {}); }
+    let pausado = calmo;
+    const pausa = document.getElementById('pausa');
+    const marcarPausa = () => { pausa.setAttribute('aria-pressed', String(pausado)); pausa.setAttribute('aria-label', pausado ? 'Continuar vídeo' : 'Pausar vídeo'); };
+    if (calmo) marcarPausa();
+    new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting && !pausado) { filme.preload = 'auto'; filme.play().catch(() => {}); } else if (!e.isIntersecting) filme.pause(); }), { threshold:.35 }).observe(filme);
+    pausa.addEventListener('click', () => { pausado = !pausado; if (pausado) filme.pause(); else { filme.preload = 'auto'; filme.play().catch(() => {}); } marcarPausa(); });
+    som.addEventListener('click', () => { const liga = filme.muted; filme.muted = !liga; if (liga) { filme.currentTime = 0; pausado = false; marcarPausa(); filme.play().catch(() => {}); }
       som.setAttribute('aria-pressed', String(liga)); som.setAttribute('aria-label', liga ? 'Desativar som' : 'Ativar som'); });
   }
+
+  // No celular a tela de cada passo aparece logo abaixo do texto dele
+  document.querySelectorAll('.cena').forEach(c => { const p = document.querySelector(`.passo[data-cena="${c.dataset.c}"]`); if (!p) return;
+    const m = document.createElement('div'); m.className = 'monitor mini'; m.setAttribute('aria-hidden', 'true'); const k = c.cloneNode(true); k.className = 'cena-m'; m.appendChild(k); p.appendChild(m); });
 
   // Como funciona: a tela ao lado troca conforme o passo que está no meio da tela
   const passos = [...document.querySelectorAll('.passo')], cenas = [...document.querySelectorAll('.cena')];
