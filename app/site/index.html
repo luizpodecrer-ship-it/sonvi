@@ -23,7 +23,12 @@
   color-scheme:light;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth [data-lenis-prevent]{overscroll-behavior:contain}
+.lenis.lenis-stopped{overflow:clip}
+/* Entrada dos blocos: sobem e aparecem com calma quando chegam na tela (só com JS e sem "reduzir movimento") */
+.anima .rv{opacity:0;translate:0 28px;transition:opacity 1.1s cubic-bezier(.16,1,.3,1),translate 1.1s cubic-bezier(.16,1,.3,1);transition-delay:var(--d,0s)}
+.anima .rv.dentro{opacity:1;translate:0 0}
 body{margin:0;background:var(--branco);color:var(--tinta);font:15px/1.65 var(--corpo);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 h1,h2,h3,p{margin:0}
@@ -44,7 +49,7 @@ img{max-width:100%}
 .ponto{width:8px;height:8px;border-radius:50%;background:var(--azul-claro);animation:pulso 2s ease-out infinite}
 @keyframes pulso{0%{box-shadow:0 0 0 0 rgba(1,153,255,.55)}70%{box-shadow:0 0 0 10px rgba(1,153,255,0)}100%{box-shadow:0 0 0 0 rgba(1,153,255,0)}}
 .cartao{background:var(--branco);border-radius:22px;border:1px solid var(--linha);box-shadow:0 24px 48px -36px rgba(10,20,60,.28)}
-[data-v]{will-change:transform}
+[data-v],[data-h]{will-change:transform}
 
 /* menu */
 .topo{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:rgba(255,255,255,.8);backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid rgba(230,233,240,.75)}
@@ -178,7 +183,7 @@ img{max-width:100%}
 .estudio b.musica{display:block;font-family:var(--display);font-size:21px;font-weight:600;margin:6px 0 2px}
 .estudio .break{margin-top:16px;padding:14px;border-radius:16px;background:var(--azul-claro);color:var(--noite);display:flex;justify-content:space-between;align-items:center;gap:10px}
 .estudio .break b.t{font-family:var(--display);font-size:24px;font-weight:600}
-.radar{left:-30px;top:440px;width:250px;border-radius:20px;background:var(--branco);color:var(--tinta);padding:16px 18px}
+.radar{left:-20px;top:460px;width:220px;border-radius:20px;background:var(--branco);color:var(--tinta);padding:16px 18px}
 .radar small{font-weight:700;letter-spacing:.1em;color:var(--cinza);font-size:11px}
 .radar div{display:flex;justify-content:space-between;margin-top:6px}
 
@@ -253,7 +258,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   .faixa .trilho{font-size:17px}
 }
 @media (prefers-reduced-motion:reduce){
-  html{scroll-behavior:auto}
+  .anima .rv{opacity:1;translate:none;transition:none}
   [data-v]{transform:none!important}
   .eq span,.ponto{animation:none}
   .cena{transition:none}
@@ -273,7 +278,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   <!-- Abertura -->
   <section class="hero">
     <div class="wrap grade">
-      <div data-v="0.08">
+      <div data-v="0.04">
         <span class="selo"><span class="ponto"></span>Feito para grupos de rádio e comunicação</span>
         <h1>A rádio inteira, do primeiro contato ao comercial <em>no ar.</em></h1>
         <p class="lead">Comercial, PI, OPEC, programação musical e financeiro de todas as suas rádios em um só lugar. Na nuvem, no computador e no celular.</p>
@@ -281,21 +286,21 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
         <div class="fatos"><span><b>1 login</b>para todas as rádios</span><span><b>5 perfis</b>cada um vê o que precisa</span></div>
       </div>
       <div class="palco" aria-hidden="true">
-        <div class="cartao pi-card" data-v="0.05">
+        <div class="cartao pi-card" data-v="0.03">
           <div class="cab"><span>PI AURORA 0029</span><span class="status"><span class="ponto" style="width:7px;height:7px"></span>Na OPEC</span></div>
           <h3>Ótica Visão Clara · Black Friday</h3>
           <div class="dias" id="dias"></div>
           <div class="rodape"><span>48 inserções · nov/2026</span><b class="num">R$ 3.876,00</b></div>
         </div>
-        <div class="cartao venda" data-v="0.22"><small>Vendido no mês</small><b class="num">R$ 48.920</b><div class="barras"><span style="height:38%"></span><span style="height:52%"></span><span style="height:44%"></span><span style="height:66%"></span><span style="height:58%"></span><span style="height:74%"></span><span style="height:62%"></span><span style="height:100%"></span></div></div>
-        <div class="fone" data-v="0.5"><div class="tela"><small>NO AR AGORA</small><b style="font-family:var(--display);font-size:15px">Ainda Bem</b><small style="letter-spacing:0;font-size:11px">Marisa Monte</small><div class="prog"><i></i></div><div class="eq" data-eq="9"></div></div></div>
+        <div class="cartao venda" data-v="0.1"><small>Vendido no mês</small><b class="num">R$ 48.920</b><div class="barras"><span style="height:38%"></span><span style="height:52%"></span><span style="height:44%"></span><span style="height:66%"></span><span style="height:58%"></span><span style="height:74%"></span><span style="height:62%"></span><span style="height:100%"></span></div></div>
+        <div class="fone" data-v="0.18"><div class="tela"><small>NO AR AGORA</small><b style="font-family:var(--display);font-size:15px">Ainda Bem</b><small style="letter-spacing:0;font-size:11px">Marisa Monte</small><div class="prog"><i></i></div><div class="eq" data-eq="9"></div></div></div>
       </div>
     </div>
   </section>
 
   <!-- Faixa -->
   <section class="faixa" aria-label="Destaques">
-    <div class="trilho" data-h="0.35"><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span><span>PI em PDF com um clique</span><span>OPEC em tempo real</span><span>Financeiro e relatórios</span><span>Programação musical</span><span>No computador e no celular</span><span>Na nuvem</span><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span></div>
+    <div class="trilho" data-h="0.25"><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span><span>PI em PDF com um clique</span><span>OPEC em tempo real</span><span>Financeiro e relatórios</span><span>Programação musical</span><span>No computador e no celular</span><span>Na nuvem</span><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span></div>
   </section>
 
   <!-- Como funciona -->
@@ -365,7 +370,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
       <div class="bento">
         <div class="cartao b-pi">
           <div><span class="selo">PI digital</span><h3>Do PI ao contrato em PDF, sem digitar duas vezes.</h3><p>Peças, grades por praça e mês, comissão, desconto e resumo financeiro calculados na hora. O contrato sai pronto, com o logo da rádio.</p></div>
-          <div class="grade-mes" data-v="0.12"><div class="t"><span>Grade A · Cuiabá · nov</span><b>48 ins.</b></div><div class="g" id="gradeMes"></div></div>
+          <div class="grade-mes" data-v="0.05"><div class="t"><span>Grade A · Cuiabá · nov</span><b>48 ins.</b></div><div class="g" id="gradeMes"></div></div>
         </div>
         <div class="cartao b-opec"><h3>OPEC confere, aprova ou devolve.</h3><p>O status pulsa até alguém resolver. Nada se perde no caminho.</p></div>
         <div class="cartao b-peq"><span class="ic-q"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 10h16M10 4v16"/></svg></span><h3>Tabela de preços com vigência</h3><p>Rascunho, agendada, vigente. O PI pega o preço do dia certo, sozinho.</p></div>
@@ -380,13 +385,13 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
     <div class="wrap grade">
       <div class="titulo-secao"><span class="selo">Grupos de rádio</span><h2>Cada rádio com a sua cara.</h2><p>Envie o logo da rádio e o sistema inteiro assume a cor dela: botões, menus e o PI impresso. Troque de rádio num clique, sem sair da conta.</p></div>
       <div class="leque" aria-hidden="true">
-        <div class="cartao" data-v="0.03" style="left:0;top:40px">
+        <div class="cartao" data-v="0.02" style="left:0;top:40px">
           <div class="r-cab"><span class="r-selo" style="background:#0055FF;color:#fff">AUR</span><span><b>Rádio Aurora</b><br><small style="color:var(--cinza)">98,1 FM</small></span></div>
           <div class="r-linha"><span>PIs no mês</span><b class="num">32</b></div><div class="r-btn" style="background:#0055FF">+ Novo PI</div></div>
-        <div class="cartao" data-v="0.09" style="left:110px;top:150px">
+        <div class="cartao" data-v="0.05" style="left:110px;top:150px">
           <div class="r-cab"><span class="r-selo" style="background:#C8312F;color:#fff">PAN</span><span><b>Pantanal News</b><br><small style="color:var(--cinza)">101,9 FM</small></span></div>
           <div class="r-linha"><span>PIs no mês</span><b class="num">27</b></div><div class="r-btn" style="background:#C8312F">+ Novo PI</div></div>
-        <div class="cartao" data-v="0.15" style="left:220px;top:260px">
+        <div class="cartao" data-v="0.08" style="left:220px;top:260px">
           <div class="r-cab"><span class="r-selo" style="background:#0E7A43;color:#fff">OND</span><span><b>Onda 104</b><br><small style="color:var(--cinza)">104,3 FM</small></span></div>
           <div class="r-linha"><span>PIs no mês</span><b class="num">41</b></div><div class="r-btn" style="background:#0E7A43">+ Novo PI</div></div>
       </div>
@@ -395,7 +400,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
 
   <!-- Sonvi Music -->
   <section class="music" id="music">
-    <div class="eq-grande" data-v="-0.2" data-eq="14" aria-hidden="true"></div>
+    <div class="eq-grande" data-v="-0.08" data-eq="14" aria-hidden="true"></div>
     <div class="wrap grade">
       <div>
         <img src="../img/sonvi-music-branco.png" alt="Sonvi Music" width="1074" height="300" style="width:170px;height:auto;display:block">
@@ -409,9 +414,9 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
         <a href="#contato" class="btn btn-claro" style="margin-top:48px">Conhecer o Sonvi Music <span aria-hidden="true">→</span></a>
       </div>
       <div class="palco" aria-hidden="true">
-        <div class="semana" data-v="0.06"><div class="t"><b style="font-family:var(--display)">Semana de 12 a 18 de outubro</b><span>Gerar a semana</span></div><div class="g" id="semana"></div></div>
-        <div class="estudio" data-v="0.26"><small class="no-ar">NO AR AGORA</small><b class="musica">Tempo Perdido</b><small style="color:var(--noite-texto)">Legião Urbana · faltam 1:42</small><div class="break"><span><small style="font-weight:700;letter-spacing:.1em">PRÓXIMO BREAK</small><br><b>3 comerciais da OPEC</b></span><b class="t num">02:48</b></div></div>
-        <div class="radar" data-v="0.42"><small>RADAR DOS STREAMS</small><div><b>Fora do acervo</b><b class="num">11</b></div><div><span style="color:var(--cinza)">Lançadas no mês</span><b class="num">6</b></div></div>
+        <div class="semana" data-v="0.03"><div class="t"><b style="font-family:var(--display)">Semana de 12 a 18 de outubro</b><span>Gerar a semana</span></div><div class="g" id="semana"></div></div>
+        <div class="estudio" data-v="0.1"><small class="no-ar">NO AR AGORA</small><b class="musica">Tempo Perdido</b><small style="color:var(--noite-texto)">Legião Urbana · faltam 1:42</small><div class="break"><span><small style="font-weight:700;letter-spacing:.1em">PRÓXIMO BREAK</small><br><b>3 comerciais da OPEC</b></span><b class="t num">02:48</b></div></div>
+        <div class="radar" data-v="0.16"><small>RADAR DOS STREAMS</small><div><b>Fora do acervo</b><b class="num">11</b></div><div><span style="color:var(--cinza)">Lançadas no mês</span><b class="num">6</b></div></div>
       </div>
     </div>
   </section>
@@ -419,7 +424,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   <!-- No celular -->
   <section class="celular">
     <div class="wrap grade">
-      <div class="aparelho" data-v="0.12" aria-hidden="true"><div class="tela">
+      <div class="aparelho" data-v="0.06" aria-hidden="true"><div class="tela">
         <div class="cab"><b>Rádio Aurora</b><span class="chip azul">Hoje</span></div>
         <p style="font-family:var(--display);font-size:19px;font-weight:600;letter-spacing:-.02em;margin-block:6px">Boa tarde, Juliana</p>
         <div class="item"><span><b>Ótica Visão Clara</b><small>Visita · 14:30</small></span><span class="chip azul">Visita</span></div>
@@ -465,6 +470,7 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   </div>
 </footer>
 
+<script src="lenis.min.js"></script>
 <script>
 (() => {
   // Telas de exemplo: dias do PI, grade do mês e semana da programação
@@ -478,20 +484,50 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   document.getElementById('semana').innerHTML = sem;
   document.querySelectorAll('[data-eq]').forEach(el => { el.innerHTML = Array.from({ length:+el.dataset.eq }, (_, i) => `<span style="animation-delay:${((i * .13) % 1.1).toFixed(2)}s"></span>`).join(''); });
 
-  // Parallax: cada camada anda numa velocidade própria conforme a página rola
-  const calmo = matchMedia('(prefers-reduced-motion: reduce)');
-  const camadas = [...document.querySelectorAll('[data-v]')].map(el => ({ el, v:+el.dataset.v, ref:el.closest('section') || el }));
-  const trilhos = [...document.querySelectorAll('[data-h]')].map(el => ({ el, v:+el.dataset.h, ref:el.closest('section') }));
-  let pedido = false;
+  const calmo = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Rolagem suave (Lenis): a página desliza com inércia em vez de pular de degrau em degrau
+  const lenis = !calmo && window.Lenis ? new Lenis({ lerp:.075, wheelMultiplier:.9, smoothWheel:true }) : null;
+
+  // Links internos (menu, "Ver como funciona"...) deslizam até a seção
+  document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => {
+    const alvo = document.querySelector(a.getAttribute('href')); if (!alvo) return;
+    e.preventDefault();
+    if (lenis) lenis.scrollTo(alvo, { offset:-72, duration:1.6, easing:t => 1 - Math.pow(1 - t, 4) });
+    else alvo.scrollIntoView();
+    history.replaceState(null, '', a.getAttribute('href'));
+  }));
+
+  // Parallax: cada camada anda numa velocidade própria e chega lá aos poucos (sem trancos)
+  const camadas = [...document.querySelectorAll('[data-v]')].map(el => ({ el, v:+el.dataset.v, ref:el.closest('section') || el, y:0 }));
+  const trilhos = [...document.querySelectorAll('[data-h]')].map(el => ({ el, v:+el.dataset.h, ref:el.closest('section'), x:0 }));
+  const LIM = 90, suave = .1;
   const mover = () => {
-    pedido = false; if (calmo.matches) return;
-    const meio = innerHeight / 2, k = innerWidth < 620 ? .4 : innerWidth < 980 ? .7 : 1;
-    for (const c of camadas) { const r = c.ref.getBoundingClientRect(); if (r.bottom < -200 || r.top > innerHeight + 200) continue;
-      const d = (r.top + r.height / 2) - meio; c.el.style.transform = `translate3d(0,${(d * c.v * k).toFixed(1)}px,0)`; }
-    for (const t of trilhos) { const r = t.ref.getBoundingClientRect(); t.el.style.transform = `translate3d(${((r.top - innerHeight) * t.v).toFixed(1)}px,0,0)`; }
+    const meio = innerHeight / 2, k = innerWidth < 620 ? .35 : innerWidth < 980 ? .6 : 1;
+    for (const c of camadas) {
+      const r = c.ref.getBoundingClientRect(); if (r.bottom < -300 || r.top > innerHeight + 300) continue;
+      const alvo = Math.max(-LIM, Math.min(LIM, ((r.top + r.height / 2) - meio) * c.v * k));
+      c.y += (alvo - c.y) * suave; if (Math.abs(alvo - c.y) < .05) c.y = alvo;
+      c.el.style.transform = `translate3d(0,${c.y.toFixed(2)}px,0)`;
+    }
+    for (const t of trilhos) {
+      const r = t.ref.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) continue;
+      const alvo = (r.top - innerHeight) * t.v; t.x += (alvo - t.x) * suave;
+      t.el.style.transform = `translate3d(${t.x.toFixed(2)}px,0,0)`;
+    }
   };
-  const pedir = () => { if (!pedido) { pedido = true; requestAnimationFrame(mover); } };
-  addEventListener('scroll', pedir, { passive:true }); addEventListener('resize', pedir); mover();
+  if (!calmo) {
+    camadas.forEach(c => { const r = c.ref.getBoundingClientRect(); c.y = Math.max(-LIM, Math.min(LIM, ((r.top + r.height / 2) - innerHeight / 2) * c.v)); });
+    const quadro = t => { if (lenis) lenis.raf(t); mover(); requestAnimationFrame(quadro); };
+    requestAnimationFrame(quadro);
+
+    // Entrada dos blocos, um depois do outro
+    const blocos = document.querySelectorAll('.hero .grade > div:first-child > *, .titulo-secao > *, .recursos .cab > *, .bento > *, .passo, .lista-m > div, .lista-c > div, .final .caixa > div, .leque, .music .palco, .aparelho, footer .grade > *');
+    document.documentElement.classList.add('anima');
+    blocos.forEach(b => { b.classList.add('rv'); const irmaos = [...b.parentElement.children].filter(x => x.classList.contains('rv')); b.style.setProperty('--d', (Math.min(irmaos.indexOf(b), 5) * .09) + 's'); });
+    const ver = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('dentro'); ver.unobserve(e.target); } }), { rootMargin:'0px 0px -8% 0px' });
+    blocos.forEach(b => ver.observe(b));
+  }
 
   // Como funciona: a tela ao lado troca conforme o passo que está no meio da tela
   const passos = [...document.querySelectorAll('.passo')], cenas = [...document.querySelectorAll('.cena')];
