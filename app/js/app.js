@@ -93,7 +93,8 @@
     const act = e.target.closest('[data-act]');
     if (act) { if (act.tagName === 'A') e.preventDefault(); S.actions[act.dataset.act](act.dataset, act); return; }
     const go = e.target.closest('[data-go]');
-    if (go && !e.target.closest('input, select, button')) { if (go.tagName === 'A') e.preventDefault(); if (go.dataset.go.startsWith('/pi/')) S.ui.tab = 'detalhes'; if (!go.dataset.go.startsWith('/pi')) S.ui.q = ''; S.go(go.dataset.go); }
+    const ctl = e.target.closest('input, select, button'); // um botão dentro de uma linha clicável não abre a linha; o próprio botão com data-go abre
+    if (go && (!ctl || ctl === go)) { if (go.tagName === 'A') e.preventDefault(); if (go.dataset.go.startsWith('/pi/')) S.ui.tab = 'detalhes'; if (!go.dataset.go.startsWith('/pi')) S.ui.q = ''; S.go(go.dataset.go); }
   });
   document.addEventListener('change', async e => {
     const el = e.target, d = el.dataset;
