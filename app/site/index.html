@@ -62,7 +62,7 @@ img{max-width:100%}
 .topo .btn{min-height:40px;font-size:14px;padding:0 18px}
 
 /* hero */
-.hero{position:relative;overflow:hidden;background:linear-gradient(180deg,var(--branco) 0%,var(--nevoa) 100%);padding-block:140px 180px}
+.hero{position:relative;overflow:hidden;background:linear-gradient(180deg,var(--branco) 0%,var(--nevoa) 100%);padding-block:140px 120px}
 .hero .simbolo-fundo{position:absolute;right:-120px;top:40px;width:560px;opacity:.06;pointer-events:none}
 .hero .grade{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative}
 .hero h1{font-size:clamp(36px,4.4vw,56px);line-height:1.08;margin:24px 0 28px}
@@ -100,6 +100,14 @@ img{max-width:100%}
 @keyframes eq{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
 
 /* faixa */
+/* filme de apresentação: quadro grande logo abaixo da abertura, toca sem som e repete; botão de som no canto */
+.filme{background:var(--nevoa);padding-block:0 140px}
+.quadro{position:relative;border-radius:28px;overflow:hidden;background:var(--noite);aspect-ratio:16/9;max-width:100%;box-shadow:0 40px 80px -48px rgba(10,20,60,.45)}
+.quadro video{display:block;width:100%;height:100%;object-fit:cover}
+.som{position:absolute;top:20px;right:20px;width:52px;height:52px;border-radius:50%;border:0;background:rgba(10,11,13,.72);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:transform .2s,background .2s}
+.som:hover{transform:scale(1.06);background:rgba(10,11,13,.9)}
+.som svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.som .on{display:none}.som[aria-pressed="true"] .on{display:block}.som[aria-pressed="true"] .off{display:none}
 .faixa{background:var(--branco);color:var(--cinza);padding-block:36px;overflow:hidden;border-block:1px solid var(--linha)}
 .faixa .trilho{display:flex;gap:56px;white-space:nowrap;font-family:var(--display);font-size:17px;font-weight:500}
 .faixa .trilho span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--azul);margin-right:16px;vertical-align:middle}
@@ -244,7 +252,10 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   .final{padding-block:24px 110px}
   .b-pi,.b-opec,.b-peq{padding:32px 28px}
   .fatos{gap:28px}
-  .hero{padding-block:72px 96px}
+  .hero{padding-block:72px 64px}
+  .filme{padding-block:0 80px}
+  .quadro{border-radius:18px}
+  .som{top:12px;right:12px;width:44px;height:44px}
   .topo .entrar{display:none}
   .palco{height:440px}
   .pi-card{left:0;width:100%}
@@ -301,6 +312,15 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
   </section>
 
   <!-- Faixa -->
+  <section class="filme" aria-label="Vídeo de apresentação">
+    <div class="wrap">
+      <div class="quadro">
+        <video id="filme" poster="/site/sonvi-lancamento.jpg" muted loop playsinline preload="none" width="1920" height="1080" aria-label="Vídeo de apresentação do SONVI: do PI ao faturamento, em 15 segundos"><source src="/site/sonvi-lancamento.mp4" type="video/mp4"><source src="/site/sonvi-lancamento.webm" type="video/webm"></video>
+        <button class="som" id="som" type="button" aria-pressed="false" aria-label="Ativar som"><svg class="off" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg><svg class="on" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+      </div>
+    </div>
+  </section>
+
   <section class="faixa" aria-label="Destaques">
     <div class="trilho" data-h="0.25"><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span><span>PI em PDF com um clique</span><span>OPEC em tempo real</span><span>Financeiro e relatórios</span><span>Programação musical</span><span>No computador e no celular</span><span>Na nuvem</span><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span></div>
   </section>
@@ -524,11 +544,20 @@ footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-
     requestAnimationFrame(quadro);
 
     // Entrada dos blocos, um depois do outro
-    const blocos = document.querySelectorAll('.hero .grade > div:first-child > *, .titulo-secao > *, .recursos .cab > *, .bento > *, .passo, .lista-m > div, .lista-c > div, .final .caixa > div, .leque, .music .palco, .aparelho, footer .grade > *');
+    const blocos = document.querySelectorAll('.hero .grade > div:first-child > *, .quadro, .titulo-secao > *, .recursos .cab > *, .bento > *, .passo, .lista-m > div, .lista-c > div, .final .caixa > div, .leque, .music .palco, .aparelho, footer .grade > *');
     document.documentElement.classList.add('anima');
     blocos.forEach(b => { b.classList.add('rv'); const irmaos = [...b.parentElement.children].filter(x => x.classList.contains('rv')); b.style.setProperty('--d', (Math.min(irmaos.indexOf(b), 5) * .09) + 's'); });
     const ver = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('dentro'); ver.unobserve(e.target); } }), { rootMargin:'0px 0px -8% 0px' });
     blocos.forEach(b => ver.observe(b));
+  }
+
+  // Vídeo: carrega e toca (sem som) quando aparece na tela; pausa quando sai. Com "reduzir movimento", não toca sozinho.
+  const filme = document.getElementById('filme'), som = document.getElementById('som');
+  if (filme) {
+    if (calmo) filme.controls = true;
+    else new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { filme.preload = 'auto'; filme.play().catch(() => {}); } else filme.pause(); }), { threshold:.35 }).observe(filme);
+    som.addEventListener('click', () => { const liga = filme.muted; filme.muted = !liga; if (liga) { filme.currentTime = 0; filme.play().catch(() => {}); }
+      som.setAttribute('aria-pressed', String(liga)); som.setAttribute('aria-label', liga ? 'Desativar som' : 'Ativar som'); });
   }
 
   // Como funciona: a tela ao lado troca conforme o passo que está no meio da tela
