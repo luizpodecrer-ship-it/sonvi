@@ -79,6 +79,12 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - Geração em camadas pela prioridade da categoria; em cada posição vence a música que quebra menos regras e, no empate, a que está há mais tempo sem tocar. Escolhas à mão ficam marcadas `manual`.
 - Pendente: `salvar_usuario` ainda não aceita "programador" na edição de um usuário (a mudança precisa de aprovação no Supabase; o cadastro novo já aceita).
 
+## Site (landing page)
+
+- `app/site/index.html`: página de apresentação da SONVI e do Sonvi Music, em arquivo único (estilos e script dentro), parallax em JS (`data-v` = velocidade da camada, `data-h` = faixa que anda de lado), desligado com "reduzir movimento". Usa os logos de `app/img/` e as mesmas fontes. Por enquanto em `/site/`; quando o domínio sonvi.com.br estiver pronto, ele aponta para cá e o sistema vai para app.sonvi.com.br.
+- Botões "Agendar demonstração", "Falar no WhatsApp" e o e-mail ainda são provisórios (faltam o número e o e-mail definitivos). Rádios, nomes e valores das telas da página são inventados.
+- Visual aprovado: limpo, muito respiro, títulos de seção em azul maiúsculo sem caixa, cartões com borda fina. Zero problemas no axe.
+
 ## Publicar
 
 - O site (Netlify) publica sozinho a cada envio ao GitHub. A cada publicação, trocar o número `?v=` dos arquivos em `app/index.html` (data-hora), para o navegador baixar a versão nova.

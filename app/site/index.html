@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SONVI · Gestão para grupos de rádio e comunicação</title>
+<meta name="description" content="Comercial, PI, OPEC, programação musical e financeiro de todas as suas rádios em um só lugar. SONVI e Sonvi Music.">
+<meta property="og:title" content="SONVI · Gestão para grupos de rádio e comunicação">
+<meta property="og:description" content="Comercial, PI, OPEC, programação musical e financeiro de todas as suas rádios em um só lugar.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/svg+xml" href="../img/simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Sora:wght@500;600;700&display=swap">
+<style>
+/* Layout: página clara de produto com camadas em parallax; o Sonvi Music é o único trecho escuro. Paleta e fontes da marca SONVI. */
+:root{
+  --azul:#0055FF; --azul-claro:#0199FF; --tinta:#0A0B0D; --branco:#FFFFFF;
+  --nevoa:#F4F6FA; --linha:#E6E9F0; --cinza:#5B6170; --cinza-2:#6B6B74; --suave:#EBF1FF; --texto-azul:#0047D6;
+  --noite:#0A0B0D; --noite-2:#121316; --noite-linha:#2C3038; --noite-texto:#9BA1AD;
+  --display:"Sora","Geist",system-ui,sans-serif; --corpo:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--branco);color:var(--tinta);font:15px/1.65 var(--corpo);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,p{margin:0}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;letter-spacing:-.03em;font-weight:600}
+img{max-width:100%}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding-inline:max(20px,4vw)}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--azul);outline-offset:3px;border-radius:6px}
+
+/* botões */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 24px;border-radius:999px;font-weight:500;font-size:15px;border:1px solid transparent;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s;white-space:nowrap}
+.btn:hover{transform:translateY(-2px)}
+.btn-azul{background:var(--azul);color:var(--branco);box-shadow:none}
+.btn-azul:hover{background:#0047D6}
+.btn-linha{background:var(--branco);color:var(--tinta);border-color:var(--linha)}
+.btn-claro{background:var(--azul-claro);color:var(--tinta)}
+.selo{display:inline-flex;align-items:center;gap:8px;color:var(--texto-azul);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+.ponto{width:8px;height:8px;border-radius:50%;background:var(--azul-claro);animation:pulso 2s ease-out infinite}
+@keyframes pulso{0%{box-shadow:0 0 0 0 rgba(1,153,255,.55)}70%{box-shadow:0 0 0 10px rgba(1,153,255,0)}100%{box-shadow:0 0 0 0 rgba(1,153,255,0)}}
+.cartao{background:var(--branco);border-radius:22px;border:1px solid var(--linha);box-shadow:0 24px 48px -36px rgba(10,20,60,.28)}
+[data-v]{will-change:transform}
+
+/* menu */
+.topo{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:rgba(255,255,255,.8);backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid rgba(230,233,240,.75)}
+.topo .wrap{height:68px;display:flex;align-items:center;gap:40px}
+.topo nav{display:flex;gap:32px;color:var(--cinza);font-size:14px}
+.topo nav a:hover{color:var(--tinta)}
+.topo .direita{margin-left:auto;display:flex;align-items:center;gap:18px}
+.topo .btn{min-height:40px;font-size:14px;padding:0 18px}
+
+/* hero */
+.hero{position:relative;overflow:hidden;background:linear-gradient(180deg,var(--branco) 0%,var(--nevoa) 100%);padding-block:140px 180px}
+.hero .simbolo-fundo{position:absolute;right:-120px;top:40px;width:560px;opacity:.06;pointer-events:none}
+.hero .grade{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative}
+.hero h1{font-size:clamp(36px,4.4vw,56px);line-height:1.08;margin:24px 0 28px}
+.hero h1 em{font-style:normal;color:var(--azul)}
+.hero .lead{font-size:17px;color:var(--cinza);max-width:30em}
+.hero .acoes{display:flex;flex-wrap:wrap;gap:12px;margin-top:44px}
+.fatos{display:flex;flex-wrap:wrap;gap:48px;margin-top:72px;padding-top:28px;border-top:1px solid var(--linha);color:var(--cinza);font-size:13px}
+.fatos b{display:block;font-family:var(--display);font-size:20px;font-weight:600;color:var(--tinta);letter-spacing:-.02em}
+.palco{position:relative;height:520px}
+.palco > *{position:absolute}
+.pi-card{left:0;top:20px;width:min(420px,100%);padding:26px 28px}
+.pi-card .cab{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--cinza)}
+.status{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:999px;background:rgba(1,153,255,.13);color:#00649F;font-size:12px;font-weight:600}
+.pi-card h3{font-size:18px;margin:8px 0 20px}
+.dias{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-bottom:16px}
+.dias span{height:30px;border-radius:7px;background:var(--nevoa);color:var(--cinza-2);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.dias span.on{background:var(--azul);color:var(--branco)}
+.pi-card .rodape{display:flex;justify-content:space-between;align-items:flex-end;font-size:13px;color:var(--cinza)}
+.pi-card .rodape b{font-family:var(--display);font-size:22px;font-weight:600;color:var(--tinta);letter-spacing:-.02em}
+.venda{right:0;top:300px;width:220px;padding:22px 24px;border:0;background:var(--azul);color:var(--branco)}
+.venda small{opacity:.88}
+.venda b{display:block;font-family:var(--display);font-size:24px;font-weight:600;letter-spacing:-.03em}
+.barras{display:flex;align-items:flex-end;gap:6px;height:56px;margin-top:10px}
+.barras span{flex:1;border-radius:5px;background:rgba(255,255,255,.35)}
+.barras span:last-child{background:var(--branco)}
+.aviso{left:-24px;top:300px;width:270px;padding:16px 18px;display:flex;gap:14px;align-items:center}
+.aviso .ic{width:44px;height:44px;flex:none;border-radius:14px;background:var(--suave);color:var(--azul);display:flex;align-items:center;justify-content:center;font-weight:700}
+.aviso small{color:var(--cinza)}
+.fone{left:40px;top:340px;width:180px;height:230px;border-radius:30px;background:var(--noite);padding:12px;box-shadow:0 30px 60px -20px rgba(10,20,60,.55)}
+.fone .tela{height:100%;border-radius:20px;background:var(--noite-2);padding:14px;display:flex;flex-direction:column;gap:6px;color:var(--branco)}
+.fone small{color:var(--noite-texto);font-size:10px;letter-spacing:.1em}
+.prog{height:5px;border-radius:9px;background:#26282E}.prog i{display:block;width:58%;height:100%;border-radius:9px;background:var(--azul-claro)}
+.eq{display:flex;align-items:flex-end;gap:4px;height:48px;margin-top:auto}
+.eq span{flex:1;height:100%;border-radius:5px;background:linear-gradient(var(--azul-claro),var(--azul));transform-origin:bottom;animation:eq 1.2s ease-in-out infinite}
+@keyframes eq{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+
+/* faixa */
+.faixa{background:var(--branco);color:var(--cinza);padding-block:36px;overflow:hidden;border-block:1px solid var(--linha)}
+.faixa .trilho{display:flex;gap:56px;white-space:nowrap;font-family:var(--display);font-size:17px;font-weight:500}
+.faixa .trilho span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--azul);margin-right:16px;vertical-align:middle}
+
+/* como funciona (rolagem com tela fixa) */
+.titulo-secao{max-width:620px}
+.titulo-secao h2{font-size:clamp(28px,3.2vw,42px);line-height:1.12;margin-top:18px}
+.titulo-secao p{color:var(--cinza);font-size:17px;margin-top:20px;max-width:34em}
+.caminho{padding-block:180px 140px}
+.historia{display:grid;grid-template-columns:1fr 1fr;gap:96px;margin-top:80px}
+.passos{display:flex;flex-direction:column}
+.passo{min-height:72vh;display:flex;flex-direction:column;justify-content:center;gap:12px;transition:color .35s}
+@media (min-width:981px){.passo:not(.ativo) :is(.n,h3,p){color:var(--cinza-2)}.passo:not(.ativo) h3{font-weight:500}}
+.passo .n{font-size:12px;font-weight:600;color:var(--azul);letter-spacing:.12em}
+.passo h3{font-size:clamp(22px,2.2vw,28px)}
+.passo p{color:var(--cinza);font-size:16px;max-width:26em}
+.fixa{position:sticky;top:calc(env(safe-area-inset-top,0px) + 120px);height:min(560px,70vh);display:flex;align-items:center}
+.monitor{width:100%;border-radius:26px;background:var(--nevoa);padding:24px;position:relative;overflow:hidden;min-height:440px}
+.monitor .barra-topo{display:flex;gap:6px;margin-bottom:14px}.monitor .barra-topo i{width:10px;height:10px;border-radius:50%;background:#D6DBE5}
+.cena{position:absolute;inset:58px 24px 24px;opacity:0;transform:translateY(16px) scale(.98);transition:opacity .45s,transform .45s}
+.cena.ativa{opacity:1;transform:none}
+.linha-tab{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-radius:14px;background:var(--branco);margin-bottom:10px;font-size:13px}
+.linha-tab b{font-family:var(--display);font-weight:600}
+.chip{display:inline-flex;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.chip.azul{background:rgba(1,153,255,.13);color:#00649F}.chip.verde{background:#DFF3EA;color:#0A6B48}.chip.laranja{background:#FBEBD9;color:#8A4500}.chip.preto{background:var(--tinta);color:var(--branco)}
+.cena .grande{font-family:var(--display);font-size:32px;font-weight:600;letter-spacing:-.03em}
+
+/* recursos */
+.recursos{background:var(--nevoa);padding-block:160px;position:relative;overflow:hidden}
+.recursos .simbolo-fundo{position:absolute;left:-160px;bottom:-120px;width:460px;opacity:.06}
+.recursos .cab{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:32px}
+.recursos .cab p{color:var(--cinza);font-size:16px;max-width:24em}
+.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:24px;margin-top:80px}
+.bento > *{min-width:0}
+.b-pi{grid-column:span 4;padding:44px;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.b-opec{grid-column:span 2;padding:44px 40px;border:0;background:var(--azul);color:var(--branco);position:relative;overflow:hidden}
+.b-opec img{position:absolute;right:-30px;bottom:-40px;width:180px;opacity:.16}
+.bento .b-opec p{color:var(--branco);opacity:.92;margin-top:10px}
+.b-peq{grid-column:span 2;padding:40px 36px}
+.bento h3{font-size:18px;line-height:1.3;margin:28px 0 10px}
+.b-pi h3{font-size:24px;line-height:1.2;margin-top:20px}
+.bento p{color:var(--cinza);font-size:15px}
+.b-opec h3{margin-top:0;font-size:22px}
+.ic-q{width:40px;height:40px;flex:none;border-radius:12px;background:var(--suave);color:var(--azul);display:flex;align-items:center;justify-content:center}
+.ic-q svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.grade-mes{background:var(--nevoa);border-radius:18px;padding:18px}
+.grade-mes .t{display:flex;justify-content:space-between;font-size:12px;color:var(--cinza)}.grade-mes .t b{color:var(--azul)}
+.grade-mes .g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+.grade-mes .g span{height:26px;border-radius:6px;background:var(--branco);color:var(--cinza-2);font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.grade-mes .g span.on{background:var(--azul);color:var(--branco)}
+
+/* várias rádios */
+.radios{padding-block:180px;overflow:hidden}
+.radios .grade{display:grid;grid-template-columns:1fr 1.1fr;gap:96px;align-items:center}
+.leque{position:relative;height:440px}
+.leque .cartao{position:absolute;width:260px;padding:22px}
+.leque .r-cab{display:flex;align-items:center;gap:12px}
+.leque .r-selo{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 12px var(--display)}
+.leque .r-btn{margin-top:16px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:var(--branco);font-weight:600;font-size:14px}
+.leque .r-linha{display:flex;justify-content:space-between;font-size:13px;color:var(--cinza);margin-top:12px}
+.leque .r-linha b{color:var(--tinta)}
+
+/* Sonvi Music */
+.music{position:relative;overflow:hidden;background:radial-gradient(120% 90% at 0% 100%,#0B2A66 0%,var(--noite) 60%);color:#F5F6F8;padding-block:180px}
+.music .eq-grande{position:absolute;right:4vw;top:70px;display:flex;align-items:flex-end;gap:10px;height:180px;width:220px;opacity:.12}
+.music .grade{position:relative;display:grid;grid-template-columns:1fr 1.1fr;gap:96px;align-items:center}
+.music h2{font-size:clamp(28px,3.2vw,42px);line-height:1.12;margin:36px 0 20px}
+.music .lead{color:var(--noite-texto);font-size:17px}
+.lista-m{display:grid;gap:16px;margin-top:44px;font-size:15px}
+.lista-m div{display:flex;gap:14px;align-items:flex-start}
+.lista-m i{width:26px;height:26px;flex:none;border-radius:9px;background:rgba(1,153,255,.18);color:#4CB8FF;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px;font-weight:700}
+.lista-m span{color:var(--noite-texto)}.lista-m b{color:#F5F6F8}
+.music .palco{height:620px}
+.semana{left:0;top:20px;width:100%;border-radius:22px;background:var(--noite-2);border:1px solid #23262C;padding:22px}
+.semana .t{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.semana .t span{padding:6px 14px;border-radius:999px;background:var(--azul-claro);color:var(--noite);font-size:13px;font-weight:600;white-space:nowrap}
+.semana .g{display:grid;grid-template-columns:40px repeat(7,1fr);gap:5px;margin-top:18px;font-size:11px}
+.semana .g span{height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:600;background:rgba(1,153,255,.12);color:#4CB8FF}
+.semana .g span.c{background:none;color:var(--noite-texto)}
+.semana .g span.ar{background:var(--azul-claro);color:var(--noite)}
+.estudio{right:-10px;top:340px;width:310px;border-radius:22px;background:var(--noite);border:1px solid var(--noite-linha);padding:20px;box-shadow:0 40px 80px -30px rgba(0,0,0,.9)}
+.estudio small.no-ar{color:#FF6B6B;font-weight:700;letter-spacing:.12em}
+.estudio b.musica{display:block;font-family:var(--display);font-size:21px;font-weight:600;margin:6px 0 2px}
+.estudio .break{margin-top:16px;padding:14px;border-radius:16px;background:var(--azul-claro);color:var(--noite);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.estudio .break b.t{font-family:var(--display);font-size:24px;font-weight:600}
+.radar{left:-30px;top:440px;width:250px;border-radius:20px;background:var(--branco);color:var(--tinta);padding:16px 18px}
+.radar small{font-weight:700;letter-spacing:.1em;color:var(--cinza);font-size:11px}
+.radar div{display:flex;justify-content:space-between;margin-top:6px}
+
+/* celular */
+.celular{padding-block:180px;background:var(--branco)}
+.celular .grade{display:grid;grid-template-columns:1fr 1fr;gap:96px;align-items:center}
+.aparelho{width:270px;height:540px;margin:0 auto;border-radius:44px;background:var(--noite);padding:12px;box-shadow:0 50px 90px -40px rgba(10,20,60,.6)}
+.aparelho .tela{height:100%;border-radius:34px;background:var(--nevoa);overflow:hidden;padding:18px 14px;display:flex;flex-direction:column;gap:10px}
+.aparelho .cab{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.aparelho .item{background:var(--branco);border-radius:16px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.aparelho .item b{display:block;font-size:14px}.aparelho .item small{color:var(--cinza)}
+.aparelho .abas{margin-top:auto;background:var(--branco);border-radius:22px;display:flex;justify-content:space-around;padding:10px 6px;font-size:10px;color:var(--cinza-2)}
+.aparelho .abas span.on{color:var(--azul);font-weight:600}
+.lista-c{display:grid;gap:28px;margin-top:44px}
+.lista-c div{display:flex;gap:16px}
+.lista-c b{display:block;font-family:var(--display);font-size:16px;font-weight:600;margin-bottom:4px}
+.titulo-secao .lista-c p{color:var(--cinza);font-size:15px;margin-top:0}
+.lista-c div > span:last-child{display:block;min-width:0}
+
+/* chamada final */
+.final{padding-block:40px 160px}
+.final .caixa{position:relative;overflow:hidden;border-radius:36px;background:var(--azul);color:var(--branco);padding:clamp(48px,7vw,96px);display:grid;grid-template-columns:1.3fr 1fr;gap:64px;align-items:center}
+.final .caixa img{position:absolute;right:-30px;top:20px;width:280px;opacity:.08;pointer-events:none}
+.final h2{font-size:clamp(28px,3.2vw,42px);line-height:1.12;position:relative}
+.final p{opacity:.92;font-size:17px;margin-top:20px;position:relative}
+.final .acoes{position:relative;display:flex;flex-direction:column;gap:12px}
+.final .btn{min-height:52px;font-size:15px}
+.btn-branco{background:var(--branco);color:var(--azul)}
+.btn-vazado{background:transparent;color:var(--branco);border-color:rgba(255,255,255,.55)}
+.contato-txt{position:relative;font-size:14px;opacity:.88;text-align:center}
+
+/* rodapé */
+footer{background:var(--noite);color:var(--noite-texto);padding-block:80px 48px;font-size:13px}
+footer .grade{display:flex;flex-wrap:wrap;justify-content:space-between;gap:40px}
+footer .cols{display:flex;flex-wrap:wrap;gap:64px}
+footer .cols div{display:flex;flex-direction:column;gap:10px}
+footer .cols b{color:var(--branco)}
+footer a:hover{color:var(--branco)}
+footer .base{margin-top:40px;padding-top:20px;border-top:1px solid #26282E;font-size:13px}
+
+/* telas menores */
+@media (max-width:980px){
+  .topo nav{display:none}
+  .hero .grade,.historia,.radios .grade,.music .grade,.celular .grade,.final .caixa{grid-template-columns:1fr}
+  .palco{height:480px;max-width:480px}
+  .music .palco{height:600px}
+  .b-pi{grid-column:span 6;grid-template-columns:1fr}
+  .b-opec,.b-peq{grid-column:span 3}
+  .fixa{display:none}
+  .passo{min-height:auto;opacity:1;padding-block:32px;border-top:1px solid var(--linha)}
+  .leque{height:400px}
+}
+@media (max-width:620px){
+  .caminho,.recursos,.radios,.music,.celular{padding-block:110px}
+  .final{padding-block:24px 110px}
+  .b-pi,.b-opec,.b-peq{padding:32px 28px}
+  .fatos{gap:28px}
+  .hero{padding-block:72px 96px}
+  .topo .entrar{display:none}
+  .palco{height:440px}
+  .pi-card{left:0;width:100%}
+  .dias span{height:24px;font-size:9px}
+  .venda{top:250px;width:180px}.venda b{font-size:24px}.barras{height:40px}
+  .aviso{left:0;top:330px;width:220px}
+  .fone{display:none}
+  .b-opec,.b-peq{grid-column:span 6}
+  .music .palco{height:540px}
+  .semana .g{grid-template-columns:30px repeat(7,1fr);gap:3px}.semana .g span{font-size:9px;height:24px}
+  .estudio{right:0;top:300px;width:260px}.radar{left:0;top:440px;width:220px}
+  .leque .cartao{width:240px}
+  .faixa .trilho{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  [data-v]{transform:none!important}
+  .eq span,.ponto{animation:none}
+  .cena{transition:none}
+}
+</style>
+</head>
+<body>
+<header class="topo">
+  <div class="wrap">
+    <a href="#inicio" aria-label="SONVI, início"><img src="../img/sonvi.svg" alt="SONVI" width="118" height="27" style="width:118px;height:auto;display:block"></a>
+    <nav aria-label="Seções"><a href="#sonvi">Sonvi</a><a href="#music">Sonvi Music</a><a href="#como">Como funciona</a><a href="#contato">Contato</a></nav>
+    <div class="direita"><a class="entrar" href="../" style="font-weight:500;font-size:14px">Entrar</a><a href="#contato" class="btn btn-azul">Agendar demonstração</a></div>
+  </div>
+</header>
+
+<main id="inicio">
+  <!-- Abertura -->
+  <section class="hero">
+    <div class="wrap grade">
+      <div data-v="0.08">
+        <span class="selo"><span class="ponto"></span>Feito para grupos de rádio e comunicação</span>
+        <h1>A rádio inteira, do primeiro contato ao comercial <em>no ar.</em></h1>
+        <p class="lead">Comercial, PI, OPEC, programação musical e financeiro de todas as suas rádios em um só lugar. Na nuvem, no computador e no celular.</p>
+        <div class="acoes"><a href="#contato" class="btn btn-azul">Agendar demonstração <span aria-hidden="true">→</span></a><a href="#como" class="btn btn-linha">Ver como funciona</a></div>
+        <div class="fatos"><span><b>1 login</b>para todas as rádios</span><span><b>5 perfis</b>cada um vê o que precisa</span></div>
+      </div>
+      <div class="palco" aria-hidden="true">
+        <div class="cartao pi-card" data-v="0.05">
+          <div class="cab"><span>PI AURORA 0029</span><span class="status"><span class="ponto" style="width:7px;height:7px"></span>Na OPEC</span></div>
+          <h3>Ótica Visão Clara · Black Friday</h3>
+          <div class="dias" id="dias"></div>
+          <div class="rodape"><span>48 inserções · nov/2026</span><b class="num">R$ 3.876,00</b></div>
+        </div>
+        <div class="cartao venda" data-v="0.22"><small>Vendido no mês</small><b class="num">R$ 48.920</b><div class="barras"><span style="height:38%"></span><span style="height:52%"></span><span style="height:44%"></span><span style="height:66%"></span><span style="height:58%"></span><span style="height:74%"></span><span style="height:62%"></span><span style="height:100%"></span></div></div>
+        <div class="fone" data-v="0.5"><div class="tela"><small>NO AR AGORA</small><b style="font-family:var(--display);font-size:15px">Ainda Bem</b><small style="letter-spacing:0;font-size:11px">Marisa Monte</small><div class="prog"><i></i></div><div class="eq" data-eq="9"></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Faixa -->
+  <section class="faixa" aria-label="Destaques">
+    <div class="trilho" data-h="0.35"><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span><span>PI em PDF com um clique</span><span>OPEC em tempo real</span><span>Financeiro e relatórios</span><span>Programação musical</span><span>No computador e no celular</span><span>Na nuvem</span><span>Várias rádios, uma conta</span><span>Cada rádio com sua cor e seu logo</span></div>
+  </section>
+
+  <!-- Como funciona -->
+  <section class="caminho" id="como">
+    <div class="wrap">
+      <div class="titulo-secao"><span class="selo">Como funciona</span><h2>Um caminho só, do pedido ao dinheiro no caixa.</h2><p>Cada área vê a sua parte, na hora. Ninguém precisa repassar planilha, e-mail ou mensagem.</p></div>
+      <div class="historia">
+        <div class="passos">
+          <article class="passo ativo" data-cena="0"><span class="n">1 · COMERCIAL</span><h3>O consultor monta a proposta.</h3><p>Escolhe o cliente, os programas e os dias. O preço vem sozinho da tabela vigente da rádio, com comissão e desconto calculados.</p></article>
+          <article class="passo" data-cena="1"><span class="n">2 · OPEC</span><h3>A OPEC confere e aprova.</h3><p>O PI chega pulsando na fila. A OPEC aprova ou devolve com o motivo, e o consultor fica sabendo na hora.</p></article>
+          <article class="passo" data-cena="2"><span class="n">3 · PROGRAMAÇÃO</span><h3>Os comerciais entram na grade.</h3><p>No Sonvi Music, cada comercial aprovado já aparece no break certo da hora certa.</p></article>
+          <article class="passo" data-cena="3"><span class="n">4 · NO AR</span><h3>O locutor vê o que vai ao ar.</h3><p>Música tocando, quanto falta para o break e o texto do testemunhal para ler, em letras grandes.</p></article>
+          <article class="passo" data-cena="4"><span class="n">5 · FINANCEIRO</span><h3>O financeiro fatura e acompanha.</h3><p>Parcelas, baixas, inadimplência e relatórios em PDF, por rádio ou de todas juntas.</p></article>
+        </div>
+        <div class="fixa" aria-hidden="true">
+          <div class="monitor">
+            <div class="barra-topo"><i></i><i></i><i></i></div>
+            <div class="cena ativa" data-c="0">
+              <div class="linha-tab"><span>Cliente</span><b>Ótica Visão Clara</b></div>
+              <div class="linha-tab"><span>Tabela de preços</span><span class="chip verde">Tabela 2026 · vigente</span></div>
+              <div class="linha-tab"><span>Spot 30" · Manhã Total</span><b class="num">R$ 80,75</b></div>
+              <div class="linha-tab"><span>48 inserções · desconto 5%</span><b class="num">R$ 3.876,00</b></div>
+              <div class="linha-tab" style="background:var(--azul);color:#fff"><span>Enviar para a OPEC</span><b>→</b></div>
+            </div>
+            <div class="cena" data-c="1">
+              <p style="color:var(--cinza);font-size:13px;margin-bottom:8px">Para conferir · 4</p>
+              <div class="linha-tab"><span><b>PI AURORA 0029</b><br><small style="color:var(--cinza)">Ótica Visão Clara</small></span><span class="chip azul">Na OPEC</span></div>
+              <div class="linha-tab"><span><b>PI AURORA 0030</b><br><small style="color:var(--cinza)">Clínica Sorriso</small></span><span class="chip azul">Na OPEC</span></div>
+              <div class="linha-tab"><span><b>PI AURORA 0027</b><br><small style="color:var(--cinza)">Auto Center Cuiabá</small></span><span class="chip verde">Aprovado</span></div>
+              <div class="linha-tab"><span><b>PI AURORA 0025</b><br><small style="color:var(--cinza)">Farmácia Bem Viver</small></span><span class="chip laranja">Devolvido</span></div>
+            </div>
+            <div class="cena" data-c="2">
+              <p style="color:var(--cinza);font-size:13px;margin-bottom:8px">Terça · 08h</p>
+              <div class="linha-tab"><span>08:00 · Vinheta de abertura</span><small style="color:var(--cinza)">0:08</small></div>
+              <div class="linha-tab"><span>08:01 · Evidências</span><small style="color:var(--cinza)">4:30</small></div>
+              <div class="linha-tab" style="background:var(--suave)"><span><b>08:06 · Break</b> · 3 comerciais da OPEC</span><span class="chip azul">1:30</span></div>
+              <div class="linha-tab"><span>08:07 · Tempo Perdido</span><small style="color:var(--cinza)">5:00</small></div>
+            </div>
+            <div class="cena" data-c="3" style="background:var(--noite);border-radius:18px;padding:22px;color:#fff">
+              <small style="color:#FF6B6B;font-weight:700;letter-spacing:.12em">NO AR AGORA</small>
+              <p class="grande" style="margin:8px 0 2px">Ainda Bem</p><p style="color:var(--noite-texto)">Marisa Monte · faltam 1:42</p>
+              <div style="margin-top:18px;padding:16px;border-radius:16px;background:var(--azul-claro);color:var(--noite);display:flex;justify-content:space-between;align-items:center"><b>Próximo break</b><b class="grande" style="font-size:34px">02:48</b></div>
+              <p style="margin-top:16px;padding:14px;border-radius:14px;background:#FFF7E6;color:#1A1305;font-size:15px">As matrículas 2027 do <b>Colégio Horizonte</b> estão abertas…</p>
+            </div>
+            <div class="cena" data-c="4">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                <div class="linha-tab" style="display:block"><small style="color:var(--cinza)">A receber</small><p class="grande" style="font-size:28px">R$ 18.590</p></div>
+                <div class="linha-tab" style="display:block"><small style="color:var(--cinza)">Recebido no mês</small><p class="grande" style="font-size:28px">R$ 31.240</p></div>
+              </div>
+              <div class="linha-tab"><span>Ótica Visão Clara · 1/2</span><span class="chip verde">Pago</span></div>
+              <div class="linha-tab"><span>Auto Center Cuiabá · 1/1</span><span class="chip laranja">Vence em 3 dias</span></div>
+              <div class="linha-tab"><span>Relatório de vendas por consultor</span><b>PDF</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recursos do SONVI -->
+  <section class="recursos" id="sonvi">
+    <div class="wrap" style="position:relative">
+      <div class="cab">
+        <div style="max-width:640px"><img src="../img/sonvi.svg" alt="SONVI" width="130" height="30" style="width:110px;height:auto;display:block;margin-bottom:24px"><h2 style="font-size:clamp(28px,3.2vw,42px);line-height:1.12">Gestão comercial feita para rádio.</h2></div>
+        <p>Cada rádio com seus clientes, sua tabela, sua numeração de PI e sua cor. Tudo debaixo de uma conta só.</p>
+      </div>
+      <div class="bento">
+        <div class="cartao b-pi">
+          <div><span class="selo">PI digital</span><h3>Do PI ao contrato em PDF, sem digitar duas vezes.</h3><p>Peças, grades por praça e mês, comissão, desconto e resumo financeiro calculados na hora. O contrato sai pronto, com o logo da rádio.</p></div>
+          <div class="grade-mes" data-v="0.12"><div class="t"><span>Grade A · Cuiabá · nov</span><b>48 ins.</b></div><div class="g" id="gradeMes"></div></div>
+        </div>
+        <div class="cartao b-opec"><h3>OPEC confere, aprova ou devolve.</h3><p>O status pulsa até alguém resolver. Nada se perde no caminho.</p></div>
+        <div class="cartao b-peq"><span class="ic-q"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 10h16M10 4v16"/></svg></span><h3>Tabela de preços com vigência</h3><p>Rascunho, agendada, vigente. O PI pega o preço do dia certo, sozinho.</p></div>
+        <div class="cartao b-peq"><span class="ic-q"><svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span><h3>Cliente em várias rádios</h3><p>Cadastre uma vez e leve para as outras rádios do grupo.</p></div>
+        <div class="cartao b-peq"><span class="ic-q"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><h3>Financeiro e relatórios</h3><p>Contas a receber, inadimplência e vendas por consultor, em PDF e planilha.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Várias rádios -->
+  <section class="radios">
+    <div class="wrap grade">
+      <div class="titulo-secao"><span class="selo">Grupos de rádio</span><h2>Cada rádio com a sua cara.</h2><p>Envie o logo da rádio e o sistema inteiro assume a cor dela: botões, menus e o PI impresso. Troque de rádio num clique, sem sair da conta.</p></div>
+      <div class="leque" aria-hidden="true">
+        <div class="cartao" data-v="0.03" style="left:0;top:40px">
+          <div class="r-cab"><span class="r-selo" style="background:#0055FF;color:#fff">AUR</span><span><b>Rádio Aurora</b><br><small style="color:var(--cinza)">98,1 FM</small></span></div>
+          <div class="r-linha"><span>PIs no mês</span><b class="num">32</b></div><div class="r-btn" style="background:#0055FF">+ Novo PI</div></div>
+        <div class="cartao" data-v="0.09" style="left:110px;top:150px">
+          <div class="r-cab"><span class="r-selo" style="background:#C8312F;color:#fff">PAN</span><span><b>Pantanal News</b><br><small style="color:var(--cinza)">101,9 FM</small></span></div>
+          <div class="r-linha"><span>PIs no mês</span><b class="num">27</b></div><div class="r-btn" style="background:#C8312F">+ Novo PI</div></div>
+        <div class="cartao" data-v="0.15" style="left:220px;top:260px">
+          <div class="r-cab"><span class="r-selo" style="background:#0E7A43;color:#fff">OND</span><span><b>Onda 104</b><br><small style="color:var(--cinza)">104,3 FM</small></span></div>
+          <div class="r-linha"><span>PIs no mês</span><b class="num">41</b></div><div class="r-btn" style="background:#0E7A43">+ Novo PI</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sonvi Music -->
+  <section class="music" id="music">
+    <div class="eq-grande" data-v="-0.2" data-eq="14" aria-hidden="true"></div>
+    <div class="wrap grade">
+      <div>
+        <img src="../img/sonvi-music-branco.png" alt="Sonvi Music" width="1074" height="300" style="width:170px;height:auto;display:block">
+        <h2>A programação da rádio, do acervo ao ar.</h2>
+        <p class="lead">Para programadores e locutores. Os comerciais vendidos no SONVI chegam prontos da OPEC, encaixados no break certo.</p>
+        <div class="lista-m">
+          <div><i>✓</i><p><b>Grade automática</b><span> · a semana montada pelas regras da rádio</span></p></div>
+          <div><i>✓</i><p><b>Estúdio do locutor</b><span> · o que está no ar, o próximo break e o texto para ler</span></p></div>
+          <div><i>✓</i><p><b>Radar dos streams</b><span> · o que está em alta comparado com o seu acervo</span></p></div>
+        </div>
+        <a href="#contato" class="btn btn-claro" style="margin-top:48px">Conhecer o Sonvi Music <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="palco" aria-hidden="true">
+        <div class="semana" data-v="0.06"><div class="t"><b style="font-family:var(--display)">Semana de 12 a 18 de outubro</b><span>Gerar a semana</span></div><div class="g" id="semana"></div></div>
+        <div class="estudio" data-v="0.26"><small class="no-ar">NO AR AGORA</small><b class="musica">Tempo Perdido</b><small style="color:var(--noite-texto)">Legião Urbana · faltam 1:42</small><div class="break"><span><small style="font-weight:700;letter-spacing:.1em">PRÓXIMO BREAK</small><br><b>3 comerciais da OPEC</b></span><b class="t num">02:48</b></div></div>
+        <div class="radar" data-v="0.42"><small>RADAR DOS STREAMS</small><div><b>Fora do acervo</b><b class="num">11</b></div><div><span style="color:var(--cinza)">Lançadas no mês</span><b class="num">6</b></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- No celular -->
+  <section class="celular">
+    <div class="wrap grade">
+      <div class="aparelho" data-v="0.12" aria-hidden="true"><div class="tela">
+        <div class="cab"><b>Rádio Aurora</b><span class="chip azul">Hoje</span></div>
+        <p style="font-family:var(--display);font-size:19px;font-weight:600;letter-spacing:-.02em;margin-block:6px">Boa tarde, Juliana</p>
+        <div class="item"><span><b>Ótica Visão Clara</b><small>Visita · 14:30</small></span><span class="chip azul">Visita</span></div>
+        <div class="item"><span><b>PI AURORA 0029</b><small>R$ 3.876,00</small></span><span class="chip verde">Aprovado</span></div>
+        <div class="item"><span><b>Clínica Sorriso</b><small>Proposta · 16:00</small></span><span class="chip laranja">Retorno</span></div>
+        <div class="abas"><span class="on">Painel</span><span>Agenda</span><span>Clientes</span><span>PIs</span><span>Mais</span></div>
+      </div></div>
+      <div class="titulo-secao"><span class="selo">No bolso do consultor</span><h2>O escritório inteiro cabe no celular.</h2>
+        <div class="lista-c">
+          <div><span class="ic-q"><svg viewBox="0 0 24 24"><path d="M3 5h18v15H3zM3 10h18M8 3v4M16 3v4"/></svg></span><span><b>Agenda de visitas</b><p>O consultor registra a visita na rua, com o cliente na frente.</p></span></div>
+          <div><span class="ic-q"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5"/></svg></span><span><b>PI na mão</b><p>Monta, envia para a OPEC e acompanha o status de onde estiver.</p></span></div>
+          <div><span class="ic-q"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9M12 7v5l3 3"/></svg></span><span><b>Na hora certa</b><p>Aprovações, devoluções e pagamentos aparecem assim que acontecem.</p></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Chamada final -->
+  <section class="final" id="contato">
+    <div class="wrap">
+      <div class="caixa">
+        <div><h2>Leve suas rádios para o SONVI.</h2><p>Mostramos o sistema com os dados da sua rádio, em 30 minutos.</p></div>
+        <div class="acoes">
+          <a href="#contato" class="btn btn-branco">Agendar demonstração</a>
+          <a href="#contato" class="btn btn-vazado">Falar no WhatsApp</a>
+          <p class="contato-txt">contato@sonvi.com.br</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="grade">
+      <div><img src="../img/sonvi-branco.svg" alt="SONVI" width="120" height="27" style="width:120px;height:auto;display:block"><p style="margin-top:14px;max-width:320px">Gestão comercial e programação musical para grupos de rádio e comunicação.</p></div>
+      <div class="cols">
+        <div><b>Produto</b><a href="#sonvi">Sonvi</a><a href="#music">Sonvi Music</a><a href="#como">Como funciona</a></div>
+        <div><b>Acesso</b><a href="../">Entrar no Sonvi</a><a href="../music/">Entrar no Sonvi Music</a></div>
+        <div><b>Contato</b><span>WhatsApp</span><span>contato@sonvi.com.br</span></div>
+      </div>
+    </div>
+    <p class="base">© 2026 SONVI · Todos os direitos reservados · All rights reserved.</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  // Telas de exemplo: dias do PI, grade do mês e semana da programação
+  const marc = [1,2,4,5,6,8,9,11,12,13,15,16,18,19];
+  document.getElementById('dias').innerHTML = Array.from({ length:20 }, (_, i) => `<span class="${marc.includes(i + 1) ? 'on' : ''}">${i + 1}</span>`).join('');
+  const gm = [2,3,5,6,9,10,12,13,16,17,19,20,23,24,26,27];
+  document.getElementById('gradeMes').innerHTML = Array.from({ length:28 }, (_, i) => `<span class="${gm.includes(i + 1) ? 'on' : ''}">${i + 1}</span>`).join('');
+  const cab = ['', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
+  let sem = cab.map(t => `<span class="c">${t}</span>`).join('');
+  for (let h = 6; h < 11; h++) { sem += `<span class="c">${String(h).padStart(2, '0')}h</span>`; for (let d = 0; d < 7; d++) sem += d === 1 && h === 8 ? '<span class="ar">● No ar</span>' : '<span>Pronta</span>'; }
+  document.getElementById('semana').innerHTML = sem;
+  document.querySelectorAll('[data-eq]').forEach(el => { el.innerHTML = Array.from({ length:+el.dataset.eq }, (_, i) => `<span style="animation-delay:${((i * .13) % 1.1).toFixed(2)}s"></span>`).join(''); });
+
+  // Parallax: cada camada anda numa velocidade própria conforme a página rola
+  const calmo = matchMedia('(prefers-reduced-motion: reduce)');
+  const camadas = [...document.querySelectorAll('[data-v]')].map(el => ({ el, v:+el.dataset.v, ref:el.closest('section') || el }));
+  const trilhos = [...document.querySelectorAll('[data-h]')].map(el => ({ el, v:+el.dataset.h, ref:el.closest('section') }));
+  let pedido = false;
+  const mover = () => {
+    pedido = false; if (calmo.matches) return;
+    const meio = innerHeight / 2, k = innerWidth < 620 ? .4 : innerWidth < 980 ? .7 : 1;
+    for (const c of camadas) { const r = c.ref.getBoundingClientRect(); if (r.bottom < -200 || r.top > innerHeight + 200) continue;
+      const d = (r.top + r.height / 2) - meio; c.el.style.transform = `translate3d(0,${(d * c.v * k).toFixed(1)}px,0)`; }
+    for (const t of trilhos) { const r = t.ref.getBoundingClientRect(); t.el.style.transform = `translate3d(${((r.top - innerHeight) * t.v).toFixed(1)}px,0,0)`; }
+  };
+  const pedir = () => { if (!pedido) { pedido = true; requestAnimationFrame(mover); } };
+  addEventListener('scroll', pedir, { passive:true }); addEventListener('resize', pedir); mover();
+
+  // Como funciona: a tela ao lado troca conforme o passo que está no meio da tela
+  const passos = [...document.querySelectorAll('.passo')], cenas = [...document.querySelectorAll('.cena')];
+  const ativar = i => { passos.forEach((p, k) => p.classList.toggle('ativo', k === i)); cenas.forEach((c, k) => c.classList.toggle('ativa', k === i)); };
+  const obs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) ativar(+e.target.dataset.cena); }), { rootMargin:'-45% 0px -45% 0px' });
+  passos.forEach(p => obs.observe(p));
+})();
+</script>
+
+</body>
+</html>
