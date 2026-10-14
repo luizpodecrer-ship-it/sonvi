@@ -82,7 +82,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 ## Site (landing page)
 
 - `app/site/index.html`: página de apresentação da SONVI e do Sonvi Music, em arquivo único (estilos e script dentro), parallax em JS (`data-v` = velocidade da camada, `data-h` = faixa que anda de lado), desligado com "reduzir movimento". Usa os logos de `app/img/` e as mesmas fontes. Por enquanto em `/site/`; quando o domínio sonvi.com.br estiver pronto, ele aponta para cá e o sistema vai para app.sonvi.com.br.
-- Contato: WhatsApp (65) 99811-3738 (wa.me/5565998113738, com mensagem pronta no "Agendar demonstração" e no "Falar no WhatsApp"). O e-mail ainda não existe: quando o Luiz passar, entra na chamada final e no rodapé. Rádios, nomes e valores das telas da página são inventados.
+- Contato: WhatsApp do Luiz só no link (wa.me/5565998113738, com mensagem pronta no "Agendar demonstração" e no "Falar no WhatsApp"); o número nunca aparece escrito na página, só o símbolo do WhatsApp (SVG na própria página). O e-mail ainda não existe: quando o Luiz passar, entra na chamada final e no rodapé. Rádios, nomes e valores das telas da página são inventados.
 - Visual aprovado: limpo, muito respiro, títulos de seção em azul maiúsculo sem caixa, cartões com borda fina. Zero problemas no axe.
 
 ## Publicar
