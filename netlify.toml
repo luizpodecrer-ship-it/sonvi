@@ -8,3 +8,22 @@
   for = "/*"
   [headers.values]
     Cache-Control = "no-cache"
+
+# Site de apresentação: sonvi.com.br mostra a landing page (app/site/); o sistema continua em teste.sonvi.com.br
+[[redirects]]
+  from = "https://www.sonvi.com.br/*"
+  to = "https://sonvi.com.br/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://sonvi.com.br/"
+  to = "/site/index.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "https://sonvi.com.br/index.html"
+  to = "/site/index.html"
+  status = 200
+  force = true
