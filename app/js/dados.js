@@ -102,5 +102,24 @@
     S.db.musSemana = v + '|' + sem;
   };
 
+  // E-mail enviado pelo próprio sistema (função "email" no servidor, pelo Resend, remetente @sonvi.com.br)
+  S.enviarEmail = async corpo => {
+    const { data, error } = await S.sb.functions.invoke('email', { body:corpo });
+    if (error) { let m = error.message; try { const j = await error.context.json(); if (j && j.erro) m = j.erro; } catch (e) { /* sem corpo */ }
+      if (/Failed to send|not found|404/i.test(m)) m = 'O serviço de e-mail do SONVI não respondeu.'; throw new Error(m); }
+    if (data && data.erro) throw new Error(data.erro);
+    return data;
+  };
+  // Se o envio pelo sistema falhar, a pessoa manda pelo próprio e-mail com tudo pronto (links abertos no clique, sem bloqueio do navegador)
+  S.emailManual = (para, assunto, texto, motivo) => {
+    const q = `subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`, esc = S.esc;
+    S.dialog(`<h2>O e-mail não saiu pelo SONVI</h2><p class="muted" style="margin-top:-6px">${esc(motivo || '')}</p>
+      <p>Mande pelo seu e-mail: a mensagem já vai pronta para <b>${esc(para)}</b>.</p>
+      <div class="row" style="flex-wrap:wrap"><a class="btn pri" href="mailto:${esc(para)}?${q}">${S.svg('seta')}Abrir no meu e-mail</a>
+        <a class="btn" href="https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(para)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}" target="_blank" rel="noopener">Abrir no Gmail</a>
+        <button type="button" class="btn" data-act="emailCopiar">${S.svg('copia')}Copiar mensagem</button><span class="grow"></span><button class="btn" value="x">Fechar</button></div>`);
+    S.actions.emailCopiar = () => navigator.clipboard.writeText(texto).then(() => S.toast('Mensagem copiada'), () => S.toast('Não foi possível copiar.'));
+  };
+
   S.recarregar = async () => { await S.carregarBase(); if (S.me) await S.carregarVeiculo(); };
 })();

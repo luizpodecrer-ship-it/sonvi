@@ -432,7 +432,7 @@
       faixas.length ? `Faixa: ${faixas.join(', ')}` : '', obs ? `Observações: ${obs}` : '', '', 'Ver o PI e baixar o PDF:', link, '', S.me.nome || S.me.email, v.nome]
       .filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
     S.dialog(`<h2>${reenvio ? 'Reenviar' : 'Enviar'} ${S.piNo(pi)} para a OPEC</h2>
-      <p class="muted" style="margin-top:-6px">A OPEC recebe um e-mail com o link do PI: abre sem login, confere e baixa o PDF. O PI passa para <b>Na OPEC</b>.</p>
+      <p class="muted" style="margin-top:-6px">O SONVI manda o e-mail para a OPEC com o link do PI: ela abre sem login, confere e baixa o PDF. O PI passa para <b>Na OPEC</b>. Se a OPEC responder, a resposta chega no seu e-mail.</p>
       <label class="f">E-mail da OPEC<input name="email" type="email" autocomplete="off" value="${esc(v.opec_email || '')}" placeholder="opec@suaradio.com.br"></label>
       ${!v.opec_email ? (S.pode('diretor') ? `<label class="row mid" style="gap:10px;margin-top:-6px;font-size:14px;color:var(--ink-2);flex-wrap:nowrap"><input type="checkbox" name="guardar" checked>Guardar como o e-mail da OPEC da ${esc(v.nome)}</label>` : '<p class="muted small" style="margin-top:-8px">Peça ao diretor para cadastrar o e-mail da OPEC em Administração → Veículos; aí ele já vem preenchido.</p>') : ''}
       <label class="f">Mensagem<textarea name="msg" class="pr-msg">${esc(msg)}</textarea></label>
@@ -445,13 +445,19 @@
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return S.erroNoCampo(f.email, 'Coloque o e-mail da OPEC.');
       const texto = f.msg.value, guardar = f.guardar && f.guardar.checked;
       delete dl.dataset.sujo; dl.close('cancel');
-      S.run(async () => {
-        if (editando(pi)) { if (ed.sujo) await gravar(pi); sairEdicao(); }
-        if (guardar) await S.salvar('veiculos', { id:v.id, opec_email:email.toLowerCase() });
-        const r = await S.q(S.sb.rpc('enviar_pi_opec', { p_pi:pi.id, p_html:htmlEnvio(pi), p_token:token }));
-        Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id];
-        location.href = `mailto:${email}?subject=${encodeURIComponent(`${S.piNo(pi)} · ${S.nome(pi.cliente_id)} · para a OPEC`)}&body=${encodeURIComponent(texto)}`;
-      }, `${S.piNo(pi)} enviado para a OPEC`);
+      const assunto = `${S.piNo(pi)} · ${S.nome(pi.cliente_id)} · para a OPEC`;
+      (async () => {
+        // 1) guarda o documento e passa para Na OPEC; 2) o SONVI manda o e-mail (se falhar, abre a opção de mandar pelo próprio e-mail)
+        try {
+          if (editando(pi)) { if (ed.sujo) await gravar(pi); sairEdicao(); }
+          if (guardar) await S.salvar('veiculos', { id:v.id, opec_email:email.toLowerCase() });
+          const r = await S.q(S.sb.rpc('enviar_pi_opec', { p_pi:pi.id, p_html:htmlEnvio(pi), p_token:token }));
+          Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id];
+        } catch (err) { console.error(err); S.toast(S.erro(err)); S.render(); return; }
+        S.toast('Enviando o e-mail para a OPEC…'); S.render();
+        try { await S.enviarEmail({ tipo:'pi_opec', id:pi.id, para:email, assunto, texto }); S.toast(`${S.piNo(pi)} enviado para a OPEC (${email})`); }
+        catch (err) { console.error(err); S.emailManual(email, assunto, texto, `O ${S.piNo(pi)} já está Na OPEC, mas o e-mail não foi: ${err.message}`); }
+      })();
     });
   }
 

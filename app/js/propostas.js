@@ -319,8 +319,10 @@
       trocar(r);
       if (canal === 'whatsapp') { const url = `https://wa.me/${destino.length <= 11 ? '55' + destino : destino}?text=${encodeURIComponent(texto)}`;
         if (janela && !janela.closed) janela.location.href = url; else window.open(url, '_blank', 'noopener'); }
-      else location.href = `mailto:${destino}?subject=${encodeURIComponent(`Proposta comercial nº ${S.propNo(r)} · ${empCurto()}`)}&body=${encodeURIComponent(texto)}`;
-      S.toast(`Proposta ${S.propNo(r)} enviada ${canal === 'email' ? 'por e-mail' : 'pelo WhatsApp'}`);
+      else { const assunto = `Proposta comercial nº ${S.propNo(r)} · ${empCurto()}`; S.toast('Enviando o e-mail…'); S.render();
+        try { await S.enviarEmail({ tipo:'proposta', id:r.id, para:destino, assunto, texto }); }
+        catch (err) { console.error(err); S.emailManual(destino, assunto, texto, `A proposta ${S.propNo(r)} já está marcada como enviada, mas o e-mail não foi: ${err.message}`); S.render(); return; } }
+      S.toast(`Proposta ${S.propNo(r)} enviada ${canal === 'email' ? `por e-mail (${destino})` : 'pelo WhatsApp'}`);
     } catch (e) { console.error(e); if (janela) janela.close(); S.toast(S.erro(e)); }
     S.render();
   };
