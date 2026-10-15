@@ -51,13 +51,15 @@
     S.limparEndereco();
     if (S.erroLink) { S.toast(S.erroLink); S.erroLink = ''; }
     if (!session) { S.me = null; return; }
-    const [me, veiculos, vinculos, usuarios] = await Promise.all([
+    const [me, veiculos, vinculos, usuarios, empresa] = await Promise.all([
       q(S.sb.from('usuarios').select('*').eq('id', session.user.id).maybeSingle()),
       q(S.sb.from('veiculos').select('*').order('nome')),
       q(S.sb.from('usuario_veiculos').select('*')),
-      q(S.sb.from('usuarios').select('*').order('nome'))]);
+      q(S.sb.from('usuarios').select('*').order('nome')),
+      // Empresa comercial do grupo (Head 14): a marca das propostas e, quando escolhida, dos PIs
+      S.APP === 'music' ? Promise.resolve([]) : q(S.sb.from('empresa_comercial').select('*').limit(1))]);
     S.me = me || { id:session.user.id, nome:'', email:session.user.email, ativo:true, diretor:false };
-    Object.assign(S.db, { veiculos, vinculos, usuarios });
+    Object.assign(S.db, { veiculos, vinculos, usuarios, empresa:empresa[0] || null });
     // No Sonvi Music aparecem só as rádios em que a pessoa trabalha com a programação
     if (S.APP === 'music' && !S.me.diretor) S.db.veiculos = veiculos.filter(v => vinculos.some(x => x.usuario_id === S.me.id && x.veiculo_id === v.id && S.MUSIC_PERFIS.includes(x.perfil)));
     // Volta para a rádio que estava aberta (guardada neste navegador); se ela não existir mais, abre a primeira
@@ -69,12 +71,13 @@
   // Tudo o que pertence ao veículo selecionado. O banco só devolve o que o perfil pode ver.
   S.carregarVeiculo = async () => {
     const v = S.ui.vehicleId;
-    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], tabelas:[], pis:[], agenda:[], lancamentos:[], hist:{}, midias:{}, musVeiculo:null, musSemana:null });
+    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], tabelas:[], pis:[], agenda:[], lancamentos:[], propostas:[], hist:{}, midias:{}, musVeiculo:null, musSemana:null });
     if (!v) { S.perfil = S.me && S.me.diretor ? 'diretor' : null; return; }
     S.perfil = S.me.diretor ? 'diretor' : (S.db.vinculos.find(x => x.usuario_id === S.me.id && x.veiculo_id === v) || {}).perfil || null;
     const de = t => q(S.sb.from(t).select('*').eq('veiculo_id', v));
-    const [pessoas, produtos, precos, tabelas, pis, agenda, lancamentos] = await Promise.all([de('pessoas'), de('produtos'), de('precos'), de('tabelas_preco'), de('pis'), de('agenda'), de('lancamentos')]);
-    Object.assign(S.db, { pessoas, produtos, precos, tabelas, pis:pis.map(S.piNorm), agenda, lancamentos });
+    const [pessoas, produtos, precos, tabelas, pis, agenda, lancamentos, propostas] = await Promise.all([de('pessoas'), de('produtos'), de('precos'), de('tabelas_preco'), de('pis'), de('agenda'), de('lancamentos'),
+      S.APP === 'music' ? Promise.resolve([]) : de('propostas')]);
+    Object.assign(S.db, { pessoas, produtos, precos, tabelas, pis:pis.map(S.piNorm), agenda, lancamentos, propostas });
   };
 
   // Tabelas de preço e seus preços (depois de criar, salvar ou publicar uma tabela)

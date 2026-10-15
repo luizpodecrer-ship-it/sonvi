@@ -405,7 +405,9 @@
     piRmItem: x => mexer((pi, d) => { const g = d.grids.find(g => g.id === x.g); g.items = g.items.filter(i => i.id !== x.id); }),
     piExport: () => { const c = (n, t) => `<label class="f chk"><input type="checkbox" name="${n}" checked>${t}</label>`;
       S.dialog(`<h2>Exportar pedido de inserção</h2>
-        <div class="g2"><label class="f">Data do documento<input type="date" name="date" value="${today()}"></label><label class="f">Para<select name="to"><option value="client">Cliente</option><option value="agency">Agência</option></select></label></div>
+        <div class="g2"><label class="f">Data do documento<input type="date" name="date" value="${today()}"></label><label class="f">Para<select name="to"><option value="client">Cliente</option><option value="agency">Agência</option></select></label>
+          ${S.db.empresa ? (() => { const pi = cur(), m = pi.dados.marca || S.veh(pi.veiculo_id).pi_marca || 'radio';
+            return `<label class="f" style="grid-column:1/-1">Marca do PI<select name="marca"><option value="radio"${m === 'radio' ? ' selected' : ''}>${esc(S.veh(pi.veiculo_id).nome)}</option><option value="comercial"${m === 'comercial' ? ' selected' : ''}>${esc(String(S.db.empresa.nome || 'Empresa comercial').split('·')[0].trim())} (empresa comercial)</option></select></label>`; })() : ''}</div>
         <div class="g2">${c('commission', 'Comissão e valor líquido')}${c('billing', 'Faturamento e parcelas')}${c('clientData', 'Dados do cliente')}${c('vehicleData', 'Dados da rádio')}${c('obs', 'Observações ao cliente')}${c('signClient', 'Assinatura do cliente')}${c('signVehicle', 'Assinatura da rádio')}${c('signAgency', 'Assinatura da agência')}${c('conds', 'Condições gerais')}</div>
         <div class="row"><span class="grow"></span><button class="btn" value="cancel">Cancelar</button><button class="btn pri" value="ok">Exportar</button></div>`,
         v => { S.buildPrint(cur(), v); setTimeout(() => window.print(), 60); }); }
@@ -463,7 +465,7 @@
       const fim = d => [0, 6].includes(new Date(y, m - 1, d).getDay());
       let sub = 0, ins = 0;
       const rows = g.items.map(it => { const k = S.itemCalc(it); sub += k.sub; ins += k.ins; if (!it.bonus) tabela += k.gross; const dv = num(it.disc.value);
-        return `<tr><td class="pg">${esc(it.f1)}</td><td>${esc(it.f2)}</td><td class="c"><b>${letter(pi, it.piece)}</b></td>${days.map(d => `<td class="c${fim(d) ? ' fim' : ''}">${it.days[d] || ''}</td>`).join('')}<td class="c"><b>${k.ins}</b></td><td class="r">${nfmt(num(it.unit)) || '0,00'}</td><td class="c">${it.bonus ? 'Bonif.' : dv ? (it.disc.type === 'pct' ? dv + '%' : nfmt(dv)) : '—'}</td><td class="r"><b>${it.bonus ? 'Bonificado' : nfmt(k.sub) || '0,00'}</b></td></tr>`; }).join('');
+        return `<tr><td class="pg">${esc(it.f1)}${it.faixa ? `<small class="pd-fx">${esc(it.faixa)}</small>` : ''}</td><td>${esc(it.f2)}</td><td class="c"><b>${letter(pi, it.piece)}</b></td>${days.map(d => `<td class="c${fim(d) ? ' fim' : ''}">${it.days[d] || ''}</td>`).join('')}<td class="c"><b>${k.ins}</b></td><td class="r">${nfmt(num(it.unit)) || '0,00'}</td><td class="c">${it.bonus ? 'Bonif.' : dv ? (it.disc.type === 'pct' ? dv + '%' : nfmt(dv)) : '—'}</td><td class="r"><b>${it.bonus ? 'Bonificado' : nfmt(k.sub) || '0,00'}</b></td></tr>`; }).join('');
       const varias = pi.dados.grids.length > 1;
       return `${varias ? `<div class="pd-per"><b>${mesCurto(g.period)}</b>${g.praca ? ` · ${esc(g.praca)}` : ''}</div>` : ''}<table class="pd-grade"><colgroup><col class="k-pg"><col class="k-fm"><col class="k-pc">${days.map(() => '<col>').join('')}<col class="k-qt"><col class="k-un"><col class="k-ds"><col class="k-tt"></colgroup>
         <thead><tr><th rowspan="2" class="l">Programa / faixa</th><th rowspan="2" class="l">Formato</th><th rowspan="2">Peça</th>${days.map(d => `<th class="${fim(d) ? 'fim' : ''}">${WD[new Date(y, m - 1, d).getDay()]}</th>`).join('')}<th rowspan="2">Qtd</th><th rowspan="2" class="r">Valor unit.</th><th rowspan="2">Desc.</th><th rowspan="2" class="r">Total</th></tr>
@@ -497,10 +499,16 @@
         <tr>${celCli('Endereço', esc(cli.endereco))}${celCli('Cidade', esc([cli.cidade, cli.cep && 'CEP ' + cli.cep].filter(Boolean).join(' · ')))}</tr>
         <tr>${celCli('Contato', esc([cli.contato_assina || cli.contato_decide, cli.telefone || cli.whatsapp].filter(Boolean).join(' · ')))}${celCli('Consultor', esc(S.usuario(pi.consultor_id)))}</tr></table>`
       : `<table class="pd-cli"><tr>${celCli('Anunciante', esc(cli.nome))}${celCli('Agência', ag ? esc(ag.nome) : 'Venda direta')}</tr><tr>${celCli('Consultor', esc(S.usuario(pi.consultor_id)), true)}</tr></table>`;
-    const radio = `<div class="pd-radio">${v.logo ? `<img src="${v.logo}" alt="">` : `<span class="pd-selo" style="background:${cor}">${esc(v.sigla)}</span>`}<div><b class="pd-nome">${esc(v.nome)}</b>
+    // Marca do PI: a da rádio ou a da empresa comercial do grupo (Head 14). Quem fatura continua sendo a rádio.
+    const marca = o.marca || pi.dados.marca || v.pi_marca || 'radio', e = S.db.empresa;
+    const empresa = marca === 'comercial' && e ? `<div class="pd-radio pd-emp"><img src="${esc(e.logo || 'img/head14.png')}" alt=""><div><b class="pd-nome">${esc(e.nome)}</b>
+      ${o.vehicleData ? [e.razao_social, e.cnpj && 'CNPJ ' + e.cnpj, [e.endereco, e.cidade].filter(Boolean).join(' · '), e.telefone && 'Fone ' + e.telefone, e.email].filter(Boolean).map(x => `<div>${esc(x)}</div>`).join('') : ''}
+      <div>Veiculação e faturamento: ${esc(v.nome)}</div></div></div>` : '';
+    const radio = empresa || `<div class="pd-radio">${v.logo ? `<img src="${v.logo}" alt="">` : `<span class="pd-selo" style="background:${cor}">${esc(v.sigla)}</span>`}<div><b class="pd-nome">${esc(v.nome)}</b>
       ${o.vehicleData ? [v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, [v.endereco, v.cidade].filter(Boolean).join(' · '), [v.cep && 'CEP ' + v.cep, v.telefone && 'Fone ' + v.telefone].filter(Boolean).join(' · '), v.email].filter(Boolean).map(x => `<div>${esc(x)}</div>`).join('') : ''}</div></div>`;
-    const numero = `<div class="pd-num" style="border-color:${cor}"><div class="pd-no" style="color:${cor}">${S.piNo(pi)}</div><div class="pd-kv">
-      <span>Veículo</span><b>${esc(v.nome)}${v.frequencia ? ' ' + esc(v.frequencia) : ''}</b><span>Período</span><b>${periodo}</b><span>Campanha</span><b>${esc(pi.titulo)}</b>${pi.projeto ? `<span>Projeto</span><b>${esc(pi.projeto)}</b>` : ''}<span>Emitido em</span><b>${dfmt(o.date)}</b></div></div>`;
+    const corNo = empresa ? e.cor || '#2b5fb5' : cor;
+    const numero = `<div class="pd-num" style="border-color:${corNo}"><div class="pd-no" style="color:${corNo}">${S.piNo(pi)}</div><div class="pd-kv">
+      <span>Veículo</span><b>${esc(v.nome)}${v.frequencia ? ' ' + esc(v.frequencia) : ''}</b><span>Período</span><b>${periodo}</b><span>Campanha</span><b>${esc(pi.titulo)}</b>${pi.projeto ? `<span>Projeto</span><b>${esc(pi.projeto)}</b>` : ''}${pi.dados.proposta ? `<span>Proposta</span><b>${esc(pi.dados.proposta.numero)}</b>` : ''}<span>Emitido em</span><b>${dfmt(o.date)}</b></div></div>`;
     const aprov = (S.db.hist[pi.id] || []).find(h => h.status === 'aprovado');
     const signs = [o.signClient && ['Anunciante / Contratante', cli.contato_assina || cli.nome], o.signAgency && ag && ['Agência', ''], o.signVehicle && ['Veículo / Contratada', v.nome]].filter(Boolean);
     const cidade = (v.pi_cidade || v.cidade || '').split('/')[0].trim();

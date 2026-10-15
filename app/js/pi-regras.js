@@ -121,4 +121,75 @@
     '5. Do faturamento. O faturamento é feito no mês da veiculação, com vencimento nas datas indicadas em "Condições e forma de pagamento".',
     '6. Do foro. Fica eleito o foro da comarca de {CIDADE} para resolver qualquer questão deste pedido.'].join('\n');
   S.piCondicoes = (texto, v) => String(texto || S.PI_CONDICOES_PADRAO).replace(/\{RADIO\}/g, v.nome || 'rádio').replace(/\{CIDADE\}/g, v.pi_cidade || v.cidade || '[cidade]');
+
+  // ---------- propostas (database/017_propostas.sql) ----------
+  // Dias da semana no padrão do JavaScript: 0 = domingo … 6 = sábado. Na tela a semana começa na segunda.
+  S.SEMANA = [1, 2, 3, 4, 5, 6, 0];
+  S.DIA_LETRA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+  S.DIA_NOME = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  const DIA_CURTO = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
+  const semAcento = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  const TOKEN = { DOM:0, SEG:1, TER:2, QUA:3, QUI:4, SEX:5, SAB:6 };
+  // Dias escritos no horário do programa ("SEG À SEX - 11H ÀS 15H", "Sábado e domingo"). Sem dias escritos: null.
+  S.diasDoTexto = txt => {
+    const s = semAcento(txt), dias = new Set(), RE = '(DOM|SEG|TER|QUA|QUI|SEX|SAB)[A-Z]*\\.?';
+    const faixa = new RegExp(`\\b${RE}\\s*(?:A|AO|ATE|-|–|/)\\s*${RE}`, 'g');
+    let m, resto = s;
+    while ((m = faixa.exec(s))) { let d = TOKEN[m[1]]; const fim = TOKEN[m[2]]; for (let k = 0; k < 7; k++) { dias.add(d); if (d === fim) break; d = (d + 1) % 7; } resto = resto.replace(m[0], ' '); }
+    const solto = new RegExp(`\\b${RE}`, 'g'); while ((m = solto.exec(resto))) dias.add(TOKEN[m[1]]);
+    return dias.size ? [...dias].sort((a, b) => a - b) : null;
+  };
+  // Faixa horária escrita no horário do programa ("11H ÀS 15H" → "11h às 15h"). Sem horário: ''.
+  S.faixaDoTexto = txt => { const m = /(\d{1,2})\s*H\s*(\d{2})?\s*(?:A|AS|ATE|-|–)\s*(\d{1,2})\s*H\s*(\d{2})?/.exec(semAcento(txt)); if (!m) return '';
+    const h = (a, b) => `${a.padStart(2, '0')}h${b || ''}`; return `${h(m[1], m[2])} às ${h(m[3], m[4])}`; };
+  // "seg. a sáb.", "todos os dias", "seg., qua. e sex."
+  S.diasTexto = dias => {
+    const ds = S.SEMANA.filter(d => (dias || []).includes(d)); if (!ds.length) return 'nenhum dia'; if (ds.length === 7) return 'todos os dias';
+    const pos = ds.map(d => S.SEMANA.indexOf(d)), seguido = pos.every((p, i) => !i || p === pos[i - 1] + 1);
+    if (seguido && ds.length > 2) return `${DIA_CURTO[ds[0]]} a ${DIA_CURTO[ds[ds.length - 1]]}`;
+    const n = ds.map(d => DIA_CURTO[d]); return n.length === 1 ? n[0] : n.slice(0, -1).join(', ') + ' e ' + n[n.length - 1];
+  };
+  // Item novo de proposta a partir da tabela: rotativo vale os 7 dias (a não ser que o horário limite) e usa a faixa comercial da rádio
+  S.itemDaTabela = (prog, fmt, preco, v) => {
+    const dias = S.diasDoTexto(prog.detalhe) || [0, 1, 2, 3, 4, 5, 6], pt = Number(preco) || 0;
+    const faixa = S.faixaDoTexto(prog.detalhe) || (prog.secao === 'rotativo' ? (v && v.prop_faixa) || '07h às 19h' : '');
+    return { id:S.uid(), programa_id:prog.id, formato_id:fmt.id, programa:prog.nome.trim(), formato:fmt.nome.trim(), secao:prog.secao || 'programa', detalhe:prog.detalhe || '',
+      dias, faixa, insercoes:0, preco_tabela:pt, preco:pt, total:0 };
+  };
+  const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
+  // Totais da proposta (por mês): valor de tabela, investimento e o desconto negociado
+  S.propTotais = p => { let ins = 0, tabela = 0, total = 0;
+    (p.itens || []).forEach(it => { const n = parseInt(it.insercoes) || 0; ins += n; tabela += n * (Number(it.preco_tabela) || 0); total += Number(it.total) || 0; });
+    tabela = r2(tabela); total = r2(total); const desconto = r2(tabela - total);
+    return { ins, tabela, total, desconto, pct:tabela ? desconto / tabela * 100 : 0 }; };
+  S.propNo = p => `${p.ano}/${String(p.numero).padStart(3, '0')}`;
+  S.somaDias = (iso, n) => { const [y, m, d] = iso.split('-').map(Number), dt = new Date(y, m - 1, d + n, 12); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; };
+  S.propVence = p => S.somaDias(p.data, Number(p.validade) || 0);
+  S.PROP_CONDICOES_PADRAO = ['Faturamento mensal com vencimento todo dia 15.', 'Material fornecido pelo cliente até 3 dias úteis antes da estreia.', 'Período de veiculação: a definir com o cliente.', 'Proposta válida por {VALIDADE} dias a partir desta data.'].join('\n');
+
+  // Distribuição automática do PI: em cada mês de veiculação (do dia de início até a véspera do mesmo dia no mês seguinte),
+  // as inserções/mês de cada item são divididas por igual entre os dias permitidos. O que sobra da divisão vai para dias
+  // espalhados ao longo do mês (posição ⌊(i + ½) × dias ÷ sobra⌋), nunca amontoado no começo. Sem limite por dia.
+  // Devolve { meses:[{ period:'AAAA-MM', itens:{ índice:{ dia:quantidade } } }], soma, esperado, semDias:[índices], inicio, fim }
+  S.distribuir = (itens, inicio, nMeses) => {
+    const [y, m, d] = inicio.split('-').map(Number), dia = (yy, mm, dd) => new Date(yy, mm, Math.min(dd, new Date(yy, mm + 1, 0).getDate()), 12);
+    const porMes = {}, semDias = new Set(); let soma = 0, esperado = 0;
+    for (let k = 0; k < nMeses; k++) {
+      const ini = dia(y, m - 1 + k, d), prox = dia(y, m + k, d), datas = [];
+      for (const t = new Date(ini); t < prox; t.setDate(t.getDate() + 1)) datas.push(new Date(t));
+      itens.forEach((it, i) => {
+        const total = parseInt(it.insercoes) || 0; esperado += total; if (!total) return;
+        const ok = datas.filter(t => (it.dias || []).includes(t.getDay())), n = ok.length;
+        if (!n) { semDias.add(i); return; }
+        const base = Math.floor(total / n), sobra = total - base * n, extra = new Set();
+        for (let j = 0; j < sobra; j++) extra.add(Math.floor((j + 0.5) * n / sobra));
+        ok.forEach((t, j) => { const q = base + (extra.has(j) ? 1 : 0); if (!q) return;
+          const per = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`, g = porMes[per] || (porMes[per] = {}), ds = g[i] || (g[i] = {});
+          ds[t.getDate()] = (ds[t.getDate()] || 0) + q; soma += q; });
+      });
+    }
+    const fim = new Date(dia(y, m - 1 + nMeses, d)); fim.setDate(fim.getDate() - 1);
+    const iso = t => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    return { meses:Object.keys(porMes).sort().map(period => ({ period, itens:porMes[period] })), soma, esperado, semDias:[...semDias], inicio, fim:iso(fim) };
+  };
 })();

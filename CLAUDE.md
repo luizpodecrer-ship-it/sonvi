@@ -50,6 +50,14 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - Tela: `/cadastros` = lista de tabelas (cartões + prévia da vigente); `/cadastros/<id>` = editor. No editor as mudanças ficam na tela (`ed`) até "Salvar" (`salvar_tabela` grava/atualiza; o que saiu da tabela é apagado em `precos`); "Descartar" volta; sair ou trocar de rádio com alterações pendentes pergunta. Cada preço mostra o da tabela de origem (`base_id`) e a diferença; "Reajustar vários de uma vez" calcula a partir da tabela de origem.
 - O PI pega o preço da tabela vigente no dia em que é criado (`S.preco`); rascunhos e agendadas nunca entram no PI.
 
+## Propostas e PI automático
+
+- A empresa comercial do grupo (Head 14, tabela `empresa_comercial`, uma linha só, só o diretor altera em Administração → Empresa comercial) vende para as rádios. A proposta sempre sai com a marca dela, mas é de uma rádio só: quem fatura, a OPEC e o financeiro são da rádio. Logo padrão em `app/img/head14.png` quando a empresa não tem logo próprio.
+- `app/js/propostas.js` (`/propostas` lista, `/propostas/<id>` editor) e `database/017_propostas.sql`. Numeração por ano para o grupo (`2026/101`, `proposta_seq`). Fluxo Rascunho → Enviada → Aprovada ou Recusada só por `mudar_situacao_proposta`; enviada que passou da validade aparece como Vencida. Só se edita em rascunho; o editor guarda na tela até "Salvar" (pergunta ao sair ou trocar de rádio). Consultor vê e mexe só nas dele.
+- Itens vêm da tabela vigente (programa × formato): dias da semana (rotativo = 7 dias, a não ser que o horário do programa limite), faixa horária (do horário do programa ou `veiculos.prop_faixa` da rádio), inserções/mês, preço de tabela, preço negociado e total (um ajusta o outro; o unitário fica com a precisão toda). PDF A4 em pé no modelo da empresa comercial (`S.buildProposta`).
+- Gerar PI (só da aprovada, uma vez, `gerar_pi_da_proposta`): início, meses e marca. `S.distribuir` (pi-regras.js) divide as inserções/mês por igual entre os dias permitidos de cada mês de veiculação; a sobra vai para dias espalhados (⌊(i+½)·dias/sobra⌋). Sem limite por dia. O PI guarda só quantidades por dia; a faixa vai no item (`faixa`) e sai embaixo do programa no PI impresso, para a OPEC lançar no Pulsar. `dados.marca` = 'radio' ou 'comercial' (padrão por rádio em `veiculos.pi_marca`, dá para trocar ao exportar); `dados.proposta` = número da proposta.
+- Padrões por rádio em Administração → Veículos → "Propostas e PI": `prop_faixa`, `pi_marca`, `prop_validade`, `prop_condicoes` (vazio = `S.PROP_CONDICOES_PADRAO`, `{VALIDADE}` vira os dias).
+
 ## PI impresso
 
 - `S.buildPrint` (`pi.js`) monta o contrato de publicidade numa folha deitada: Ofício/Legal por padrão ou A4 (`veiculos.pi_papel`, regra `@page` em `<style id="pagina">`). Estilos `.pidoc`/`.pd-*` em `sonvi.css` valem na prévia e no PDF.
