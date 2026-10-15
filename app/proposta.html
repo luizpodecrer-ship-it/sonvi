@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Proposta comercial</title>
+<link rel="icon" type="image/svg+xml" href="img/simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Sora:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="css/sonvi.css?v=20261015-0700">
+<!-- Página que o cliente abre pelo link da proposta (WhatsApp ou e-mail): sem login, mostra só o documento enviado. -->
+<style>
+  body { display:block; min-height:100%; }
+  .pub-barra { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px clamp(16px, 4vw, 40px); padding-top:calc(14px + env(safe-area-inset-top, 0px)); background:color-mix(in srgb, var(--surface) 96%, transparent); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
+  .pub-barra .tx { display:flex; flex-direction:column; flex:1 1 220px; min-width:0; }
+  .pub-barra b { font:600 17px/1.25 var(--display); letter-spacing:-.01em; } .pub-barra small { color:var(--ink-2); font-size:13px; }
+  .pub-barra .btn { height:44px; }
+  main { padding:24px clamp(16px, 4vw, 40px) 0; display:flex; flex-direction:column; align-items:center; gap:16px; }
+  main:has(> :not([hidden])) { padding-bottom:16px; }
+  .pub-aviso { max-width:794px; width:100%; margin:0; }
+  #print { display:block; width:calc(100% - 2 * clamp(16px, 4vw, 40px)); max-width:794px; margin:8px auto 60px; }
+  #print[hidden] { display:none; }
+  .pub-folha { transform-origin:0 0; } .pub-folha .prdoc { box-shadow:0 14px 40px -16px rgba(10,20,60,.35); border-radius:4px; overflow:hidden; }
+  .pub-vazio { max-width:520px; text-align:center; margin-top:10vh; }
+  @media print { @page { size:A4 portrait; margin:0; } .pub-folha { transform:none !important; width:auto !important; height:auto !important; } .pub-folha .prdoc { box-shadow:none; border-radius:0; } #print { max-width:none; width:auto; margin:0; } }
+</style>
+</head>
+<body>
+<header class="pub-barra" id="barra" hidden><div class="tx"><b id="titulo">Proposta comercial</b><small id="validade"></small></div>
+  <button class="btn pri" type="button" id="baixar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar PDF</button></header>
+<main id="principal">
+  <div class="card empty pub-vazio" id="estado" role="status"><b>Abrindo a proposta…</b></div>
+  <div class="note info pub-aviso" id="aviso" hidden></div>
+</main>
+<div id="print" role="region" aria-label="Proposta comercial" hidden></div>
+<script src="js/config.js?v=20261015-0700"></script>
+<script>
+(() => {
+  const token = new URLSearchParams(location.search).get('p') || '';
+  const el = id => document.getElementById(id);
+  const estado = (titulo, texto) => { el('estado').innerHTML = `<b>${titulo}</b>${texto}`; el('estado').hidden = false; };
+  const data = iso => iso ? iso.split('-').reverse().join('/') : '';
+  // A folha A4 é encolhida para caber na tela do celular; na impressão volta ao tamanho real
+  const ajusta = () => { const f = document.querySelector('.pub-folha'), d = f && f.querySelector('.prdoc'); if (!d) return;
+    f.style.transform = ''; const k = Math.min(1, el('print').clientWidth / d.offsetWidth);
+    f.style.transform = `scale(${k})`; f.style.width = d.offsetWidth * k + 'px'; f.style.height = d.offsetHeight * k + 'px'; };
+  if (!/^[0-9a-f-]{36}$/i.test(token)) return estado('Link incompleto', 'Confira se o link foi copiado inteiro ou peça um novo a quem enviou a proposta.');
+  fetch(window.SONVI_CONFIG.url + '/rest/v1/rpc/proposta_por_link', { method:'POST', headers:{ apikey:window.SONVI_CONFIG.key, 'Content-Type':'application/json' }, body:JSON.stringify({ p_token:token }) })
+    .then(r => r.ok ? r.json() : Promise.reject(r))
+    .then(lista => {
+      const p = lista && lista[0];
+      if (!p) return estado('Esta proposta não está disponível', 'Ela pode estar sendo revisada. Fale com quem enviou a proposta para receber o link novo.');
+      el('estado').hidden = true;
+      el('print').innerHTML = `<div class="pub-folha">${p.html}</div>`; el('print').hidden = false;
+      el('titulo').textContent = `Proposta comercial nº ${p.numero}`; document.title = `Proposta ${p.numero.replace('/', '-')}`;
+      const hoje = new Date(), h = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+      el('validade').textContent = p.situacao === 'aprovada' ? 'Proposta aprovada' : p.vence < h ? `Venceu em ${data(p.vence)}` : `Válida até ${data(p.vence)}`;
+      if (p.situacao === 'enviada' && p.vence < h) { el('aviso').textContent = 'O prazo desta proposta já passou. Fale com quem enviou para confirmar os valores.'; el('aviso').hidden = false; }
+      el('barra').hidden = false;
+      requestAnimationFrame(ajusta); window.addEventListener('resize', ajusta);
+      (document.fonts ? document.fonts.ready : Promise.resolve()).then(ajusta);
+    })
+    .catch(() => estado('Não foi possível abrir a proposta', 'Verifique a internet e tente de novo.'));
+  el('baixar').addEventListener('click', () => window.print());
+})();
+</script>
+</body>
+</html>

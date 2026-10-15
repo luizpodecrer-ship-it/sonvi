@@ -1,7 +1,8 @@
 // SONVI · propostas comerciais (database/017_propostas.sql).
 // A empresa comercial do grupo (Head 14) vende para as rádios: a proposta sai com a marca dela, mas é sempre de uma rádio só
 // (quem fatura, a OPEC e o financeiro são da rádio). Fluxo: Rascunho → Enviada → Aprovada ou Recusada; enviada que passou da
-// validade aparece como Vencida. Os itens vêm da tabela de preços vigente. Da proposta aprovada nasce o PI, com as inserções
+// validade aparece como Vencida. Enviar = link da proposta pelo WhatsApp ou e-mail (database/018, página app/proposta.html); ao enviar,
+// ela fica marcada como enviada sozinha. Aprovar é só da equipe. O PI da aprovada é gerado na tela de PIs (S.propostasParaPi), com as inserções
 // distribuídas sozinhas pelos dias permitidos (S.distribuir, pi-regras.js) e a faixa horária escrita para a OPEC lançar no Pulsar.
 (() => {
   const { esc, brl, num, nfmt, dfmt, uid, today } = S;
@@ -36,16 +37,16 @@
     || (f === 'aprovada' && p.situacao === 'aprovada') || (f === 'fora' && ['recusada', 'vencida'].includes(sitDe(p)));
   const detalheSit = p => { const s = sitDe(p);
     if (s === 'rascunho') { const t = p.atualizado_em || p.criado_em; return `Salva ${S.dia(t) === today() ? 'hoje' : 'em ' + curtoData(S.dia(t))} às ${S.hora(t)}`; }
-    if (s === 'enviada') return `Vale até ${curtoData(S.propVence(p))}`;
+    if (s === 'enviada') return `${p.enviada_por === 'email' ? 'Por e-mail' : p.enviada_por === 'whatsapp' ? 'Por WhatsApp' : 'Enviada'} · vale até ${curtoData(S.propVence(p))}`;
     if (s === 'vencida') return `Venceu em ${curtoData(S.propVence(p))}`;
-    if (s === 'aprovada') return `Aprovada em ${curtoData(S.dia(p.aprovada_em))}`;
+    if (s === 'aprovada') return `Aprovada em ${curtoData(S.dia(p.aprovada_em))} · PI a gerar em PIs`;
     if (s === 'pi') { const pi = piDe(p); return pi ? `${S.piNo(pi)} gerado` : 'PI gerado'; }
     return `Recusada em ${curtoData(S.dia(p.recusada_em))}${p.motivo ? ' · ' + esc(p.motivo) : ''}`; };
   // O botão principal de cada linha: o próximo passo da proposta
   const proximo = p => { if (!pode(p)) return p.pi_id && piDe(p) ? `<button class="btn sm" data-act="prAbrirPi" data-id="${p.id}">Abrir PI</button>` : '';
     const s = sitDe(p);
     if (s === 'enviada' || s === 'vencida') return `<button class="btn sm" data-act="prAprovar" data-id="${p.id}">Marcar aprovada</button>`;
-    if (s === 'aprovada') return `<button class="btn sm pri" data-act="prGerar" data-id="${p.id}">Gerar PI</button>`;
+    if (s === 'rascunho') return `<button class="btn sm" data-act="prEnviar" data-id="${p.id}">Enviar ao cliente</button>`;
     if (s === 'pi') return `<button class="btn sm" data-act="prAbrirPi" data-id="${p.id}">Abrir PI</button>`;
     return ''; };
 
@@ -68,7 +69,7 @@
       <div class="tile"><small>Taxa de aprovação</small><b>${resp ? Math.round(aprov / resp * 100) + '%' : '—'}</b><small>das que tiveram resposta</small></div>
       <div class="tile"><small>Vencem em 7 dias</small><b>${em7.length}</b><small>${em7.length ? esc(em7.slice(0, 2).map(p => S.nome(p.cliente_id)).join(', ')) + (em7.length > 2 ? '…' : '') : 'nenhuma'}</small></div></div>`;
     const ciclo = `<div class="tp-ciclo">${['rascunho', 'enviada', 'aprovada', 'pi'].map(k => `<span class="pill" style="--tone:var(--${SIT[k][1]})">${SIT[k][0]}</span>`).join('<span aria-hidden="true">→</span>')}
-      <span class="muted small">Recusada ou vencida (passou da validade) saem do caminho. Da proposta aprovada nasce o PI, com as inserções distribuídas.</span></div>`;
+      <span class="muted small">Envie ao cliente pelo WhatsApp ou e-mail: ele recebe um link da proposta. Recusada ou vencida saem do caminho. O PI da aprovada é gerado na tela de PIs.</span></div>`;
     const seg = `<div class="seg" role="group" aria-label="Filtrar propostas">${FILTROS.map(([k, t]) => `<button class="${f === k ? 'on' : ''}" data-act="prFiltro" data-f="${k}" aria-pressed="${f === k}">${t} · ${conta(k)}</button>`).join('')}</div>`;
     const linhas = vis.map(p => { const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id);
       return `<div class="prl-l click" data-go="/propostas/${p.id}" role="link" tabindex="0" aria-label="Proposta ${S.propNo(p)} · ${esc(cli)}">
@@ -106,7 +107,7 @@
       <div class="pr-lin"><span>Desconto negociado<small>${t.tabela ? nfmt(t.pct).replace(/,?0+$/, '') || '0' : '0'}% sobre a tabela</small></span><b>${t.desconto > 0.004 ? '− ' : ''}${brl(Math.abs(t.desconto))}</b></div>
       <div class="pr-lin pr-inv"><span>Investimento mensal</span><b>${brl(t.total)}</b></div>
       <div class="pr-marca"><small>Sai com a marca da</small><span class="pr-logo">${empImg()}</span><small>${as.nome ? `Assina: ${esc(as.nome)}${as.cargo ? ' · ' + esc(as.cargo.split(' · ')[0]) : ''}` : ''}</small></div>
-      <p class="muted small">${p.situacao === 'rascunho' ? 'Quando mandar ao cliente, marque como enviada. Quando ele aprovar, aparece o botão "Gerar PI".' : p.situacao === 'enviada' ? 'Quando o cliente aprovar, marque como aprovada. Aí aparece o botão "Gerar PI".' : p.situacao === 'aprovada' ? (p.pi_id ? 'O PI desta proposta já foi gerado.' : 'Aprovada: gere o PI com a distribuição automática.') : 'Para negociar de novo, volte a proposta para rascunho.'}</p>`; };
+      <p class="muted small">${p.situacao === 'rascunho' ? 'Clique em "Enviar ao cliente": ele recebe o link da proposta pelo WhatsApp ou e-mail e ela fica marcada como enviada.' : p.situacao === 'enviada' ? 'Quando o cliente responder, marque como aprovada ou recusada.' : p.situacao === 'aprovada' ? (p.pi_id ? 'O PI desta proposta já foi gerado.' : 'Aprovada: o PI é gerado na tela de PIs, em "Propostas aprovadas".') : 'Para negociar de novo, volte a proposta para rascunho.'}</p>`; };
 
   const editor = id => {
     const orig = achar(id);
@@ -144,9 +145,9 @@
       : s === 'recusada' ? `<div class="note info">Recusada em ${dfmt(S.dia(orig.recusada_em))}${orig.motivo ? `: ${esc(orig.motivo)}` : ''}. Para negociar de novo, volte para rascunho no menu ⋯.</div>` : '';
     const b = (act, txt, cls = '', icon = '') => `<button class="btn${cls ? ' ' + cls : ''}" data-act="${act}" data-id="${orig.id}">${icon ? S.svg(icon) : ''}${txt}</button>`;
     const fluxo = !pode(orig) ? (piDe(orig) ? b('prAbrirPi', 'Abrir PI') : '')
-      : s === 'rascunho' ? b('prEnviar', 'Marcar como enviada', 'pri', 'seta')
-      : s === 'enviada' || s === 'vencida' ? b('prAprovar', 'Marcar aprovada', 'pri', 'check')
-      : s === 'aprovada' ? b('prGerar', 'Gerar PI', 'pri', 'pis') : s === 'pi' ? b('prAbrirPi', 'Abrir PI', 'pri', 'abrir') : '';
+      : s === 'rascunho' ? b('prEnviar', 'Enviar ao cliente', 'pri', 'seta')
+      : s === 'enviada' || s === 'vencida' ? b('prEnviar', 'Reenviar', '', 'whats') + b('prAprovar', 'Marcar aprovada', 'pri', 'check')
+      : s === 'aprovada' ? b('prIrPis', 'Ir para PIs', 'pri', 'pis') : s === 'pi' ? b('prAbrirPi', 'Abrir PI', 'pri', 'abrir') : '';
     const acoes = `${em ? `<span class="sujo pr-sujo"${ed.sujo ? '' : ' hidden'}><i></i>Alterações não salvas</span><button class="btn pr-sujo" data-act="prDescartar"${ed.sujo ? '' : ' hidden'}>Descartar</button>` : ''}
       <button class="btn tres" data-act="prOpcoes" data-id="${orig.id}" aria-label="Mais opções">${S.svg('mais3')}</button>${b('prVer', 'Visualizar', '', 'olho')}${b('prPdf', 'Baixar PDF', '', 'baixar')}${em ? b('prSalvar', 'Salvar', '', 'check') : ''}${fluxo}`;
     return { title:`<span class="sub"><a data-go="/propostas">Propostas</a>${S.svg('seta', 14)}${pill(orig)}<span>· ${esc(S.usuario(orig.consultor_id))}</span></span>Proposta ${S.propNo(orig)}`, actions:acoes,
@@ -276,6 +277,73 @@
     S.ui.tab = 'detalhes'; location.hash = '/pi/' + pi.id;
   }, 'PI gerado com as inserções distribuídas');
 
+  // ---------- enviar ao cliente: link da proposta pelo WhatsApp ou e-mail ----------
+  const novoToken = () => { if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    const b = crypto.getRandomValues(new Uint8Array(16)); b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    const h = [...b].map(x => x.toString(16).padStart(2, '0')).join(''); return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`; };
+  const linkDe = token => new URL('proposta.html?p=' + token, location.href.split('#')[0]).href;
+  const enviarDlg = p => {
+    const cli = S.pessoa(p.cliente_id) || {}, v = S.veh(), as = assinante(p), token = p.link_token || novoToken(), link = linkDe(token);
+    const contato = String(cli.contato_decide || cli.contato_assina || '').trim().split(/\s+/)[0] || '';
+    const msg = `Olá${contato ? ', ' + contato : ''}! Tudo bem?\n\nSegue a proposta comercial nº ${S.propNo(p)} para veiculação na ${v.nome}:\n${link}\n\nA proposta vale até ${dfmt(S.propVence(p))}. Qualquer dúvida, estou à disposição.\n\n${[as.nome, empCurto()].filter(Boolean).join('\n')}`;
+    const fone = cli.whatsapp || cli.telefone || '', canal = fone || !cli.email ? 'whatsapp' : 'email';
+    S.dialog(`<h2>Enviar proposta ${S.propNo(p)}</h2>
+      <p class="muted" style="margin-top:-6px">${esc(cli.nome)} recebe um link para ver a proposta e baixar o PDF, sem precisar de login. Ao enviar, ela fica marcada como enviada.</p>
+      <fieldset class="f"><legend>Enviar por</legend><div class="seg radios" style="max-width:340px">
+        <label><input type="radio" name="canal" value="whatsapp"${canal === 'whatsapp' ? ' checked' : ''}>WhatsApp</label>
+        <label><input type="radio" name="canal" value="email"${canal === 'email' ? ' checked' : ''}>E-mail</label></div></fieldset>
+      <label class="f" data-canal="whatsapp">WhatsApp do cliente<input name="fone" data-mask="tel" inputmode="tel" autocomplete="off" value="${esc(fone)}"></label>
+      <label class="f" data-canal="email">E-mail do cliente<input name="email" type="email" autocomplete="off" value="${esc(cli.email || '')}" placeholder="nome@empresa.com.br"></label>
+      <label class="f">Mensagem<textarea name="msg" class="pr-msg">${esc(msg)}</textarea></label>
+      <div class="row mid" style="flex-wrap:wrap"><span class="grow"></span>
+        <button class="btn" value="cancel" formnovalidate>Cancelar</button><button type="button" class="btn pri" data-env="enviar">${S.svg('seta')}<span id="prEnvTxt">Enviar pelo WhatsApp</span></button></div>`);
+    const dl = document.getElementById('dlg'), f = dl.querySelector('form'); dl.dataset.guarda = '1';
+    const troca = () => { const c = f.canal.value; f.querySelectorAll('[data-canal]').forEach(l => { l.hidden = l.dataset.canal !== c; });
+      document.getElementById('prEnvTxt').textContent = c === 'email' ? 'Enviar por e-mail' : 'Enviar pelo WhatsApp'; };
+    f.addEventListener('change', e => { if (e.target.name === 'canal') troca(); }); troca();
+    f.addEventListener('click', e => { const bt = e.target.closest('[data-env]'); if (!bt) return;
+      const c = f.canal.value, digitos = f.fone.value.replace(/\D/g, ''), email = f.email.value.trim();
+      if (c === 'whatsapp' && digitos.length < 10) return S.erroNoCampo(f.fone, 'Coloque o WhatsApp do cliente com DDD.');
+      if (c === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return S.erroNoCampo(f.email, 'Coloque um e-mail válido.');
+      // A janela do WhatsApp abre já no clique (o navegador bloqueia janela aberta depois); o endereço entra quando o envio é gravado
+      const janela = c === 'whatsapp' ? window.open('about:blank', '_blank') : null, texto = f.msg.value;
+      delete dl.dataset.sujo; dl.close('cancel');
+      enviar(p, c, c === 'whatsapp' ? digitos : email, token, texto, janela);
+    });
+  };
+  const enviar = async (p, canal, destino, token, texto, janela) => {
+    try {
+      if (ed.id === p.id && ed.sujo) await gravar();
+      const atual = ed.id === p.id && ed.p ? ed.p : achar(p.id);
+      const r = await S.q(S.sb.rpc('enviar_proposta', { p_proposta:p.id, p_html:S.htmlProposta(atual), p_canal:canal, p_destino:destino, p_token:token }));
+      trocar(r);
+      if (canal === 'whatsapp') { const url = `https://wa.me/${destino.length <= 11 ? '55' + destino : destino}?text=${encodeURIComponent(texto)}`;
+        if (janela && !janela.closed) janela.location.href = url; else window.open(url, '_blank', 'noopener'); }
+      else location.href = `mailto:${destino}?subject=${encodeURIComponent(`Proposta comercial nº ${S.propNo(r)} · ${empCurto()}`)}&body=${encodeURIComponent(texto)}`;
+      S.toast(`Proposta ${S.propNo(r)} enviada ${canal === 'email' ? 'por e-mail' : 'pelo WhatsApp'}`);
+    } catch (e) { console.error(e); if (janela) janela.close(); S.toast(S.erro(e)); }
+    S.render();
+  };
+
+  // ---------- tela de PIs: propostas aprovadas esperando virar PI ----------
+  S.propostasParaPi = () => {
+    if (!S.pode('diretor', 'gerente', 'consultor')) return '';
+    const q = (S.ui.q || '').toLowerCase();
+    const l = lista().filter(p => p.situacao === 'aprovada' && !p.pi_id && (!q || [S.propNo(p), S.nome(p.cliente_id), S.nome(p.agencia_id), resumo(p)].join(' ').toLowerCase().includes(q)))
+      .sort((a, b) => String(a.aprovada_em).localeCompare(String(b.aprovada_em)));
+    if (!l.length) return '';
+    const linhas = l.map(p => { const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id);
+      return `<div class="prl-l"><span class="prl-n">${S.propNo(p)}</span>
+        <span class="prl-c"><b title="${esc(cli)}">${esc(cli)}</b><small>${ag ? esc(ag) : 'Direto'} · ${esc(S.usuario(p.consultor_id))}</small></span>
+        <span class="prl-i" title="${esc(resumo(p))}">${esc(resumo(p))}</span>
+        <span class="prl-q"><small>Inserções/mês</small>${p.insercoes}</span>
+        <span class="prl-v"><small>Investimento mensal</small><b>${brl(p.valor_total)}</b></span>
+        <span class="prl-s"><small>Aprovada em ${curtoData(S.dia(p.aprovada_em))}</small></span>
+        <span class="prl-a">${pode(p) ? `<button class="btn sm pri" data-act="prGerar" data-id="${p.id}">${S.svg('pis')}Gerar PI</button>` : ''}<button class="btn tres" data-act="prOpcoes" data-id="${p.id}" aria-label="Opções da proposta ${S.propNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
+    return `<section class="card prl pr-aprov" aria-label="Propostas aprovadas"><div class="hd"><h2><span class="pill" style="--tone:var(--green)">Propostas aprovadas</span> <span class="muted small">${l.length} ${l.length === 1 ? 'aguardando' : 'aguardando'} PI · as inserções são distribuídas sozinhas</span></h2></div>
+      <div class="prl-l prl-cab"><span class="prl-n">Proposta</span><span class="prl-c">Cliente</span><span class="prl-i">Itens</span><span class="prl-q">Inserções/mês</span><span class="prl-v">Investimento mensal</span><span class="prl-s">Aprovação</span><span class="prl-a"><span class="sr">Ações</span></span></div>${linhas}</section>`;
+  };
+
   // ---------- PDF da proposta (A4 em pé, modelo da empresa comercial) ----------
   const DATA_EXT = iso => { const [y, m, d] = iso.split('-').map(Number); return `${d} de ${MESES[m - 1]} de ${y}`; };
   S.htmlProposta = p => {
@@ -353,18 +421,20 @@
     prSalvar: () => { if (!ed.p.cliente_id) return S.toast('Escolha o cliente.'); S.run(gravar, 'Proposta salva'); },
     prDescartar: async () => { if (!await S.confirmar('Descartar as alterações?\n\nA proposta volta a ficar como estava quando foi salva.', { ok:'Descartar', voltar:'Continuar editando', perigo:true })) return;
       abrir(achar(ed.id)); S.render(); },
-    prEnviar: async d => { const p = ed.id === d.id ? ed.p : achar(d.id), probs = problemas(p);
+    prEnviar: d => { const p = ed.id === d.id ? ed.p : achar(d.id), probs = problemas(p);
       if (probs.length) return S.toast('Antes de enviar: ' + probs[0] + '.');
-      S.run(async () => { if (ed.id === p.id && ed.sujo) await gravar();
-        const r = await S.q(S.sb.rpc('mudar_situacao_proposta', { p_proposta:p.id, p_situacao:'enviada', p_motivo:'' })); trocar(r); }, `Proposta ${S.propNo(p)} enviada. Baixe o PDF para mandar ao cliente.`); },
+      enviarDlg(p); },
+    prIrPis: () => S.go('/pis'),
+    prCopiarLink: d => { const p = achar(d.id); if (!p.link_token) return;
+      navigator.clipboard.writeText(linkDe(p.link_token)).then(() => S.toast('Link da proposta copiado'), () => S.toast('Não foi possível copiar o link.')); },
     prAprovar: async d => { const p = daLista(d);
-      if (!await S.confirmar(`O cliente aprovou a proposta ${S.propNo(p)}?\n\n${S.nome(p.cliente_id)} · ${brl(p.valor_total)} por mês. Depois você gera o PI com a distribuição automática.`, { ok:'Marcar aprovada' })) return;
-      const r = await situacao(p, 'aprovada', '', `Proposta ${S.propNo(p)} aprovada`); if (r) gerarDlg(r); },
+      if (!await S.confirmar(`O cliente aprovou a proposta ${S.propNo(p)}?\n\n${S.nome(p.cliente_id)} · ${brl(p.valor_total)} por mês. O PI é gerado depois, na tela de PIs.`, { ok:'Marcar aprovada' })) return;
+      situacao(p, 'aprovada', '', `Proposta ${S.propNo(p)} aprovada. Gere o PI na tela de PIs.`); },
     prRecusar: d => { const p = daLista(d);
       S.form(`Proposta ${S.propNo(p)} recusada`, [{ k:'motivo', label:'Motivo (opcional)', type:'textarea', ph:'Ex.: achou o investimento alto; vai fechar em janeiro' }], {},
         f => situacao(p, 'recusada', (f.motivo || '').trim(), `Proposta ${S.propNo(p)} marcada como recusada`), 'Marcar recusada', { editar:true }); },
     prRascunho: async d => { const p = daLista(d);
-      if (!await S.confirmar(`Voltar a proposta ${S.propNo(p)} para rascunho?\n\nEla volta a poder ser editada. Depois é só marcar como enviada de novo.`, { ok:'Voltar para rascunho' })) return;
+      if (!await S.confirmar(`Voltar a proposta ${S.propNo(p)} para rascunho?\n\nEla volta a poder ser editada. Depois é só enviar de novo: o cliente usa o mesmo link.`, { ok:'Voltar para rascunho' })) return;
       situacao(p, 'rascunho', '', 'Proposta em rascunho'); },
     prExcluir: async d => { const p = daLista(d);
       if (!await S.confirmar(`Excluir a proposta ${S.propNo(p)} (${S.nome(p.cliente_id)})? Não dá para desfazer.`, { ok:'Excluir proposta', perigo:true })) return;
@@ -383,7 +453,9 @@
       it.push({ label:'Baixar PDF', icon:'baixar', act:'prPdf', data:id });
       if (pode(p)) {
         it.push({ label:'Duplicar', icon:'copia', act:'prDuplicar', data:id });
-        if (s === 'rascunho' && !dentro) it.push({ label:'Marcar como enviada', icon:'seta', act:'prEnviar', data:id });
+        if (s === 'rascunho' && !dentro) it.push({ label:'Enviar ao cliente', icon:'seta', act:'prEnviar', data:id });
+        if ((s === 'enviada' || s === 'vencida') && !dentro) it.push({ label:'Reenviar', icon:'whats', act:'prEnviar', data:id });
+        if (p.link_token && ['enviada', 'vencida', 'aprovada', 'pi'].includes(s)) it.push({ label:'Copiar link da proposta', icon:'copia', act:'prCopiarLink', data:id });
         if (s === 'enviada' || s === 'vencida') it.push({ label:'Marcar recusada', icon:'bloqueio', act:'prRecusar', data:id });
         if (['enviada', 'vencida', 'recusada'].includes(s) || (s === 'aprovada' && !p.pi_id)) it.push({ label:'Voltar para rascunho', icon:'voltar', act:'prRascunho', data:id });
         if (s === 'rascunho') it.push('-', { label:'Excluir', icon:'lixo', act:'prExcluir', data:id, perigo:true });

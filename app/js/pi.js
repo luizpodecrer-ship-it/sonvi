@@ -35,7 +35,7 @@
         <div class="pl-l pl-tot"><span class="pl-n">Total</span><span class="pl-t"></span><span class="pl-c"></span><span class="pl-u"></span><span class="pl-p"></span><span class="pl-i"><small>Inserções</small>${t.ins}</span><span class="pl-v"><b>${brl(t.total)}</b>${t.total !== t.net ? `<small>Líquido ${brl(t.net)}</small>` : ''}</span><span class="pl-m"></span></div></div></section>`;
     }).join('');
     return { title:`<span class="sub">${esc(S.veh().nome)} · ${pis.length} ${pis.length === 1 ? 'pedido' : 'pedidos'}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="piNew">${S.svg('mais')}Novo PI</button>` : '',
-      body:`<div style="margin-bottom:16px"><input type="search" style="width:100%;height:44px" placeholder="Buscar por número, título, cliente, agência ou consultor" aria-label="Buscar PIs" value="${esc(S.ui.q)}" data-ui="q"></div>${groups || `<div class="card empty"><b>Nenhum pedido${q ? ' encontrado' : ''}</b>${q ? 'Tente outra busca.' : 'Os pedidos desta rádio aparecem aqui.'}</div>`}` };
+      body:`<div style="margin-bottom:16px"><input type="search" style="width:100%;height:44px" placeholder="Buscar por número, título, cliente, agência ou consultor" aria-label="Buscar PIs" value="${esc(S.ui.q)}" data-ui="q"></div>${S.propostasParaPi ? S.propostasParaPi() : ''}${groups || `<div class="card empty"><b>Nenhum pedido${q ? ' encontrado' : ''}</b>${q ? 'Tente outra busca.' : 'Os pedidos desta rádio aparecem aqui.'}</div>`}` };
   };
 
   // ---------- edição com Editar / Salvar ----------
