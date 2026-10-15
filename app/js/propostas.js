@@ -148,7 +148,7 @@
       : s === 'enviada' || s === 'vencida' ? b('prAprovar', 'Marcar aprovada', 'pri', 'check')
       : s === 'aprovada' ? b('prGerar', 'Gerar PI', 'pri', 'pis') : s === 'pi' ? b('prAbrirPi', 'Abrir PI', 'pri', 'abrir') : '';
     const acoes = `${em ? `<span class="sujo pr-sujo"${ed.sujo ? '' : ' hidden'}><i></i>Alterações não salvas</span><button class="btn pr-sujo" data-act="prDescartar"${ed.sujo ? '' : ' hidden'}>Descartar</button>` : ''}
-      <button class="btn tres" data-act="prOpcoes" data-id="${orig.id}" aria-label="Mais opções">${S.svg('mais3')}</button>${b('prPdf', 'Baixar PDF', '', 'baixar')}${em ? b('prSalvar', 'Salvar', '', 'check') : ''}${fluxo}`;
+      <button class="btn tres" data-act="prOpcoes" data-id="${orig.id}" aria-label="Mais opções">${S.svg('mais3')}</button>${b('prVer', 'Visualizar', '', 'olho')}${b('prPdf', 'Baixar PDF', '', 'baixar')}${em ? b('prSalvar', 'Salvar', '', 'check') : ''}${fluxo}`;
     return { title:`<span class="sub"><a data-go="/propostas">Propostas</a>${S.svg('seta', 14)}${pill(orig)}<span>· ${esc(S.usuario(orig.consultor_id))}</span></span>Proposta ${S.propNo(orig)}`, actions:acoes,
       body:`${aviso}<div class="pr-corpo"><div class="pr-main">${cliente}${itensCard}${cond}</div><aside class="card pr-res" id="prResumo" aria-label="Resumo mensal">${resumoHtml(p, v)}</aside></div>` };
   };
@@ -278,16 +278,14 @@
 
   // ---------- PDF da proposta (A4 em pé, modelo da empresa comercial) ----------
   const DATA_EXT = iso => { const [y, m, d] = iso.split('-').map(Number); return `${d} de ${MESES[m - 1]} de ${y}`; };
-  S.buildProposta = p => {
+  S.htmlProposta = p => {
     const v = S.veh(p.veiculo_id), e = emp(), cli = S.pessoa(p.cliente_id) || {}, ag = S.pessoa(p.agencia_id), t = S.propTotais(p), as = assinante(p);
     const cor = /^#[0-9a-f]{6}$/i.test(e.cor || '') ? e.cor : '#2b5fb5', cor2 = /^#[0-9a-f]{6}$/i.test(e.cor2 || '') ? e.cor2 : '#f1853d';
-    let st = document.getElementById('pagina'); if (!st) { st = document.createElement('style'); st.id = 'pagina'; document.head.appendChild(st); }
-    st.textContent = '@media print { @page { size:A4 portrait; margin:0; } }';
     const its = (p.itens || []).filter(it => it.insercoes), um = its.length === 1 ? its[0] : null, cidade = cidadeDe(e.cidade || v.cidade);
     const prog = it => `${esc(it.programa)}, ${S.diasTexto(it.dias)}${it.faixa ? ' · ' + esc(it.faixa) : ''}`;
-    document.getElementById('print').innerHTML = `<div class="prdoc" style="--pc:${cor};--pc2:${cor2}">
+    return `<div class="prdoc" style="--pc:${cor};--pc2:${cor2}">
       <div class="prd-faixa"><i></i><i></i></div>
-      <header class="prd-cab">${empImg('prd-logo')}<div class="prd-tit"><b>PROPOSTA COMERCIAL</b><span>Nº ${S.propNo(p)} · ${esc(cidade ? cidade + ', ' : '')}${DATA_EXT(p.data)}</span></div></header>
+      <div class="prd-cab">${empImg('prd-logo')}<div class="prd-tit"><b>PROPOSTA COMERCIAL</b><span>Nº ${S.propNo(p)} · ${esc(cidade ? cidade + ', ' : '')}${DATA_EXT(p.data)}</span></div></div>
       <div class="prd-corpo">
         <div class="prd-partes"><div><small>Cliente</small><b>${esc(cli.nome)}</b>${docCli(cli) ? `<span>${esc(docCli(cli))}</span>` : ''}${cli.endereco || cli.cidade ? `<span>${esc([cli.endereco, cli.cidade].filter(Boolean).join(' · '))}</span>` : ''}</div>
           <div><small>Negociação</small><b>${ag ? esc(ag.nome) : 'DIRETO'}</b>${ag ? '<span>Por agência</span>' : ''}</div></div>
@@ -301,7 +299,26 @@
         ${linhasCond(p.condicoes).length ? `<div class="prd-cond"><small>Condições comerciais</small><ul>${linhasCond(p.condicoes).map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>` : ''}
         <div class="prd-ass"><div><b>${esc(as.nome)}</b><span>${esc(as.cargo)}</span></div><div><b>De acordo</b><span>${esc(cli.nome)}</span></div></div>
       </div>
-      <footer class="prd-rod"><b>${esc([e.nome, cidadeDe(e.cidade) ? e.cidade : ''].filter(Boolean).join(' · '))}</b><span>${esc([e.email, e.telefone, e.site].filter(Boolean).join(' · '))}</span></footer></div>`;
+      <div class="prd-rod"><b>${esc([e.nome, cidadeDe(e.cidade) ? e.cidade : ''].filter(Boolean).join(' · '))}</b><span>${esc([e.email, e.telefone, e.site].filter(Boolean).join(' · '))}</span></div></div>`;
+  };
+  S.buildProposta = p => {
+    let st = document.getElementById('pagina'); if (!st) { st = document.createElement('style'); st.id = 'pagina'; document.head.appendChild(st); }
+    st.textContent = '@media print { @page { size:A4 portrait; margin:0; } }';
+    document.getElementById('print').innerHTML = S.htmlProposta(p);
+  };
+  // Visualizar: a proposta como vai sair no PDF, com o que está na tela (inclusive o que ainda não foi salvo)
+  const visualizar = (p, id) => {
+    const probs = problemas(p), sujo = ed.id === id && ed.sujo;
+    S.dialog(`<div class="row mid"><h2 class="grow">Proposta ${S.propNo(p)}</h2><button class="btn" value="x">Fechar</button><button class="btn pri" value="pdf" type="submit">${S.svg('baixar')}Baixar PDF</button></div>
+      ${probs.length ? `<div class="note" style="margin:0">Falta preencher: ${probs.map(esc).join('; ')}.</div>` : ''}
+      ${sujo ? '<div class="note info" style="margin:0">Mostrando o que está na tela, inclusive o que ainda não foi salvo. Lembre de clicar em <b>Salvar</b>.</div>' : ''}
+      <div class="pr-previa" tabindex="0" role="region" aria-label="Prévia da proposta"><div class="pr-folha">${S.htmlProposta(p)}</div></div>`);
+    const dl = document.getElementById('dlg'); dl.classList.add('medio');
+    // A folha A4 é encolhida para caber na janela (no celular também), sem rolar para o lado
+    const ajusta = () => { const box = dl.querySelector('.pr-previa'), folha = dl.querySelector('.pr-folha'), doc = dl.querySelector('.prdoc'); if (!box || !doc) return;
+      const k = Math.min(1, box.clientWidth / doc.offsetWidth); folha.style.transform = `scale(${k})`; folha.style.height = doc.offsetHeight * k + 'px'; folha.style.width = doc.offsetWidth * k + 'px'; };
+    requestAnimationFrame(ajusta); window.addEventListener('resize', ajusta);
+    dl.onclose = () => { dl.classList.remove('medio'); window.removeEventListener('resize', ajusta); if (dl.returnValue === 'pdf') baixarPdf(p); };
   };
   const baixarPdf = p => { S.buildProposta(p); const t = document.title; document.title = `Proposta ${S.propNo(p).replace('/', '-')} · ${S.nome(p.cliente_id)}`; setTimeout(() => { window.print(); document.title = t; }, 80); };
 
@@ -356,11 +373,13 @@
       S.run(async () => { const r = await S.salvar('propostas', { veiculo_id:v.id, cliente_id:p.cliente_id, agencia_id:p.agencia_id, validade:p.validade, data:today(), consultor_id:p.consultor_id,
         tabela_id:p.tabela_id, condicoes:p.condicoes, texto:p.texto, itens:p.itens, insercoes:p.insercoes, valor_tabela:p.valor_tabela, valor_total:p.valor_total });
         abrir(r); location.hash = '/propostas/' + r.id; }, 'Proposta duplicada'); },
+    prVer: d => { const p = ed.id === d.id && ed.p ? ed.p : achar(d.id); if (!p.cliente_id) return S.toast('Escolha o cliente antes.'); visualizar(p, d.id); },
     prPdf: d => { const p = ed.id === d.id && ed.p ? ed.p : achar(d.id); if (!p.cliente_id) return S.toast('Escolha o cliente antes.'); baixarPdf(p); },
     prGerar: d => { const p = daLista(d); if (p.pi_id) return S.go('/pi/' + p.pi_id); gerarDlg(p); },
     prAbrirPi: d => { const p = daLista(d); if (!p.pi_id || !piDe(p)) return S.toast('O PI desta proposta não está nesta lista.'); S.ui.tab = 'detalhes'; S.go('/pi/' + p.pi_id); },
     prOpcoes: (d, botao) => { const p = achar(d.id), s = sitDe(p), dentro = S.route().id === p.id, id = { id:p.id }, it = [];
       if (!dentro) it.push({ label:'Abrir', icon:'abrir', act:'prAbrir', data:id });
+      if (!dentro) it.push({ label:'Visualizar', icon:'olho', act:'prVer', data:id });
       it.push({ label:'Baixar PDF', icon:'baixar', act:'prPdf', data:id });
       if (pode(p)) {
         it.push({ label:'Duplicar', icon:'copia', act:'prDuplicar', data:id });
