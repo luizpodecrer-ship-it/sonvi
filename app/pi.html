@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Pedido de inserção</title>
+<link rel="icon" type="image/svg+xml" href="img/simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Sora:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="css/sonvi.css?v=20261015-0720">
+<!-- Página que a OPEC abre pelo link do e-mail do PI: sem login, mostra só o documento enviado e baixa o PDF. -->
+<style>
+  body { display:block; min-height:100%; }
+  .pub-barra { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px clamp(16px, 4vw, 40px); padding-top:calc(14px + env(safe-area-inset-top, 0px)); background:color-mix(in srgb, var(--surface) 96%, transparent); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
+  .pub-barra .tx { display:flex; flex-direction:column; flex:1 1 220px; min-width:0; }
+  .pub-barra h1 { margin:0; font:600 17px/1.25 var(--display); letter-spacing:-.01em; } .pub-barra small { color:var(--ink-2); font-size:13px; }
+  .pub-barra .btn { height:44px; }
+  main { padding:24px clamp(16px, 4vw, 40px) 0; display:flex; flex-direction:column; align-items:center; gap:16px; }
+  main[hidden] { display:none; }
+  .pub-vazio { max-width:520px; text-align:center; margin-top:10vh; }
+  #print { display:block; width:calc(100% - 2 * clamp(16px, 4vw, 40px)); max-width:1320px; margin:8px auto 60px; }
+  #print[hidden] { display:none; }
+  .pub-folha { transform-origin:0 0; }
+  .pub-folha .pi-envio { width:1300px; background:#fff; padding:28px 32px; border-radius:4px; box-shadow:0 14px 40px -16px rgba(10,20,60,.35); }
+  @media print { .pub-folha { transform:none !important; width:auto !important; height:auto !important; } .pub-folha .pi-envio { width:auto; padding:0; box-shadow:none; border-radius:0; } #print { max-width:none; width:auto; margin:0; } }
+</style>
+<style id="pagina">@media print { @page { size:legal landscape; margin:8mm; } }</style>
+</head>
+<body>
+<header class="pub-barra" id="barra" hidden><div class="tx"><h1 id="titulo">Pedido de inserção</h1><small id="situacao"></small></div>
+  <button class="btn pri" type="button" id="baixar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar PDF</button></header>
+<main id="principal"><div class="card empty pub-vazio" id="estado" role="status"><b>Abrindo o PI…</b></div></main>
+<div id="print" role="main" aria-label="Pedido de inserção" hidden></div>
+<script src="js/config.js?v=20261015-0720"></script>
+<script>
+(() => {
+  const token = new URLSearchParams(location.search).get('p') || '';
+  const el = id => document.getElementById(id);
+  const estado = (titulo, texto) => { el('estado').innerHTML = `<b>${titulo}</b>${texto}`; el('principal').hidden = false; };
+  const SIT = { opec:'Na OPEC, aguardando conferência', aprovado:'Aprovado pela OPEC', programado:'Programado', faturado:'Faturado' };
+  // O PI é largo (folha deitada): na tela ele é encolhido para caber; na impressão volta ao tamanho real
+  const ajusta = () => { const f = document.querySelector('.pub-folha'), d = f && f.querySelector('.pi-envio'); if (!d) return;
+    f.style.transform = ''; const k = Math.min(1, el('print').clientWidth / d.offsetWidth);
+    f.style.transform = `scale(${k})`; f.style.width = d.offsetWidth * k + 'px'; f.style.height = d.offsetHeight * k + 'px'; };
+  if (!/^[0-9a-f-]{36}$/i.test(token)) return estado('Link incompleto', 'Confira se o link foi copiado inteiro ou peça um novo a quem enviou o PI.');
+  fetch(window.SONVI_CONFIG.url + '/rest/v1/rpc/pi_por_link', { method:'POST', headers:{ apikey:window.SONVI_CONFIG.key, 'Content-Type':'application/json' }, body:JSON.stringify({ p_token:token }) })
+    .then(r => r.ok ? r.json() : Promise.reject(r))
+    .then(lista => {
+      const p = lista && lista[0];
+      if (!p) return estado('Este PI não está disponível', 'Ele pode ter voltado para ajuste ou sido cancelado. Fale com quem enviou.');
+      el('principal').hidden = true;
+      el('print').innerHTML = `<div class="pub-folha">${p.html}</div>`; el('print').hidden = false;
+      const papel = (el('print').querySelector('.pi-envio') || {}).dataset || {};
+      el('pagina').textContent = `@media print { @page { size:${papel.papel === 'a4' ? 'A4' : 'legal'} landscape; margin:8mm; } }`;
+      el('titulo').textContent = p.numero; document.title = p.numero;
+      el('situacao').textContent = SIT[p.status] || '';
+      el('barra').hidden = false;
+      requestAnimationFrame(ajusta); window.addEventListener('resize', ajusta);
+      (document.fonts ? document.fonts.ready : Promise.resolve()).then(ajusta);
+    })
+    .catch(() => estado('Não foi possível abrir o PI', 'Verifique a internet e tente de novo.'));
+  el('baixar').addEventListener('click', () => window.print());
+})();
+</script>
+</body>
+</html>

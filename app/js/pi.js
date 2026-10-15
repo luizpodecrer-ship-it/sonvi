@@ -371,7 +371,7 @@
     },
     piAbrir: d => S.go('/pi/' + d.id),
     piEditarId: d => { const pi = S.db.pis.find(p => p.id === d.id); S.piEntrar(pi); S.ui.tab = 'detalhes'; S.go('/pi/' + d.id); },
-    piEnviarId: d => { const pi = S.db.pis.find(p => p.id === d.id); if (editando(pi) && ed.sujo) return S.toast('Salve o PI antes de enviar para a OPEC.'); const probs = S.piProblems(pi); if (probs.length) return S.toast('Antes de enviar: ' + probs[0]); S.setStatus(pi, 'opec'); },
+    piEnviarId: d => { const pi = S.db.pis.find(p => p.id === d.id); if (editando(pi) && ed.sujo) return S.toast('Salve o PI antes de enviar para a OPEC.'); const probs = S.piProblems(pi); if (probs.length) return S.toast('Antes de enviar: ' + probs[0]); enviarOpec(pi); },
     // WhatsApp: abre a conversa com o contato do cliente (ou escolhe o contato) com o resumo do PI
     piWhats: d => {
       const pi = S.db.pis.find(p => p.id === d.id), c = S.calc(pi), cli = S.pessoa(pi.cliente_id) || {}, v = S.veh(pi.veiculo_id);
@@ -389,7 +389,7 @@
       S.run(async () => { if (ed.id === pi.id) sairEdicao(); await S.excluir('pis', pi.id);
         try { const { data } = await S.sb.storage.from(BUCKET).list(pasta(pi)); if (data && data.length) await S.sb.storage.from(BUCKET).remove(data.map(f => `${pasta(pi)}/${f.name}`)); } catch (e) { console.error(e); } /* apaga também as mídias do PI */
         if (S.route().view === 'pi') location.hash = '/pis'; }, 'PI excluído'); },
-    piSend: () => { const pi = cur(), probs = S.piProblems(pi); if (probs.length) return S.toast('Antes de enviar: ' + probs[0]); S.setStatus(pi, 'opec'); },
+    piSend: () => { const pi = cur(), probs = S.piProblems(pi); if (probs.length) return S.toast('Antes de enviar: ' + probs[0]); enviarOpec(pi); },
     piStatus: d => S.setStatus(d.id ? S.db.pis.find(p => p.id === d.id) : cur(), d.to),
     piReturn: d => { const pi = d.id ? S.db.pis.find(p => p.id === d.id) : cur();
       S.form(`Devolver ${S.piNo(pi)}`, [{ k:'nota', label:'O que precisa ser ajustado?', type:'textarea', req:true }], {}, v => S.setStatus(pi, 'devolvido', v.nota), 'Devolver ao consultor'); },
@@ -412,6 +412,48 @@
         <div class="row"><span class="grow"></span><button class="btn" value="cancel">Cancelar</button><button class="btn pri" value="ok">Exportar</button></div>`,
         v => { S.buildPrint(cur(), v); setTimeout(() => window.print(), 60); }); }
   });
+
+  // ---------- enviar para a OPEC por e-mail (database/019): link do PI, sem login (app/pi.html) ----------
+  const novoToken = () => { if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    const b = crypto.getRandomValues(new Uint8Array(16)); b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    const h = [...b].map(x => x.toString(16).padStart(2, '0')).join(''); return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`; };
+  const linkPi = token => new URL('pi.html?p=' + token, location.href.split('#')[0]).href;
+  const OPC_PADRAO = { to:'client', commission:true, billing:true, clientData:true, vehicleData:true, obs:true, signClient:true, signVehicle:true, conds:true };
+  // O documento que a OPEC recebe: o mesmo do PDF, com o tamanho do papel da rádio
+  const htmlEnvio = pi => { S.buildPrint(pi, Object.assign({ date:today(), signAgency:!!pi.agencia_id }, OPC_PADRAO));
+    const html = `<div class="pi-envio" data-papel="${S.veh(pi.veiculo_id).pi_papel === 'a4' ? 'a4' : 'legal'}">${document.getElementById('print').innerHTML}</div>`; document.getElementById('print').innerHTML = ''; return html; };
+  const mesesPi = pi => { const ps = [...new Set(pi.dados.grids.map(g => g.period))].sort(); return !ps.length ? '—' : ps.length === 1 ? mesCurto(ps[0]) : `${mesCurto(ps[0])} a ${mesCurto(ps[ps.length - 1])}`; };
+  function enviarOpec(pi) {
+    const v = S.veh(pi.veiculo_id), c = S.calc(pi), token = pi.link_token || novoToken(), link = linkPi(token), reenvio = pi.status === 'devolvido';
+    const faixas = [...new Set(pi.dados.grids.flatMap(g => g.items.map(it => it.faixa)).filter(Boolean))];
+    const ag = S.nome(pi.agencia_id), obs = String(pi.dados.billing.obsClient || '').trim();
+    const msg = [`Olá, OPEC!`, '', `${reenvio ? 'Segue de novo, com os ajustes,' : 'Segue para conferência'} o ${S.piNo(pi)} · ${pi.titulo}.`,
+      `Cliente: ${S.nome(pi.cliente_id) || '—'}${ag ? ` (agência ${ag})` : ''}`, `Período: ${mesesPi(pi)}`, `Inserções: ${c.ins}`,
+      faixas.length ? `Faixa: ${faixas.join(', ')}` : '', obs ? `Observações: ${obs}` : '', '', 'Ver o PI e baixar o PDF:', link, '', S.me.nome || S.me.email, v.nome]
+      .filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
+    S.dialog(`<h2>${reenvio ? 'Reenviar' : 'Enviar'} ${S.piNo(pi)} para a OPEC</h2>
+      <p class="muted" style="margin-top:-6px">A OPEC recebe um e-mail com o link do PI: abre sem login, confere e baixa o PDF. O PI passa para <b>Na OPEC</b>.</p>
+      <label class="f">E-mail da OPEC<input name="email" type="email" autocomplete="off" value="${esc(v.opec_email || '')}" placeholder="opec@suaradio.com.br"></label>
+      ${!v.opec_email ? (S.pode('diretor') ? `<label class="row mid" style="gap:10px;margin-top:-6px;font-size:14px;color:var(--ink-2);flex-wrap:nowrap"><input type="checkbox" name="guardar" checked>Guardar como o e-mail da OPEC da ${esc(v.nome)}</label>` : '<p class="muted small" style="margin-top:-8px">Peça ao diretor para cadastrar o e-mail da OPEC em Administração → Veículos; aí ele já vem preenchido.</p>') : ''}
+      <label class="f">Mensagem<textarea name="msg" class="pr-msg">${esc(msg)}</textarea></label>
+      <div class="row mid" style="flex-wrap:wrap"><button type="button" class="btn" data-opec="pdf">${S.svg('baixar')}Baixar PDF</button><span class="grow"></span>
+        <button class="btn" value="cancel" formnovalidate>Cancelar</button><button type="button" class="btn pri" data-opec="enviar">${S.svg('seta')}Enviar por e-mail</button></div>`);
+    const dl = document.getElementById('dlg'), f = dl.querySelector('form'); dl.dataset.guarda = '1';
+    f.addEventListener('click', e => { const bt = e.target.closest('[data-opec]'); if (!bt) return;
+      if (bt.dataset.opec === 'pdf') { S.buildPrint(pi, Object.assign({ date:today(), signAgency:!!pi.agencia_id }, OPC_PADRAO)); setTimeout(() => window.print(), 60); return; }
+      const email = f.email.value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return S.erroNoCampo(f.email, 'Coloque o e-mail da OPEC.');
+      const texto = f.msg.value, guardar = f.guardar && f.guardar.checked;
+      delete dl.dataset.sujo; dl.close('cancel');
+      S.run(async () => {
+        if (editando(pi)) { if (ed.sujo) await gravar(pi); sairEdicao(); }
+        if (guardar) await S.salvar('veiculos', { id:v.id, opec_email:email.toLowerCase() });
+        const r = await S.q(S.sb.rpc('enviar_pi_opec', { p_pi:pi.id, p_html:htmlEnvio(pi), p_token:token }));
+        Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id];
+        location.href = `mailto:${email}?subject=${encodeURIComponent(`${S.piNo(pi)} · ${S.nome(pi.cliente_id)} · para a OPEC`)}&body=${encodeURIComponent(texto)}`;
+      }, `${S.piNo(pi)} enviado para a OPEC`);
+    });
+  }
 
   // ---------- alterações de campo (só valem no modo de edição; vão para a nuvem ao clicar em Salvar) ----------
   const setPath = (obj, path, val) => { const ks = path.split('.'), last = ks.pop(); ks.reduce((o, k) => o[k], obj)[last] = val; };
