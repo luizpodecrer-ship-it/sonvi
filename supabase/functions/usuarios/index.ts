@@ -3,6 +3,7 @@
 // Só o diretor pode usar. Não manda e-mail: devolve um link que o diretor envia pelo WhatsApp.
 //   { acao: "criar", nome, email, celular, diretor, vinculos: [{ veiculo_id, perfil }], destino }
 //   { acao: "link", usuario_id, destino }
+//   { acao: "email", usuario_id, email }  (troca o e-mail de entrada; a senha continua a mesma)
 //   { acao: "excluir", usuario_id }  (só quem não tem PI, cliente, agenda nem histórico; os outros se desativam)
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -58,6 +59,19 @@ Deno.serve(async (req) => {
       const { data, error: e1 } = await adm.auth.admin.generateLink({ type: 'recovery', email: u.user.email, options: { redirectTo: destino } });
       if (e1) return resposta({ erro: e1.message }, 400);
       return resposta({ link: data.properties.action_link });
+    }
+
+    if (b.acao === 'email') {
+      const id = String(b.usuario_id ?? ''), email = String(b.email ?? '').trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return resposta({ erro: 'E-mail inválido.' }, 400);
+      const { data: outro } = await adm.from('usuarios').select('id').ilike('email', email).neq('id', id).maybeSingle();
+      if (outro) return resposta({ erro: 'Já existe outro usuário com esse e-mail.' }, 409);
+      // Troca na conta de entrada já confirmado (sem mandar e-mail de confirmação) e no cadastro do SONVI
+      const { error } = await adm.auth.admin.updateUserById(id, { email, email_confirm: true });
+      if (error) return resposta({ erro: /already|registered|exists/i.test(error.message) ? 'Já existe outro usuário com esse e-mail.' : error.message }, 400);
+      const { error: e1 } = await adm.from('usuarios').update({ email }).eq('id', id);
+      if (e1) throw e1;
+      return resposta({ ok: true, email });
     }
 
     if (b.acao === 'excluir') {

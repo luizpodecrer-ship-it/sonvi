@@ -35,7 +35,7 @@
       ${S.db.veiculos.map(v => `<label class="ac-l">${S.vav(v)}<span class="grow">${esc(v.nome)}</span><select name="v_${v.id}"${t} aria-label="Perfil em ${esc(v.nome)}">${PERFIS_VINCULO.map(([k, n]) => `<option value="${k}"${k === atual(v) ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`).join('')}</div>`;
     S.form(novo ? 'Cadastrar usuário' : esc(u.nome || u.email), [
       { k:'nome', label:'Nome', req:true, ph:'Nome completo' },
-      novo ? { k:'email', label:'E-mail', type:'email', req:true, ph:'nome@empresa.com.br' } : { html:`<label class="f">E-mail<input value="${esc(u.email)}" disabled></label>` },
+      { k:'email', label:'E-mail (é com ele que a pessoa entra)', type:'email', req:true, ph:'nome@empresa.com.br' },
       { k:'celular', label:'Celular (WhatsApp)' },
       { html:`<label class="f">Função<select name="funcao" data-funcao="1"${t}${eu ? ' disabled' : ''}><option value="radios"${dir ? '' : ' selected'}>Por rádio (gerente, consultor…)</option><option value="diretor"${dir ? ' selected' : ''}>Diretor · todas as rádios</option></select>${eu ? '<input type="hidden" name="funcao" value="diretor"><small class="muted">Você não pode tirar o seu próprio acesso de diretor.</small>' : ''}</label>` },
       { html:radios }],
@@ -48,7 +48,11 @@
       const r = await servidor({ acao:'criar', nome:f.nome, email:f.email, celular:f.celular, diretor, vinculos });
       await S.carregarBase(); S.render(); mostrarLink({ nome:f.nome, email:f.email, celular:f.celular }, r.link, true);
     });
-    S.run(async () => { await S.q(S.sb.rpc('salvar_usuario', { p_usuario:u.id, p_nome:f.nome, p_celular:f.celular || '', p_ativo:u.ativo, p_diretor:diretor, p_vinculos:vinculos })); await S.carregarBase(); }, 'Usuário salvo');
+    // E-mail novo: troca na conta de entrada (função do servidor); a senha continua a mesma
+    const email = String(f.email || '').trim().toLowerCase(), trocouEmail = !!email && email !== String(u.email || '').toLowerCase();
+    S.run(async () => { if (trocouEmail) await servidor({ acao:'email', usuario_id:u.id, email });
+      await S.q(S.sb.rpc('salvar_usuario', { p_usuario:u.id, p_nome:f.nome, p_celular:f.celular || '', p_ativo:u.ativo, p_diretor:diretor, p_vinculos:vinculos })); await S.carregarBase(); },
+      trocouEmail ? `Usuário salvo. ${String(f.nome).split(' ')[0]} agora entra com ${email} (a senha continua a mesma).` : 'Usuário salvo');
   };
 
   S.views.admin = () => {
