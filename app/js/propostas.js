@@ -289,20 +289,28 @@
     const fone = cli.whatsapp || cli.telefone || '', canal = fone || !cli.email ? 'whatsapp' : 'email';
     S.dialog(`<h2>Enviar proposta ${S.propNo(p)}</h2>
       <p class="muted" style="margin-top:-6px">${esc(cli.nome)} recebe um link para ver a proposta e baixar o PDF, sem precisar de login. Ao enviar, ela fica marcada como enviada.</p>
-      <fieldset class="f"><legend>Enviar por</legend><div class="seg radios" style="max-width:340px">
+      <fieldset class="f"><legend>Enviar por</legend><div class="seg radios" style="max-width:460px">
         <label><input type="radio" name="canal" value="whatsapp"${canal === 'whatsapp' ? ' checked' : ''}>WhatsApp</label>
-        <label><input type="radio" name="canal" value="email"${canal === 'email' ? ' checked' : ''}>E-mail</label></div></fieldset>
+        <label><input type="radio" name="canal" value="email"${canal === 'email' ? ' checked' : ''}>E-mail</label>
+        <label><input type="radio" name="canal" value="pdf">PDF</label></div></fieldset>
       <label class="f" data-canal="whatsapp">WhatsApp do cliente<input name="fone" data-mask="tel" inputmode="tel" autocomplete="off" value="${esc(fone)}"></label>
       <label class="f" data-canal="email">E-mail do cliente<input name="email" type="email" autocomplete="off" value="${esc(cli.email || '')}" placeholder="nome@empresa.com.br"></label>
-      <label class="f">Mensagem<textarea name="msg" class="pr-msg">${esc(msg)}</textarea></label>
+      <label class="f" data-canal="whatsapp email">Mensagem<textarea name="msg" class="pr-msg">${esc(msg)}</textarea></label>
+      <div data-canal="pdf" class="note info" style="margin:0">Baixa a proposta em PDF para você mandar por outro meio.${p.situacao === 'rascunho' ? `<label class="row mid" style="gap:10px;margin-top:10px;flex-wrap:nowrap"><input type="checkbox" name="marcar" checked>Marcar a proposta como enviada</label>` : ''}</div>
       <div class="row mid" style="flex-wrap:wrap"><span class="grow"></span>
         <button class="btn" value="cancel" formnovalidate>Cancelar</button><button type="button" class="btn pri" data-env="enviar">${S.svg('seta')}<span id="prEnvTxt">Enviar pelo WhatsApp</span></button></div>`);
     const dl = document.getElementById('dlg'), f = dl.querySelector('form'); dl.dataset.guarda = '1';
-    const troca = () => { const c = f.canal.value; f.querySelectorAll('[data-canal]').forEach(l => { l.hidden = l.dataset.canal !== c; });
-      document.getElementById('prEnvTxt').textContent = c === 'email' ? 'Enviar por e-mail' : 'Enviar pelo WhatsApp'; };
+    const troca = () => { const c = f.canal.value; f.querySelectorAll('[data-canal]').forEach(l => { l.hidden = !l.dataset.canal.split(' ').includes(c); });
+      document.getElementById('prEnvTxt').textContent = c === 'email' ? 'Enviar por e-mail' : c === 'pdf' ? 'Baixar PDF' : 'Enviar pelo WhatsApp'; };
     f.addEventListener('change', e => { if (e.target.name === 'canal') troca(); }); troca();
     f.addEventListener('click', e => { const bt = e.target.closest('[data-env]'); if (!bt) return;
       const c = f.canal.value, digitos = f.fone.value.replace(/\D/g, ''), email = f.email.value.trim();
+      // Baixar PDF: imprime já no clique; se pedido, marca como enviada (mandada por fora)
+      if (c === 'pdf') { const marcar = f.marcar && f.marcar.checked, atual = ed.id === p.id && ed.p ? ed.p : achar(p.id);
+        delete dl.dataset.sujo; dl.close('cancel'); baixarPdf(atual);
+        if (marcar) setTimeout(() => S.run(async () => { if (ed.id === p.id && ed.sujo) await gravar();
+          trocar(await S.q(S.sb.rpc('mudar_situacao_proposta', { p_proposta:p.id, p_situacao:'enviada', p_motivo:'' }))); }, `Proposta ${S.propNo(p)} marcada como enviada`), 400);
+        return; }
       if (c === 'whatsapp' && digitos.length < 10) return S.erroNoCampo(f.fone, 'Coloque o WhatsApp do cliente com DDD.');
       if (c === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return S.erroNoCampo(f.email, 'Coloque um e-mail válido.');
       // A janela do WhatsApp abre já no clique (o navegador bloqueia janela aberta depois); o endereço entra quando o envio é gravado
