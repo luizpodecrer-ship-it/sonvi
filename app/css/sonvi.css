@@ -1,6 +1,6 @@
 /* SONVI · sistema visual
    Identidade da marca: azul SONVI (#0055FF) como destaque, azul-claro (#0199FF) para o que está em andamento,
-   preto e branco. Títulos e números em Sora, textos em Geist. Claro e escuro automáticos.
+   preto e branco. Títulos e números em Sora, textos em Manrope. Claro e escuro automáticos.
    Movimento: as telas entram em sequência, gráficos crescem, botões e cartões respondem ao toque. */
 
 :root {
@@ -13,8 +13,9 @@
   --radius:22px; --radius-m:16px; --radius-s:12px;
   --shadow:0 1px 2px rgba(10,20,60,.04);
   --shadow-up:0 18px 40px -18px rgba(10,20,60,.28);
-  --font:"Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --display:"Sora", "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font:"Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --display:"Sora", "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
+  --heading-font:var(--display); --body-font:var(--font);
   --ease:cubic-bezier(.2,.7,.2,1);
   color-scheme:light;
 }
@@ -771,7 +772,7 @@ form.ver .g2 .mus-mapa button { display:block; }
 .tp-unicos-novos { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; } .tp-unicos-novos .tp-vazio { display:inline-flex; align-items:center; gap:4px; padding:6px 10px; font-size:12px; }
 
 /* ---------- PI impresso (contrato de publicidade): vale na prévia e no PDF ---------- */
-.pidoc { font:11px/1.35 'Geist', Helvetica, Arial, sans-serif; color:#111317; display:flex; flex-direction:column; gap:8px; }
+.pidoc { font:11px/1.35 'Manrope', Helvetica, Arial, sans-serif; color:#111317; display:flex; flex-direction:column; gap:8px; }
 .previa .pidoc { min-width:0; }
 .pidoc table { border-collapse:collapse; width:100%; margin:0; }
 .pidoc th, .pidoc td { border:1px solid #8d939e; padding:3px 4px; font-size:10.5px; color:#111317; background:transparent; white-space:normal; text-align:left; }
@@ -897,7 +898,7 @@ form.ver .g2 .mus-mapa button { display:block; }
 @media (max-width:980px) { .fin-rel { grid-template-columns:1fr; } .rr-res { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 @media (max-width:560px) { .rr-part > div { grid-template-columns:minmax(0, 1fr) 54px; } .rr-part .rr-barra { grid-column:1 / -1; grid-row:2; } .rr-part .rr-val { display:none; } .rr-k b { font-size:18px; } }
 /* Relatório impresso (A4 em pé) */
-.rdoc { font:11.5px/1.45 'Geist', Helvetica, Arial, sans-serif; color:#15171c; display:flex; flex-direction:column; gap:18px; }
+.rdoc { font:11.5px/1.45 'Manrope', Helvetica, Arial, sans-serif; color:#15171c; display:flex; flex-direction:column; gap:18px; }
 @media print {
   body > *:not(#print) { display:none !important; }
   #print .rdoc { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
@@ -1100,6 +1101,10 @@ dialog.conf form { gap:12px; } dialog.conf p { margin:0; }
 }
 /* Celular: clientes e OPEC em cartões (nada fica escondido fora da tela) */
 .cli-lista > div { cursor:pointer; align-items:flex-start; border-bottom:1px solid var(--line-2); border-radius:0; padding:14px 4px; }
+.heading { font-family:var(--heading-font); } .body-text { font-family:var(--body-font); }
+.nw { white-space:nowrap; }
+.cli-tab .cli-nome { overflow-wrap:anywhere; } .cli-tab td:first-child { min-width:220px; }
+@media (max-width:1400px) { .cli-tab .cli-ag { display:none; } } @media (max-width:1240px) { .cli-tab .cli-tel { display:none; } }
 .cli-lista > div:last-child { border-bottom:0; }
 .cli-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px; }
 .cli-meta small { color:var(--ink-2); font-size:13px; }
@@ -1123,18 +1128,19 @@ dialog.conf form { gap:12px; } dialog.conf p { margin:0; }
 /* ---------- Propostas (propostas.js): lista, editor, gerar PI ---------- */
 .pr-tiles .tile { gap:4px; } .pr-tiles .tile b { margin:6px 0 2px; } .pr-tiles .tile small:last-child { font-size:13px; }
 .prl { padding:10px 14px; }
-.prl-l { display:grid; grid-template-columns:86px minmax(0, 1.25fr) minmax(0, 1.35fr) 92px 136px minmax(140px, 1fr) 182px; gap:16px; align-items:center; padding:14px 10px; border-top:1px solid var(--line-2); border-radius:var(--radius-s); font-variant-numeric:tabular-nums; }
+.prl-l { display:grid; grid-template-columns:84px minmax(150px, 1.2fr) minmax(0, 1.3fr) 96px 132px minmax(150px, 1fr) 176px; gap:18px; align-items:center; padding:14px 10px; border-top:1px solid var(--line-2); border-radius:var(--radius-s); font-variant-numeric:tabular-nums; }
 .prl-l.click { cursor:pointer; transition:background .2s; } .prl-l.click:hover, .prl-l.click:focus-visible { background:var(--fill); outline:none; }
 .prl-l > span { min-width:0; display:flex; flex-direction:column; gap:2px; }
 .prl-cab { border-top:0; padding-top:4px; padding-bottom:8px; font-size:12px; color:var(--ink-2); font-weight:500; }
 .prl-n { font:600 15px/1.2 var(--display); white-space:nowrap; } .prl-cab .prl-n { font:inherit; }
-.prl-c b, .prl-c small, .prl-i { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .prl-i { display:block !important; }
+.prl-c b, .prl-i, .prl-s small { display:-webkit-box !important; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden; overflow-wrap:anywhere; }
+.prl-c b { line-height:1.3; } .prl-cab .prl-i { font-size:inherit; color:inherit; } .prl-c small { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .prl-i { line-height:1.4; color:var(--ink-2); font-size:14px; }
 .prl-l small { color:var(--ink-2); font-size:12.5px; }
 .prl-q, .prl-v { text-align:right; align-items:flex-end; } .prl-l .prl-q small, .prl-l .prl-v small { display:none; }
 .prl-v b { font:600 15px/1.2 var(--display); }
-.prl-s { align-items:flex-start; } .prl-s small { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.prl-s { align-items:flex-start; gap:4px !important; } .prl-s small { line-height:1.35; }
 .prl-a { flex-direction:row !important; align-items:center; justify-content:flex-end; gap:6px !important; }
-@media (max-width:1320px) { .prl-l { grid-template-columns:80px minmax(0, 1.2fr) 84px 128px minmax(130px, 1fr) 176px; gap:12px; } .prl-l > .prl-i { display:none !important; } }
+@media (max-width:1320px) { .prl-l { grid-template-columns:78px minmax(0, 1.6fr) 84px 124px minmax(0, 1fr) 176px; gap:14px; } .prl-l > .prl-i { display:none !important; } }
 .pr-tiles { grid-template-columns:repeat(4, minmax(0, 1fr)); } @media (max-width:1100px) { .pr-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 @media (max-width:1100px) {
   .prl-l > .prl-i { display:block !important; }
@@ -1217,14 +1223,14 @@ fieldset.f { border:0; margin:0; padding:0; min-width:0; } fieldset.f legend { p
 .pd-grade td.pg .pd-fx { display:block; font-weight:400; font-size:9.5px; color:#4b515c; overflow:hidden; text-overflow:ellipsis; }
 
 /* ---------- Proposta impressa (A4 em pé, modelo da empresa comercial) ---------- */
-.prdoc { width:210mm; min-height:296mm; display:flex; flex-direction:column; background:#fff; color:#152134; font:12px/1.55 'Geist', Helvetica, Arial, sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.prdoc { width:210mm; min-height:296mm; display:flex; flex-direction:column; background:#fff; color:#152134; font:12px/1.55 'Manrope', Helvetica, Arial, sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 .prd-faixa { display:flex; height:3mm; flex:none; } .prd-faixa i { flex:3; background:var(--pc); } .prd-faixa i + i { flex:1; background:var(--pc2); }
 .prd-cab { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:9mm 15mm 7mm; border-bottom:1px solid #e3e6ec; }
 .prd-logo { width:64mm; height:auto; display:block; }
 .prd-tit { text-align:right; display:flex; flex-direction:column; gap:3px; } .prd-tit b { font:700 15px/1.2 'Sora', sans-serif; letter-spacing:.04em; } .prd-tit span { color:#5b6170; font-size:12px; }
 .prd-corpo { padding:9mm 15mm 0; display:flex; flex-direction:column; gap:7mm; flex:1; }
 .prd-partes { display:grid; grid-template-columns:1.6fr 1fr; gap:10mm; } .prd-partes > div { display:flex; flex-direction:column; gap:1px; }
-.prd-partes small, .prd-cond small { color:var(--pc); font:700 9.5px/1.4 'Geist', Helvetica, sans-serif; letter-spacing:.1em; text-transform:uppercase; margin-bottom:2px; }
+.prd-partes small, .prd-cond small { color:var(--pc); font:700 9.5px/1.4 'Manrope', Helvetica, sans-serif; letter-spacing:.1em; text-transform:uppercase; margin-bottom:2px; }
 .prd-partes b { font:700 14px/1.35 'Sora', sans-serif; } .prd-partes span { color:#3b4150; font-size:11.5px; }
 .prd-radio, #print .prd-radio { font:700 27px/1.15 'Sora', sans-serif; letter-spacing:-.01em; margin:0; padding-bottom:4mm; position:relative; color:#152134; } .prd-radio::after { content:""; position:absolute; left:0; bottom:0; width:15mm; height:3px; background:var(--pc2); }
 .prd-texto { font-size:12.5px; line-height:1.75; color:#26304a; margin:0; }
