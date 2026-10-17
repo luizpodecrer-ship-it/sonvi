@@ -165,7 +165,26 @@ S.dialog = (html, onOk) => {
   d.innerHTML = `<form method="dialog">${html}</form>`;
   const h = d.querySelector('h2'); if (h) { h.id = 'dlgTitulo'; d.setAttribute('aria-labelledby', 'dlgTitulo'); } else d.removeAttribute('aria-labelledby');
   delete d.dataset.guarda; delete d.dataset.sujo;
-  d.onclose = () => { if (d.returnValue === 'ok' && onOk) onOk(Object.fromEntries(new FormData(d.querySelector('form')))); };
+  // Ao fechar com "ok", entrega o que foi digitado; um erro aqui aparece na tela em vez de sumir calado
+  d.onclose = () => { if (d.returnValue !== 'ok' || !onOk) return;
+    try { onOk(Object.fromEntries(new FormData(d.querySelector('form')))); } catch (e) { console.error(e); S.toast(S.erro ? S.erro(e) : String(e.message || e)); } };
+  // Envio do formulário feito por nós (e não pelo navegador): confere os campos, mostra o problema embaixo do campo
+  // e fecha a janela com o valor do botão. Evita o Safari travar o "Salvar" sem aviso (campo escondido inválido,
+  // ou o envio "method=dialog" que não fecha a janela).
+  const form = d.querySelector('form'); form.noValidate = true;
+  form.addEventListener('submit', e => {
+    const v = e.submitter ? e.submitter.value : 'ok';
+    if (!v || v === 'cancel') return; // Fechar/Cancelar seguem o caminho de sempre (com a pergunta de descartar)
+    e.preventDefault();
+    if (v === 'ok') {
+      const ruim = [...form.elements].find(el => el.willValidate && !el.disabled && !el.checkValidity());
+      if (ruim) { const visivel = !!(ruim.offsetWidth || ruim.offsetHeight || ruim.getClientRects().length);
+        const nome = ((ruim.closest('label') || {}).textContent || '').replace(/\s+/g, ' ').trim().split(' ').slice(0, 4).join(' ');
+        if (visivel) S.erroNoCampo(ruim, ruim.validationMessage || 'Preencha este campo.'); else S.toast(`Confira o campo ${nome || 'obrigatório'}: ${ruim.validationMessage || 'está vazio'}`);
+        return; }
+    }
+    delete d.dataset.sujo; d.close(v);
+  });
   d._volta = { origem, alvo };
   S.mascarar(d); d.showModal(); S.focarPrimeiro(d);
 };
