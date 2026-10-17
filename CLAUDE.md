@@ -41,7 +41,8 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 ## Visual
 
 - Identidade SONVI (logo e paleta em `marca/` na pasta do projeto; versões do logo em `app/img/`): azul `#0055FF` como destaque, azul-claro `#0199FF` para o que está em andamento, preto e branco. Títulos e números em Sora, textos em Manrope (Google Fonts; variáveis `--heading-font`/`--display` e `--body-font`/`--font`, classes `.heading` e `.body-text`).
-- Limpo e sofisticado: muito espaço em branco, cartões brancos com cantos de 22 px sobre cinza claro, botões em pílula, poucos elementos por tela. O mockup aprovado é a referência ("SONVI — Novo visual").
+- Limpo e sofisticado: muito espaço em branco, cartões brancos com cantos de 22 px sobre cinza claro, poucos elementos por tela.
+- Botões (aprovado em 17/10/2026, efeito "Swap Out"): cantos de 8 px, Manrope 13 px em maiúsculas com espaçamento 0,08em, contorno de 1 px na cor do texto e fundo transparente; ao passar o mouse, enchem com a cor da rádio (`--accent`) e o texto fica branco (0,4 s). `.pri` tem o mesmo visual; `.danger`/`.perigo` em vermelho e `.warn` em laranja enchem na própria cor; em fundo escuro (`.next`, `.fin-selbar`, login do Sonvi Music) o contorno é branco. O site (landing) mantém os botões próprios. O mockup aprovado é a referência ("SONVI — Novo visual").
 - Usar sempre as variáveis e classes de `app/css/sonvi.css` (`.card`, `.hd`, `.cols`, `.btn`, `.pill`, `.seg`, `.tile`/`.tile.hero`, `.bars`, `.stack`, `.legend`, `.prog`, `.people`, `.list`, `.steps`, `.next`, `.agenda`); ícones por `S.svg(nome)` e selo da rádio por `S.vav(veiculo)`. Não criar cores ou estilos soltos nos módulos.
 - Movimento: os blocos entram em sequência só quando a tela muda (classe `entra`, controlada em `app.js`), gráficos crescem, status "Na OPEC" pulsa. Respeitar "reduzir movimento" do sistema.
 - Claro e escuro automáticos.
