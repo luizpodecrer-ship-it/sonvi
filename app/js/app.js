@@ -12,7 +12,7 @@
     ['pis', 'PIs', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['opec', 'OPEC', ['diretor', 'opec']],
     ['financeiro', 'Financeiro', ['diretor', 'financeiro']],
-    ['cadastros', 'Tabela de preços', ['diretor', 'gerente']],
+    ['cadastros', 'Tabela de preços', ['diretor', 'gerente', 'consultor']],
     ['music', 'Sonvi Music', S.MUSIC_PERFIS, 'music/'],
     ['admin', 'Administração', ['diretor']]];
   const SOON = [];

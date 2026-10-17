@@ -1,7 +1,7 @@
 // SONVI · função de borda "email": o próprio sistema envia e-mails pelo Resend (domínio sonvi.com.br verificado).
 // A chave do Resend fica só no servidor (segredo RESEND_API_KEY no Supabase); nunca vai para o navegador.
 // Só envia sobre um PI ou uma proposta que a pessoa logada consegue ver (as regras do banco valem: RLS).
-//   { tipo: "pi_opec", id, para, assunto, texto }     → remetente "<rádio> · SONVI" <pi@sonvi.com.br>
+//   { tipo: "pi_opec", id, para, assunto, texto }     → remetente "<rádio> · SONVI" <pi@sonvi.com.br>; se quem envia é consultor, os gerentes da rádio vão em cópia
 //   { tipo: "proposta", id, para, assunto, texto }    → remetente "<empresa comercial>" <propostas@sonvi.com.br>
 // A resposta do destinatário vai para o e-mail de quem enviou (reply_to).
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -36,11 +36,19 @@ Deno.serve(async (req) => {
     if (!assunto || !texto) return resposta({ erro: 'Assunto e mensagem são obrigatórios.' }, 400);
 
     // O registro precisa existir e estar visível para quem envia (as regras do banco decidem)
-    let remetente = '', link = '';
+    let remetente = '', link = '', copia: string[] = [];
     if (b.tipo === 'pi_opec') {
-      const { data: pi } = await quem.from('pis').select('id, link_token, veiculos(nome)').eq('id', String(b.id ?? '')).maybeSingle();
+      const { data: pi } = await quem.from('pis').select('id, link_token, veiculo_id, veiculos(nome)').eq('id', String(b.id ?? '')).maybeSingle();
       if (!pi) return resposta({ erro: 'PI não encontrado ou sem permissão.' }, 404);
       remetente = `${nomeLimpo((pi as any).veiculos?.nome || 'Rádio')} · SONVI <pi@sonvi.com.br>`;
+      // Consultor que manda o PI para a OPEC: os gerentes da rádio recebem cópia (precisam saber que foi enviado)
+      const adm = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
+      const { data: vs } = await adm.from('usuario_veiculos').select('usuario_id, perfil').eq('veiculo_id', (pi as any).veiculo_id);
+      if ((vs || []).some((x: any) => x.usuario_id === user.id && x.perfil === 'consultor')) {
+        const ids = (vs || []).filter((x: any) => x.perfil === 'gerente').map((x: any) => x.usuario_id);
+        const { data: gs } = ids.length ? await adm.from('usuarios').select('email').in('id', ids).eq('ativo', true) : { data: [] };
+        copia = [...new Set((gs || []).map((g: any) => String(g.email || '').toLowerCase()).filter((e: string) => emailOk(e) && !para.includes(e)))].slice(0, 5);
+      }
     } else if (b.tipo === 'proposta') {
       const { data: p } = await quem.from('propostas').select('id, link_token').eq('id', String(b.id ?? '')).maybeSingle();
       if (!p) return resposta({ erro: 'Proposta não encontrada ou sem permissão.' }, 404);
@@ -59,11 +67,11 @@ Deno.serve(async (req) => {
 
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: remetente, to: para, subject: assunto, text: texto, html, ...(emailOk(responder) ? { reply_to: responder } : {}) }),
+      body: JSON.stringify({ from: remetente, to: para, ...(copia.length ? { cc: copia } : {}), subject: assunto, text: texto, html, ...(emailOk(responder) ? { reply_to: responder } : {}) }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return resposta({ erro: `O serviço de e-mail recusou: ${j?.message || r.status}` }, 502);
-    return resposta({ ok: true, id: j.id });
+    return resposta({ ok: true, id: j.id, gerentes: copia.length });
   } catch (e) {
     console.error(e);
     return resposta({ erro: (e as Error).message ?? String(e) }, 500);

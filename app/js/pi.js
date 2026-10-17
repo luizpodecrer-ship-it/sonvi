@@ -27,7 +27,7 @@
           <span class="pl-u" title="${esc(cons)}">${cons ? `<span class="av soft" aria-hidden="true">${esc(S.iniciais(cons))}</span><span class="pl-un">${esc(S.celular ? cons : cons.split(' ')[0])}</span>` : '<span class="muted">—</span>'}</span>
           <span class="pl-p"><small>Prazo</small>${p.prazo ? dfmt(p.prazo) : '—'}</span>
           <span class="pl-i"><small>Inserções</small>${c.ins}</span>
-          <span class="pl-v"><b>${brl(c.total)}</b>${c.commission ? `<small>Líquido ${brl(c.net)}</small>` : ''}</span>
+          <span class="pl-v"><b>${brl(c.total)}</b>${c.commission ? `<small>Líquido ${brl(c.net)}</small>` : ''}${S.pagPi(p)}</span>
           <span class="pl-m"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
       return `<section class="card pis-g"><div class="hd"><h2>${S.pill(s)} <span class="muted small">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h2></div>
         <div class="pl"><div class="pl-l pl-cab"><span class="pl-n">Nº</span><span class="pl-t">Título</span><span class="pl-c">Cliente · agência</span><span class="pl-u">Consultor</span><span class="pl-p">Prazo</span><span class="pl-i">Inserções</span><span class="pl-v">Total</span><span class="pl-m"></span></div>
@@ -127,7 +127,7 @@
     const acoes = em
       ? `<span class="sujo" ${ed.sujo ? '' : 'hidden'}><i></i>Alterações não salvas</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piCancelar">Cancelar</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn pri" data-act="piSalvar">${S.svg('check')}Salvar</button>`
       : `<span class="muted small salvo">${salvoEm(pi)}</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn" data-act="piExport">${S.svg('baixar')}Exportar PI</button>${editavel(pi) ? `<button class="btn" data-act="piEditar">${S.svg('editar')}Editar</button>` : ''}${flow(pi)}`;
-    return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
+    return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}${S.pagPi(pi)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
       actions:acoes, body:abas + notas + body };
   };
 
@@ -455,7 +455,7 @@
           Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id];
         } catch (err) { console.error(err); S.toast(S.erro(err)); S.render(); return; }
         S.toast('Enviando o e-mail para a OPEC…'); S.render();
-        try { await S.enviarEmail({ tipo:'pi_opec', id:pi.id, para:email, assunto, texto }); S.toast(`${S.piNo(pi)} enviado para a OPEC (${email})`); }
+        try { const r = await S.enviarEmail({ tipo:'pi_opec', id:pi.id, para:email, assunto, texto }); S.toast(`${S.piNo(pi)} enviado para a OPEC (${email})${r && r.gerentes ? (r.gerentes === 1 ? '. O gerente recebeu cópia.' : `. Os ${r.gerentes} gerentes receberam cópia.`) : ''}`); }
         catch (err) { console.error(err); S.emailManual(email, assunto, texto, `O ${S.piNo(pi)} já está Na OPEC, mas o e-mail não foi: ${err.message}`); }
       })();
     });

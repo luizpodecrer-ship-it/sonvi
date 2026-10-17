@@ -78,6 +78,9 @@
     const [pessoas, produtos, precos, tabelas, pis, agenda, lancamentos, propostas] = await Promise.all([de('pessoas'), de('produtos'), de('precos'), de('tabelas_preco'), de('pis'), de('agenda'), de('lancamentos'),
       S.APP === 'music' ? Promise.resolve([]) : de('propostas')]);
     Object.assign(S.db, { pessoas, produtos, precos, tabelas, pis:pis.map(S.piNorm), agenda, lancamentos, propostas });
+    // Pagamento dos PIs (pago, em aberto, atrasado): todos os perfis veem dos PIs que enxergam, sem abrir o Financeiro
+    S.db.pagPis = {};
+    if (S.APP !== 'music') { try { (await q(S.sb.rpc('pagamento_dos_pis', { p_veiculo:v })) || []).forEach(r => { S.db.pagPis[r.pi_id] = r; }); } catch (e) { console.error(e); } }
   };
 
   // Tabelas de preço e seus preços (depois de criar, salvar ou publicar uma tabela)

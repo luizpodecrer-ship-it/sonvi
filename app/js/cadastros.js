@@ -179,11 +179,16 @@
       <div class="tile"><small>Comparando com</small><b class="tp-comp">${esc(ed.baseNome)}</b><small>embaixo de cada preço: o valor de antes</small></div></div>` : '';
     const legenda = c ? `<div class="tp-legenda"><span><i class="tp-q mudou"></i>Reajustado</span><span><i class="tp-q mao"></i>Mudado à mão</span><span><i class="tp-q igual"></i>Igual à anterior</span><span><i class="tp-q novo"></i>Novo</span></div>` : '';
     const barraCel = editar ? `<div class="tp-barra">${sujo}<div class="row">${s === 'rascunho' && diretor() ? `<button class="btn" data-act="tpSalvarTabela">Salvar</button><button class="btn pri" data-act="tpPublicar">Publicar…</button>` : `<button class="btn" data-act="tpDescartar">Descartar</button><button class="btn pri" data-act="tpSalvarTabela">Salvar</button>`}</div></div>` : '';
-    return { title:`<span class="sub"><a data-go="/cadastros">← Tabelas de preços</a> · ${esc(S.veh().nome)}</span>${esc(ed.nome || t.nome)}`,
+    return { title:`<span class="sub">${pode() ? '<a data-go="/cadastros">← Tabelas de preços</a> · ' : 'Tabela de preços vigente · '}${esc(S.veh().nome)}</span>${esc(ed.nome || t.nome)}`,
       actions:editar ? `<span class="tp-topo">${acoes}</span>` : acoes, body:faixa + massa + resumo + legenda + corpoGrade(v, editar) + (editar && !S.celular ? `<p class="muted small" style="margin-top:12px">Clique num valor para digitar outro (Enter confirma, Esc desiste). Nada vale até ${s === 'rascunho' ? 'publicar' : 'salvar'}.</p>` : '') + barraCel };
   };
 
   S.views.cadastros = id => {
+    // Consultor e outros perfis só consultam a tabela vigente (o banco nem entrega rascunhos para eles)
+    if (!pode()) { const vig = S.tabelaVigente && S.tabelaVigente();
+      if (!vig) return { title:`<span class="sub">${esc(S.veh().nome)}</span>Tabela de preços`, actions:'', body:`<div class="card empty"><b>Nenhuma tabela vigente</b>Quando a tabela de preços for publicada, ela aparece aqui para consulta.</div>` };
+      if (!ed || ed.id !== vig.id) abrir(vig);
+      return vistaTabela(vig); }
     const t = id && tab(id);
     if (!t) { if (ed && !ed.sujo) ed = null; return vistaLista(); }
     if (!ed || ed.id !== t.id) abrir(t);

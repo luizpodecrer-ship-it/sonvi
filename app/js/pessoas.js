@@ -194,7 +194,17 @@
   async function procurarDocumento(valor) {
     const box = document.querySelector('#dlg #cadAchado'); if (!box) return;
     const n = soNumeros(valor);
-    if (![11, 14].includes(n.length) || n === cad.ignorar) { box.hidden = true; return; }
+    if (![11, 14].includes(n.length)) { box.hidden = true; return; }
+    // Cliente que já existe nesta rádio (de outro consultor): avisa quem atende, sem mostrar os dados, e não deixa salvar
+    if (aba === 'cliente') { let dono = null;
+      try { dono = await S.q(S.sb.rpc('cliente_de_outro', { p_veiculo:S.ui.vehicleId, p_doc:n })); } catch (e) { console.error(e); }
+      const el = campo('documento');
+      if (dono && el && soNumeros(el.value) === n) {
+        const msg = S.pode('consultor') ? `Este cliente já é atendido por ${dono} nesta rádio. Fale com o gerente.` : `Este cliente já está cadastrado nesta rádio (consultor: ${dono}).`;
+        el.setCustomValidity(msg); box.hidden = false;
+        box.innerHTML = `<div class="cad-achado aviso" role="alert">${S.svg('bloqueio')}<div><b>${n.length === 14 ? 'CNPJ' : 'CPF'} já cadastrado nesta rádio</b><span>${esc(msg)}</span></div></div>`;
+        return; } }
+    if (n === cad.ignorar) { box.hidden = true; return; }
     let achados = [];
     try { achados = await buscarIrmaos(aba, null, n); } catch (e) { console.error(e); }
     cad.achados = achados; const a = achados[0];

@@ -192,4 +192,9 @@
     const iso = t => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     return { meses:Object.keys(porMes).sort().map(period => ({ period, itens:porMes[period] })), soma, esperado, semDias:[...semDias], inicio, fim:iso(fim) };
   };
+  // Etiqueta do pagamento do PI (vem de pagamento_dos_pis): pago, em aberto (com o próximo vencimento) ou atrasado
+  S.PAG_PI = { pago:['Pago', 'green'], aberto:['Em aberto', 'blue'], atrasado:['Pagamento atrasado', 'red'] };
+  S.pagPi = pi => { const r = ((S.db && S.db.pagPis) || {})[pi.id]; if (!r || !S.PAG_PI[r.situacao]) return '';
+    const [t, c] = S.PAG_PI[r.situacao], prox = r.situacao !== 'pago' && r.proximo ? ` · vence ${S.dfmt(r.proximo).slice(0, 5)}` : '';
+    return `<span class="pill pag-pi" style="--tone:var(--${c})" title="${t}${prox}">${t}${r.situacao === 'aberto' ? prox : ''}</span>`; };
 })();

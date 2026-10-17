@@ -21,6 +21,13 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - Só a chave pública (publishable) pode aparecer no código. Nunca a `service_role`.
 - E-mail pelo próprio sistema: função de borda `email` (`supabase/functions/email`, publicar como `usuarios`: arquivo `source/index.ts`, `verify_jwt` = false; ela confere o login). Envia pelo Resend com o domínio sonvi.com.br verificado (registros DKIM/SPF/DMARC no Registro.br, região São Paulo); a chave fica só no segredo `RESEND_API_KEY` do Supabase. Só envia sobre um PI ou proposta que a pessoa consegue ver (RLS). Remetentes: `<rádio> · SONVI <pi@sonvi.com.br>` (PI para a OPEC) e `<empresa comercial> <propostas@sonvi.com.br>`; a resposta vai para o e-mail de quem enviou. No app: `S.enviarEmail` (dados.js); se falhar, `S.emailManual` oferece abrir no e-mail do computador, no Gmail ou copiar a mensagem.
 
+## Acesso do consultor (decidido em 17/10/2026, `database/022_acesso_do_consultor.sql`)
+
+- Menu: Dashboard, Follow-up, Clientes, Propostas, PIs e Tabela de preços (só consulta da vigente: `S.views.cadastros` sem `pode()` mostra a vigente sem edição; o banco só entrega tabelas e preços publicados para quem não é diretor/gerente). Sem OPEC, Financeiro e Administração (bloqueado no banco).
+- Vê só a própria carteira, os próprios PIs, propostas e follow-ups; agências todas. Aprova/recusa as próprias propostas, gera o PI da aprovada e envia o PI direto para a OPEC; nesse envio os gerentes da rádio vão em cópia do e-mail (função `email`). Desconto livre (sem trava por `desconto_max`).
+- Cliente de outro consultor: ao digitar o CNPJ/CPF num cliente novo, `cliente_de_outro(veiculo, doc)` diz quem atende (sem mostrar os dados) e o campo fica inválido; a política `pessoas_criar` também recusa.
+- Pagamento dos PIs: `pagamento_dos_pis(veiculo)` (pago / em aberto com próximo vencimento / atrasado) carregado em `S.db.pagPis`; etiqueta `S.pagPi(pi)` na lista e no cabeçalho do PI, para todos os perfis, sem abrir o Financeiro.
+
 ## Regras do produto
 
 - Tudo é individual por veículo (rádio): clientes, agências, PIs e numeração (`PI VERDE 0001`). Nenhum dado de uma rádio aparece em outra.

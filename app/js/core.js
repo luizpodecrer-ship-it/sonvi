@@ -180,7 +180,7 @@ S.dialog = (html, onOk) => {
       const ruim = [...form.elements].find(el => el.willValidate && !el.disabled && !el.checkValidity());
       if (ruim) { const visivel = !!(ruim.offsetWidth || ruim.offsetHeight || ruim.getClientRects().length);
         const nome = ((ruim.closest('label') || {}).textContent || '').replace(/\s+/g, ' ').trim().split(' ').slice(0, 4).join(' ');
-        if (visivel) S.erroNoCampo(ruim, ruim.validationMessage || 'Preencha este campo.'); else S.toast(`Confira o campo ${nome || 'obrigatório'}: ${ruim.validationMessage || 'está vazio'}`);
+        if (visivel) { if (ruim.parentElement.querySelector(':scope > .aviso, :scope > .erro-campo')) ruim.focus(); else S.erroNoCampo(ruim, ruim.validationMessage || 'Preencha este campo.'); } else S.toast(`Confira o campo ${nome || 'obrigatório'}: ${ruim.validationMessage || 'está vazio'}`);
         return; }
     }
     delete d.dataset.sujo; d.close(v);
