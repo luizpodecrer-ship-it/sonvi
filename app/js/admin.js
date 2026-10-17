@@ -1,10 +1,19 @@
-// SONVI · administração (só o diretor): veículos do grupo e usuários com o perfil em cada rádio.
+// SONVI · administração: veículos do grupo e usuários com o perfil em cada rádio.
+// Diretor: tudo. Gerente: só a aba Usuários, nas rádios em que é gerente (consultor, OPEC, financeiro, programador e locutor).
+// Quem garante é o banco (salvar_usuario, pode_gerenciar_usuario) e a função usuarios; aqui a tela só acompanha.
 (() => {
   const { esc } = S;
   let aba = 'veiculos';
   const PERFIS_VINCULO = [['', 'Sem acesso'], ['gerente', 'Gerente comercial'], ['consultor', 'Consultor'], ['opec', 'OPEC'], ['financeiro', 'Financeiro'], ['programador', 'Programador musical'], ['locutor', 'Locutor']];
 
   const vinculosDe = u => S.db.vinculos.filter(x => x.usuario_id === u.id && S.veh(x.veiculo_id));
+  // Gerente (não diretor): rádios em que ele é gerente e quem ele pode cuidar (mesma regra do banco)
+  const ehGer = () => !S.me.diretor;
+  const minhas = () => S.db.veiculos.filter(v => S.db.vinculos.some(x => x.usuario_id === S.me.id && x.veiculo_id === v.id && x.perfil === 'gerente'));
+  const ehMinha = id => minhas().some(v => v.id === id);
+  const podeCuidar = u => !ehGer() || (u.id !== S.me.id && !u.diretor && !vinculosDe(u).some(x => x.perfil === 'gerente') && vinculosDe(u).some(x => ehMinha(x.veiculo_id)));
+  const soNasMinhas = u => !ehGer() || (podeCuidar(u) && S.db.vinculos.filter(x => x.usuario_id === u.id).every(x => ehMinha(x.veiculo_id)));
+  S.gerenteCadastra = () => !S.me.diretor && minhas().length > 0;
   const acessoTexto = (u, sep = ' · ') => u.diretor ? 'Diretor · todas as rádios' : vinculosDe(u).map(x => `${esc(S.veh(x.veiculo_id).nome)}: ${S.PERFIS[x.perfil]}`).join(sep) || '<span class="muted">Nenhuma rádio</span>';
   const situacao = u => !u.ativo ? S.tag('Desativado', 'gray') : !u.ultimo_acesso ? S.tag('Aguardando primeiro acesso', 'orange') : !u.diretor && !vinculosDe(u).length ? S.tag('Sem rádio', 'orange') : S.tag('Ativo', 'green');
 
@@ -33,20 +42,27 @@
     const trava = eu && !!u.diretor && !S.db.usuarios.some(x => x.id !== u.id && x.diretor && x.ativo);
     const atual = v => valores ? valores['v_' + v.id] || '' : (S.db.vinculos.find(x => x.usuario_id === u.id && x.veiculo_id === v.id) || {}).perfil || '';
     const dir = valores ? valores.funcao === 'diretor' : !!u.diretor;
-    const radios = `<div class="acessos" style="grid-column:1/-1"${dir ? ' hidden' : ''}><b>Rádios e perfis</b><small class="muted">Escolha o que a pessoa faz em cada rádio. "Sem acesso" esconde a rádio dela.</small>
-      ${S.db.veiculos.map(v => `<label class="ac-l">${S.vav(v)}<span class="grow">${esc(v.nome)}</span><select name="v_${v.id}"${t} aria-label="Perfil em ${esc(v.nome)}">${PERFIS_VINCULO.map(([k, n]) => `<option value="${k}"${k === atual(v) ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`).join('')}</div>`;
+    // Gerente: só as rádios dele e sem a opção de gerente; o acesso da pessoa em outras rádios aparece só como informação
+    const ger = ehGer(), lista = ger ? minhas() : S.db.veiculos, perfis = ger ? PERFIS_VINCULO.filter(([k]) => k !== 'gerente') : PERFIS_VINCULO;
+    const fora = ger && u.id ? vinculosDe(u).filter(x => !ehMinha(x.veiculo_id)) : [];
+    const radios = `<div class="acessos" style="grid-column:1/-1"${dir ? ' hidden' : ''}><b>Rádios e perfis</b><small class="muted">${ger ? 'Você dá acesso nas rádios em que é gerente.' : 'Escolha o que a pessoa faz em cada rádio.'} "Sem acesso" esconde a rádio dela.</small>
+      ${lista.map(v => `<label class="ac-l">${S.vav(v)}<span class="grow">${esc(v.nome)}</span><select name="v_${v.id}"${t} aria-label="Perfil em ${esc(v.nome)}">${(perfis.some(([k]) => k === atual(v)) ? perfis : PERFIS_VINCULO).map(([k, n]) => `<option value="${k}"${k === atual(v) ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`).join('')}
+      ${fora.length ? `<small class="muted">Também tem acesso em ${fora.map(x => `${esc(S.veh(x.veiculo_id).nome)} (${S.PERFIS[x.perfil]})`).join(', ')}. Isso fica com o diretor ou com o gerente de lá.</small>` : ''}</div>`;
     S.form(novo ? 'Cadastrar usuário' : esc(u.nome || u.email), [
       { k:'nome', label:'Nome', req:true, ph:'Nome completo' },
       { k:'email', label:'E-mail (é com ele que a pessoa entra)', type:'email', req:true, ph:'nome@empresa.com.br' },
       { k:'celular', label:'Celular (WhatsApp)' },
-      { html:`<label class="f">Função<select name="funcao" data-funcao="1"${t}${trava ? ' disabled' : ''}><option value="radios"${dir ? '' : ' selected'}>Por rádio (gerente, consultor…)</option><option value="diretor"${dir ? ' selected' : ''}>Diretor · todas as rádios</option></select>${trava ? '<input type="hidden" name="funcao" value="diretor"><small class="muted">Você é o único diretor ativo. Para mudar a sua função, cadastre outro diretor antes.</small>' : eu && dir ? '<small class="muted">Se deixar de ser diretor, você perde o acesso a Administração.</small>' : ''}</label>` },
+      ger ? { html:'<input type="hidden" name="funcao" value="radios">' } : { html:`<label class="f">Função<select name="funcao" data-funcao="1"${t}${trava ? ' disabled' : ''}><option value="radios"${dir ? '' : ' selected'}>Por rádio (gerente, consultor…)</option><option value="diretor"${dir ? ' selected' : ''}>Diretor · todas as rádios</option></select>${trava ? '<input type="hidden" name="funcao" value="diretor"><small class="muted">Você é o único diretor ativo. Para mudar a sua função, cadastre outro diretor antes.</small>' : eu && dir ? '<small class="muted">Se deixar de ser diretor, você perde o acesso a Administração.</small>' : ''}</label>` },
       { html:radios }],
       valores || u, f => salvarUsuario(u, f), novo ? 'Cadastrar e gerar link' : 'Salvar', { editar });
+    // Quem o gerente não pode cuidar (diretor, outro gerente, ele mesmo) abre só para consulta
+    if (!novo && !podeCuidar(u)) { const b = document.querySelector('#dlg [data-act="formEditar"]'); if (b) b.remove(); }
   };
   const salvarUsuario = async (u, f) => {
     if (u.id && u.id === S.me.id && u.diretor && f.funcao !== 'diretor' && !await S.confirmar('Deixar de ser diretor?\n\nVocê passa a ver só as rádios e perfis escolhidos e perde o acesso a Administração. Só outro diretor consegue devolver.', { ok:'Deixar de ser diretor', perigo:true })) return;
-    const diretor = f.funcao === 'diretor', vinculos = S.db.veiculos.map(v => ({ veiculo_id:v.id, perfil:f['v_' + v.id] || '' })).filter(x => x.perfil);
-    if (!diretor && !vinculos.length) { formUsuario(u, true, f); return S.erroNoCampo('.acessos', 'Escolha pelo menos uma rádio e o perfil da pessoa nela.'); }
+    const diretor = f.funcao === 'diretor', vinculos = (ehGer() ? minhas() : S.db.veiculos).map(v => ({ veiculo_id:v.id, perfil:f['v_' + v.id] || '' })).filter(x => x.perfil);
+    const temFora = ehGer() && u.id && vinculosDe(u).some(x => !ehMinha(x.veiculo_id));
+    if (!diretor && !vinculos.length && !temFora) { formUsuario(u, true, f); return S.erroNoCampo('.acessos', 'Escolha pelo menos uma rádio e o perfil da pessoa nela.'); }
     if (!u.id) return S.run(async () => {
       const r = await servidor({ acao:'criar', nome:f.nome, email:f.email, celular:f.celular, diretor, vinculos });
       await S.carregarBase(); S.render(); mostrarLink({ nome:f.nome, email:f.email, celular:f.celular }, r.link, true);
@@ -59,7 +75,8 @@
   };
 
   S.views.admin = () => {
-    const seg = `<div class="seg">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
+    if (ehGer()) aba = 'usuarios';
+    const seg = ehGer() ? '' : `<div class="seg">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
     let body;
     if (aba === 'veiculos') {
       body = `<div class="card">${S.db.veiculos.length ? `<div class="scroll"><table><thead><tr><th>Rádio</th><th>Sigla do PI</th><th>CNPJ</th><th>Frequência</th><th>Cidade</th><th class="r">PIs emitidos</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${S.db.veiculos.map(v => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td><td>${esc(v.frequencia)}</td><td>${esc(v.cidade)}</td><td class="r">${v.pi_seq}</td><td class="r"><span class="row mid" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-act="admPropostas" data-id="${v.id}">${S.svg('propostas')}Propostas e PI</button><button class="btn sm" data-act="admTextosPI" data-id="${v.id}">${S.svg('pis')}Textos do PI</button><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button></span></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><b>Cadastre a primeira rádio</b>Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div>'}</div>`;
@@ -75,12 +92,15 @@
         <section class="card"><div class="hd"><h2>Propostas e PI por rádio</h2><span>cada rádio tem os seus</span></div>
           <div class="list">${S.db.veiculos.map(v => `<div>${S.vav(v)}<span class="tx"><b>${esc(v.nome)}</b><small>Faixa ${esc(v.prop_faixa || '07h às 19h')} · PI com a marca ${marcaDe(v)} · validade ${v.prop_validade || 15} dias</small></span><button class="btn sm" data-act="admPropostas" data-id="${v.id}" aria-label="Editar propostas e PI da ${esc(v.nome)}">${S.svg('editar')}Editar</button></div>`).join('')}</div></section></div>`;
     } else {
-      const us = S.db.usuarios;
+      // Gerente vê a equipe das rádios em que é gerente (ele mesmo e outros gerentes aparecem, só para consulta)
+      const us = ehGer() ? S.db.usuarios.filter(u => vinculosDe(u).some(x => ehMinha(x.veiculo_id))) : S.db.usuarios;
       body = S.celular
         ? `<div class="card"><div class="list">${us.map(u => `<div><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome) || '—'}</b><small>${acessoTexto(u)}</small><span style="margin-top:4px">${situacao(u)}</span></span><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></div>`).join('')}</div></div>`
         : `<div class="card"><div class="scroll"><table><thead><tr><th>Usuário</th><th>Situação</th><th>Rádios e perfis</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${us.map(u =>
           `<tr class="click" data-act="admUsuario" data-id="${u.id}"><td><div style="display:flex;align-items:center;gap:12px"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><div><b>${esc(u.nome) || '—'}</b><div class="muted small">${esc(u.email)}${u.celular ? ' · ' + esc(u.celular) : ''}</div></div></div></td><td>${situacao(u)}</td><td>${acessoTexto(u, '<br>')}</td><td class="r"><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></td></tr>`).join('')}</tbody></table></div></div>`;
     }
+    if (ehGer()) return { title:`<span class="sub">${esc(minhas().map(v => v.nome).join(' · '))}</span>Usuários`, actions:`<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`,
+      body:`<p class="muted small" style="margin:0 0 14px">Você cadastra e edita consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente. Gerentes e diretores ficam com o diretor.</p>${body}` };
     return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'empresa' ? '' : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:seg + body };
   };
 
@@ -141,11 +161,12 @@
       const n = document.querySelector('#dlg [name=prop_validade]'); if (n) { n.min = 1; n.max = 365; } },
     admTextoPadrao: () => { const ta = document.querySelector('#dlg textarea[name=pi_condicoes]'); if (ta) ta.value = S.PI_CONDICOES_PADRAO; },
     admUsuario: d => formUsuario(d.id ? S.db.usuarios.find(x => x.id === d.id) : {}, false),
-    admUsuarioMenu: (d, botao) => { const u = S.db.usuarios.find(x => x.id === d.id), eu = u.id === S.me.id;
-      S.menu(botao, [{ label:'Editar', icon:'editar', act:'admUsuarioEditar', data:{ id:u.id } },
-        { label:eu ? 'Gerar link para trocar a senha' : 'Gerar link de acesso', icon:'whats', act:'admLink', data:{ id:u.id } },
-        ...(eu ? [] : ['-', u.ativo ? { label:'Desativar acesso', icon:'bloqueio', act:'admAtivo', data:{ id:u.id } } : { label:'Reativar acesso', icon:'check', act:'admAtivo', data:{ id:u.id } },
-          { label:'Excluir usuário', icon:'lixo', act:'admExcluir', data:{ id:u.id }, perigo:true }])]); },
+    admUsuarioMenu: (d, botao) => { const u = S.db.usuarios.find(x => x.id === d.id), eu = u.id === S.me.id, pode = podeCuidar(u);
+      const ativar = u.ativo ? { label:'Desativar acesso', icon:'bloqueio', act:'admAtivo', data:{ id:u.id } } : { label:'Reativar acesso', icon:'check', act:'admAtivo', data:{ id:u.id } };
+      S.menu(botao, [pode ? { label:'Editar', icon:'editar', act:'admUsuarioEditar', data:{ id:u.id } } : { label:'Ver', icon:'editar', act:'admUsuario', data:{ id:u.id } },
+        ...(pode || eu ? [{ label:eu ? 'Gerar link para trocar a senha' : 'Gerar link de acesso', icon:'whats', act:'admLink', data:{ id:u.id } }] : []),
+        ...(eu || !pode ? [] : ehGer() ? (soNasMinhas(u) ? ['-', ativar] : [])
+          : ['-', ativar, { label:'Excluir usuário', icon:'lixo', act:'admExcluir', data:{ id:u.id }, perigo:true }])]); },
     admExcluir: async d => { const u = S.db.usuarios.find(x => x.id === d.id);
       if (!await S.confirmar(`Excluir ${u.nome || u.email} de vez? Não dá para desfazer.\n\nSe a pessoa já trabalhou no sistema (PIs, clientes ou agenda), o SONVI não deixa excluir: use "Desativar acesso".`, { ok:'Excluir usuário', perigo:true })) return;
       S.run(async () => { await servidor({ acao:'excluir', usuario_id:u.id }); await S.carregarBase(); }, 'Usuário excluído'); },

@@ -14,7 +14,8 @@
     ['financeiro', 'Financeiro', ['diretor', 'financeiro']],
     ['cadastros', 'Tabela de preços', ['diretor', 'gerente', 'consultor']],
     ['music', 'Sonvi Music', S.MUSIC_PERFIS, 'music/'],
-    ['admin', 'Administração', ['diretor']]];
+    ['admin', 'Administração', ['diretor']],
+    ['admin', 'Usuários', ['gerente']]]; // o gerente cadastra a equipe das rádios dele
   const SOON = [];
 
   // No SONVI, quem só trabalha com a programação musical vê o caminho para o Sonvi Music

@@ -1,6 +1,8 @@
 // SONVI · função de borda "usuarios": cria o acesso de um novo usuário e gera links de acesso.
 // Roda no servidor do Supabase, onde a chave secreta (service_role) fica guardada; ela nunca vai para o navegador.
-// Só o diretor pode usar. Não manda e-mail: devolve um link que o diretor envia pelo WhatsApp.
+// Diretor: tudo. Gerente: só nas rádios em que é gerente, e só consultor, OPEC, financeiro, programador e locutor
+// (não cria diretor nem gerente, não mexe em diretor, gerente nem em si mesmo, não exclui). Os outros perfis não usam.
+// Não manda e-mail: devolve um link que quem cadastrou envia pelo WhatsApp.
 //   { acao: "criar", nome, email, celular, diretor, vinculos: [{ veiculo_id, perfil }], destino }
 //   { acao: "link", usuario_id, destino }
 //   { acao: "email", usuario_id, email }  (troca o e-mail de entrada; a senha continua a mesma)
@@ -14,18 +16,28 @@ const cors = {
 };
 const resposta = (corpo: unknown, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 const PERFIS = ['gerente', 'consultor', 'opec', 'financeiro', 'programador', 'locutor'];
+const PERFIS_DO_GERENTE = ['consultor', 'opec', 'financeiro', 'programador', 'locutor'];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return resposta({ erro: 'Método não permitido.' }, 405);
   try {
     const url = Deno.env.get('SUPABASE_URL')!, publica = Deno.env.get('SUPABASE_ANON_KEY')!, secreta = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    // Quem está chamando: precisa ser diretor ativo (a regra é do banco, eh_diretor)
+    // Quem está chamando: diretor ativo (eh_diretor) ou gerente ativo de pelo menos uma rádio
     const quem = createClient(url, publica, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } }, auth: { persistSession: false } });
-    const { data: ehDiretor, error: e0 } = await quem.rpc('eh_diretor');
-    if (e0 || !ehDiretor) return resposta({ erro: 'Apenas o diretor pode cadastrar usuários.' }, 403);
-
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const { data: { user: eu } } = await quem.auth.getUser(token);
+    if (!eu) return resposta({ erro: 'Entre no SONVI de novo.' }, 401);
     const adm = createClient(url, secreta, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: ehDiretor } = await quem.rpc('eh_diretor');
+    const { data: euAtivo } = await adm.from('usuarios').select('ativo').eq('id', eu.id).maybeSingle();
+    const { data: gv } = euAtivo?.ativo ? await adm.from('usuario_veiculos').select('veiculo_id').eq('usuario_id', eu.id).eq('perfil', 'gerente') : { data: [] };
+    const minhas = new Set((gv || []).map((x: any) => x.veiculo_id));
+    if (!ehDiretor && !minhas.size) return resposta({ erro: 'Apenas o diretor e o gerente podem cadastrar usuários.' }, 403);
+    // Gerente só cuida de quem está nas rádios dele e não é diretor nem gerente (regra do banco: pode_gerenciar_usuario)
+    const podeCuidar = async (alvo: string) => { if (ehDiretor) return true; const { data } = await quem.rpc('pode_gerenciar_usuario', { alvo }); return !!data; };
+    const negado = () => resposta({ erro: 'Você só pode cuidar de consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente.' }, 403);
+
     const b = await req.json();
     const destino = typeof b.destino === 'string' && /^https?:\/\//.test(b.destino) ? b.destino : undefined;
 
@@ -35,9 +47,14 @@ Deno.serve(async (req) => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return resposta({ erro: 'E-mail inválido.' }, 400);
       const diretor = !!b.diretor;
       const vinculos = (Array.isArray(b.vinculos) ? b.vinculos : []).filter((v: any) => v && v.veiculo_id && PERFIS.includes(v.perfil));
+      if (!ehDiretor) {
+        if (diretor) return resposta({ erro: 'Só o diretor pode cadastrar outro diretor.' }, 403);
+        if (vinculos.some((v: any) => !PERFIS_DO_GERENTE.includes(v.perfil))) return resposta({ erro: 'O gerente cadastra consultor, OPEC, financeiro, programador e locutor.' }, 403);
+        if (vinculos.some((v: any) => !minhas.has(v.veiculo_id))) return resposta({ erro: 'Você só pode dar acesso nas rádios em que é gerente.' }, 403);
+      }
       if (!diretor && !vinculos.length) return resposta({ erro: 'Escolha pelo menos uma rádio e o perfil nela.' }, 400);
       const { data: existe } = await adm.from('usuarios').select('id').ilike('email', email).maybeSingle();
-      if (existe) return resposta({ erro: 'Já existe um usuário com esse e-mail.' }, 409);
+      if (existe) return resposta({ erro: ehDiretor ? 'Já existe um usuário com esse e-mail.' : 'Já existe um usuário com esse e-mail no SONVI. Se ele trabalha em outra rádio, peça ao diretor para dar acesso a ele na sua.' }, 409);
 
       // Cria a conta e o link de convite (a pessoa define a senha ao abrir)
       const { data, error } = await adm.auth.admin.generateLink({ type: 'invite', email, options: { data: { nome }, redirectTo: destino } });
@@ -53,6 +70,7 @@ Deno.serve(async (req) => {
     }
 
     if (b.acao === 'link') {
+      if (String(b.usuario_id ?? '') !== eu.id && !await podeCuidar(String(b.usuario_id ?? ''))) return negado();
       const { data: u, error } = await adm.auth.admin.getUserById(String(b.usuario_id ?? ''));
       if (error || !u?.user?.email) return resposta({ erro: 'Usuário não encontrado.' }, 404);
       // Quem já tem conta recebe um link para entrar e criar uma senha nova
@@ -63,6 +81,7 @@ Deno.serve(async (req) => {
 
     if (b.acao === 'email') {
       const id = String(b.usuario_id ?? ''), email = String(b.email ?? '').trim().toLowerCase();
+      if (!await podeCuidar(id)) return negado();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return resposta({ erro: 'E-mail inválido.' }, 400);
       const { data: outro } = await adm.from('usuarios').select('id').ilike('email', email).neq('id', id).maybeSingle();
       if (outro) return resposta({ erro: 'Já existe outro usuário com esse e-mail.' }, 409);
@@ -76,9 +95,8 @@ Deno.serve(async (req) => {
 
     if (b.acao === 'excluir') {
       const id = String(b.usuario_id ?? '');
-      const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
-      const { data: { user: eu } } = await quem.auth.getUser(token);
-      if (eu && eu.id === id) return resposta({ erro: 'Você não pode excluir o seu próprio usuário.' }, 400);
+      if (!ehDiretor) return resposta({ erro: 'Só o diretor exclui usuários. Use "Desativar acesso".' }, 403);
+      if (eu.id === id) return resposta({ erro: 'Você não pode excluir o seu próprio usuário.' }, 400);
       // Quem já tem trabalho no sistema não é apagado: some do histórico e a agenda iria junto
       const conta = async (tabela: string, coluna: string) => { const { count } = await adm.from(tabela).select('*', { count: 'exact', head: true }).eq(coluna, id); return count ?? 0; };
       const [pis, clientes, agenda, hist] = await Promise.all([conta('pis', 'consultor_id'), conta('pessoas', 'consultor_id'), conta('agenda', 'consultor_id'), conta('pi_historico', 'usuario_id')]);
