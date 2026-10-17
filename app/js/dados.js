@@ -6,7 +6,7 @@
   S.erroLink = /error_code=/.test(h) ? (/expired/.test(h) ? 'Este link de acesso expirou. Peça um novo ao diretor.' : 'Este link de acesso não vale mais. Peça um novo ao diretor.') : '';
   // O Sonvi Music guarda a sessão à parte: entrar no SONVI não entra no Sonvi Music, e vice-versa (como serão em endereços separados)
   S.sb = supabase.createClient(window.SONVI_CONFIG.url, window.SONVI_CONFIG.key, S.APP === 'music' ? { auth:{ storageKey:'sonvi-music-auth' } } : undefined);
-  S.limparEndereco = () => { if (/access_token|error_code|type=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + '#/painel'); };
+  S.limparEndereco = () => { if (/access_token|error_code|type=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + '#/dashboard'); };
 
   // Lembra só qual rádio estava aberta (preferência de tela, não é dado do sistema), por usuário
   const chaveRadio = () => 'sonvi-radio-' + ((S.me && S.me.id) || '');

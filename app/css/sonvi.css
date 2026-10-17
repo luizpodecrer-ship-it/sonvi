@@ -363,6 +363,20 @@ form.ver input:disabled, form.ver select:disabled, form.ver textarea:disabled { 
 }
 
 
+/* ---------- menu lateral recolhível (botão no alto; recolhido = só ícones, a mesma forma do PI) ---------- */
+.recolher { display:none; }
+@media (min-width:821px) {
+  #side .recolher { position:absolute; top:20px; right:12px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; border:0; border-radius:10px; background:none; color:var(--menu); cursor:pointer; transition:background .2s, color .2s; }
+  #side .recolher:hover { background:var(--fill); color:var(--ink); }
+  #side .recolher svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  #side .recolher svg + svg { display:none; }
+  body.compacto #side .recolher { position:static; flex:none; margin:-8px 0 -6px; }
+  body.compacto #side .recolher svg:first-of-type { display:none; } body.compacto #side .recolher svg + svg { display:block; }
+  #side nav a { white-space:nowrap; }
+  body.mexendo-menu #side { transition:width .25s var(--ease), padding .25s var(--ease); overflow:hidden; }
+}
+@media (prefers-reduced-motion: reduce) { body.mexendo-menu #side { transition:none; } }
+
 /* ---------- PI: largura total e barra lateral compacta ---------- */
 #bar.largo, #content.largo { max-width:1900px; }
 .brand .so-simbolo { display:none; width:30px; height:auto; }
@@ -372,7 +386,7 @@ form.ver input:disabled, form.ver select:disabled, form.ver textarea:disabled { 
   body.compacto .veh { padding:3px; border:0; } body.compacto .veh .vt, body.compacto .veh > svg { display:none; }
   body.compacto #side nav { width:100%; }
   body.compacto #side nav a { font-size:0; gap:0; justify-content:center; padding:11px 0; position:relative; }
-  body.compacto #side nav a svg { width:22px; height:22px; }
+  body.compacto #side nav a svg { width:22px; height:22px; } body.compacto #side nav a.externo svg:last-child { display:none; }
   body.compacto #side nav .badge { position:absolute; top:3px; right:2px; font-size:10px; min-width:18px; padding:0 5px; }
   body.compacto #side nav .sec, body.compacto #side nav span.soon { display:none; }
   body.compacto .eu { flex-direction:column; padding:6px 0; background:none; } body.compacto .eu div { display:none; }
@@ -1059,7 +1073,7 @@ dialog.medio { width:min(880px, 96vw); }
 .pular:focus { transform:none; color:var(--surface); }
 #content:focus { outline:none; }
 /* Tudo o que se clica pelo teclado mostra onde está o foco */
-[data-act][tabindex]:focus-visible, [data-go]:focus-visible, #side nav a:focus-visible, .btn:focus-visible, .seg button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+[data-act][tabindex]:focus-visible, [data-go]:focus-visible, #side nav a:focus-visible, #side .recolher:focus-visible, .btn:focus-visible, .seg button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 tr[data-act]:focus-visible { outline-offset:-2px; }
 /* Toque no celular sem atraso e sem zoom de toque duplo */
 a, button, input, select, textarea, label, [data-act], [data-go] { touch-action:manipulation; }

@@ -5,7 +5,7 @@
   const MUSIC = S.APP === 'music';
   // [tela, nome, perfis, endereço externo]. O Sonvi Music abre em outra aba, com login próprio.
   const NAV = MUSIC ? S.MUSIC_NAV : [
-    ['painel', 'Painel', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
+    ['dashboard', 'Dashboard', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['agenda', 'Agenda', ['diretor', 'gerente', 'consultor']],
     ['clientes', 'Clientes', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['propostas', 'Propostas', ['diretor', 'gerente', 'consultor']],
@@ -36,7 +36,8 @@
     if (semVeiculo) view = MUSIC ? (telas[0] || ['hoje'])[0] : 'admin';
     S.temaRadio(semVeiculo ? null : S.veh());
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, veh = semVeiculo ? null : S.veh();
-    const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${MUSIC ? 'hoje' : 'painel'}" data-go="/${MUSIC ? 'hoje' : 'painel'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Painel'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
+    const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${MUSIC ? 'hoje' : 'dashboard'}" data-go="/${MUSIC ? 'hoje' : 'dashboard'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
+      <button type="button" class="recolher" data-act="menuRecolher" aria-controls="side">${S.svg('recolher')}${S.svg('expandir')}<span class="sr">Recolher menu</span></button>
       ${semVeiculo ? '' : `<label class="veh" title="Trocar de rádio">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc([veh.frequencia, veh.cidade].filter(Boolean).join(' · ') || 'Rádio selecionada')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Rádio">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}
       <nav aria-label="Menu principal">${itens.map(([k, n, , href], i) => { const ex = itens.length > 5 && i >= 4 ? ' extra' : ''; return href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo${ex}" data-ico="${k}">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
         : `<a href="#/${k}" data-go="/${k}" title="${n}" data-ico="${k}" class="${(active === k ? 'on' : '') + ex}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}</a>`; }).join('')}
@@ -54,7 +55,11 @@
     bar.classList.toggle('entra', anima); content.classList.toggle('entra', anima);
     // O PI usa a largura toda da tela; a barra lateral fica só com os ícones
     // No Sonvi Music a barra lateral nunca recolhe: ao trocar de item nada sai do lugar
-    const largo = !MUSIC && view === 'pi'; bar.classList.toggle('largo', largo); content.classList.toggle('largo', largo); document.body.classList.toggle('compacto', largo);
+    const largo = !MUSIC && view === 'pi'; bar.classList.toggle('largo', largo); content.classList.toggle('largo', largo);
+    // Menu recolhido (só ícones): a escolha da pessoa vale em todas as telas; sem escolha, só o PI recolhe sozinho
+    const pref = menuPref(), recolhido = pref ? pref === 'recolhido' : largo;
+    document.body.classList.toggle('compacto', recolhido);
+    const rb = side.querySelector('.recolher'); if (rb) { rb.setAttribute('aria-expanded', String(!recolhido)); rb.title = recolhido ? 'Abrir menu' : 'Recolher menu'; rb.querySelector('.sr').textContent = recolhido ? 'Abrir menu' : 'Recolher menu'; }
     bar.innerHTML = `<h1>${v.title}</h1>${v.actions}`;
     content.innerHTML = v.body;
     requestAnimationFrame(() => content.querySelectorAll('.scroll').forEach(sc => { if (sc.scrollWidth > sc.clientWidth + 2 && !sc.querySelector('a[href], button, input, select, textarea, [tabindex]')) { const t = sc.closest('.card') && sc.closest('.card').querySelector('h2'); sc.tabIndex = 0; sc.setAttribute('role', 'region'); sc.setAttribute('aria-label', (t ? t.textContent.trim() + ': ' : '') + 'tabela, role para o lado para ver tudo'); } }));
@@ -78,6 +83,17 @@
   new MutationObserver(lista => lista.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) { prepararTeclado(n); if (n.matches && n.matches(CLICAVEIS)) prepararTeclado(n.parentNode); } })))
     .observe(document.body, { childList:true, subtree:true });
   // Celular: o que não cabe na barra de abas fica no "Mais"
+  // Preferência do menu lateral por pessoa (só a aparência; nada de conteúdo): 'recolhido' ou 'aberto'
+  const chaveMenu = () => `sonvi-menu-${MUSIC ? 'music-' : ''}${(S.me && S.me.id) || ''}`;
+  let menuMem = ''; // vale até recarregar quando o navegador não guarda nada
+  const menuPref = () => { try { return localStorage.getItem(chaveMenu()) || menuMem; } catch (e) { return menuMem; } };
+  S.actions.menuRecolher = () => {
+    const agora = !document.body.classList.contains('compacto');
+    menuMem = agora ? 'recolhido' : 'aberto'; try { localStorage.setItem(chaveMenu(), menuMem); } catch (e) { /* sem armazenamento: vale até recarregar */ }
+    document.body.classList.toggle('compacto', agora); document.body.classList.add('mexendo-menu');
+    setTimeout(() => document.body.classList.remove('mexendo-menu'), 320);
+    const rb = document.querySelector('#side .recolher'); if (rb) { rb.setAttribute('aria-expanded', String(!agora)); rb.title = agora ? 'Abrir menu' : 'Recolher menu'; rb.querySelector('.sr').textContent = rb.title; rb.focus(); }
+  };
   S.actions.navMais = (d, botao) => S.menu(botao, [...document.querySelectorAll('#side nav a.extra')].map(a => ({ label:(a.getAttribute('title') || a.textContent.trim()).replace(' (abre em outra aba)', '') + (a.querySelector('.badge') ? ` (${a.querySelector('.badge').textContent})` : ''), icon:a.dataset.ico,
     act:a.dataset.go ? 'navIr' : 'navAbrir', data:a.dataset.go ? { go:a.dataset.go } : { href:a.getAttribute('href') } })));
   S.actions.navIr = d => S.go(d.go);

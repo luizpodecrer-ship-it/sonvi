@@ -1,4 +1,4 @@
-// SONVI · painel: visão geral da rádio selecionada, conforme o perfil de quem está logado.
+// SONVI · dashboard (tela inicial, antes "Painel"): visão geral da rádio selecionada, conforme o perfil de quem está logado.
 // Diretor e gerente veem vendas, o caminho dos PIs, a equipe e a fila da OPEC; o consultor vê o próprio dia;
 // a OPEC vê a sua fila e o financeiro, o que tem a receber.
 (() => {
@@ -123,7 +123,7 @@
       ${fila('Prontos para faturar', aFaturar, 'Nenhum PI aguardando faturamento.', '<a data-go="/financeiro">Abrir financeiro</a>')}`;
   }
 
-  S.views.painel = () => {
+  S.views.dashboard = () => {
     const pis = S.db.pis, nome = primeiro(S.me.nome) || '';
     const body = S.pode('consultor') ? consultor(pis) : S.pode('opec') ? opec(pis) : S.pode('financeiro') ? financeiro(pis) : gestao(pis);
     return { title:`<span class="sub">${hojeExtenso()}</span>${saudacao()}${nome ? ', ' + esc(nome) : ''}`,
