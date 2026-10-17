@@ -2,7 +2,7 @@
 (() => {
   const { esc } = S;
   let aba = 'veiculos';
-  const PERFIS_VINCULO = [['', 'Sem acesso'], ['gerente', 'Gerente comercial'], ['consultor', 'Consultor'], ['opec', 'OPEC'], ['financeiro', 'Financeiro'], ['programador', 'Programador musical']];
+  const PERFIS_VINCULO = [['', 'Sem acesso'], ['gerente', 'Gerente comercial'], ['consultor', 'Consultor'], ['opec', 'OPEC'], ['financeiro', 'Financeiro'], ['programador', 'Programador musical'], ['locutor', 'Locutor']];
 
   const vinculosDe = u => S.db.vinculos.filter(x => x.usuario_id === u.id && S.veh(x.veiculo_id));
   const acessoTexto = (u, sep = ' · ') => u.diretor ? 'Diretor · todas as rádios' : vinculosDe(u).map(x => `${esc(S.veh(x.veiculo_id).nome)}: ${S.PERFIS[x.perfil]}`).join(sep) || '<span class="muted">Nenhuma rádio</span>';
@@ -29,6 +29,8 @@
   // Formulário do usuário: dados, função (diretor ou por rádio) e o perfil em cada rádio
   const formUsuario = (u, editar, valores) => {
     const novo = !u.id, ver = !novo && !editar, t = ver ? ' disabled data-trava="1"' : '', eu = u.id === S.me.id;
+    // O próprio diretor só fica travado se for o único diretor ativo (o SONVI nunca fica sem diretor)
+    const trava = eu && !!u.diretor && !S.db.usuarios.some(x => x.id !== u.id && x.diretor && x.ativo);
     const atual = v => valores ? valores['v_' + v.id] || '' : (S.db.vinculos.find(x => x.usuario_id === u.id && x.veiculo_id === v.id) || {}).perfil || '';
     const dir = valores ? valores.funcao === 'diretor' : !!u.diretor;
     const radios = `<div class="acessos" style="grid-column:1/-1"${dir ? ' hidden' : ''}><b>Rádios e perfis</b><small class="muted">Escolha o que a pessoa faz em cada rádio. "Sem acesso" esconde a rádio dela.</small>
@@ -37,11 +39,12 @@
       { k:'nome', label:'Nome', req:true, ph:'Nome completo' },
       { k:'email', label:'E-mail (é com ele que a pessoa entra)', type:'email', req:true, ph:'nome@empresa.com.br' },
       { k:'celular', label:'Celular (WhatsApp)' },
-      { html:`<label class="f">Função<select name="funcao" data-funcao="1"${t}${eu ? ' disabled' : ''}><option value="radios"${dir ? '' : ' selected'}>Por rádio (gerente, consultor…)</option><option value="diretor"${dir ? ' selected' : ''}>Diretor · todas as rádios</option></select>${eu ? '<input type="hidden" name="funcao" value="diretor"><small class="muted">Você não pode tirar o seu próprio acesso de diretor.</small>' : ''}</label>` },
+      { html:`<label class="f">Função<select name="funcao" data-funcao="1"${t}${trava ? ' disabled' : ''}><option value="radios"${dir ? '' : ' selected'}>Por rádio (gerente, consultor…)</option><option value="diretor"${dir ? ' selected' : ''}>Diretor · todas as rádios</option></select>${trava ? '<input type="hidden" name="funcao" value="diretor"><small class="muted">Você é o único diretor ativo. Para mudar a sua função, cadastre outro diretor antes.</small>' : eu && dir ? '<small class="muted">Se deixar de ser diretor, você perde o acesso a Administração.</small>' : ''}</label>` },
       { html:radios }],
       valores || u, f => salvarUsuario(u, f), novo ? 'Cadastrar e gerar link' : 'Salvar', { editar });
   };
-  const salvarUsuario = (u, f) => {
+  const salvarUsuario = async (u, f) => {
+    if (u.id && u.id === S.me.id && u.diretor && f.funcao !== 'diretor' && !await S.confirmar('Deixar de ser diretor?\n\nVocê passa a ver só as rádios e perfis escolhidos e perde o acesso a Administração. Só outro diretor consegue devolver.', { ok:'Deixar de ser diretor', perigo:true })) return;
     const diretor = f.funcao === 'diretor', vinculos = S.db.veiculos.map(v => ({ veiculo_id:v.id, perfil:f['v_' + v.id] || '' })).filter(x => x.perfil);
     if (!diretor && !vinculos.length) { formUsuario(u, true, f); return S.erroNoCampo('.acessos', 'Escolha pelo menos uma rádio e o perfil da pessoa nela.'); }
     if (!u.id) return S.run(async () => {

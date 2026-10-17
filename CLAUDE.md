@@ -15,6 +15,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - Nenhum dado fica no navegador. `S.db` é só uma cópia em memória do que veio da nuvem; gravações usam `S.salvar` / `S.excluir` / `S.run` de `dados.js`. Não usar `localStorage` para conteúdo (exceções: a sessão de login do Supabase e qual rádio estava aberta, `sonvi-radio-<usuário>`, para voltar nela ao recarregar; e se o menu lateral está recolhido, `sonvi-menu-<usuário>` / `sonvi-menu-music-<usuário>`).
 - A estrutura do banco está em `database/`, em arquivos numerados. Toda mudança de tabela, função ou política entra como arquivo novo ali e é aplicada como migração.
 - Quem protege os dados é o banco (RLS por veículo e por perfil); esconder um botão na tela não é segurança. Perfis: diretor (todas as rádios), gerente, consultor, opec, financeiro.
+- Formulários (`S.dialog`): o envio é feito pelo próprio SONVI (`noValidate` + conferência dos campos + `d.close(valor)`), não pelo `method=dialog` do navegador; erro no `onOk` vira aviso na tela. O diretor só fica travado na própria função se for o único diretor ativo.
 - Usuários: só o diretor cadastra (Administração → Usuários). A conta nasce na função de borda `usuarios` (`supabase/functions/usuarios`), que gera um link de acesso para enviar pelo WhatsApp (o e-mail grátis do Supabase não entrega para fora da equipe); a pessoa abre o link e cria a senha. Nome, função e rádios mudam por `salvar_usuario`; o e-mail (que é o login) muda pela ação `email` da função `usuarios` (troca na conta de entrada já confirmado e em `usuarios.email`; a senha continua). Não há mais "Criar conta" na tela de entrada.
 - O PI nasce por `criar_pi`, muda de status só por `mudar_status_pi` e é faturado por `faturar_pi`. Nunca alterar `status` com update direto.
 - Só a chave pública (publishable) pode aparecer no código. Nunca a `service_role`.
@@ -90,7 +91,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - No SONVI, o item "Sonvi Music" (abaixo de Tabela de preços) abre `music/` em outra aba. Quem só tem perfil musical vê no SONVI um atalho para o Sonvi Music.
 - Proposta visual aprovada no quadro de design (seção "Sonvi Music · proposta"): login escuro, semana do programador, editar a hora, estúdio do locutor (escuro, letras grandes) e celular.
 - Radar (`app/js/radar.js`, menu do Sonvi Music, só diretor/gerente/programador): o que está nos streams comparado com o acervo, em preto e branco com o logo oficial do Spotify (`img/spotify-preto.png`/`spotify-branco.png`). Para não violar os termos do Spotify: os atalhos só abrem as paradas no Spotify (nada de copiar/scraping); a lista vem da playlist "Radar <rádio>" na conta do próprio programador; dados do Spotify só na memória da tela, nunca no banco; atribuição "fornecidos por Spotify". Login oficial com PKCE (sem chave secreta): o Client ID público fica em `config.js` (`spotifyClientId`); o retorno (`?code=`) é capturado no `music/index.html` antes do Supabase carregar. Exceção de `localStorage`: a sessão do Spotify de cada usuário (`sonvi-spotify-<usuário>`). Desde 2026 o Spotify não manda popularidade nem ISRC para apps em modo de desenvolvimento (até 5 contas); a comparação com o acervo é por título + intérprete, e a popularidade aparece como "—" quando não vem.
-- Perfil "locutor": vê a programação e troca músicas (`ve_musica` e política `mus_programacao_locutor`, `database/014_sonvi_music_locutor.sql`). Pendente de aprovação no Supabase: aceitar "locutor" em `usuario_veiculos` e em `salvar_usuario` (parte que troca a regra existente).
+- Perfil "locutor": vê a programação e troca músicas (`ve_musica` e política `mus_programacao_locutor`, `database/014_sonvi_music_locutor.sql`). `usuario_veiculos` já aceita "locutor"; `salvar_usuario` passa a aceitar com `database/021_editar_usuarios.sql`.
 
 ## Programação musical
 
@@ -99,7 +100,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - A rádio nova começa vazia; "Preparar a programação musical" chama `mus_iniciar` (categorias, vinhetas, formatos Dia/Noite/Madrugada e grade da semana).
 - Semana de segunda (dia 0) a domingo (dia 6). `mus_config.grade` = 7 × 24 ids de formato; `musicas.bloqueios` = "dia-hora" bloqueados. Cada hora gravada é uma linha de `mus_programacao` com `itens` (MUS, VIN, BRK, INF).
 - Geração em camadas pela prioridade da categoria; em cada posição vence a música que quebra menos regras e, no empate, a que está há mais tempo sem tocar. Escolhas à mão ficam marcadas `manual`.
-- Pendente: `salvar_usuario` ainda não aceita "programador" na edição de um usuário (a mudança precisa de aprovação no Supabase; o cadastro novo já aceita).
+- `database/021_editar_usuarios.sql`: `salvar_usuario` aceita programador e locutor e deixa o diretor mudar a própria função se houver outro diretor ativo. A ferramenta do Supabase recusa (cancela) migração com `delete`: esse arquivo é rodado pelo Luiz no SQL Editor do Supabase.
 
 ## Site (landing page)
 
