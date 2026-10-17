@@ -17,7 +17,7 @@
   const perfilEm = v => S.me.diretor ? 'diretor' : (S.db.vinculos.find(x => x.usuario_id === S.me.id && x.veiculo_id === v) || {}).perfil || null;
   // Outras rádios em que a pessoa pode cadastrar (o consultor só nas que ele atende)
   const radiosDestino = () => S.db.veiculos.filter(v => v.id !== S.ui.vehicleId && ['diretor', 'gerente', 'consultor'].includes(perfilEm(v.id)));
-  const consultoresDe = v => S.db.vinculos.filter(x => x.veiculo_id === v && x.perfil === 'consultor').map(x => S.db.usuarios.find(u => u.id === x.usuario_id)).filter(Boolean);
+  const consultoresDe = v => S.responsaveis(v);
   const podeAlterarLa = r => { const pf = perfilEm(r.veiculo_id); return pf === 'diretor' || pf === 'gerente' || (pf === 'consultor' && (r.tipo === 'agencia' || r.consultor_id === S.me.id)); };
   const nomeRadio = id => (S.veh(id) || {}).nome || 'outra rádio';
 
@@ -51,7 +51,7 @@
       const padrao = cons.some(u => u.id === consultor) ? consultor : '';
       const campoCons = tipo !== 'cliente' ? '' : pf === 'consultor'
         ? `<div class="f">Consultor nesta rádio<span class="cad-fixo">${esc(S.me.nome || S.me.email)} (você)</span></div>`
-        : `<label class="f">Consultor nesta rádio<select name="x_cons_${v.id}"><option value="">Sem consultor</option>${cons.map(u => `<option value="${u.id}"${u.id === padrao ? ' selected' : ''}>${esc(u.nome || u.email)}</option>`).join('')}</select></label>`;
+        : `<label class="f">Consultor nesta rádio<select name="x_cons_${v.id}"><option value="">Sem consultor</option>${cons.map(u => `<option value="${u.id}"${u.id === padrao ? ' selected' : ''}>${esc(u.nome)}</option>`).join('')}</select></label>`;
       return `<div class="cad-radio"><label class="cad-top"><input type="checkbox" name="x_rad_${v.id}"${marcar ? ' checked' : ''}>${S.vav(v)}<b>${esc(v.nome)}</b></label>
         ${tipo === 'cliente' ? `<div class="cad-det">${campoCons}<div class="f">Agência nesta rádio<div data-cad-ag="${v.id}">${situacaoAgencia(v.id, agencia)}</div></div></div>` : ''}</div>`;
     }).join('');
@@ -104,7 +104,7 @@
         { k:'segmento', label:'Segmento' }, { k:'contato_decide', label:'Contato que decide' }, { k:'contato_assina', label:'Contato que assina' },
         { k:'agencia_id', label:'Agência', type:'select', options:[['', 'Sem agência'], ...S.pessoas('agencia').map(a => [a.id, a.nome])] },
         { k:'situacao', label:'Situação', type:'select', options:Object.entries(SIT).map(([k, v]) => [k, v[0]]) },
-        ...(gestor ? [{ k:'consultor_id', label:'Consultor responsável', type:'select', options:[['', 'Sem consultor'], ...S.consultores().map(u => [u.id, u.nome || u.email])] }] : [])
+        ...(gestor ? [{ k:'consultor_id', label:'Consultor responsável', type:'select', options:[['', 'Sem consultor'], ...S.responsaveis().map(u => [u.id, u.nome]), ...(p.consultor_id && !S.responsaveis().some(u => u.id === p.consultor_id) ? [[p.consultor_id, (S.usuario(p.consultor_id) || 'Responsável atual') + ' (sem acesso a esta rádio)']] : [])] }] : [])
       ] : [{ k:'comissao', label:'Comissão padrão (%)' }]),
       { k:'observacoes', label:'Observações', type:'textarea' },
       ...bloco,

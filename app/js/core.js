@@ -150,6 +150,10 @@ S.usuario = id => (S.db.usuarios.find(u => u.id === id) || {}).nome || '';
 S.pessoas = tipo => S.db.pessoas.filter(p => p.tipo === tipo).sort((a, b) => a.nome.localeCompare(b.nome));
 S.piNo = pi => `PI ${S.veh(pi.veiculo_id).sigla} ${String(pi.numero).padStart(4, '0')}`;
 // Consultores do veículo atual (para escolher o responsável por um cliente ou compromisso)
+// Quem pode ser o responsável por um cliente na rádio: consultores e gerentes (o gerente que também vende)
+S.responsaveis = (veiculo = S.ui.vehicleId) => S.db.vinculos.filter(v => v.veiculo_id === veiculo && (v.perfil === 'consultor' || v.perfil === 'gerente'))
+  .sort((a, b) => (a.perfil === 'consultor' ? 0 : 1) - (b.perfil === 'consultor' ? 0 : 1))
+  .map(v => { const u = S.db.usuarios.find(x => x.id === v.usuario_id); return u && u.ativo !== false ? { id:u.id, nome:(u.nome || u.email) + (v.perfil === 'gerente' ? ' (gerente)' : '') } : null; }).filter(Boolean);
 S.consultores = () => S.db.vinculos.filter(v => v.veiculo_id === S.ui.vehicleId && v.perfil === 'consultor').map(v => S.db.usuarios.find(u => u.id === v.usuario_id)).filter(Boolean);
 
 // ---------- navegação ----------
