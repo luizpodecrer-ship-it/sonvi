@@ -51,7 +51,7 @@
     const linhas = S.consultores().map(u => {
       const meus = pis.filter(p => p.consultor_id === u.id && VENDIDO.includes(p.status) && mesDe(p.criado_em) === m);
       const ag = S.db.agenda.filter(a => a.consultor_id === u.id && mesDe(a.quando) === m);
-      return { u, vendido:soma(meus), n:meus.length, feitas:ag.filter(a => a.realizado).length, plan:ag.length };
+      return { u, vendido:soma(meus), n:meus.length, feitas:ag.filter(a => S.fuFeito(a)).length, plan:ag.length };
     }).sort((a, b) => b.vendido - a.vendido);
     return `<section class="card"><div class="hd"><h2>Consultores</h2><span>visitas feitas / planejadas no mês</span></div>
       ${linhas.length ? `<div class="people">${linhas.map((l, i) => { const r = l.plan ? l.feitas / l.plan : 0;
@@ -94,19 +94,19 @@
     const ag = S.db.agenda.filter(a => a.consultor_id === S.me.id).sort((a, b) => a.quando.localeCompare(b.quando));
     const abertos = ag.filter(a => !a.realizado), atras = abertos.filter(a => S.dia(a.quando) < hoje), deHoje = abertos.filter(a => S.dia(a.quando) === hoje);
     const prox = deHoje.find(a => new Date(a.quando) >= new Date(Date.now() - 36e5)) || deHoje[0] || abertos.find(a => S.dia(a.quando) > hoje);
-    const cli = prox && S.pessoa(prox.cliente_id), TIPO = { visita:'Visita', retorno:'Retorno', reuniao:'Reunião' };
+    const cli = prox && S.pessoa(prox.cliente_id), TIPO = { visita:'Visita', retorno:'Retorno', reuniao:'Reunião', ligacao:'Ligação', whatsapp:'WhatsApp' };
     const endereco = cli && [cli.endereco, cli.cidade].filter(Boolean).join(', ');
     const proximo = prox ? `<section class="next" aria-label="Próximo compromisso"><div class="eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
       <span class="quando">${S.dia(prox.quando) === hoje ? 'Próximo' : dfmt(S.dia(prox.quando))} · ${S.hora(prox.quando)}</span>
       <div><h2>${esc(S.nome(prox.cliente_id)) || TIPO[prox.tipo]}</h2><p>${esc(prox.assunto) || TIPO[prox.tipo]}</p></div>
       <div class="row"><button class="btn grow" data-act="agFeito" data-id="${prox.id}">Registrar ${TIPO[prox.tipo].toLowerCase()}</button>${endereco ? `<a class="btn ghost" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}" target="_blank" rel="noopener">${S.svg('rota')}Rota</a>` : ''}</div></section>`
       : `<section class="card empty"><b>Agenda livre</b>Nenhum compromisso marcado. <a data-act="agNovo">Agendar visita</a></section>`;
-    const lembretes = atras.length ? `<div class="note info"><b>${atras.length} ${atras.length === 1 ? 'retorno atrasado' : 'retornos atrasados'}:</b> ${atras.slice(0, 3).map(a => esc(S.nome(a.cliente_id)) || esc(a.assunto)).join(', ')}. <a data-go="/agenda">Ver na agenda</a></div>` : '';
+    const lembretes = atras.length ? `<div class="note info"><b>${atras.length} ${atras.length === 1 ? 'retorno atrasado' : 'retornos atrasados'}:</b> ${atras.slice(0, 3).map(a => esc(S.nome(a.cliente_id)) || esc(a.assunto)).join(', ')}. <a data-go="/followup">Ver no Follow-up</a></div>` : '';
     const vendidos = meus.filter(p => VENDIDO.includes(p.status) && mesDe(p.criado_em) === m), agMes = ag.filter(a => mesDe(a.quando) === m);
     const depois = deHoje.filter(a => a !== prox);
     return `${lembretes}${proximo}
-      <div class="tiles">${tile('Vendido no mês', curto(soma(vendidos)), `<span>${vendidos.length} ${vendidos.length === 1 ? 'PI enviado' : 'PIs enviados'}</span>`)}${tile('Visitas no mês', `${agMes.filter(a => a.realizado).length} / ${agMes.length}`, '<span>feitas / planejadas</span>')}</div>
-      ${depois.length ? `<section class="card"><div class="hd"><h2>Depois, hoje</h2><a data-go="/agenda">Agenda</a></div><div class="list">${depois.map(a => `<div><span class="ic" style="font:600 13px var(--display);color:var(--ink)">${S.hora(a.quando)}</span><span class="tx"><b>${esc(S.nome(a.cliente_id)) || TIPO[a.tipo]}</b><small>${esc(a.assunto)}</small></span><span class="pill" style="--tone:var(--gray)">${TIPO[a.tipo]}</span></div>`).join('')}</div></section>` : ''}
+      <div class="tiles">${tile('Vendido no mês', curto(soma(vendidos)), `<span>${vendidos.length} ${vendidos.length === 1 ? 'PI enviado' : 'PIs enviados'}</span>`)}${tile('Visitas no mês', `${agMes.filter(a => S.fuFeito(a)).length} / ${agMes.length}`, '<span>feitas / planejadas</span>')}</div>
+      ${depois.length ? `<section class="card"><div class="hd"><h2>Depois, hoje</h2><a data-go="/followup">Follow-up</a></div><div class="list">${depois.map(a => `<div><span class="ic" style="font:600 13px var(--display);color:var(--ink)">${S.hora(a.quando)}</span><span class="tx"><b>${esc(S.nome(a.cliente_id)) || TIPO[a.tipo]}</b><small>${esc(a.assunto)}</small></span><span class="pill" style="--tone:var(--gray)">${TIPO[a.tipo]}</span></div>`).join('')}</div></section>` : ''}
       ${fila('Meus PIs', meus.slice().sort((a, b) => b.numero - a.numero).slice(0, 5), 'Você ainda não criou PIs nesta rádio.', '<a data-go="/pis">Ver todos</a>')}`;
   }
 

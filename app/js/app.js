@@ -6,7 +6,7 @@
   // [tela, nome, perfis, endereço externo]. O Sonvi Music abre em outra aba, com login próprio.
   const NAV = MUSIC ? S.MUSIC_NAV : [
     ['dashboard', 'Dashboard', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
-    ['agenda', 'Agenda', ['diretor', 'gerente', 'consultor']],
+    ['followup', 'Follow-up', ['diretor', 'gerente', 'consultor']],
     ['clientes', 'Clientes', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['propostas', 'Propostas', ['diretor', 'gerente', 'consultor']],
     ['pis', 'PIs', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
@@ -35,12 +35,12 @@
     if (!telas.some(n => n[0] === view) && view !== 'pi') view = telas.length ? telas[0][0] : 'soMusic';
     if (semVeiculo) view = MUSIC ? (telas[0] || ['hoje'])[0] : 'admin';
     S.temaRadio(semVeiculo ? null : S.veh());
-    const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, veh = semVeiculo ? null : S.veh();
+    const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, atrasos = !MUSIC && S.fuAtrasados && !semVeiculo ? S.fuAtrasados() : 0, veh = semVeiculo ? null : S.veh();
     const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${MUSIC ? 'hoje' : 'dashboard'}" data-go="/${MUSIC ? 'hoje' : 'dashboard'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
       <button type="button" class="recolher" data-act="menuRecolher" aria-controls="side">${S.svg('recolher')}${S.svg('expandir')}<span class="sr">Recolher menu</span></button>
       ${semVeiculo ? '' : `<label class="veh" title="Trocar de rádio">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc([veh.frequencia, veh.cidade].filter(Boolean).join(' · ') || 'Rádio selecionada')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Rádio">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}
       <nav aria-label="Menu principal">${itens.map(([k, n, , href], i) => { const ex = itens.length > 5 && i >= 4 ? ' extra' : ''; return href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo${ex}" data-ico="${k}">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
-        : `<a href="#/${k}" data-go="/${k}" title="${n}" data-ico="${k}" class="${(active === k ? 'on' : '') + ex}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}</a>`; }).join('')}
+        : `<a href="#/${k}" data-go="/${k}" title="${n}" data-ico="${k}" class="${(active === k ? 'on' : '') + ex}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}${k === 'followup' && atrasos ? `<span class="badge alerta" title="Retornos atrasados">${atrasos}</span>` : ''}</a>`; }).join('')}
       ${itens.length > 5 ? `<button type="button" class="nav-mais" data-act="navMais" aria-haspopup="menu">${S.svg('mais3')}Mais</button>` : ''}
       ${SOON.length ? '<div class="sec">Em breve</div>' : ''}${SOON.map(n => `<span class="soon">${S.svg('programacao')}${n}</span>`).join('')}</nav>
       <div class="eu"><span class="av" aria-hidden="true">${esc(S.iniciais(S.me.nome || S.me.email))}</span><div><b>${esc(S.me.nome || S.me.email)}</b><small>${S.PERFIS[S.perfil] || ''}${S.perfil === 'diretor' ? ' · todas as rádios' : ''}</small></div><button class="btn sm" data-act="sair">Sair</button></div>`;

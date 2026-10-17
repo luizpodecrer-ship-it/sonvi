@@ -412,13 +412,13 @@
   const comItem = fn => { const p = atualEd(); if (!p || !editavel(achar(p.id))) return; fn(p); sujar(); S.render(); };
   Object.assign(S.actions, {
     prFiltro: d => { S.ui.propFiltro = d.f; S.render(); },
-    prNova: () => {
+    prNova: (d = {}) => {
       const v = S.veh(), cls = clientesParaEscolher(null);
       if (!cls.length) return S.toast(S.pode('consultor') ? 'Você ainda não tem clientes nesta rádio. Cadastre em Clientes.' : 'Cadastre o cliente antes, em Clientes.');
       S.form(`Nova proposta · ${esc(v.nome)}`, [
         { k:'cliente_id', label:'Cliente', type:'select', req:true, full:true, options:[['', 'Escolha o cliente'], ...cls.map(c => [c.id, c.nome])] },
         { k:'agencia_id', label:'Negociação', type:'select', full:true, options:[['', 'Direto com o cliente'], ...S.pessoas('agencia').map(a => [a.id, a.nome])] },
-        { html:`<p class="muted small" style="grid-column:1/-1">A proposta sai com a marca da ${esc(empCurto())}, validade de ${v.prop_validade || 15} dias e as condições padrão da ${esc(v.nome)}. Os itens você escolhe da tabela vigente.</p>` }], {},
+        { html:`<p class="muted small" style="grid-column:1/-1">A proposta sai com a marca da ${esc(empCurto())}, validade de ${v.prop_validade || 15} dias e as condições padrão da ${esc(v.nome)}. Os itens você escolhe da tabela vigente.</p>` }], { cliente_id:d.cliente || '' },
         f => S.run(async () => { const cli = S.pessoa(f.cliente_id), val = Number(v.prop_validade) || 15, vig = S.tabelaVigente();
           const r = await S.salvar('propostas', { veiculo_id:v.id, cliente_id:f.cliente_id, agencia_id:f.agencia_id || (cli && cli.agencia_id) || null, validade:val, data:today(),
             consultor_id:S.pode('consultor') ? S.me.id : (cli && cli.consultor_id) || S.me.id, tabela_id:vig ? vig.id : null,
@@ -427,6 +427,7 @@
       // O cliente atendido por agência já vem com ela
       const sel = document.querySelector('#dlg [name="cliente_id"]'), ags = document.querySelector('#dlg [name="agencia_id"]');
       sel.addEventListener('change', () => { const c = S.pessoa(sel.value); if (c) ags.value = c.agencia_id || ''; });
+      if (sel.value) { const c = S.pessoa(sel.value); if (c) ags.value = c.agencia_id || ''; }
     },
     prSalvar: () => { if (!ed.p.cliente_id) return S.toast('Escolha o cliente.'); S.run(gravar, 'Proposta salva'); },
     prDescartar: async () => { if (!await S.confirmar('Descartar as alterações?\n\nA proposta volta a ficar como estava quando foi salva.', { ok:'Descartar', voltar:'Continuar editando', perigo:true })) return;
