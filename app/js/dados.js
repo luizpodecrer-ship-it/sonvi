@@ -22,6 +22,7 @@
     if (e && e.code === '23503') return 'Não é possível excluir: existem registros ligados a este cadastro.';
     if (e && (e.code === '42501' || /row-level security/i.test(m))) return 'Seu perfil não tem permissão para esta ação.';
     if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
+    if (/banned/i.test(m)) return 'Este acesso foi desativado. Fale com o diretor ou o gerente da rádio.';
     if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail pelo link que enviamos antes de entrar.';
     if (/already registered/i.test(m)) return 'Este e-mail já tem cadastro. Use "Entrar".';
     if (/Password should be|weak/i.test(m)) return 'Senha fraca: use pelo menos 8 caracteres, com letras e números.';

@@ -15,7 +15,11 @@
   const soNasMinhas = u => !ehGer() || (podeCuidar(u) && S.db.vinculos.filter(x => x.usuario_id === u.id).every(x => ehMinha(x.veiculo_id)));
   S.gerenteCadastra = () => !S.me.diretor && minhas().length > 0;
   const acessoTexto = (u, sep = ' · ') => u.diretor ? 'Diretor · todas as rádios' : vinculosDe(u).map(x => `${esc(S.veh(x.veiculo_id).nome)}: ${S.PERFIS[x.perfil]}`).join(sep) || '<span class="muted">Nenhuma rádio</span>';
-  const situacao = u => !u.ativo ? S.tag('Desativado', 'gray') : !u.ultimo_acesso ? S.tag('Aguardando primeiro acesso', 'orange') : !u.diretor && !vinculosDe(u).length ? S.tag('Sem rádio', 'orange') : S.tag('Ativo', 'green');
+  // Último acesso em palavras (hoje às 14:05, ontem, há 3 dias, 12/09/2026)
+  const ultimo = u => { if (!u.ultimo_acesso) return '<span class="muted">nunca</span>'; const d = new Date(u.ultimo_acesso), h = new Date(), dia = x => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+    const n = Math.round((dia(h) - dia(d)) / 864e5), hm = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    return n <= 0 ? `hoje às ${hm}` : n === 1 ? `ontem às ${hm}` : n < 30 ? `há ${n} dias` : d.toLocaleDateString('pt-BR'); };
+  const situacao = u => !u.ativo ? S.tag('Desativado', 'gray') : !u.ultimo_acesso ? S.tag('Aguardando primeiro acesso', 'orange') : u.trocar_senha ? S.tag('Com senha provisória', 'orange') : !u.diretor && !vinculosDe(u).length ? S.tag('Sem rádio', 'orange') : S.tag('Ativo', 'green');
 
   // Chama a função do servidor que cria o acesso e gera o link (a chave secreta fica só lá)
   const servidor = async corpo => {
@@ -25,15 +29,16 @@
     if (data && data.erro) throw new Error(data.erro);
     return data;
   };
-  // Mostra o link de acesso para enviar pelo WhatsApp ou copiar
-  const mostrarLink = (u, link, novo) => {
-    const msg = `Olá, ${(u.nome || '').split(' ')[0]}! ${novo ? 'Seu acesso ao SONVI foi criado.' : 'Aqui está o seu link de acesso ao SONVI.'} Toque no link para criar a sua senha e entrar:\n\n${link}\n\nSe o link expirar, me peça um novo.`;
+  // Mostra a senha provisória (uma vez só) com a mensagem pronta para o WhatsApp. No primeiro acesso a pessoa cria a própria senha.
+  const mostrarSenha = (u, senha, novo) => {
+    const ende = location.origin + location.pathname, nome = (u.nome || '').split(' ')[0];
+    const msg = `Olá${nome ? ', ' + nome : ''}! ${novo ? `Seu acesso ao ${S.APP === 'music' ? 'Sonvi Music' : 'SONVI'} foi criado.` : 'Aqui está a sua nova senha provisória.'}\n\nEntre em: ${ende}\nE-mail: ${u.email}\nSenha provisória: ${senha}\n\nNo primeiro acesso você vai criar a sua própria senha.`;
     const fone = String(u.celular || '').replace(/\D/g, ''), wa = `https://wa.me/${fone ? (fone.length <= 11 ? '55' : '') + fone : ''}?text=${encodeURIComponent(msg)}`;
-    S.dialog(`<h2>${novo ? 'Usuário cadastrado' : 'Link de acesso'}</h2>
-      <p>Envie este link para <b>${esc(u.nome || u.email)}</b>. Ao abrir, a pessoa cria a própria senha e já entra com o acesso que você definiu.</p>
-      <div class="note info" style="margin:0;word-break:break-all;font-size:13px">${esc(link)}</div>
-      <p class="muted small">O link vale por pouco tempo e só pode ser usado uma vez. Se expirar, gere outro pelo menu ⋯ do usuário.</p>
-      <div class="row" style="flex-wrap:wrap"><span class="grow"></span><button type="button" class="btn" data-act="admCopiar" data-link="${esc(link)}">${S.svg('copia')}Copiar link</button><a class="btn pri" href="${esc(wa)}" target="_blank" rel="noopener">${S.svg('whats')}Enviar pelo WhatsApp</a><button class="btn" value="x">Fechar</button></div>`);
+    S.dialog(`<h2>${novo ? 'Usuário cadastrado' : 'Nova senha provisória'}</h2>
+      <p>Envie os dados de acesso para <b>${esc(u.nome || u.email)}</b>. No primeiro acesso, o SONVI pede que a pessoa crie a própria senha.</p>
+      <div class="senha-prov"><div><small>E-mail</small><b>${esc(u.email)}</b></div><div><small>Senha provisória</small><b class="num">${esc(senha)}</b></div></div>
+      <p class="muted small">Esta senha aparece só agora. Se perder, gere outra pelo menu ⋯ do usuário (a anterior deixa de valer).</p>
+      <div class="row" style="flex-wrap:wrap"><span class="grow"></span><button type="button" class="btn" data-act="admCopiar" data-texto="${esc(msg)}">${S.svg('copia')}Copiar</button><a class="btn pri" href="${esc(wa)}" target="_blank" rel="noopener">${S.svg('whats')}Enviar pelo WhatsApp</a><button class="btn" value="x">Fechar</button></div>`);
   };
   // Formulário do usuário: dados, função (diretor ou por rádio) e o perfil em cada rádio
   const formUsuario = (u, editar, valores) => {
@@ -65,7 +70,7 @@
     if (!diretor && !vinculos.length && !temFora) { formUsuario(u, true, f); return S.erroNoCampo('.acessos', 'Escolha pelo menos uma rádio e o perfil da pessoa nela.'); }
     if (!u.id) return S.run(async () => {
       const r = await servidor({ acao:'criar', nome:f.nome, email:f.email, celular:f.celular, diretor, vinculos });
-      await S.carregarBase(); S.render(); mostrarLink({ nome:f.nome, email:f.email, celular:f.celular }, r.link, true);
+      await S.carregarBase(); S.render(); mostrarSenha({ nome:f.nome, email:String(f.email).trim().toLowerCase(), celular:f.celular }, r.senha, true);
     });
     // E-mail novo: troca na conta de entrada (função do servidor); a senha continua a mesma
     const email = String(f.email || '').trim().toLowerCase(), trocouEmail = !!email && email !== String(u.email || '').toLowerCase();
@@ -95,9 +100,9 @@
       // Gerente vê a equipe das rádios em que é gerente (ele mesmo e outros gerentes aparecem, só para consulta)
       const us = ehGer() ? S.db.usuarios.filter(u => vinculosDe(u).some(x => ehMinha(x.veiculo_id))) : S.db.usuarios;
       body = S.celular
-        ? `<div class="card"><div class="list">${us.map(u => `<div><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome) || '—'}</b><small>${acessoTexto(u)}</small><span style="margin-top:4px">${situacao(u)}</span></span><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></div>`).join('')}</div></div>`
-        : `<div class="card"><div class="scroll"><table><thead><tr><th>Usuário</th><th>Situação</th><th>Rádios e perfis</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${us.map(u =>
-          `<tr class="click" data-act="admUsuario" data-id="${u.id}"><td><div style="display:flex;align-items:center;gap:12px"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><div><b>${esc(u.nome) || '—'}</b><div class="muted small">${esc(u.email)}${u.celular ? ' · ' + esc(u.celular) : ''}</div></div></div></td><td>${situacao(u)}</td><td>${acessoTexto(u, '<br>')}</td><td class="r"><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></td></tr>`).join('')}</tbody></table></div></div>`;
+        ? `<div class="card"><div class="list">${us.map(u => `<div><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome) || '—'}</b><small>${acessoTexto(u)}</small><small>Último acesso: ${ultimo(u)}</small><span style="margin-top:4px">${situacao(u)}</span></span><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></div>`).join('')}</div></div>`
+        : `<div class="card"><div class="scroll"><table><thead><tr><th>Usuário</th><th>Situação</th><th>Último acesso</th><th>Rádios e perfis</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${us.map(u =>
+          `<tr class="click" data-act="admUsuario" data-id="${u.id}"><td><div style="display:flex;align-items:center;gap:12px"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><div><b>${esc(u.nome) || '—'}</b><div class="muted small">${esc(u.email)}${u.celular ? ' · ' + esc(u.celular) : ''}</div></div></div></td><td>${situacao(u)}</td><td class="nowrap">${ultimo(u)}</td><td>${acessoTexto(u, '<br>')}</td><td class="r"><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></td></tr>`).join('')}</tbody></table></div></div>`;
     }
     if (ehGer()) return { title:`<span class="sub">${esc(minhas().map(v => v.nome).join(' · '))}</span>Usuários`, actions:`<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`,
       body:`<p class="muted small" style="margin:0 0 14px">Você cadastra e edita consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente. Gerentes e diretores ficam com o diretor.</p>${body}` };
@@ -164,18 +169,23 @@
     admUsuarioMenu: (d, botao) => { const u = S.db.usuarios.find(x => x.id === d.id), eu = u.id === S.me.id, pode = podeCuidar(u);
       const ativar = u.ativo ? { label:'Desativar acesso', icon:'bloqueio', act:'admAtivo', data:{ id:u.id } } : { label:'Reativar acesso', icon:'check', act:'admAtivo', data:{ id:u.id } };
       S.menu(botao, [pode ? { label:'Editar', icon:'editar', act:'admUsuarioEditar', data:{ id:u.id } } : { label:'Ver', icon:'editar', act:'admUsuario', data:{ id:u.id } },
-        ...(pode || eu ? [{ label:eu ? 'Gerar link para trocar a senha' : 'Gerar link de acesso', icon:'whats', act:'admLink', data:{ id:u.id } }] : []),
+        ...(eu ? [{ label:'Trocar minha senha', icon:'chave', act:'admMinhaSenha', data:{} }] : pode ? [{ label:'Gerar nova senha provisória', icon:'whats', act:'admSenha', data:{ id:u.id } }] : []),
         ...(eu || !pode ? [] : ehGer() ? (soNasMinhas(u) ? ['-', ativar] : [])
           : ['-', ativar, { label:'Excluir usuário', icon:'lixo', act:'admExcluir', data:{ id:u.id }, perigo:true }])]); },
     admExcluir: async d => { const u = S.db.usuarios.find(x => x.id === d.id);
       if (!await S.confirmar(`Excluir ${u.nome || u.email} de vez? Não dá para desfazer.\n\nSe a pessoa já trabalhou no sistema (PIs, clientes ou agenda), o SONVI não deixa excluir: use "Desativar acesso".`, { ok:'Excluir usuário', perigo:true })) return;
       S.run(async () => { await servidor({ acao:'excluir', usuario_id:u.id }); await S.carregarBase(); }, 'Usuário excluído'); },
     admUsuarioEditar: d => formUsuario(S.db.usuarios.find(x => x.id === d.id), true),
-    admLink: d => { const u = S.db.usuarios.find(x => x.id === d.id); S.run(async () => { const r = await servidor({ acao:'link', usuario_id:u.id }); mostrarLink(u, r.link, false); }); },
+    admSenha: async d => { const u = S.db.usuarios.find(x => x.id === d.id);
+      if (!await S.confirmar(`Gerar uma nova senha provisória para ${u.nome || u.email}?\n\nA senha atual deixa de valer na hora e a pessoa cria uma nova no próximo acesso.`, { ok:'Gerar senha' })) return;
+      S.run(async () => { const r = await servidor({ acao:'senha', usuario_id:u.id }); await S.carregarBase(); S.render(); mostrarSenha(u, r.senha, false); }); },
+    admMinhaSenha: () => S.trocarMinhaSenha(),
     admAtivo: async d => { const u = S.db.usuarios.find(x => x.id === d.id), ativo = !u.ativo;
-      if (!ativo && !await S.confirmar(`Desativar o acesso de ${u.nome || u.email}? A pessoa não consegue mais entrar; o histórico dela continua no sistema.`, { ok:'Desativar acesso', perigo:true })) return;
-      S.run(async () => { await S.q(S.sb.rpc('salvar_usuario', { p_usuario:u.id, p_nome:u.nome || u.email, p_celular:u.celular || '', p_ativo:ativo, p_diretor:u.diretor, p_vinculos:vinculosDe(u).map(x => ({ veiculo_id:x.veiculo_id, perfil:x.perfil })) })); await S.carregarBase(); }, ativo ? 'Acesso reativado' : 'Acesso desativado'); },
-    admCopiar: d => { navigator.clipboard.writeText(d.link).then(() => S.toast('Link copiado'), () => S.toast('Não foi possível copiar; selecione o link e copie.')); },
+      if (!ativo && !await S.confirmar(`Desativar o acesso de ${u.nome || u.email}? A pessoa sai do sistema e não consegue mais entrar; o histórico dela continua no SONVI.`, { ok:'Desativar acesso', perigo:true })) return;
+      // Primeiro o cadastro (regras do banco), depois a conta de entrada: bloqueada, ela é desconectada e não entra mais
+      S.run(async () => { await S.q(S.sb.rpc('salvar_usuario', { p_usuario:u.id, p_nome:u.nome || u.email, p_celular:u.celular || '', p_ativo:ativo, p_diretor:u.diretor, p_vinculos:vinculosDe(u).map(x => ({ veiculo_id:x.veiculo_id, perfil:x.perfil })) }));
+        await servidor({ acao:'ativo', usuario_id:u.id, ativo }); await S.carregarBase(); }, ativo ? 'Acesso reativado' : 'Acesso desativado'); },
+    admCopiar: d => { navigator.clipboard.writeText(d.texto || d.link).then(() => S.toast('Mensagem copiada'), () => S.toast('Não foi possível copiar; selecione o link e copie.')); },
   });
   document.addEventListener('change', e => {
     if (e.target.id !== 'empLogoArq' || !e.target.files[0]) return;
