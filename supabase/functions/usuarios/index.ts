@@ -8,7 +8,7 @@
 //   { acao: "enviar_acesso", usuario_id, senha } → manda por e-mail os dados de acesso com a senha provisória
 //   { acao: "ativo", usuario_id, ativo }   → bloqueia (desconecta) ou libera a conta de entrada; o cadastro muda antes por salvar_usuario
 //   { acao: "email", usuario_id, email }   → troca o e-mail de entrada; a senha continua a mesma
-//   { acao: "excluir", usuario_id }        → só o diretor, e só quem não tem PI, cliente, agenda nem histórico
+//   { acao: "excluir", usuario_id, para }  → só o diretor; a carteira passa para "para" (ou fica sem responsável)
 //   { acao: "esqueci", email, destino }    → SEM login: manda pelo e-mail (Resend) o link para criar uma senha nova
 //   { acao: "link", usuario_id, destino }  → (antigo) link de acesso; mantido por compatibilidade
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -188,19 +188,17 @@ Deno.serve(async (req) => {
       return resposta({ ok: true, email });
     }
 
+    // Excluir: só o diretor. Antes, a carteira (clientes, propostas, PIs e follow-ups) passa para quem ele escolher,
+    // ou fica sem responsável (para: null; os follow-ups da pessoa vão embora junto com ela). Regra no banco: preparar_exclusao_usuario.
     if (b.acao === 'excluir') {
-      const id = String(b.usuario_id ?? '');
+      const id = String(b.usuario_id ?? ''), para = b.para ? String(b.para) : null;
       if (!ehDiretor) return resposta({ erro: 'Só o diretor exclui usuários. Use "Desativar acesso".' }, 403);
       if (eu.id === id) return resposta({ erro: 'Você não pode excluir o seu próprio usuário.' }, 400);
-      const conta = async (tabela: string, coluna: string) => { const { count } = await adm.from(tabela).select('*', { count: 'exact', head: true }).eq(coluna, id); return count ?? 0; };
-      const [pis, clientes, agenda, hist] = await Promise.all([conta('pis', 'consultor_id'), conta('pessoas', 'consultor_id'), conta('agenda', 'consultor_id'), conta('pi_historico', 'usuario_id')]);
-      if (pis + clientes + agenda + hist > 0) {
-        const partes = [pis && `${pis} PI${pis > 1 ? 's' : ''}`, clientes && `${clientes} cliente${clientes > 1 ? 's' : ''}`, agenda && `${agenda} compromisso${agenda > 1 ? 's' : ''} na agenda`, hist && 'movimentações no histórico de PIs'].filter(Boolean).join(', ');
-        return resposta({ erro: `Não dá para excluir: este usuário já tem ${partes}. Use "Desativar acesso" para bloquear a entrada sem perder o histórico.` }, 409);
-      }
+      const { data: passou, error: e0 } = await quem.rpc('preparar_exclusao_usuario', { p_usuario: id, p_para: para });
+      if (e0) return resposta({ erro: e0.message }, 400);
       const { error } = await adm.auth.admin.deleteUser(id);
       if (error) return resposta({ erro: error.message }, 400);
-      return resposta({ ok: true });
+      return resposta({ ok: true, passou });
     }
 
     return resposta({ erro: 'Ação desconhecida.' }, 400);

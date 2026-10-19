@@ -176,9 +176,20 @@
         ...(eu ? [{ label:'Trocar minha senha', icon:'chave', act:'admMinhaSenha', data:{} }] : pode ? [{ label:'Gerar nova senha provisória', icon:'whats', act:'admSenha', data:{ id:u.id } }] : []),
         ...(eu || !pode ? [] : ehGer() ? (soNasMinhas(u) ? ['-', ativar] : [])
           : ['-', ativar, { label:'Excluir usuário', icon:'lixo', act:'admExcluir', data:{ id:u.id }, perigo:true }])]); },
-    admExcluir: async d => { const u = S.db.usuarios.find(x => x.id === d.id);
-      if (!await S.confirmar(`Excluir ${u.nome || u.email} de vez? Não dá para desfazer.\n\nSe a pessoa já trabalhou no sistema (PIs, clientes ou agenda), o SONVI não deixa excluir: use "Desativar acesso".`, { ok:'Excluir usuário', perigo:true })) return;
-      S.run(async () => { await servidor({ acao:'excluir', usuario_id:u.id }); await S.carregarBase(); }, 'Usuário excluído'); },
+    // Excluir (só o diretor): escolhe para quem vão clientes, propostas, PIs e follow-ups da pessoa
+    admExcluir: d => { const u = S.db.usuarios.find(x => x.id === d.id), nome = u.nome || u.email;
+      const outros = S.db.usuarios.filter(x => x.id !== u.id && x.ativo).sort((a, b) => (b.id === S.me.id) - (a.id === S.me.id) || String(a.nome).localeCompare(b.nome));
+      S.form(`Excluir ${esc(nome)}`, [
+        { html:`<p style="grid-column:1/-1;margin:0">O usuário é apagado de vez e não consegue mais entrar. <b>Os clientes, as propostas e os PIs continuam no SONVI.</b></p>` },
+        { k:'para', label:`Os clientes, propostas, PIs e follow-ups de ${nome.split(' ')[0]} passam para`, type:'select', full:true,
+          options:[...outros.map(x => [x.id, (x.nome || x.email) + (x.id === S.me.id ? ' (você)' : x.diretor ? ' (diretor)' : '')]), ['', 'Ninguém: ficam sem responsável e os follow-ups são apagados']] },
+        { html:'<p class="muted small" style="grid-column:1/-1;margin:0">Não dá para desfazer. Se a pessoa pode voltar, prefira "Desativar acesso".</p>' }],
+        { para:S.me.id },
+        f => S.run(async () => { const r = await servidor({ acao:'excluir', usuario_id:u.id, para:f.para || null }); await S.recarregar();
+          const p = r.passou || {}, n = (p.clientes || 0) + (p.propostas || 0) + (p.pis || 0);
+          if (n && f.para) S.toast(`Usuário ${nome} excluído. ${p.clientes || 0} cliente(s), ${p.propostas || 0} proposta(s) e ${p.pis || 0} PI(s) passaram para ${(S.db.usuarios.find(x => x.id === f.para) || {}).nome || 'o novo responsável'}.`);
+          else S.toast(`Usuário ${nome} excluído.`); }), 'Excluir usuário', { editar:true });
+      const ok = document.querySelector('#dlg button[value=ok]'); if (ok) ok.classList.add('perigo'); },
     admUsuarioEditar: d => formUsuario(S.db.usuarios.find(x => x.id === d.id), true),
     admSenha: async d => { const u = S.db.usuarios.find(x => x.id === d.id);
       if (!await S.confirmar(`Gerar uma nova senha provisória para ${u.nome || u.email}?\n\nA senha atual deixa de valer na hora e a pessoa cria uma nova no próximo acesso.`, { ok:'Gerar senha' })) return;
