@@ -143,6 +143,16 @@ body.fora #content { max-width:none; width:100%; min-height:100vh; display:flex;
 
 /* ---------- área principal ---------- */
 #main { flex:1; min-width:0; }
+/* Acesso de suporte do SONVI dentro do ambiente de um cliente */
+.faixa-suporte { position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; gap:10px 16px; flex-wrap:wrap; padding:10px clamp(18px, 3vw, 44px); background:var(--ink); color:var(--surface); font-size:14px; }
+.faixa-suporte .fs-tx { display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0; }
+.faixa-suporte .fs-tx svg { width:16px; height:16px; flex:none; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.faixa-suporte .btn { --btn-borda:color-mix(in srgb, var(--surface) 70%, transparent); color:var(--surface); height:36px; }
+.faixa-suporte .btn:hover { background:var(--surface); border-color:var(--surface); color:var(--ink); }
+.auth .org-logo { width:auto; max-width:220px; height:46px; object-fit:contain; object-position:left; }
+.auth .org-nome { font:600 22px/1.2 var(--display); letter-spacing:-.02em; }
+@media (prefers-color-scheme:dark) { .auth .org-logo { background:#fff; padding:6px 10px; border-radius:8px; box-sizing:content-box; } }
+.sup-log .tx small { white-space:normal; }
 #bar { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; padding:34px clamp(18px, 3vw, 44px) 10px; max-width:1268px; margin:0 auto; }
 #bar h1 { font:600 clamp(28px, 2.6vw, 38px)/1.1 var(--display); letter-spacing:-.03em; flex:1; min-width:220px; text-wrap:balance; }
 #bar .sub { display:flex; align-items:center; gap:8px; flex-wrap:wrap; color:var(--ink-2); font:500 14px/1.5 var(--font); letter-spacing:0; margin-bottom:8px; }
@@ -360,6 +370,7 @@ form.ver input:disabled, form.ver select:disabled, form.ver textarea:disabled { 
   #side nav svg { width:22px; height:22px; }
   #side nav .badge { position:absolute; top:0; right:6px; margin:0; font-size:11px; min-width:18px; padding:0 5px; }
   #bar { padding:84px 16px 4px; } #content { padding:12px 16px 120px; }
+  .faixa-suporte { position:static; margin:66px 12px 0; border-radius:8px; padding:10px 14px; } body.com-suporte #bar { padding-top:18px; }
   .card { padding:20px; }
   .tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; } .tile { padding:18px; gap:10px; } .tile b { font-size:24px; } .tile small { font-size:13px; }
   .tile span { white-space:normal; }

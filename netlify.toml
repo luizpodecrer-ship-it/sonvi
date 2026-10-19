@@ -46,3 +46,20 @@
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
     X-Frame-Options = "DENY"
+
+# Endereço de cada empresa (cliente do SONVI): sonvi.com.br/<empresa>/ abre o sistema e /<empresa>/music/ o Sonvi Music.
+# Arquivos que existem de verdade (site/, music/, js/, img/...) continuam saindo direto; só o que não existe cai aqui.
+[[redirects]]
+  from = "/:org"
+  to = "/:org/"
+  status = 301
+
+[[redirects]]
+  from = "/:org/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/:org/*"
+  to = "/:splat"
+  status = 200

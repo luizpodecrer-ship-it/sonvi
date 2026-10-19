@@ -6,6 +6,16 @@
   S.erroLink = /error_code=/.test(h) ? (/expired/.test(h) ? 'Este link de acesso expirou. Peça um novo ao diretor.' : 'Este link de acesso não vale mais. Peça um novo ao diretor.') : '';
   // O Sonvi Music guarda a sessão à parte: entrar no SONVI não entra no Sonvi Music, e vice-versa (como serão em endereços separados)
   S.sb = supabase.createClient(window.SONVI_CONFIG.url, window.SONVI_CONFIG.key, S.APP === 'music' ? { auth:{ storageKey:'sonvi-music-auth' } } : undefined);
+  // Endereço da empresa (cada cliente do SONVI): sonvi.com.br/<empresa>/ e o Sonvi Music em sonvi.com.br/<empresa>/music/.
+  // Sem o nome da empresa no endereço (teste.sonvi.com.br) o SONVI funciona como antes.
+  const RESERVADOS = ['', 'site', 'console', 'music', 'js', 'css', 'img', 'index.html', 'pi.html', 'proposta.html'];
+  const seg = decodeURIComponent(location.pathname.split('/')[1] || '').toLowerCase();
+  S.ORG = location.protocol !== 'file:' && !RESERVADOS.includes(seg) && /^[a-z0-9-]{1,40}$/.test(seg) ? seg : null;
+  S.orgPub = undefined; // dados públicos da empresa (nome, logo, situação) para a tela de entrada; false = endereço que não existe
+  S.carregarOrgPublica = async () => {
+    if (!S.ORG || S.orgPub !== undefined) return;
+    try { const r = await q(S.sb.rpc('organizacao_publica', { p_slug:S.ORG })); S.orgPub = (r && r[0]) || false; } catch (e) { console.error(e); S.orgPub = null; }
+  };
   S.limparEndereco = () => { if (/access_token|error_code|type=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search + '#/dashboard'); };
 
   // Lembra só qual rádio estava aberta (preferência de tela, não é dado do sistema), por usuário
@@ -51,16 +61,43 @@
     const { data:{ session } } = await S.sb.auth.getSession();
     S.limparEndereco();
     if (S.erroLink) { S.toast(S.erroLink); S.erroLink = ''; }
+    await S.carregarOrgPublica();
     if (!session) { S.me = null; return; }
-    const [me, veiculos, vinculos, usuarios, empresa] = await Promise.all([
+    // De qual empresa é quem entrou, se é diretor e se está no acesso de suporte do SONVI
+    S.ctx = await q(S.sb.rpc('meu_contexto')) || {};
+    S.bloqueio = null;
+    if (S.ctx.admin && !S.ctx.suporte) {
+      // Equipe SONVI fora do suporte: não vê nada de cliente nenhum; escolhe a empresa e o motivo para entrar
+      S.me = Object.assign({ id:session.user.id, email:session.user.email, ativo:true, diretor:false }, await q(S.sb.from('usuarios').select('*').eq('id', session.user.id).maybeSingle()) || {});
+      S.bloqueio = 'suporte'; S.ui.vehicleId = null; S.db.veiculos = []; S.db.vinculos = []; S.db.usuarios = [];
+      S.orgsSuporte = await q(S.sb.rpc('organizacoes_para_suporte'));
+      return;
+    }
+    if (S.ORG && !S.ctx.suporte && (!S.ctx.org || S.ctx.org.slug !== S.ORG)) {
+      // Entrou pelo endereço de outra empresa: sai e avisa
+      await S.sb.auth.signOut(); S.me = null;
+      S.toast(`Este acesso não é da ${S.orgPub && S.orgPub.nome ? S.orgPub.nome : 'empresa deste endereço'}. Entre pelo endereço da sua empresa.`);
+      return;
+    }
+    if (S.ctx.org && S.ctx.org.situacao === 'suspenso' && !S.ctx.suporte) S.bloqueio = 'suspenso';
+    const [me, veiculos, vinculos, usuarios, empresa, suporteIds, suporteLog] = await Promise.all([
       q(S.sb.from('usuarios').select('*').eq('id', session.user.id).maybeSingle()),
       q(S.sb.from('veiculos').select('*').order('nome')),
       q(S.sb.from('usuario_veiculos').select('*')),
       q(S.sb.from('usuarios').select('*').order('nome')),
       // Empresa comercial do grupo (Head 14): a marca das propostas e, quando escolhida, dos PIs
-      S.APP === 'music' ? Promise.resolve([]) : q(S.sb.from('empresa_comercial').select('*').limit(1))]);
+      S.APP === 'music' ? Promise.resolve([]) : q(S.sb.from('empresa_comercial').select('*').limit(1)),
+      q(S.sb.rpc('suporte_ids')),
+      S.ctx.diretor ? q(S.sb.from('suporte_acessos').select('*').order('inicio', { ascending:false }).limit(30)) : Promise.resolve([])]);
     S.me = me || { id:session.user.id, nome:'', email:session.user.email, ativo:true, diretor:false };
-    Object.assign(S.db, { veiculos, vinculos, usuarios, empresa:empresa[0] || null });
+    // Diretor de verdade vem do banco (no suporte, o SONVI age como diretor da empresa atendida)
+    S.me.diretor = !!S.ctx.diretor;
+    S.db.suporteIds = (suporteIds || []).map(x => typeof x === 'string' ? x : x.suporte_ids);
+    S.db.suporteLog = suporteLog || [];
+    // No suporte a pessoa do SONVI não aparece na equipe do cliente: tudo o que ela faz fica como "Suporte SONVI"
+    const equipe = S.ctx.suporte ? usuarios.filter(u => u.id !== S.me.id) : usuarios;
+    if (S.ctx.suporte) S.me = Object.assign({}, S.me, { nome:'Suporte SONVI', ativo:true, trocar_senha:false });
+    Object.assign(S.db, { veiculos, vinculos, usuarios:equipe, empresa:empresa[0] || null });
     // No Sonvi Music aparecem só as rádios em que a pessoa trabalha com a programação
     if (S.APP === 'music' && !S.me.diretor) S.db.veiculos = veiculos.filter(v => vinculos.some(x => x.usuario_id === S.me.id && x.veiculo_id === v.id && S.MUSIC_PERFIS.includes(x.perfil)));
     // Volta para a rádio que estava aberta (guardada neste navegador); se ela não existir mais, abre a primeira

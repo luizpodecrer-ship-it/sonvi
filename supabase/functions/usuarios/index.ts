@@ -81,13 +81,20 @@ Deno.serve(async (req) => {
       return resposta({ ok: true });
     }
 
+    // Cada cliente do SONVI (organização) só enxerga a própria equipe e as próprias rádios.
+    // No acesso de suporte, minha_org é a organização atendida e o suporte age como diretor dela.
     const { data: ehDiretor } = await quem.rpc('eh_diretor');
-    const { data: euAtivo } = await adm.from('usuarios').select('ativo').eq('id', eu.id).maybeSingle();
+    const { data: org } = await quem.rpc('minha_org');
+    if (!org) return resposta({ erro: 'Acesso não encontrado.' }, 403);
+    const { data: daOrg } = await adm.from('veiculos').select('id').eq('organizacao_id', org);
+    const radiosDaOrg = new Set((daOrg || []).map((x: any) => x.id));
+    const { data: euAtivo } = await adm.from('usuarios').select('ativo, organizacao_id').eq('id', eu.id).maybeSingle();
     const { data: gv } = euAtivo?.ativo ? await adm.from('usuario_veiculos').select('veiculo_id').eq('usuario_id', eu.id).eq('perfil', 'gerente') : { data: [] };
-    const minhas = new Set((gv || []).map((x: any) => x.veiculo_id));
+    const minhas = new Set((gv || []).map((x: any) => x.veiculo_id).filter((v: string) => radiosDaOrg.has(v)));
+    const suporte = !euAtivo?.organizacao_id;
     if (!ehDiretor && !minhas.size) return resposta({ erro: 'Apenas o diretor e o gerente podem cadastrar usuários.' }, 403);
     // Gerente só cuida de quem está nas rádios dele e não é diretor nem gerente (regra do banco: pode_gerenciar_usuario)
-    const podeCuidar = async (alvo: string) => { if (ehDiretor) return true; const { data } = await quem.rpc('pode_gerenciar_usuario', { alvo }); return !!data; };
+    const podeCuidar = async (alvo: string) => { const { data } = await quem.rpc('pode_gerenciar_usuario', { alvo }); return !!data; };
     const negado = () => resposta({ erro: 'Você só pode cuidar de consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente.' }, 403);
 
     if (b.acao === 'criar') {
@@ -101,16 +108,17 @@ Deno.serve(async (req) => {
         if (vinculos.some((v: any) => !PERFIS_DO_GERENTE.includes(v.perfil))) return resposta({ erro: 'O gerente cadastra consultor, OPEC, financeiro, programador e locutor.' }, 403);
         if (vinculos.some((v: any) => !minhas.has(v.veiculo_id))) return resposta({ erro: 'Você só pode dar acesso nas rádios em que é gerente.' }, 403);
       }
+      if (vinculos.some((v: any) => !radiosDaOrg.has(v.veiculo_id))) return resposta({ erro: 'Rádio não encontrada.' }, 403);
       if (!diretor && !vinculos.length) return resposta({ erro: 'Escolha pelo menos uma rádio e o perfil nela.' }, 400);
       const { data: existe } = await adm.from('usuarios').select('id').ilike('email', email).maybeSingle();
-      if (existe) return resposta({ erro: ehDiretor ? 'Já existe um usuário com esse e-mail.' : 'Já existe um usuário com esse e-mail no SONVI. Se ele trabalha em outra rádio, peça ao diretor para dar acesso a ele na sua.' }, 409);
+      if (existe) return resposta({ erro: ehDiretor ? 'Já existe um usuário com esse e-mail no SONVI.' : 'Já existe um usuário com esse e-mail no SONVI. Se ele trabalha em outra rádio, peça ao diretor para dar acesso a ele na sua.' }, 409);
 
       // Cria a conta já confirmada, com a senha provisória
       const senha = senhaProvisoria();
       const { data, error } = await adm.auth.admin.createUser({ email, password: senha, email_confirm: true, user_metadata: { nome } });
       if (error) return resposta({ erro: /already|registered|exists/i.test(error.message) ? 'Já existe um usuário com esse e-mail.' : error.message }, 400);
       const id = data.user.id;
-      const { error: e1 } = await adm.from('usuarios').update({ nome, celular, diretor, ativo: true, trocar_senha: true }).eq('id', id);
+      const { error: e1 } = await adm.from('usuarios').update({ nome, celular, diretor, ativo: true, trocar_senha: true, organizacao_id: org }).eq('id', id);
       if (e1) throw e1;
       if (!diretor) {
         const { error: e2 } = await adm.from('usuario_veiculos').insert(vinculos.map((v: any) => ({ usuario_id: id, veiculo_id: v.veiculo_id, perfil: v.perfil })));
@@ -140,7 +148,8 @@ Deno.serve(async (req) => {
       if (!u.trocar_senha) return resposta({ erro: 'Esta pessoa já criou a própria senha. Gere uma nova senha provisória antes de enviar.' }, 409);
       const chave = Deno.env.get('RESEND_API_KEY');
       if (!chave) return resposta({ erro: 'O envio de e-mail ainda não está configurado.' }, 503);
-      const { data: remet } = await adm.from('usuarios').select('nome, email').eq('id', eu.id).maybeSingle();
+      const { data: remet0 } = await adm.from('usuarios').select('nome, email').eq('id', eu.id).maybeSingle();
+      const remet = suporte ? { nome: 'Suporte SONVI', email: '' } : remet0;
       const music = /\/music\//.test(destino), sistema = music ? 'Sonvi Music' : 'SONVI', nome = String(u.nome || '').split(' ')[0];
       const texto = `Olá${nome ? ', ' + nome : ''}!\n\nSeu acesso ao ${sistema} está pronto.\n\nEntre em: ${destino}\nE-mail: ${u.email}\nSenha provisória: ${senha}\n\nNo primeiro acesso você vai criar a sua própria senha.${remet?.nome ? `\n\nCadastrado por ${remet.nome}.` : ''}`;
       const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:520px">
@@ -159,7 +168,7 @@ Deno.serve(async (req) => {
     if (b.acao === 'ativo') {
       const id = String(b.usuario_id ?? ''), ativo = !!b.ativo;
       if (id === eu.id) return resposta({ erro: 'Você não pode desativar o seu próprio acesso.' }, 400);
-      if (!ehDiretor) { const { data } = await quem.rpc('usuario_so_nas_minhas', { alvo: id }); if (!data) return negado(); }
+      { const { data } = await quem.rpc('usuario_so_nas_minhas', { alvo: id }); if (!data) return negado(); }
       // Bloqueado: a conta de entrada não renova mais a sessão (sai do sistema) e não consegue entrar de novo
       const { error } = await adm.auth.admin.updateUserById(id, { ban_duration: ativo ? 'none' : BANIDO });
       if (error) return resposta({ erro: error.message }, 400);

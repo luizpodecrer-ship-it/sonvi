@@ -25,10 +25,24 @@
   let ultima = ''; // última tela desenhada: a animação de entrada só roda quando a tela muda
   let ultimoSide = ''; // barra lateral desenhada (sem o item marcado)
 
+  // Faixa do acesso de suporte: quem é do SONVI vê sempre que está dentro do ambiente de um cliente e até que horas
+  let fimSuporte = null;
+  const faixaSuporte = sup => {
+    let fx = document.getElementById('faixa-suporte');
+    document.body.classList.toggle('com-suporte', !!sup);
+    if (!sup) { if (fx) fx.remove(); return; }
+    if (!fx) { fx = document.createElement('div'); fx.id = 'faixa-suporte'; fx.className = 'faixa-suporte'; document.getElementById('main').prepend(fx); }
+    const fim = new Date(sup.fim), hora = fim.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    fx.innerHTML = `<span class="fs-tx">${S.svg('chave', 16)}<b>Suporte SONVI</b><span>${esc((S.ctx.org || {}).nome || '')} · termina às ${hora}</span></span><button type="button" class="btn sm" data-act="encerrarSuporte">Encerrar suporte</button>`;
+    // Quando o horário acaba, o banco já não mostra mais nada: volta para a tela de suporte
+    if (fimSuporte !== sup.id) { fimSuporte = sup.id; setTimeout(() => { if (S.ctx && S.ctx.suporte && S.ctx.suporte.id === sup.id) { S.toast('O acesso de suporte terminou.'); S.iniciar(); } }, Math.max(0, fim - Date.now()) + 1000); }
+  };
+
   S.render = () => {
     const content = document.getElementById('content'), bar = document.getElementById('bar');
     const acesso = S.carregando ? `<div class="carregando"><div style="display:grid;justify-items:center;gap:18px"><img src="img/simbolo.svg" width="66" height="78" alt="${MUSIC ? 'Sonvi Music' : 'SONVI'}"><div class="eq" aria-label="Carregando"><span></span><span></span><span></span><span></span><span></span></div></div></div>` : S.telaDeAcesso();
     document.body.classList.toggle('fora', !!acesso);
+    faixaSuporte(!acesso && S.ctx && S.ctx.suporte);
     if (acesso) { S.temaRadio(null); document.getElementById('side').innerHTML = ''; ultimoSide = ''; bar.innerHTML = ''; content.innerHTML = acesso; document.title = MUSIC ? 'Sonvi Music' : 'SONVI'; ultima = ''; return; }
 
     const semVeiculo = !S.ui.vehicleId, itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || n[0] === 'admin')), telas = itens.filter(n => !n[3]);

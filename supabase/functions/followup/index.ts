@@ -68,8 +68,8 @@ Deno.serve(async (req) => {
     if (!teste) { const { data } = await adm.rpc('followup_automaticos'); automaticos = Number(data || 0); }
 
     const [{ data: veiculos }, { data: usuarios }, { data: vinculos }, { data: abertos }, { data: feitos }] = await Promise.all([
-      adm.from('veiculos').select('id, nome').order('nome'),
-      adm.from('usuarios').select('id, nome, email, diretor, ativo').eq('ativo', true),
+      adm.from('veiculos').select('id, nome, organizacao_id').order('nome'),
+      adm.from('usuarios').select('id, nome, email, diretor, ativo, organizacao_id').eq('ativo', true),
       adm.from('usuario_veiculos').select('usuario_id, veiculo_id, perfil'),
       adm.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, quando, assunto, situacao, registrado_em').eq('situacao', 'agendado').lt('quando', inicio(amanha)).order('quando'),
       adm.from('agenda').select('id, veiculo_id, consultor_id, situacao').in('situacao', ['realizado', 'nao_atendeu']).gte('registrado_em', inicio(ontem)).lt('registrado_em', inicio(hoje)),
@@ -109,9 +109,9 @@ Deno.serve(async (req) => {
     const envios: { usuario: string; tipo: string; para: string; de: string; assunto: string; html: string }[] = [];
     const dataLonga = `${diaSemana(hoje)}, ${ddmm(hoje)}`;
 
-    // Diretor
-    for (const u of (usuarios || []).filter((x: any) => x.diretor && (!teste || x.id === teste.id))) {
-      const partes = (veiculos || []).map((v: any) => ({ v, r: resumoRadio(v.id) })).filter(p => !p.r.vazio);
+    // Diretor: só as rádios da empresa dele (cada cliente do SONVI é uma organização)
+    for (const u of (usuarios || []).filter((x: any) => x.diretor && x.organizacao_id && (!teste || x.id === teste.id))) {
+      const partes = (veiculos || []).filter((v: any) => v.organizacao_id === u.organizacao_id).map((v: any) => ({ v, r: resumoRadio(v.id) })).filter(p => !p.r.vazio);
       if (!partes.length && !teste) continue;
       const at = partes.reduce((s, p) => s + p.r.at, 0), hj = partes.reduce((s, p) => s + p.r.hj, 0);
       const miolo = partes.length ? partes.map(p => `<h2 style="font-size:17px;margin:22px 0 8px">${esc(p.v.nome)} <span style="font-weight:400;color:#6b6b74;font-size:14px">· ${plural(p.r.hj, 'contato hoje', 'contatos hoje')}, ${plural(p.r.at, 'atrasado', 'atrasados')}</span></h2>${p.r.html}`).join('')

@@ -146,7 +146,7 @@ document.addEventListener('change', async e => {
 S.veh = id => S.db.veiculos.find(v => v.id === (id || S.ui.vehicleId));
 S.pessoa = id => S.db.pessoas.find(p => p.id === id);
 S.nome = id => (S.pessoa(id) || {}).nome || '';
-S.usuario = id => (S.db.usuarios.find(u => u.id === id) || {}).nome || '';
+S.usuario = id => (S.db.usuarios.find(u => u.id === id) || {}).nome || ((S.db.suporteIds || []).includes(id) ? 'Suporte SONVI' : '');
 S.pessoas = tipo => S.db.pessoas.filter(p => p.tipo === tipo).sort((a, b) => a.nome.localeCompare(b.nome));
 S.piNo = pi => `PI ${S.veh(pi.veiculo_id).sigla} ${String(pi.numero).padStart(4, '0')}`;
 // Consultores do veículo atual (para escolher o responsável por um cliente ou compromisso)
