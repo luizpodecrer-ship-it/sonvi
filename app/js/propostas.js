@@ -17,7 +17,7 @@
   const pode = p => S.pode('diretor', 'gerente') || (S.pode('consultor') && p.consultor_id === S.me.id);
   const editavel = p => p.situacao === 'rascunho' && pode(p);
   const emp = () => S.db.empresa || { nome:'Empresa comercial' };
-  const empLogo = () => emp().logo || 'img/head14.png';
+  const empLogo = () => emp().logo || S.logoReserva();
   const empCurto = () => String(emp().nome || 'Empresa comercial').split('·')[0].trim();
   const empImg = (cls = '') => `<img class="${cls}" src="${esc(empLogo())}" width="600" height="122" alt="${esc(empCurto())}">`;
   const curtoData = iso => iso ? String(iso).slice(0, 10).split('-').reverse().slice(0, 2).join('/') : '';

@@ -94,7 +94,7 @@
       const kv = (k, val) => `<div><small>${k}</small><span>${val ? esc(val) : '<span class="muted">—</span>'}</span></div>`;
       const marcaDe = v => v.pi_marca === 'comercial' ? esc(curto) : esc(v.nome);
       body = `<div class="emp-grid"><section class="card"><div class="hd"><h2>Empresa comercial</h2><span class="pill" style="--tone:var(--gray)">vale para ${n === 1 ? 'a rádio' : `as ${n} rádios`}</span></div>
-          <div class="emp-cab"><span class="pr-logo"><img src="${esc(e.logo || 'img/head14.png')}" width="600" height="122" alt="Logo da ${esc(curto)}"></span><p class="muted small">A marca que sai nas propostas e, quando escolhida, nos PIs. Quem fatura continua sendo cada rádio.</p></div>
+          <div class="emp-cab"><span class="pr-logo"><img src="${esc(e.logo || S.logoReserva())}" width="600" height="122" alt="Logo da ${esc(curto)}"></span><p class="muted small">A marca que sai nas propostas e, quando escolhida, nos PIs. Quem fatura continua sendo cada rádio.</p></div>
           <div class="emp-kv">${kv('Nome', e.nome)}${kv('CNPJ', e.cnpj)}${kv('Cidade', e.cidade)}${kv('E-mail', e.email)}${kv('Telefone', e.telefone)}${kv('Site', e.site)}
             ${kv('Assina as propostas', e.assina === 'consultor' ? 'Quem fez a proposta' : [e.responsavel, e.cargo].filter(Boolean).join(' · '))}</div>
           <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn pri" data-act="admEmpresa">${S.svg('editar')}Editar dados</button></div></section>
@@ -148,7 +148,7 @@
       document.getElementById('dlg').classList.add('largo'); const dl = document.getElementById('dlg'), antes = dl.onclose; dl.onclose = e => { dl.classList.remove('largo'); if (antes) antes(e); }; },
     // Empresa comercial (Head 14): dados e logo que saem nas propostas e nos PIs com a marca dela
     admEmpresa: () => { const e = S.db.empresa || {};
-      const logo = `<div class="logo-campo" style="grid-column:1/-1"><div class="emp-prev pr-logo" id="empPrev"><img src="${esc(e.logo || 'img/head14.png')}" width="600" height="122" alt="Logo atual"></div>
+      const logo = `<div class="logo-campo" style="grid-column:1/-1"><div class="emp-prev pr-logo" id="empPrev"><img src="${esc(e.logo || S.logoReserva())}" width="600" height="122" alt="Logo atual"></div>
         <div class="logo-info"><b>Logo</b><small class="muted">Horizontal, PNG ou JPG com fundo branco ou transparente. Sai nas propostas e nos PIs.</small>
         <div class="row"><button type="button" class="btn sm" data-act="empLogoEscolher">${S.svg('baixar')}Trocar logo</button></div><small class="aviso" id="empAviso"></small></div>
         <input type="file" accept="image/png,image/jpeg,image/webp" id="empLogoArq" hidden><input type="hidden" name="logo" value="${esc(e.logo || '')}"></div>`;

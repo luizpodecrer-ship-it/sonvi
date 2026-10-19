@@ -37,6 +37,8 @@ S.tag = (text, tone) => `<span class="pill" style="--tone:var(--${tone})">${S.es
 S.logo = (cls = '') => S.APP === 'music'
   ? `<picture><source srcset="img/sonvi-music-branco.png" media="(prefers-color-scheme: dark)"><img src="img/sonvi-music.png?v=2" width="1071" height="298" alt="Sonvi Music"${cls ? ` class="${cls}"` : ''}></picture>`
   : `<picture><source srcset="img/sonvi-branco.svg" media="(prefers-color-scheme: dark)"><img src="img/sonvi.svg" width="343" height="78" alt="SONVI"${cls ? ` class="${cls}"` : ''}></picture>`;
+// Logo da empresa comercial quando ela ainda não tem logo próprio: o da Head 14 (primeiro cliente) ou o do SONVI
+S.logoReserva = () => S.ctx && S.ctx.org && S.ctx.org.slug !== 'head14' ? 'img/sonvi.svg' : 'img/head14.png';
 S.iniciais = nome => String(nome || '?').trim().split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
 S.ICON = {
   dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',

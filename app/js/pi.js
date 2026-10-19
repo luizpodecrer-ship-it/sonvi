@@ -549,7 +549,7 @@
       : `<table class="pd-cli"><tr>${celCli('Anunciante', esc(cli.nome))}${celCli('Agência', ag ? esc(ag.nome) : 'Venda direta')}</tr><tr>${celCli('Consultor', esc(S.usuario(pi.consultor_id)), true)}</tr></table>`;
     // Marca do PI: a da rádio ou a da empresa comercial do grupo (Head 14). Quem fatura continua sendo a rádio.
     const marca = o.marca || pi.dados.marca || v.pi_marca || 'radio', e = S.db.empresa;
-    const empresa = marca === 'comercial' && e ? `<div class="pd-radio pd-emp"><img src="${esc(e.logo || 'img/head14.png')}" alt=""><div><b class="pd-nome">${esc(e.nome)}</b>
+    const empresa = marca === 'comercial' && e ? `<div class="pd-radio pd-emp"><img src="${esc(e.logo || S.logoReserva())}" alt=""><div><b class="pd-nome">${esc(e.nome)}</b>
       ${o.vehicleData ? [e.razao_social, e.cnpj && 'CNPJ ' + e.cnpj, [e.endereco, e.cidade].filter(Boolean).join(' · '), e.telefone && 'Fone ' + e.telefone, e.email].filter(Boolean).map(x => `<div>${esc(x)}</div>`).join('') : ''}
       <div>Veiculação e faturamento: ${esc(v.nome)}</div></div></div>` : '';
     const radio = empresa || `<div class="pd-radio">${v.logo ? `<img src="${v.logo}" alt="">` : `<span class="pd-selo" style="background:${cor}">${esc(v.sigla)}</span>`}<div><b class="pd-nome">${esc(v.nome)}</b>
