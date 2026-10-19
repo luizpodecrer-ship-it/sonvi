@@ -49,11 +49,7 @@
 
 # Endereço de cada empresa (cliente do SONVI): sonvi.com.br/<empresa>/ abre o sistema e /<empresa>/music/ o Sonvi Music.
 # Arquivos que existem de verdade (site/, music/, js/, img/...) continuam saindo direto; só o que não existe cai aqui.
-[[redirects]]
-  from = "/:org"
-  to = "/:org/"
-  status = 301
-
+# O Netlify trata /head14 e /head14/ como o mesmo endereço: não criar regra que acrescenta a barra (vira redirecionamento sem fim).
 [[redirects]]
   from = "/:org/"
   to = "/index.html"
