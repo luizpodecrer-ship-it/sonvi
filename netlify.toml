@@ -27,3 +27,22 @@
   to = "/site/index.html"
   status = 200
   force = true
+
+# Console SONVI (painel do proprietário): console.sonvi.com.br mostra app/console/ e não aparece em buscadores
+[[redirects]]
+  from = "https://console.sonvi.com.br/"
+  to = "/console/index.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "https://console.sonvi.com.br/index.html"
+  to = "/console/index.html"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/console/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    X-Frame-Options = "DENY"
