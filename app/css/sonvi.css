@@ -1348,10 +1348,13 @@ fieldset.f { border:0; margin:0; padding:0; min-width:0; } fieldset.f legend { p
 @media (max-width:420px) { .card { padding:16px; } }
 
 /* Senha provisória (cadastro de usuários) e menu da conta */
-.senha-prov { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.senha-prov { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; }
 .senha-prov > div { background:var(--fill); border-radius:var(--radius-s); padding:12px 14px; display:grid; gap:4px; min-width:0; }
-.senha-prov small { color:var(--ink-2); font-size:12px; } .senha-prov b { font-size:16px; overflow-wrap:anywhere; } .senha-prov b.num { font:600 19px/1.2 var(--display); letter-spacing:.04em; }
-@media (max-width:520px) { .senha-prov { grid-template-columns:1fr; } }
+.senha-prov small { color:var(--ink-2); font-size:12px; } .senha-prov b { font-size:15px; overflow-wrap:break-word; word-break:normal; } .senha-prov b.num { font:600 18px/1.25 var(--display); letter-spacing:.03em; white-space:nowrap; }
+@media (max-width:620px) { .senha-prov { grid-template-columns:1fr; } }
+.envio-acesso { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; }
+.envio-acesso .btn { width:100%; padding:0 12px; }
+@media (max-width:520px) { .envio-acesso { grid-template-columns:1fr; } }
 td.nowrap { white-space:nowrap; }
 .eu .eu-conta { cursor:pointer; border-radius:var(--radius-s); }
 .eu .eu-conta:hover b { text-decoration:underline; text-underline-offset:3px; }

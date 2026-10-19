@@ -36,9 +36,13 @@
     const fone = String(u.celular || '').replace(/\D/g, ''), wa = `https://wa.me/${fone ? (fone.length <= 11 ? '55' : '') + fone : ''}?text=${encodeURIComponent(msg)}`;
     S.dialog(`<h2>${novo ? 'Usuário cadastrado' : 'Nova senha provisória'}</h2>
       <p>Envie os dados de acesso para <b>${esc(u.nome || u.email)}</b>. No primeiro acesso, o SONVI pede que a pessoa crie a própria senha.</p>
-      <div class="senha-prov"><div><small>E-mail</small><b>${esc(u.email)}</b></div><div><small>Senha provisória</small><b class="num">${esc(senha)}</b></div></div>
+      <div class="senha-prov"><div><small>E-mail</small><b>${esc(u.email).replace('@', '@<wbr>')}</b></div><div><small>Senha provisória</small><b class="num">${esc(senha)}</b></div></div>
       <p class="muted small">Esta senha aparece só agora. Se perder, gere outra pelo menu ⋯ do usuário (a anterior deixa de valer).</p>
-      <div class="row" style="flex-wrap:wrap"><span class="grow"></span><button type="button" class="btn" data-act="admCopiar" data-texto="${esc(msg)}">${S.svg('copia')}Copiar</button><a class="btn pri" href="${esc(wa)}" target="_blank" rel="noopener">${S.svg('whats')}Enviar pelo WhatsApp</a><button class="btn" value="x">Fechar</button></div>`);
+      <div class="envio-acesso" role="group" aria-label="Enviar os dados de acesso">
+        <a class="btn pri" href="${esc(wa)}" target="_blank" rel="noopener">${S.svg('whats')}WhatsApp</a>
+        <button type="button" class="btn" data-act="admEnviarAcesso" data-id="${esc(u.id || '')}" data-senha="${esc(senha)}">${S.svg('email')}E-mail</button>
+        <button type="button" class="btn" data-act="admCopiar" data-texto="${esc(msg)}">${S.svg('copia')}Copiar</button></div>
+      <div class="row"><span class="grow"></span><button class="btn" value="x">Fechar</button></div>`);
   };
   // Formulário do usuário: dados, função (diretor ou por rádio) e o perfil em cada rádio
   const formUsuario = (u, editar, valores) => {
@@ -70,7 +74,7 @@
     if (!diretor && !vinculos.length && !temFora) { formUsuario(u, true, f); return S.erroNoCampo('.acessos', 'Escolha pelo menos uma rádio e o perfil da pessoa nela.'); }
     if (!u.id) return S.run(async () => {
       const r = await servidor({ acao:'criar', nome:f.nome, email:f.email, celular:f.celular, diretor, vinculos });
-      await S.carregarBase(); S.render(); mostrarSenha({ nome:f.nome, email:String(f.email).trim().toLowerCase(), celular:f.celular }, r.senha, true);
+      await S.carregarBase(); S.render(); mostrarSenha({ id:r.usuario_id, nome:f.nome, email:String(f.email).trim().toLowerCase(), celular:f.celular }, r.senha, true);
     });
     // E-mail novo: troca na conta de entrada (função do servidor); a senha continua a mesma
     const email = String(f.email || '').trim().toLowerCase(), trocouEmail = !!email && email !== String(u.email || '').toLowerCase();
@@ -180,6 +184,8 @@
       if (!await S.confirmar(`Gerar uma nova senha provisória para ${u.nome || u.email}?\n\nA senha atual deixa de valer na hora e a pessoa cria uma nova no próximo acesso.`, { ok:'Gerar senha' })) return;
       S.run(async () => { const r = await servidor({ acao:'senha', usuario_id:u.id }); await S.carregarBase(); S.render(); mostrarSenha(u, r.senha, false); }); },
     admMinhaSenha: () => S.trocarMinhaSenha(),
+    admEnviarAcesso: (d, el) => { el.disabled = true;
+      S.run(async () => { try { const r = await servidor({ acao:'enviar_acesso', usuario_id:d.id, senha:d.senha }); el.innerHTML = `${S.svg('check')}Enviado`; S.toast(`Dados de acesso enviados para ${r.email}`); } catch (e) { el.disabled = false; throw e; } }); },
     admAtivo: async d => { const u = S.db.usuarios.find(x => x.id === d.id), ativo = !u.ativo;
       if (!ativo && !await S.confirmar(`Desativar o acesso de ${u.nome || u.email}? A pessoa sai do sistema e não consegue mais entrar; o histórico dela continua no SONVI.`, { ok:'Desativar acesso', perigo:true })) return;
       // Primeiro o cadastro (regras do banco), depois a conta de entrada: bloqueada, ela é desconectada e não entra mais

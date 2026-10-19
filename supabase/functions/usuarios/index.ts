@@ -5,6 +5,7 @@
 //   { acao: "criar", nome, email, celular, diretor, vinculos: [{ veiculo_id, perfil }] }  → { usuario_id, senha }  (senha provisória)
 //   { acao: "senha", usuario_id }          → { senha }  nova senha provisória (a pessoa troca no próximo acesso)
 //   { acao: "minha_senha", senha }         → a pessoa logada define a própria senha (obrigatório depois da provisória)
+//   { acao: "enviar_acesso", usuario_id, senha } → manda por e-mail os dados de acesso com a senha provisória
 //   { acao: "ativo", usuario_id, ativo }   → bloqueia (desconecta) ou libera a conta de entrada; o cadastro muda antes por salvar_usuario
 //   { acao: "email", usuario_id, email }   → troca o e-mail de entrada; a senha continua a mesma
 //   { acao: "excluir", usuario_id }        → só o diretor, e só quem não tem PI, cliente, agenda nem histórico
@@ -127,6 +128,32 @@ Deno.serve(async (req) => {
       if (error) return resposta({ erro: error.message }, 400);
       await adm.from('usuarios').update({ trocar_senha: true }).eq('id', id);
       return resposta({ senha });
+    }
+
+    // Envia por e-mail (Resend) os dados de acesso com a senha provisória que acabou de aparecer na tela de quem cadastrou
+    if (b.acao === 'enviar_acesso') {
+      const id = String(b.usuario_id ?? ''), senha = String(b.senha ?? '');
+      if (!await podeCuidar(id)) return negado();
+      if (!/^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$/.test(senha)) return resposta({ erro: 'Senha provisória inválida.' }, 400);
+      const { data: u } = await adm.from('usuarios').select('nome, email, ativo, trocar_senha').eq('id', id).maybeSingle();
+      if (!u || !u.ativo) return resposta({ erro: 'Usuário não encontrado ou desativado.' }, 404);
+      if (!u.trocar_senha) return resposta({ erro: 'Esta pessoa já criou a própria senha. Gere uma nova senha provisória antes de enviar.' }, 409);
+      const chave = Deno.env.get('RESEND_API_KEY');
+      if (!chave) return resposta({ erro: 'O envio de e-mail ainda não está configurado.' }, 503);
+      const { data: remet } = await adm.from('usuarios').select('nome, email').eq('id', eu.id).maybeSingle();
+      const music = /\/music\//.test(destino), sistema = music ? 'Sonvi Music' : 'SONVI', nome = String(u.nome || '').split(' ')[0];
+      const texto = `Olá${nome ? ', ' + nome : ''}!\n\nSeu acesso ao ${sistema} está pronto.\n\nEntre em: ${destino}\nE-mail: ${u.email}\nSenha provisória: ${senha}\n\nNo primeiro acesso você vai criar a sua própria senha.${remet?.nome ? `\n\nCadastrado por ${remet.nome}.` : ''}`;
+      const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:520px">
+        <p>Olá${nome ? ', ' + esc(nome) : ''}!</p><p>Seu acesso ao ${sistema} está pronto.</p>
+        <table style="border-collapse:collapse;margin:18px 0;font-size:15px"><tr><td style="color:#6b6b74;padding:4px 16px 4px 0">E-mail</td><td><b>${esc(u.email)}</b></td></tr>
+        <tr><td style="color:#6b6b74;padding:4px 16px 4px 0">Senha provisória</td><td><b style="font-family:Menlo,Consolas,monospace;font-size:17px;letter-spacing:.04em">${esc(senha)}</b></td></tr></table>
+        <p style="margin:24px 0"><a href="${esc(destino)}" style="display:inline-block;background:#0055ff;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:8px">Entrar no ${sistema}</a></p>
+        <p style="color:#6b6b74;font-size:13px">No primeiro acesso você vai criar a sua própria senha.${remet?.nome ? ` Cadastrado por ${esc(remet.nome)}. Dúvidas? É só responder este e-mail.` : ''}</p></div>`;
+      const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: `${sistema} <acesso@sonvi.com.br>`, to: [u.email], subject: `Seu acesso ao ${sistema}`, text: texto, html, ...(emailOk(remet?.email || '') ? { reply_to: remet!.email } : {}) }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return resposta({ erro: `O serviço de e-mail recusou: ${j?.message || r.status}` }, 502);
+      return resposta({ ok: true, email: u.email });
     }
 
     if (b.acao === 'ativo') {
