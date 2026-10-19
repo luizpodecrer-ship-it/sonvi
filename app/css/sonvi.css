@@ -33,6 +33,9 @@
 
 * { box-sizing:border-box; }
 html, body { height:100%; }
+/* A barra de rolagem fica sempre reservada: trocar de aba ou de tela (página curta × longa) não empurra o conteúdo para os lados */
+html { overflow-y:scroll; scrollbar-gutter:stable; }
+html:has(body.fora) { overflow-y:auto; }
 body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.47 var(--font); -webkit-font-smoothing:antialiased; display:flex; }
 h1, h2, h3, p { margin:0; }
 a { color:var(--accent-text); text-decoration:none; cursor:pointer; }
