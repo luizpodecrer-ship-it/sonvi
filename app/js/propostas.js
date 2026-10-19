@@ -72,7 +72,7 @@
       <span class="muted small">Envie ao cliente pelo WhatsApp ou e-mail: ele recebe um link da proposta. Recusada ou vencida saem do caminho. O PI da aprovada é gerado na tela de PIs.</span></div>`;
     const seg = `<div class="seg" role="group" aria-label="Filtrar propostas">${FILTROS.map(([k, t]) => `<button class="${f === k ? 'on' : ''}" data-act="prFiltro" data-f="${k}" aria-pressed="${f === k}">${t} · ${conta(k)}</button>`).join('')}</div>`;
     const linhas = vis.map(p => { const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id);
-      return `<div class="prl-l click" data-go="/propostas/${p.id}" role="link" tabindex="0" aria-label="Proposta ${S.propNo(p)} · ${esc(cli)}">
+      return `<div class="prl-l click" data-go="/propostas/${p.id}" role="link" tabindex="0">
         <span class="prl-n">${S.propNo(p)}</span>
         <span class="prl-c"><b title="${esc(cli)}">${esc(cli)}</b><small>${ag ? esc(ag) : 'Direto'}</small></span>
         <span class="prl-i" title="${esc(resumo(p))}">${esc(resumo(p))}</span>

@@ -298,7 +298,7 @@ S.actions.formEditar = () => {
   const dec = v => { let [i, c] = String(v || '').replace(/[^\d,]/g, '').split(','); i = (i || '').replace(/^0+(?=\d)/, ''); const ii = i.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return c === undefined ? ii : (ii || '0') + ',' + c.replace(/,/g, '').slice(0, 2); };
   S.MASK = {
-    doc:{ ph:'00.000.000/0000-00 ou 000.000.000-00', modo:'numeric', f:v => { const d = so(v); return d.length <= 11 ? cpf(d) : cnpj(d); },
+    doc:{ ph:'00.000.000/0000-00', modo:'numeric', f:v => { const d = so(v); return d.length <= 11 ? cpf(d) : cnpj(d); },
       erro:v => { const d = so(v); if (!d) return ''; if (d.length !== 11 && d.length !== 14) return 'Complete o CNPJ (14 números) ou o CPF (11 números).'; return (d.length === 11 ? cpfOk(d) : cnpjOk(d)) ? '' : `${d.length === 11 ? 'CPF' : 'CNPJ'} inválido. Confira os números.`; } },
     cnpj:{ ph:'00.000.000/0000-00', modo:'numeric', f:v => cnpj(so(v)), erro:v => { const d = so(v); return !d ? '' : d.length < 14 ? 'Complete o CNPJ (14 números).' : cnpjOk(d) ? '' : 'CNPJ inválido. Confira os números.'; } },
     cpf:{ ph:'000.000.000-00', modo:'numeric', f:v => cpf(so(v)), erro:v => { const d = so(v); return !d ? '' : d.length < 11 ? 'Complete o CPF (11 números).' : cpfOk(d) ? '' : 'CPF inválido. Confira os números.'; } },
