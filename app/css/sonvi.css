@@ -186,6 +186,9 @@ label.f { display:flex; flex-direction:column; gap:6px; font-size:13px; font-wei
 /* Botão (efeito "Swap Out", aprovado em 17/10/2026): contorno na cor do texto; ao passar o mouse, enche com a cor da rádio e o texto fica branco */
 .btn:hover, .btn.pri:hover { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); box-shadow:none; }
 .btn:disabled, .btn:disabled:hover { opacity:.5; cursor:default; background:transparent; border-color:var(--btn-borda); color:var(--ink); }
+/* Ação principal (decidido em 19/10/2026): .pri já vem preenchido com a cor da rádio, para o olho saber onde clicar; ao passar o mouse, escurece um pouco */
+.btn.pri { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.btn.pri:hover { background:var(--accent-hover); border-color:var(--accent-hover); color:var(--accent-ink); }
 .btn svg { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .btn.danger, .btn.perigo { border-color:color-mix(in srgb, var(--red) 60%, transparent); color:var(--red); background:transparent; }
 .btn.danger:hover, .btn.perigo:hover { background:var(--red); border-color:var(--red); color:#fff; }
