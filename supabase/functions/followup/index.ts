@@ -60,7 +60,10 @@ Deno.serve(async (req) => {
       teste = eu;
     } else return resposta({ erro: 'Ação desconhecida.' }, 400);
 
-    const app = (Deno.env.get('APP_URL') || 'https://teste.sonvi.com.br/').replace(/\/?$/, '/') + '#/followup';
+    // Link do botão: o endereço da empresa de cada pessoa (sonvi.com.br/<empresa>/)
+    const { data: orgs } = await adm.from('organizacoes').select('id, slug');
+    const slugDe = new Map((orgs || []).map((o: any) => [o.id, o.slug]));
+    const appDe = (u: any) => { const sl = slugDe.get(u?.organizacao_id); return (sl ? `https://sonvi.com.br/${sl}/` : (Deno.env.get('APP_URL') || 'https://sonvi.com.br/').replace(/\/?$/, '/')) + '#/followup'; };
     const hoje = diaCuiaba(), ontem = somaDias(hoje, -1), amanha = somaDias(hoje, 1);
 
     // Proposta enviada há 3 dias sem resposta vira follow-up antes de montar os e-mails
@@ -84,7 +87,7 @@ Deno.serve(async (req) => {
     const diasAtraso = (a: Linha) => Math.max(1, Math.round((Date.parse(hoje + 'T12:00:00Z') - Date.parse(diaCuiaba(new Date(a.quando)) + 'T12:00:00Z')) / 864e5));
 
     // ---------- HTML simples, que funciona em qualquer leitor de e-mail ----------
-    const casca = (titulo: string, intro: string, miolo: string) => `<div style="font:15px/1.55 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:600px">
+    const casca = (titulo: string, intro: string, miolo: string, app: string) => `<div style="font:15px/1.55 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:600px">
       <h1 style="font-size:22px;line-height:1.25;margin:0 0 8px">${titulo}</h1><p style="color:#4b4b55;margin:0 0 20px">${intro}</p>${miolo}
       <p style="margin:26px 0"><a href="${app}" style="display:inline-block;background:#0055ff;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px">Abrir o Follow-up</a></p>
       <p style="color:#6b6b74;font-size:12px">Enviado pelo SONVI todo dia às 7h30. Só chega quando há contatos para hoje ou retornos atrasados.</p></div>`;
@@ -118,7 +121,7 @@ Deno.serve(async (req) => {
         : '<p style="color:#4b4b55">Nenhum contato marcado para hoje e nenhum atrasado nas rádios.</p>';
       envios.push({ usuario: u.id, tipo: 'diretor', para: u.email, de: 'SONVI · Follow-up <followup@sonvi.com.br>',
         assunto: `${teste ? '[Amostra] ' : ''}Follow-up das rádios · ${dataLonga} · ${plural(at, 'atrasado', 'atrasados')}`,
-        html: casca(`Bom dia, ${esc(String(u.nome || '').split(' ')[0])}`, `Hoje as equipes têm ${plural(hj, 'contato marcado', 'contatos marcados')} e ${plural(at, 'retorno atrasado', 'retornos atrasados')}.`, miolo) });
+        html: casca(`Bom dia, ${esc(String(u.nome || '').split(' ')[0])}`, `Hoje as equipes têm ${plural(hj, 'contato marcado', 'contatos marcados')} e ${plural(at, 'retorno atrasado', 'retornos atrasados')}.`, miolo, appDe(u)) });
     }
 
     if (!teste) {
@@ -133,7 +136,7 @@ Deno.serve(async (req) => {
         envios.push({ usuario: u.id, tipo: 'gerente', para: u.email, de: `${um ? nomeLimpo(nomeR) + ' · ' : ''}SONVI <followup@sonvi.com.br>`,
           assunto: `Follow-up da equipe${um ? ' · ' + nomeLimpo(nomeR) : ''} · ${plural(at, 'atrasado', 'atrasados')}`,
           html: casca(`Bom dia, ${esc(String(u.nome || '').split(' ')[0])}`, `Sua equipe tem ${plural(hj, 'contato marcado', 'contatos marcados')} hoje e ${plural(at, 'retorno atrasado', 'retornos atrasados')}. Retorno que passou do dia sem registro aparece aqui.`,
-            partes.map(p => `${um ? '' : `<h2 style="font-size:17px;margin:22px 0 8px">${esc(nomeVei(p.vid))}</h2>`}${p.r.html}`).join('')) });
+            partes.map(p => `${um ? '' : `<h2 style="font-size:17px;margin:22px 0 8px">${esc(nomeVei(p.vid))}</h2>`}${p.r.html}`).join(''), appDe(u)) });
       }
       // Consultor: os contatos dele
       const consultores = [...new Set(abertas.map(a => a.consultor_id))];
@@ -146,7 +149,7 @@ Deno.serve(async (req) => {
           assunto: `Seus contatos de hoje · ${plural(hj.length, 'marcado', 'marcados')}${at.length ? `, ${plural(at.length, 'atrasado', 'atrasados')}` : ''}`,
           html: casca(`Bom dia, ${esc(String(u.nome || '').split(' ')[0])}`,
             `Você tem ${plural(hj.length, 'contato', 'contatos')} hoje${at.length ? ` e ${plural(at.length, 'retorno atrasado', 'retornos atrasados')}. Os atrasados entram no resumo do seu gerente` : ''}.`,
-            bloco('Atrasados', lista(at)) + bloco('Hoje', lista(hj))) });
+            bloco('Atrasados', lista(at)) + bloco('Hoje', lista(hj)), appDe(u)) });
       }
     }
 

@@ -9,6 +9,26 @@
   [headers.values]
     Cache-Control = "no-cache"
 
+# A Head 14 (primeiro cliente) entra por sonvi.com.br/head14 (decidido em 20/10/2026). O endereço antigo leva para lá.
+# Só a entrada muda: links já enviados de PI e proposta (teste.sonvi.com.br/pi.html?p=..., proposta.html?p=...) continuam abrindo.
+[[redirects]]
+  from = "https://teste.sonvi.com.br/"
+  to = "https://sonvi.com.br/head14/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://teste.sonvi.com.br/index.html"
+  to = "https://sonvi.com.br/head14/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://teste.sonvi.com.br/music/*"
+  to = "https://sonvi.com.br/head14/music/"
+  status = 301
+  force = true
+
 # Site de apresentação: sonvi.com.br mostra a landing page (app/site/); o sistema continua em teste.sonvi.com.br
 [[redirects]]
   from = "https://www.sonvi.com.br/*"
