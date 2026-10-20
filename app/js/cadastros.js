@@ -97,9 +97,16 @@
   const botoesNovo = cls => SECOES_RADIO.map(([k, , n]) => `<button class="btn ${cls}" data-act="tpProduto" data-tipo="programa" data-secao="${k}">${S.svg('mais')}${n}</button>`).join('');
   const botoesDig = cls => `<button class="btn ${cls}" data-act="tpProduto" data-tipo="programa" data-secao="digital">${S.svg('mais')}Perfil</button><button class="btn ${cls}" data-act="tpProduto" data-tipo="formato" data-secao="digital">${S.svg('mais')}Formato digital</button>`;
 
+  // Sem digital ainda e fora da edição: explica onde cadastrar (perfis e preços entram ao editar a tabela)
+  const dicaDigital = () => { const t = ed && tab(ed.id), corrigir = t && sit(t) === 'vigente' && diretor() && !ed.corrigindo, rasc = t && sit(t) === 'rascunho';
+    return `<section class="card tp-grade tp-dig"><div class="hd"><h2>Digital · redes sociais</h2><span>por publicação</span></div>
+      <p class="muted" style="margin:0 0 ${corrigir ? 14 : 0}px">Venda publicações nos perfis da rádio (Instagram, Facebook, TikTok…). Para começar, ${rasc ? 'continue editando este rascunho' : corrigir ? 'clique em <b>Corrigir preços</b>' : 'abra a tabela e clique em <b>Corrigir preços</b> (ou crie uma nova tabela)'} e use <b>+ Perfil</b> e <b>+ Formato digital</b>, que aparecem neste cartão.</p>
+      ${corrigir ? `<button class="btn pri" data-act="tpCorrigir">${S.svg('editar')}Corrigir preços</button>` : ''}</section>`; };
+
   // Digital no computador: perfis da rádio nas linhas e formatos digitais nas colunas
   const gradeDigital = (v, cadastro) => {
     const progs = lista('programa').filter(dig), forms = colunasDig(), menus = cadastro && pode();
+    if (!progs.length && !forms.length && !menus) return pode() ? dicaDigital() : '';
     if (!progs.length && !forms.length) return menus ? `<section class="card tp-grade tp-dig"><div class="hd"><h2>Digital · redes sociais</h2><span>por publicação</span></div>
       <p class="muted" style="margin:0 0 14px">Venda publicações nos perfis da rádio (Instagram, Facebook, TikTok…). Cadastre os perfis e os formatos (post no feed, carrossel, reels, stories) e defina o preço de cada um. A produção do conteúdo já entra no preço.</p><div class="tp-novos">${botoesDig('tracej')}</div></section>` : '';
     if (!progs.length && !menus) return '';
@@ -148,7 +155,7 @@
   };
   const corpoGrade = (v, cadastro) => {
     const semRadio = !lista('programa').some(p => !dig(p)) && !lista('formato').some(f => !dig(f));
-    if (S.celular) return semRadio && !lista('programa').length && !lista('formato').length ? vazioRadio(cadastro) : cartoes(v, cadastro);
+    if (S.celular) return (semRadio && !lista('programa').length && !lista('formato').length ? vazioRadio(cadastro) : cartoes(v, cadastro)) + (!cadastro && pode() && !lista('programa').some(dig) ? dicaDigital() : '');
     return (semRadio ? vazioRadio(cadastro) : `<section class="card tp-grade">${grade(v, cadastro)}</section>`) + gradeDigital(v, cadastro);
   };
   const vazioRadio = cadastro => `<div class="card empty"><b>Monte a tabela de preços</b>Cadastre os formatos (ex.: Spot 30", cobrado por duração; Testemunhal, com preço único) e onde vão ao ar: programas, quadros e o rotativo. Os preços ficam no cruzamento.
