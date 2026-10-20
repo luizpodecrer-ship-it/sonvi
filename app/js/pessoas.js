@@ -7,7 +7,7 @@
   const SIT = { prospect:['Prospect', 'orange'], ativo:['Ativo', 'green'], inativo:['Inativo', 'gray'] };
   // Dados cadastrais: são os que vão iguais para as outras rádios (consultor, situação, agência, comissão e observações não)
   const CADASTRAIS = [['nome', 'Nome'], ['pessoa', 'Tipo'], ['razao_social', 'Razão social'], ['documento', 'CNPJ / CPF'], ['inscricao_estadual', 'Inscrição estadual'],
-    ['cep', 'CEP'], ['endereco', 'Endereço'], ['cidade', 'Cidade / UF'], ['telefone', 'Telefone'], ['whatsapp', 'WhatsApp'], ['email', 'E-mail'],
+    ['cep', 'CEP'], ['endereco', 'Endereço'], ['cidade', 'Cidade / UF'], ['telefone', 'Telefone'], ['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['email_faturamento', 'E-mail de faturamento'],
     ['contato_decide', 'Contato que decide'], ['contato_assina', 'Contato que assina'], ['segmento', 'Segmento']];
   let aba = 'cliente';
   // Estado do formulário aberto (rádios de destino, agências delas, cadastro trazido de outra rádio)
@@ -100,6 +100,7 @@
       { k:'cep', label:'CEP' }, { k:'cidade', label:'Cidade / UF' },
       { k:'endereco', label:'Endereço', full:true },
       { k:'telefone', label:'Telefone' }, { k:'whatsapp', label:'WhatsApp' }, { k:'email', label:'E-mail', type:'email' },
+      { k:'email_faturamento', label:'E-mail de faturamento', type:'email', ph:'financeiro@empresa.com.br' },
       ...(cliente ? [
         { k:'segmento', label:'Segmento' }, { k:'contato_decide', label:'Contato que decide' }, { k:'contato_assina', label:'Contato que assina' },
         { k:'agencia_id', label:'Agência', type:'select', options:[['', 'Sem agência'], ...S.pessoas('agencia').map(a => [a.id, a.nome])] },
