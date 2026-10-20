@@ -336,7 +336,7 @@
   // ---------- Suporte ----------
   const sup = { aba:'chamados', cliente:'', situacao:'abertos', msgs:{}, carregando:'' };
   const carregarMsgs = async id => { if (sup.carregando === id) return; sup.carregando = id;
-    try { sup.msgs[id] = await q(sb.rpc('chamado_mensagens', { p_chamado:id })); } catch (e) { S.toast(S.erro(e)); sup.msgs[id] = []; }
+    try { sup.msgs[id] = await q(sb.rpc('chat_mensagens', { p_chamado:id })); } catch (e) { S.toast(S.erro(e)); sup.msgs[id] = []; }
     sup.carregando = ''; if (rota().v === 'suporte' && rota().id === id) render(); };
   const telaSupChamados = sel => {
     const todos = D.chamados || [], ab = abertos(), urg = ab.filter(ch => ch.prioridade === 'urgente').length, mes = hojeISO().slice(0, 7);
@@ -351,11 +351,11 @@
     if (ch) { const msgs = sup.msgs[ch.id]; if (!msgs) carregarMsgs(ch.id);
       const c = D.clientes.find(x => x.id === ch.organizacao_id) || {};
       detalhe = `<section class="card c-ch-det" id="chDet"><div class="hd"><h2>${numCh(ch)} · ${esc(ch.assunto)}</h2></div>
-        <p class="muted small c-ch-meta">${esc(ch.cliente)}${ch.radio ? ' · ' + esc(ch.radio) : ''} · ${esc(ch.quem || 'equipe SONVI')} · aberto ${dataHora(ch.criado_em)}${c.slug && resp ? ` · <a href="https://sonvi.com.br/${esc(c.slug)}/" target="_blank" rel="noopener">Entrar como suporte ↗</a>` : ''}</p>
+        <p class="muted small c-ch-meta">${esc(ch.cliente)}${ch.radio ? ' · ' + esc(ch.radio) : ''} · ${esc(ch.quem || 'equipe SONVI')} · aberto ${dataHora(ch.criado_em)} · no chat você aparece como <b>${esc(ch.atendente || 'Suporte SONVI')}</b>${ch.avaliacao ? ` · ${ch.avaliacao === 'resolveu' ? 'o cliente disse que resolveu' : 'o cliente disse que não resolveu'}` : ''}${c.slug && resp ? ` · <a href="https://sonvi.com.br/${esc(c.slug)}/" target="_blank" rel="noopener">Entrar como suporte ↗</a>` : ''}</p>
         ${resp ? `<div class="g2"><label class="f">Situação<select data-ch-campo="situacao" data-id="${ch.id}">${Object.entries(SITCH).map(([k, [n]]) => `<option value="${k}"${ch.situacao === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
           <label class="f">Prioridade<select data-ch-campo="prioridade" data-id="${ch.id}">${Object.entries(PRIO).map(([k, [n]]) => `<option value="${k}"${ch.prioridade === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label></div>`
           : `<div class="c-pills">${pillDe(SITCH, ch.situacao)}${pillDe(PRIO, ch.prioridade)}</div>`}
-        <div class="c-fio" aria-live="polite">${!msgs ? '<p class="muted">Carregando a conversa…</p>' : msgs.map(m => `<div class="c-msg${m.do_suporte ? ' nos' : ''}"><small>${esc(m.autor)} · ${dataHora(m.criado_em)}</small>${esc(m.texto).replace(/\n/g, '<br>')}</div>`).join('')}</div>
+        <div class="c-fio" aria-live="polite">${!msgs ? '<p class="muted">Carregando a conversa…</p>' : msgs.map(m => `<div class="c-msg${m.do_suporte ? ' nos' : ''}${m.automatica ? ' auto' : ''}"><small>${esc(m.autor)} · ${dataHora(m.criado_em)}</small>${esc(m.texto).replace(/\n/g, '<br>')}</div>`).join('')}</div>
         ${resp ? `<form data-form="resposta" data-id="${ch.id}" novalidate><label class="f"><span class="sr">Resposta</span><textarea name="texto" rows="3" placeholder="Escreva a resposta… (o cliente recebe por e-mail e vê no SONVI)"></textarea></label>
           <div class="row c-ch-acoes"><span class="grow"></span>${ch.situacao !== 'resolvido' ? `<button type="button" class="btn sm" data-act="chResolver" data-id="${ch.id}">${S.svg('check')}Resolver</button>` : ''}<button class="btn sm pri">Responder</button></div></form>` : ''}</section>`; }
     return `<div class="tiles"><div class="tile hero"><small>Abertos</small><b>${ab.length}</b><span>${urg ? plural(urg, 'urgente', 'urgentes') : 'nenhum urgente'}</span></div>
@@ -777,6 +777,16 @@
       if (/foi criado/.test(err.message)) { await recarregar(); novo = null; location.hash = '/cliente/' + n.slug; }
     }
   });
+
+  // Suporte: chamados e conversas se atualizam sozinhos (sem atrapalhar quem está digitando)
+  setInterval(async () => {
+    if (!D || document.hidden || rota().v !== 'suporte' || document.getElementById('dlg').open) return;
+    const ta = document.querySelector('[data-form=resposta] textarea'); if (ta && ta.value.trim()) return;
+    const antes = JSON.stringify(D.chamados);
+    try { await recarregar(); } catch (e) { return; }
+    const id = rota().id; if (id && sup.msgs[id]) { try { const m = await q(sb.rpc('chat_mensagens', { p_chamado:id })); if (m.length !== sup.msgs[id].length) { sup.msgs[id] = m; return render(); } } catch (e) { /* tenta de novo */ } }
+    if (JSON.stringify(D.chamados) !== antes) render();
+  }, 15000);
 
   iniciar();
 })();

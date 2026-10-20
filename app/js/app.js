@@ -47,8 +47,8 @@
 
     const semVeiculo = !S.ui.vehicleId, itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || n[0] === 'admin')), telas = itens.filter(n => !n[3]);
     let { view, id } = S.route();
-    if (!telas.some(n => n[0] === view) && view !== 'pi' && view !== 'suporte') view = telas.length ? telas[0][0] : 'soMusic';
-    if (semVeiculo && view !== 'suporte') view = MUSIC ? (telas[0] || ['hoje'])[0] : 'admin';
+    if (!telas.some(n => n[0] === view) && view !== 'pi') view = telas.length ? telas[0][0] : 'soMusic';
+    if (semVeiculo) view = MUSIC ? (telas[0] || ['hoje'])[0] : 'admin';
     S.temaRadio(semVeiculo ? null : S.veh());
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, atrasos = !MUSIC && S.fuAtrasados && !semVeiculo ? S.fuAtrasados() : 0, veh = semVeiculo ? null : S.veh();
     const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${MUSIC ? 'hoje' : 'dashboard'}" data-go="/${MUSIC ? 'hoje' : 'dashboard'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>

@@ -190,3 +190,4 @@ tr.sel td { background:color-mix(in srgb, var(--accent) 7%, transparent); }
   .c-corpo .list > div > .pill { margin-left:56px; }
   .c-matriz { font-size:13px; } .c-matriz td, .c-matriz th { padding-left:4px; padding-right:4px; }
 }
+.c-msg.auto { background:transparent; border:1px dashed var(--line); }
