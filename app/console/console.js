@@ -56,7 +56,7 @@
     const cs = D.clientes, ativos = cs.filter(c => c.situacao !== 'suspenso'), susp = cs.length - ativos.length, radios = cs.reduce((s, c) => s + c.radios.length, 0);
     const usuarios = cs.reduce((s, c) => s + c.usuarios, 0), prop = cs.reduce((s, c) => s + c.propostas_mes, 0), pis = cs.reduce((s, c) => s + c.pis_mes, 0);
     const t = busca.trim().toLowerCase(), lista = cs.filter(c => !t || (c.nome + ' ' + c.slug + ' ' + c.cidade).toLowerCase().includes(t));
-    const dir = c => c.diretores.length ? 'Diretor: ' + c.diretores.map(d => d.nome).join(', ') : 'sem diretor';
+    const dir = c => { const ds = c.equipe.filter(u => u.diretor && u.ativo); return ds.length ? 'Diretor: ' + ds.map(d => d.nome).join(', ') : 'sem diretor'; };
     const ult = c => c.ultimo ? `${quando(c.ultimo.quando)}<small>${esc(c.ultimo.nome)}</small>` : 'nunca';
     const linhas = lista.map(c => `<tr class="click" data-go="/cliente/${esc(c.slug)}"><td><a href="#/cliente/${esc(c.slug)}" class="c-cli">${logoCli(c)}<span class="tx"><b>${esc(c.nome)}</b><small>${esc(endereco(c.slug))} · ${esc(dir(c))}</small></span></a></td>
         <td>${sitPill(c)}</td><td><span class="c-vavs">${c.radios.map(vav).join('')}</span></td><td class="r">${c.usuarios}</td>
@@ -71,7 +71,7 @@
       <section class="card"><div class="hd"><h2>Todos os clientes</h2><label class="busca">${S.svg('busca')}<input type="search" data-busca placeholder="Buscar cliente ou endereço" aria-label="Buscar cliente" value="${esc(busca)}"></label></div>
         ${lista.length ? `<div class="scroll so-largo"><table><thead><tr><th>Cliente</th><th>Situação</th><th>Rádios</th><th class="r">Usuários</th><th>Último acesso</th><th>No mês</th></tr></thead><tbody>${linhas}</tbody></table></div><div class="list c-cartoes so-cel">${cartoes}</div>`
           : `<div class="empty"><b>${cs.length ? 'Nenhum cliente encontrado' : 'Nenhum cliente ainda'}</b>${cs.length ? 'Confira o que foi digitado na busca.' : 'Cadastre o primeiro em "Novo cliente".'}</div>`}
-        <div class="c-dica"><span>Cada cliente novo ganha o endereço <b>sonvi.com.br/nome-da-empresa</b> na hora, com o nome e a logo dele na tela de entrada.</span><a class="btn sm" href="#/novo">Cadastrar o próximo</a></div></section>
+</section>
       <section class="card"><div class="hd"><h2>Últimos acessos de suporte</h2>${D.suporte.length ? '<a href="#/suporte">Ver todos</a>' : ''}</div>${listaSuporte(sup, true)}</section>` };
   };
 
@@ -81,6 +81,37 @@
         <small>${esc(s.quem || 'Equipe SONVI')} · ${ativo ? 'até ' + S.hora(s.fim) : min + ' min'} · motivo: ${esc(s.motivo)}</small></span></div>`; }).join('')}</div>`
     : '<p class="muted">Nenhuma entrada ainda. Quando alguém da equipe SONVI entra no ambiente de um cliente como suporte, fica anotado aqui e o diretor do cliente também vê.</p>';
 
+  // ---------- Equipe do cliente ----------
+  const PERFIS = [['gerente', 'Gerente comercial'], ['consultor', 'Consultor'], ['opec', 'OPEC'], ['financeiro', 'Financeiro'], ['programador', 'Programador'], ['locutor', 'Locutor']];
+  const nomePerfil = k => (PERFIS.find(p => p[0] === k) || [k, k])[1];
+  const funcaoTexto = (c, u) => u.diretor ? 'Diretor · todas as rádios' : u.vinculos.length ? u.vinculos.map(v => `${nomePerfil(v.perfil)} na ${(c.radios.find(r => r.id === v.veiculo_id) || {}).nome || 'rádio'}`).join(' · ') : 'sem rádio';
+  const situacaoUsuario = u => !u.ativo ? '<span class="pill" style="--tone:var(--red)">Desativado</span>' : u.trocar_senha ? '<span class="pill" style="--tone:var(--orange)">Com senha provisória</span>'
+    : `<span class="muted small nowrap">${u.ultimo_acesso ? 'último acesso ' + quando(u.ultimo_acesso) : 'nunca entrou'}</span>`;
+  const daEquipe = (slug, id) => { const c = cliente(slug); return { c, u:c && c.equipe.find(x => x.id === id) }; };
+
+  // Cadastro e edição de usuário: dados, função (diretor ou perfil em cada rádio)
+  const formUsuario = (c, u = {}) => {
+    const novoU = !u.id, dir = !!u.diretor, perfilEm = r => ((u.vinculos || []).find(v => v.veiculo_id === r.id) || {}).perfil || '';
+    S.dialog(`<h2>${novoU ? 'Cadastrar usuário' : esc(u.nome)} · ${esc(c.nome)}</h2><div class="g2">
+        <label class="f" style="grid-column:1/-1">Nome<input name="nome" required value="${esc(u.nome || '')}" placeholder="Nome completo"></label>
+        <label class="f">E-mail (é com ele que entra)<input name="email" type="email" required value="${esc(u.email || '')}" placeholder="nome@empresa.com.br"></label>
+        <label class="f">Celular (WhatsApp)<input name="celular" data-mask="tel" inputmode="tel" value="${esc(u.celular || '')}"></label>
+        <label class="f" style="grid-column:1/-1">Função<select name="funcao" data-funcao><option value="radio"${dir ? '' : ' selected'}>Acesso por rádio</option><option value="diretor"${dir ? ' selected' : ''}>Diretor (todas as rádios e a administração)</option></select></label></div>
+      <div class="acessos"${dir ? ' hidden' : ''}>${c.radios.map(r => `<div class="ac-l">${vav(r)}<b>${esc(r.nome)}</b><select name="v_${r.id}" aria-label="Perfil na ${esc(r.nome)}"><option value="">Sem acesso</option>${PERFIS.map(([k, n]) => `<option value="${k}"${perfilEm(r) === k ? ' selected' : ''}>${n}</option>`).join('')}</select></div>`).join('') || '<p class="muted">Este cliente ainda não tem rádios.</p>'}</div>
+      ${!novoU && u.diretor && c.equipe.filter(x => x.diretor && x.ativo && x.id !== u.id).length === 0 ? '<p class="c-aviso">Este é o único diretor ativo. Se tirar a função, o cliente fica sem diretor.</p>' : ''}
+      <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${novoU ? 'Cadastrar' : 'Salvar'}</button></div>`,
+      f => (async () => {
+        const diretor = f.funcao === 'diretor', vinculos = diretor ? [] : c.radios.filter(r => f['v_' + r.id]).map(r => ({ veiculo_id:r.id, perfil:f['v_' + r.id] }));
+        if (!diretor && !vinculos.length) { S.toast('Escolha o perfil em pelo menos uma rádio (ou a função de diretor).'); return formUsuario(c, Object.assign({}, u, { nome:f.nome, email:f.email, celular:f.celular, vinculos })); }
+        try {
+          if (novoU) { const r = await servidor({ acao:'novo_usuario', org:c.id, usuario:{ nome:f.nome, email:f.email, celular:f.celular }, diretor, vinculos });
+            await recarregar(); render(); mostrarAcesso(cliente(c.slug) || c, { id:r.usuario_id, nome:f.nome, email:f.email.trim().toLowerCase(), celular:f.celular, diretor }, r.senha, 'Usuário cadastrado'); }
+          else { await servidor({ acao:'editar_usuario', usuario_id:u.id, nome:f.nome, email:f.email, celular:f.celular, diretor, vinculos }); await recarregar(); render(); S.toast('Usuário salvo'); }
+        } catch (e) { S.toast(S.erro(e)); }
+      })());
+    document.getElementById('dlg').dataset.guarda = '1';
+  };
+
   // ---------- Um cliente ----------
   const telaCliente = slug => {
     const c = cliente(slug);
@@ -88,7 +119,7 @@
     const susp = c.situacao === 'suspenso', link = `https://sonvi.com.br/${c.slug}/`;
     const kv = (k, v) => `<div><small>${k}</small><span>${v ? esc(v) : '<span class="muted">—</span>'}</span></div>`;
     return { titulo:esc(c.nome), sub:'<a href="#/clientes">Clientes</a> › ' + esc(c.nome),
-      acoes:`<button class="btn ${susp ? '' : 'perigo'}" data-act="situacao" data-id="${c.id}">${susp ? 'Reativar' : 'Suspender'}</button><a class="btn pri" href="${esc(link)}" target="_blank" rel="noopener">${ICONE.escudo}Entrar como suporte</a>`,
+      acoes:`<button class="btn perigo" data-act="excluirCliente" data-id="${c.id}">${S.svg('lixo')}Excluir</button><button class="btn" data-act="situacao" data-id="${c.id}">${susp ? 'Reativar' : 'Suspender'}</button><a class="btn pri" href="${esc(link)}" target="_blank" rel="noopener">${ICONE.escudo}Entrar como suporte</a>`,
       corpo:`<div class="c-topo">${logoCli(c, 'cli-logo grande')}<span class="tx"><span>${sitPill(c)}</span><a href="${esc(link)}" target="_blank" rel="noopener">${esc(endereco(c.slug))} ↗</a><small class="muted">Sonvi Music: ${esc(endereco(c.slug))}/music · cliente desde ${S.dfmt(c.criado_em)}</small></span></div>
       <div class="c-minis"><div><small>Clientes cadastrados</small><b>${c.clientes}</b><small>${plural(c.radios.length, 'rádio', 'rádios')}</small></div>
         <div><small>Propostas no mês</small><b>${c.propostas_mes}</b><small>&nbsp;</small></div>
@@ -96,14 +127,17 @@
         <div><small>Último acesso</small><b>${c.ultimo ? quando(c.ultimo.quando).split(' às ')[0] : 'nunca'}</b><small>${c.ultimo ? esc((quando(c.ultimo.quando).split(' às ')[1] || '') + ' · ' + c.ultimo.nome) : '&nbsp;'}</small></div></div>
       <div class="c-grade">
         <section class="card"><div class="hd"><h2>Rádios</h2><button class="btn sm" data-act="novaRadio" data-id="${c.id}">${S.svg('mais')}Adicionar rádio</button></div>
-          ${c.radios.length ? `<div class="list">${c.radios.map(r => `<div>${vav(r)}<span class="tx"><b>${esc(r.nome)}</b><small>${esc([r.frequencia, r.cidade].filter(Boolean).join(' · ') || 'sem cidade')} · ${plural(r.clientes, 'cliente', 'clientes')} · ${plural(r.pis, 'PI', 'PIs')}</small></span></div>`).join('')}</div>` : '<p class="muted">Nenhuma rádio.</p>'}
+          ${c.radios.length ? `<div class="list">${c.radios.map(r => `<div>${vav(r)}<span class="tx"><b>${esc(r.nome)}</b><small>${esc([r.frequencia, r.cidade].filter(Boolean).join(' · ') || 'sem cidade')} · ${plural(r.clientes, 'cliente', 'clientes')} · ${plural(r.pis, 'PI', 'PIs')}</small></span><button class="btn tres" data-act="radioMenu" data-id="${r.id}" data-org="${c.slug}" aria-label="Opções da ${esc(r.nome)}">${S.svg('mais3')}</button></div>`).join('')}</div>` : '<p class="muted">Nenhuma rádio.</p>'}
           <p class="muted small">Logo, cores, textos do PI e tabela de preços o diretor completa dentro do SONVI.</p></section>
-        <section class="card"><div class="hd"><h2>Diretor</h2><button class="btn sm" data-act="novoDiretor" data-id="${c.id}">${S.svg('mais')}Adicionar diretor</button></div>
-          ${c.diretores.length ? `<div class="list">${c.diretores.map(d => `<div><span class="av soft" aria-hidden="true">${esc(S.iniciais(d.nome))}</span><span class="tx"><b>${esc(d.nome)}</b><small>${esc(d.email)}</small>${d.celular ? `<small class="nowrap">${esc(d.celular)}</small>` : ''}<small>${!d.ativo ? 'desativado' : d.trocar_senha ? 'aguardando o primeiro acesso' : 'último acesso ' + quando(d.ultimo_acesso)}</small></span><button class="btn sm" data-act="senhaDiretor" data-id="${d.id}" data-org="${c.slug}">${S.svg('chave')}Nova senha</button></div>`).join('')}</div>` : '<p class="c-aviso">Este cliente está sem diretor. Use "Adicionar diretor".</p>'}
-          <p class="muted small">A equipe (${plural(c.usuarios, 'usuário ativo', 'usuários ativos')}) é cadastrada pelo diretor dentro do SONVI. Daqui você só ajuda o diretor com uma nova senha provisória ou cadastra outro diretor.</p></section>
+
         <section class="card"><div class="hd"><h2>Dados da empresa</h2><button class="btn sm" data-act="editarCliente" data-id="${c.id}">${S.svg('editar')}Editar dados</button></div>
           <div class="c-kv">${kv('Nome', c.nome)}${kv('CNPJ', c.cnpj)}${kv('Cidade', c.cidade)}${kv('Endereço no SONVI', endereco(c.slug))}${kv('Situação', (SIT[c.situacao] || [c.situacao])[0] + (c.situacao === 'teste' && c.teste_ate ? ' até ' + S.dfmt(c.teste_ate) : ''))}${kv('Plano', 'a definir')}</div></section>
-        <section class="card"><div class="hd"><h2>Acessos de suporte</h2><span class="pill" style="--tone:var(--gray)">o cliente também vê</span></div>${listaSuporte(c.suporte, false)}</section>
+        <section class="card c-largo"><div class="hd"><h2>Equipe</h2><span>${plural(c.equipe.filter(u => u.ativo).length, 'usuário ativo', 'usuários ativos')}</span><button class="btn sm" data-act="novoUsuario" data-id="${c.id}">${S.svg('mais')}Cadastrar usuário</button></div>
+          ${c.equipe.length ? `<div class="list">${c.equipe.map(u => `<div class="${u.ativo ? '' : 'c-inativo'}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome || '—')}</b><small>${esc(funcaoTexto(c, u))}</small><small>${esc(u.email)}${u.celular ? ' · <span class="nowrap">' + esc(u.celular) + '</span>' : ''}</small></span>
+            <span class="c-sit">${situacaoUsuario(u)}</span><button class="btn tres" data-act="usuarioMenu" data-id="${u.id}" data-org="${c.slug}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></div>`).join('')}</div>`
+            : '<p class="c-aviso">Este cliente está sem equipe. Use "Cadastrar usuário" e escolha a função de diretor.</p>'}
+          ${c.equipe.some(u => u.diretor && u.ativo) ? '' : c.equipe.length ? '<p class="c-aviso">Nenhum diretor ativo: o cliente fica sem quem cadastre a equipe e os dados da empresa.</p>' : ''}</section>
+        <section class="card c-largo"><div class="hd"><h2>Acessos de suporte</h2><span class="pill" style="--tone:var(--gray)">o cliente também vê</span></div>${listaSuporte(c.suporte, false)}</section>
       </div>` };
   };
 
@@ -192,9 +226,9 @@
   // ---------- Diálogo com os dados de acesso do diretor ----------
   const mostrarAcesso = (c, d, senha, titulo) => {
     const ende = `https://sonvi.com.br/${c.slug}/`, nome = (d.nome || '').split(' ')[0];
-    const msg = `Olá${nome ? ', ' + nome : ''}! O SONVI da ${c.nome} está pronto e você é o diretor.\n\nEntre em: ${ende}\nE-mail: ${d.email}\nSenha provisória: ${senha}\n\nNo primeiro acesso você vai criar a sua própria senha.`;
+    const msg = `Olá${nome ? ', ' + nome : ''}! ${d.diretor === false ? `Seu acesso ao SONVI da ${c.nome} está pronto.` : `O SONVI da ${c.nome} está pronto e você é o diretor.`}\n\nEntre em: ${ende}\nE-mail: ${d.email}\nSenha provisória: ${senha}\n\nNo primeiro acesso você vai criar a sua própria senha.`;
     const fone = String(d.celular || '').replace(/\D/g, ''), wa = `https://wa.me/${fone ? (fone.length <= 11 ? '55' : '') + fone : ''}?text=${encodeURIComponent(msg)}`;
-    S.dialog(`<h2>${esc(titulo)}</h2><p>Envie os dados de acesso para <b>${esc(d.nome || d.email)}</b>. No primeiro acesso, o SONVI pede que o diretor crie a própria senha.</p>
+    S.dialog(`<h2>${esc(titulo)}</h2><p>Envie os dados de acesso para <b>${esc(d.nome || d.email)}</b>. No primeiro acesso, o SONVI pede que a pessoa crie a própria senha.</p>
       <div class="senha-prov"><div><small>Endereço</small><b>${esc(endereco(c.slug))}</b></div><div><small>Senha provisória</small><b class="num">${esc(senha)}</b></div><div style="grid-column:1/-1"><small>E-mail</small><b>${esc(d.email).replace('@', '@<wbr>')}</b></div></div>
       <p class="muted small">Esta senha aparece só agora. Se perder, gere outra em "Nova senha" (a anterior deixa de valer).</p>
       <div class="envio-acesso" role="group" aria-label="Enviar os dados de acesso">
@@ -237,13 +271,39 @@
           await q(sb.rpc('console_salvar_cliente', { p_id:c.id, p })); await recarregar(); S.toast('Dados salvos'); render(); } catch (e) { S.toast(S.erro(e)); } })(), 'Salvar', { editar:true }); },
     novaRadio: d => S.form('Adicionar rádio', [{ k:'nome', label:'Nome da rádio', req:true, full:true }, { k:'sigla', label:'Sigla do PI', req:true }, { k:'cidade', label:'Cidade / UF' }], {},
       f => (async () => { try { await q(sb.rpc('console_adicionar_radio', { p_org:d.id, p_nome:f.nome, p_sigla:f.sigla, p_cidade:f.cidade || '' })); await recarregar(); S.toast('Rádio adicionada'); render(); } catch (e) { S.toast(S.erro(e)); } })(), 'Adicionar'),
-    novoDiretor: d => { const c = D.clientes.find(x => x.id === d.id);
-      S.form(`Adicionar diretor · ${esc(c.nome)}`, [{ k:'nome', label:'Nome', req:true, full:true }, { k:'email', label:'E-mail (é com ele que entra)', type:'email', req:true }, { k:'celular', label:'Celular (WhatsApp)', mask:'tel' }], {},
-        f => (async () => { try { const r = await servidor({ acao:'novo_diretor', org:c.id, diretor:f }); await recarregar(); render(); mostrarAcesso(c, { id:r.usuario_id, nome:f.nome, email:f.email, celular:f.celular }, r.senha, 'Diretor cadastrado'); }
-          catch (e) { S.toast(S.erro(e)); } })(), 'Cadastrar'); },
-    senhaDiretor: async d => { const c = cliente(d.org), u = c.diretores.find(x => x.id === d.id);
-      if (!await S.confirmar(`Gerar uma nova senha provisória para ${u.nome}? A senha atual deixa de valer e, no próximo acesso, o diretor cria uma nova.`, { ok:'Gerar senha' })) return;
-      try { const r = await servidor({ acao:'senha_diretor', usuario_id:u.id }); await recarregar(); render(); mostrarAcesso(c, u, r.senha, 'Nova senha provisória'); } catch (e) { S.toast(S.erro(e)); } },
+    novoUsuario: d => formUsuario(D.clientes.find(x => x.id === d.id)),
+    usuarioMenu: (d, botao) => { const { u } = daEquipe(d.org, d.id);
+      S.menu(botao, [{ label:'Editar', icon:'editar', act:'usuarioEditar', data:d }, { label:'Gerar nova senha provisória', icon:'chave', act:'usuarioSenha', data:d },
+        { label:u.ativo ? 'Desativar acesso' : 'Reativar acesso', icon:'olho', act:'usuarioAtivo', data:d }, '-', { label:'Excluir usuário', icon:'lixo', act:'usuarioExcluir', data:d, perigo:true }]); },
+    usuarioEditar: d => { const { c, u } = daEquipe(d.org, d.id); formUsuario(c, u); },
+    usuarioSenha: async d => { const { c, u } = daEquipe(d.org, d.id);
+      if (!await S.confirmar(`Gerar uma nova senha provisória para ${u.nome}? A senha atual deixa de valer e, no próximo acesso, a pessoa cria uma nova.`, { ok:'Gerar senha' })) return;
+      try { const r = await servidor({ acao:'senha', usuario_id:u.id }); await recarregar(); render(); mostrarAcesso(c, u, r.senha, 'Nova senha provisória'); } catch (e) { S.toast(S.erro(e)); } },
+    usuarioAtivo: async d => { const { u } = daEquipe(d.org, d.id), ativo = !u.ativo;
+      if (!await S.confirmar(ativo ? `Reativar o acesso de ${u.nome}? A pessoa volta a entrar com a senha dela.` : `Desativar o acesso de ${u.nome}? A pessoa é desconectada na hora e não entra mais até ser reativada. A carteira e o histórico continuam.`, { ok:ativo ? 'Reativar' : 'Desativar', perigo:!ativo })) return;
+      try { await servidor({ acao:'ativo', usuario_id:u.id, ativo }); await recarregar(); render(); S.toast(ativo ? 'Acesso reativado' : 'Acesso desativado'); } catch (e) { S.toast(S.erro(e)); } },
+    usuarioExcluir: d => { const { c, u } = daEquipe(d.org, d.id), outros = c.equipe.filter(x => x.ativo && x.id !== u.id);
+      S.form(`Excluir ${esc(u.nome)}`, [{ html:`<p style="grid-column:1/-1">A conta de entrada é apagada e a pessoa sai da equipe da ${esc(c.nome)}. ${u.carteira ? `Ela tem ${plural(u.carteira, 'item', 'itens')} na carteira (clientes, propostas e PIs): escolha quem fica com eles.` : 'Ela não tem clientes, propostas nem PIs.'}</p>` },
+        { k:'para', label:'A carteira passa para', type:'select', full:true, options:[...outros.map(x => [x.id, x.nome + (x.diretor ? ' (diretor)' : '')]), ['', 'Ninguém (ficam sem responsável)']] }], { para:(outros.find(x => x.diretor) || outros[0] || {}).id || '' },
+        f => (async () => { try { await servidor({ acao:'excluir_usuario', usuario_id:u.id, para:f.para || null }); await recarregar(); render(); S.toast(`Usuário ${u.nome} excluído`); } catch (e) { S.toast(S.erro(e)); } })(), 'Excluir', { editar:true });
+      const b = document.querySelector('#dlg button[value=ok]'); if (b) { b.classList.remove('pri'); b.classList.add('perigo'); } },
+    radioMenu: (d, botao) => S.menu(botao, [{ label:'Editar', icon:'editar', act:'radioEditar', data:d }, '-', { label:'Excluir rádio', icon:'lixo', act:'radioExcluir', data:d, perigo:true }]),
+    radioEditar: d => { const c = cliente(d.org), r = c.radios.find(x => x.id === d.id);
+      S.form(`Editar · ${esc(r.nome)}`, [{ k:'nome', label:'Nome da rádio', req:true, full:true }, { k:'sigla', label:'Sigla do PI', req:true, mask:'sigla' }, { k:'cidade', label:'Cidade / UF' }], r,
+        f => (async () => { try { await q(sb.rpc('console_salvar_radio', { p_veiculo:r.id, p_nome:f.nome, p_sigla:f.sigla, p_cidade:f.cidade || '' })); await recarregar(); render(); S.toast('Rádio salva'); } catch (e) { S.toast(S.erro(e)); } })(), 'Salvar', { editar:true }); },
+    radioExcluir: d => { const c = cliente(d.org), r = c.radios.find(x => x.id === d.id);
+      const tem = [plural(r.clientes, 'cliente', 'clientes'), plural(r.propostas, 'proposta', 'propostas'), plural(r.pis, 'PI', 'PIs'), plural(r.lancamentos, 'lançamento financeiro', 'lançamentos financeiros')].join(', ');
+      S.form(`Excluir ${esc(r.nome)}`, [{ html:`<p style="grid-column:1/-1">Apaga a rádio com tudo o que é dela: ${esc(tem)}, follow-ups, tabelas de preço, programação musical e os arquivos dos PIs. <b>Não dá para desfazer.</b></p>` },
+        { k:'confirma', label:`Para confirmar, digite a sigla: ${r.sigla}`, req:true, full:true }], {},
+        f => (async () => { if (String(f.confirma || '').trim().toUpperCase() !== String(r.sigla).toUpperCase()) return S.toast('A sigla não confere. Nada foi apagado.');
+          try { await servidor({ acao:'excluir_radio', veiculo:r.id }); await recarregar(); render(); S.toast(`${r.nome} excluída`); } catch (e) { S.toast(S.erro(e)); } })(), 'Excluir rádio', { editar:true });
+      const b = document.querySelector('#dlg button[value=ok]'); if (b) { b.classList.remove('pri'); b.classList.add('perigo'); } },
+    excluirCliente: d => { const c = D.clientes.find(x => x.id === d.id);
+      S.form(`Excluir ${esc(c.nome)}`, [{ html:`<p style="grid-column:1/-1">Apaga o cliente inteiro: ${plural(c.radios.length, 'rádio', 'rádios')}, ${plural(c.clientes, 'cliente cadastrado', 'clientes cadastrados')}, propostas, PIs, financeiro, follow-ups, a equipe (${plural(c.equipe.length, 'conta de entrada', 'contas de entrada')}) e o endereço ${esc(endereco(c.slug))}. <b>Não dá para desfazer.</b> Para só bloquear o acesso, use "Suspender".</p>` },
+        { k:'confirma', label:`Para confirmar, digite o endereço: ${c.slug}`, req:true, full:true }], {},
+        f => (async () => { if (String(f.confirma || '').trim().toLowerCase() !== c.slug) return S.toast('O endereço não confere. Nada foi apagado.');
+          try { await servidor({ acao:'excluir_cliente', org:c.id, confirma:c.slug }); await recarregar(); location.hash = '/clientes'; render(); S.toast(`${c.nome} excluído`); } catch (e) { S.toast(S.erro(e)); } })(), 'Excluir cliente', { editar:true });
+      const b = document.querySelector('#dlg button[value=ok]'); if (b) { b.classList.remove('pri'); b.classList.add('perigo'); } },
     logoEscolher: () => document.getElementById('logoArq').click(),
     logoTirar: () => { novo.logo = ''; render(); },
     radioMais: () => { novo.radios.push({ nome:'', sigla:'', cidade:'' }); render(); const i = document.querySelectorAll('[data-campo=nome]'); if (i.length) i[i.length - 1].focus(); },
@@ -261,6 +321,9 @@
   });
   document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('tr[data-go]')) { e.preventDefault(); location.hash = e.target.dataset.go; } });
   window.addEventListener('hashchange', render);
+  document.addEventListener('click', e => { if (S._menu && !e.target.closest('.menu') && !e.target.closest('[data-act$="Menu"]')) S.fecharMenu(); }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && S._menu) S.fecharMenu(); });
+  document.addEventListener('change', e => { if (!e.target.matches('[data-funcao]')) return; const a = e.target.closest('form').querySelector('.acessos'); if (a) a.hidden = e.target.value === 'diretor'; });
   document.addEventListener('input', e => {
     if (e.target.matches('[data-busca]')) { busca = e.target.value; const pos = e.target.selectionStart; render(); const i = document.querySelector('[data-busca]'); i.focus(); i.setSelectionRange(pos, pos); return; }
     const f = e.target.closest('form[data-form=novo]'); if (!f || !novo) return;

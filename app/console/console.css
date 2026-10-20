@@ -55,6 +55,12 @@ tr.click { cursor:pointer; }
 .c-minis b { font:600 24px/1.2 var(--display); } .c-minis small { color:var(--ink-2); font-size:12px; }
 .c-grade { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:20px; align-items:start; }
 .c-grade .list .btn { flex:none; }
+.c-grade .c-largo { grid-column:1 / -1; }
+.c-grade .hd > span { margin-left:auto; color:var(--ink-2); font-size:13px; }
+.c-grade .list > div { align-items:center; }
+.c-sit { flex:none; text-align:right; }
+.c-inativo .tx { opacity:.6; }
+.menu { z-index:200; }
 .c-kv { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; }
 .c-kv small { display:block; color:var(--ink-2); font-size:12px; } .c-kv span { font-size:14px; overflow-wrap:anywhere; }
 .c-aviso { margin:0; padding:10px 14px; border-radius:var(--radius-s); background:color-mix(in srgb, var(--orange) 12%, transparent); color:var(--ink); font-size:14px; }
