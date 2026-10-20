@@ -1369,3 +1369,31 @@ fieldset.f { border:0; margin:0; padding:0; min-width:0; } fieldset.f legend { p
 td.nowrap { white-space:nowrap; }
 .eu .eu-conta { cursor:pointer; border-radius:var(--radius-s); }
 .eu .eu-conta:hover b { text-decoration:underline; text-underline-offset:3px; }
+
+/* Menu de escolha fluido (js/fluido.js, aprovado em 20/10/2026): a lista cresce com uma leve mola, as opções entram em sequência
+   e o realce desliza até a opção ativa. O <select> continua sendo o campo; no toque fica a lista do aparelho. */
+.fl-painel { position:fixed; z-index:120; inset:auto; margin:0; padding:0; border:0; background:none; overflow:visible; color:inherit; transform-origin:top center; opacity:0; transform:translateY(-4px) scaleY(.92); clip-path:inset(0 0 100% 0 round 12px);
+  transition:opacity .18s, transform .42s cubic-bezier(.34,1.32,.5,1), clip-path .42s cubic-bezier(.34,1.32,.5,1); }
+.fl-painel.acima { transform-origin:bottom center; transform:translateY(4px) scaleY(.92); clip-path:inset(100% 0 0 0 round 12px); }
+.fl-painel.on { opacity:1; transform:none; clip-path:inset(0 0 0 0 round 12px); }
+.fl-caixa { overflow-y:auto; overscroll-behavior:contain; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:0 24px 60px -18px rgba(10,20,60,.32); }
+.fl-lista { position:relative; padding:6px; outline:none; }
+.fl-realce { position:absolute; left:6px; right:6px; top:0; height:0; border-radius:var(--radius-s); background:var(--fill); opacity:0; pointer-events:none;
+  transition:transform .32s cubic-bezier(.34,1.32,.5,1), height .32s cubic-bezier(.34,1.32,.5,1), opacity .15s; }
+.fl-realce.on { opacity:1; }
+.fl-item { position:relative; display:flex; align-items:center; gap:10px; min-height:40px; padding:7px 10px; border-radius:var(--radius-s); color:var(--ink-2); cursor:pointer; font-size:14px;
+  opacity:0; transform:translateY(-6px); transition:opacity .22s, transform .3s cubic-bezier(.22,1,.36,1), color .15s; }
+.fl-painel.on .fl-item { opacity:1; transform:none; transition-delay:calc(var(--i) * 32ms + 50ms), calc(var(--i) * 32ms + 50ms), 0s; }
+.fl-item.ativo, .fl-item.sel { color:var(--ink); }
+.fl-item.off { opacity:.45 !important; cursor:default; }
+.fl-tx { flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.3; }
+.fl-tx b { font-weight:600; overflow-wrap:anywhere; } .fl-tx small { font-size:12px; color:var(--ink-2); }
+.fl-item .vav { width:30px; height:30px; transition:transform .3s cubic-bezier(.34,1.32,.5,1); } .fl-item.ativo .vav { transform:scale(1.1); }
+.fl-ok { width:17px; height:17px; flex:none; fill:none; stroke:var(--accent-text, var(--accent)); stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; opacity:0; transform:scale(.6); transition:opacity .2s, transform .3s cubic-bezier(.34,1.32,.5,1); }
+.fl-item.sel .fl-ok { opacity:1; transform:none; }
+.fl-grupo { padding:10px 10px 4px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3, var(--ink-2)); }
+select[aria-expanded="true"] { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.veh:has(select[aria-expanded="true"]) { border-color:var(--accent); }
+.veh:has(select[aria-expanded="true"]) > svg { transform:rotate(180deg); }
+.veh > svg { transition:transform .3s cubic-bezier(.22,1,.36,1); }
+@media (prefers-reduced-motion: reduce) { .fl-painel, .fl-realce, .fl-item, .fl-ok, .fl-item .vav, .veh > svg { transition:none !important; } }
