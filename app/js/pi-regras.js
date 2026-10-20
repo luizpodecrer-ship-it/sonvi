@@ -7,7 +7,8 @@
   S.piNorm = pi => {
     const d = pi.dados = pi.dados || {};
     d.commission = d.commission || { type:'pct', value:0 }; d.fee = d.fee || { type:'brl', value:0 }; d.discount = d.discount || { type:'brl', value:0 };
-    d.pieces = d.pieces || []; d.grids = d.grids || []; d.briefing = d.briefing || '';
+    d.pieces = d.pieces || []; d.grids = d.grids || []; d.digital = d.digital || []; d.briefing = d.briefing || '';
+    pi.entregas = pi.entregas && typeof pi.entregas === 'object' ? pi.entregas : {};
     d.billing = Object.assign({ type:10, firstDue:'', installments:1, method:'Boleto', obsClient:'', obsVehicle:'' }, d.billing);
     pi.resultado = Object.assign({ leads:0, value:0, desc:'' }, pi.resultado);
     return pi;
@@ -22,15 +23,19 @@
     return { ins, gross, sub: it.bonus ? 0 : sub }; // item bonificado não é cobrado
   };
 
+  // Item digital (database/033): quantidade de publicações × valor unitário; a rádio define as datas depois
+  S.digCalc = it => { const qtd = Math.max(0, parseInt(it.qtd) || 0); return { qtd, sub:Math.round(qtd * num(it.unit) * 100) / 100 }; };
+
   S.calc = pi => {
-    const d = pi.dados; let media = 0, bonus = 0, ins = 0;
-    d.grids.forEach(g => g.items.forEach(it => { const c = S.itemCalc(it); ins += c.ins; if (it.bonus) bonus += c.gross; else media += c.sub; }));
+    const d = pi.dados; let media = 0, bonus = 0, ins = 0, pub = 0, radio = 0, digital = 0;
+    d.grids.forEach(g => g.items.forEach(it => { const c = S.itemCalc(it); ins += c.ins; if (it.bonus) bonus += c.gross; else { media += c.sub; radio += c.sub; } }));
+    (d.digital || []).forEach(it => { const c = S.digCalc(it); pub += c.qtd; media += c.sub; digital += c.sub; });
     const discount = Math.min(media, share(d.discount, media));
     const total = media - discount;                                          // o que o cliente paga pela mídia
     const commission = pi.agencia_id ? Math.min(total, share(d.commission, total)) : 0; // parte da agência; sem agência não há comissão
     const net = total - commission;                                          // o que fica com a rádio
     const fee = pi.agencia_id ? share(d.fee, total) : 0;                     // honorários da agência, cobrados à parte do cliente
-    return { media, bonus, ins, discount, total, commission, net, fee };
+    return { media, bonus, ins, pub, radio, digital, discount, total, commission, net, fee };
   };
 
   // Quem paga quem, conforme a instrução de faturamento. C = cliente, A = agência, V = veículo (a rádio).
@@ -82,8 +87,9 @@
   S.SITUACAO_TABELA = { rascunho:['Rascunho', 'gray'], agendada:['Agendada', 'blue'], vigente:['Vigente', 'green'], encerrada:['Encerrada', 'gray'] };
   // Preço de um programa × formato numa tabela (a vigente, se nenhuma for indicada). Rascunhos nunca entram no PI.
   S.precoNaTabela = (tabelaId, programaId, formatoId) => S.db.precos.find(x => x.tabela_id === tabelaId && x.programa_id === programaId && x.formato_id === formatoId) || null;
+  S.ehDigital = p => !!p && p.secao === 'digital';
   S.preco = (programa, formato) => {
-    const p = S.db.produtos.find(x => x.tipo === 'programa' && x.nome.trim() === String(programa || '').trim()), f = S.db.produtos.find(x => x.tipo === 'formato' && x.nome.trim() === String(formato || '').trim());
+    const p = S.db.produtos.find(x => x.tipo === 'programa' && !S.ehDigital(x) && x.nome.trim() === String(programa || '').trim()), f = S.db.produtos.find(x => x.tipo === 'formato' && !S.ehDigital(x) && x.nome.trim() === String(formato || '').trim());
     const t = S.tabelaVigente();
     if (!p || !f || !t) return null;
     return S.precoNaTabela(t.id, p.id, f.id);
@@ -101,8 +107,10 @@
     const out = [];
     if (!pi.titulo.trim()) out.push('informe o título');
     if (!pi.cliente_id) out.push('escolha o cliente');
-    if (!S.calc(pi).ins) out.push('distribua ao menos uma inserção na grade');
+    const c = S.calc(pi);
+    if (!c.ins && !c.pub) out.push('distribua ao menos uma inserção na grade ou coloque uma publicação digital');
     if (pi.dados.grids.some(g => g.items.some(it => S.itemCalc(it).ins && !num(it.unit) && !it.bonus))) out.push('há itens com inserções e sem valor unitário');
+    if ((pi.dados.digital || []).some(it => S.digCalc(it).qtd && !num(it.unit))) out.push('há publicações digitais sem valor unitário');
     return out;
   };
   // Condições gerais do PI (dizeres obrigatórios). Cada rádio pode ter o seu texto (veiculos.pi_condicoes);
@@ -151,6 +159,8 @@
   };
   // Item novo de proposta a partir da tabela: rotativo vale os 7 dias (a não ser que o horário limite) e usa a faixa comercial da rádio
   S.itemDaTabela = (prog, fmt, preco, v) => {
+    if (S.ehDigital(prog)) return { id:S.uid(), programa_id:prog.id, formato_id:fmt.id, programa:prog.nome.trim(), formato:fmt.nome.trim(), secao:'digital', detalhe:prog.detalhe || '',
+      dias:[], faixa:'', insercoes:0, preco_tabela:Number(preco) || 0, preco:Number(preco) || 0, total:0 };
     const dias = S.diasDoTexto(prog.detalhe) || [0, 1, 2, 3, 4, 5, 6], pt = Number(preco) || 0;
     const faixa = S.faixaDoTexto(prog.detalhe) || (prog.secao === 'rotativo' ? (v && v.prop_faixa) || '07h às 19h' : '');
     return { id:S.uid(), programa_id:prog.id, formato_id:fmt.id, programa:prog.nome.trim(), formato:fmt.nome.trim(), secao:prog.secao || 'programa', detalhe:prog.detalhe || '',
@@ -158,10 +168,12 @@
   };
   const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
   // Totais da proposta (por mês): valor de tabela, investimento e o desconto negociado
-  S.propTotais = p => { let ins = 0, tabela = 0, total = 0;
-    (p.itens || []).forEach(it => { const n = parseInt(it.insercoes) || 0; ins += n; tabela += n * (Number(it.preco_tabela) || 0); total += Number(it.total) || 0; });
+  // No item digital, "insercoes" guarda as publicações por mês
+  S.propTotais = p => { let ins = 0, pub = 0, tabela = 0, total = 0, radio = 0, digital = 0;
+    (p.itens || []).forEach(it => { const n = parseInt(it.insercoes) || 0, t = Number(it.total) || 0; if (it.secao === 'digital') { pub += n; digital += t; } else { ins += n; radio += t; }
+      tabela += n * (Number(it.preco_tabela) || 0); total += t; });
     tabela = r2(tabela); total = r2(total); const desconto = r2(tabela - total);
-    return { ins, tabela, total, desconto, pct:tabela ? desconto / tabela * 100 : 0 }; };
+    return { ins, pub, radio:r2(radio), digital:r2(digital), tabela, total, desconto, pct:tabela ? desconto / tabela * 100 : 0 }; };
   S.propNo = p => `${p.ano}/${String(p.numero).padStart(3, '0')}`;
   S.somaDias = (iso, n) => { const [y, m, d] = iso.split('-').map(Number), dt = new Date(y, m - 1, d + n, 12); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; };
   S.propVence = p => S.somaDias(p.data, Number(p.validade) || 0);

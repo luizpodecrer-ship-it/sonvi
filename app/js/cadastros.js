@@ -15,12 +15,19 @@
   // Segundos do formato, lidos do nome ou do detalhe (Spot 30", 30 segundos, 30s)
   const segundos = f => { const m = /(\d+)\s*(?:"|''|”|s\b|seg)/i.exec(`${f.nome} ${f.detalhe}`); return m ? +m[1] : null; };
 
-  // Seções da tabela, como no mídia kit, e os dois jeitos de cobrar um formato
-  const SECOES = [['programa', 'Programas · horário determinado', 'Programa'], ['quadro', 'Quadros', 'Quadro'], ['rotativo', 'Rotativo · horário indeterminado', 'Rotativo']];
+  // Seções da tabela, como no mídia kit, e os dois jeitos de cobrar um formato.
+  // Digital (database/033): os perfis da rádio nas redes sociais são as linhas e os formatos digitais (post, reels, stories…)
+  // são colunas próprias, cobradas por publicação. Mesma tabela, vigência e publicação da rádio.
+  const SECOES = [['programa', 'Programas · horário determinado', 'Programa'], ['quadro', 'Quadros', 'Quadro'], ['rotativo', 'Rotativo · horário indeterminado', 'Rotativo'], ['digital', 'Digital · redes sociais', 'Perfil']];
+  const SECOES_RADIO = SECOES.filter(s => s[0] !== 'digital');
+  const ABA = { programa:'Programas', quadro:'Quadros', rotativo:'Rotativo', digital:'Digital' };
   const secaoDe = p => SECOES.some(s => s[0] === p.secao) ? p.secao : 'programa';
-  const unico = f => f.cobranca === 'unico';
-  const colunas = () => { const fs = lista('formato'); return [...fs.filter(f => !unico(f)), ...fs.filter(unico)]; };
-  const horario = p => p.detalhe ? esc(p.detalhe).replace(/\n/g, '<br>') : 'Horário não informado';
+  const dig = p => p.secao === 'digital';
+  const unico = f => f.cobranca === 'unico' && !dig(f);
+  const colunas = () => { const fs = lista('formato').filter(f => !dig(f)); return [...fs.filter(f => !unico(f)), ...fs.filter(unico)]; };
+  const colunasDig = () => lista('formato').filter(dig);
+  const colunasDe = p => dig(p) ? colunasDig() : colunas();
+  const horario = p => dig(p) ? (p.detalhe ? esc(p.detalhe) : 'Perfil não informado') : p.detalhe ? esc(p.detalhe).replace(/\n/g, '<br>') : 'Horário não informado';
 
   // ---------- tabelas ----------
   const tab = id => (S.db.tabelas || []).find(t => t.id === id);
@@ -67,7 +74,8 @@
 
   // Avisa quando um formato mais longo custa menos que um mais curto no mesmo programa
   const avisos = (v, p) => {
-    const fs = lista('formato').filter(f => !unico(f)).map(f => ({ f, s:segundos(f), x:v.cel[chave(p.id, f.id)] })).filter(o => o.s !== null && o.x);
+    if (dig(p)) return {};
+    const fs = colunas().filter(f => !unico(f)).map(f => ({ f, s:segundos(f), x:v.cel[chave(p.id, f.id)] })).filter(o => o.s !== null && o.x);
     const out = {};
     fs.forEach(a => { const menor = fs.filter(b => b.s < a.s && b.x.preco > a.x.preco).sort((b, c) => c.s - b.s)[0]; if (menor) out[a.f.id] = `Mais barato que o ${menor.f.nome}`; });
     return out;
@@ -86,12 +94,28 @@
   };
 
   const tres = (act, id, rotulo) => pode() ? `<button class="btn tres" data-act="${act}" data-id="${id}" aria-label="Opções de ${esc(rotulo)}">${S.svg('mais3')}</button>` : '';
-  const botoesNovo = cls => SECOES.map(([k, , n]) => `<button class="btn ${cls}" data-act="tpProduto" data-tipo="programa" data-secao="${k}">${S.svg('mais')}${n}</button>`).join('');
+  const botoesNovo = cls => SECOES_RADIO.map(([k, , n]) => `<button class="btn ${cls}" data-act="tpProduto" data-tipo="programa" data-secao="${k}">${S.svg('mais')}${n}</button>`).join('');
+  const botoesDig = cls => `<button class="btn ${cls}" data-act="tpProduto" data-tipo="programa" data-secao="digital">${S.svg('mais')}Perfil</button><button class="btn ${cls}" data-act="tpProduto" data-tipo="formato" data-secao="digital">${S.svg('mais')}Formato digital</button>`;
+
+  // Digital no computador: perfis da rádio nas linhas e formatos digitais nas colunas
+  const gradeDigital = (v, cadastro) => {
+    const progs = lista('programa').filter(dig), forms = colunasDig(), menus = cadastro && pode();
+    if (!progs.length && !forms.length) return menus ? `<section class="card tp-grade tp-dig"><div class="hd"><h2>Digital · redes sociais</h2><span>por publicação</span></div>
+      <p class="muted" style="margin:0 0 14px">Venda publicações nos perfis da rádio (Instagram, Facebook, TikTok…). Cadastre os perfis e os formatos (post no feed, carrossel, reels, stories) e defina o preço de cada um. A produção do conteúdo já entra no preço.</p><div class="tp-novos">${botoesDig('tracej')}</div></section>` : '';
+    if (!progs.length && !menus) return '';
+    return `<section class="card tp-grade tp-dig"><div class="hd"><h2>Digital · redes sociais</h2><span>por publicação · a produção já está no preço</span></div><div class="scroll"><div class="tp-tab" style="--n:${Math.max(1, forms.length)}">
+      <div class="tp-cab"><span class="muted small">Perfil da rádio</span>${forms.map(f => `<span class="tp-form${f.ativo ? '' : ' inativo'}"><span><b>${esc(f.nome)}</b><small>${esc(f.detalhe || 'por publicação')}${f.ativo ? '' : ' · fora das novas vendas'}</small></span>${menus ? tres('tpMenuForm', f.id, f.nome) : ''}</span>`).join('') || '<span class="muted small">Nenhum formato digital</span>'}
+        <span class="tp-mais">${menus ? `<button class="btn sm tracej" data-act="tpProduto" data-tipo="formato" data-secao="digital">${S.svg('mais')}Formato</button>` : ''}</span></div>
+      ${progs.map(p => `<div class="tp-row${p.ativo ? '' : ' inativo'}"><span class="tp-prog"><b>${esc(p.nome)}</b><small>${horario(p)}</small>${p.ativo ? '' : S.tag('Fora das novas vendas', 'gray')}</span>
+        ${forms.map(f => celula(v, p, f, {}, false)).join('') || '<span></span>'}<span class="tp-mais">${menus ? tres('tpMenuProg', p.id, p.nome) : ''}</span></div>`).join('')}
+      ${menus ? `<div class="tp-rodape tp-novos"><button class="btn sm tracej" data-act="tpProduto" data-tipo="programa" data-secao="digital">${S.svg('mais')}Perfil</button></div>` : ''}
+    </div></div><p class="muted small" style="margin:10px 0 0">Cada perfil × formato tem um preço; "—" = não oferece.</p></section>`;
+  };
 
   // Grade do computador
   const grade = (v, cadastro) => {
-    const progs = lista('programa'), forms = colunas(), desc = descontoPadrao(v.cel), menus = cadastro && pode();
-    const secoes = SECOES.map(([k, titulo]) => ({ k, titulo, itens:progs.filter(p => secaoDe(p) === k) })).filter(s => s.itens.length);
+    const progs = lista('programa').filter(p => !dig(p)), forms = colunas(), desc = descontoPadrao(v.cel), menus = cadastro && pode();
+    const secoes = SECOES_RADIO.map(([k, titulo]) => ({ k, titulo, itens:progs.filter(p => secaoDe(p) === k) })).filter(s => s.itens.length);
     const nDur = forms.filter(f => !unico(f)).length, nUni = forms.length - nDur, i1 = nDur;
     const grupos = nDur && nUni ? `<div class="tp-cab tp-grupos"><span></span><span class="tp-grupo" style="grid-column:span ${nDur}">Spot · preço por duração</span><span class="tp-grupo uni1" style="grid-column:span ${nUni}">Preço único</span><span></span></div>` : '';
     return `<div class="scroll"><div class="tp-tab" style="--n:${forms.length}">${grupos}
@@ -107,23 +131,28 @@
 
   // Celular: abas por seção; cada programa vira um cartão com os formatos em quadradinhos
   const cartoes = (v, cadastro) => {
-    const progs = lista('programa'), secoes = SECOES.map(([k]) => ({ k, itens:progs.filter(p => secaoDe(p) === k) })).filter(s => s.itens.length);
-    const ab = secoes.some(s => s.k === secCel) ? secCel : (secoes[0] || {}).k, menus = cadastro && pode();
-    const cartao = p => { const fs = colunas(), av = avisos(v, p);
-      const tile = f => { const k = chave(p.id, f.id), x = v.cel[k], e = estado(v, k), nome = segundos(f) && !unico(f) ? `${segundos(f)}"` : f.nome;
+    const progs = lista('programa'), menus = cadastro && pode();
+    const secoes = SECOES.map(([k]) => ({ k, itens:progs.filter(p => secaoDe(p) === k) })).filter(s => s.itens.length || (s.k === 'digital' && menus && colunasDig().length));
+    const ab = secoes.some(s => s.k === secCel) ? secCel : (secoes[0] || {}).k;
+    const cartao = p => { const fs = colunasDe(p), av = avisos(v, p);
+      const tile = f => { const k = chave(p.id, f.id), x = v.cel[k], e = estado(v, k), nome = segundos(f) && !unico(f) && !dig(f) ? `${segundos(f)}"` : f.nome;
         if (!x && !v.editar) return '';
         return `<button class="tp-mini ${e}${x ? '' : ' vazio'}${av[f.id] ? ' aviso' : ''}" data-act="tpEditar" data-p="${p.id}" data-f="${f.id}"${v.editar ? '' : ' disabled'} aria-label="${esc(f.nome)}: ${x ? brl(x.preco) : 'sem preço'}"><small>${esc(nome)}</small><b>${x ? S.nfmt(x.preco) : '—'}</b>${x && e && e !== 'igual' ? `<small class="tp-dif ${e}">${e === 'novo' ? 'novo' : pct(x.preco, v.base[k])}</small>` : ''}</button>`; };
       return `<div class="card tp-cartao${p.ativo ? '' : ' inativo'}"><div class="hd"><span class="tp-prog"><b>${esc(p.nome)}</b><small>${horario(p)}</small>${p.ativo ? '' : S.tag('Fora dos novos PIs', 'gray')}</span>${menus ? tres('tpMenuProg', p.id, p.nome) : ''}</div>
         <div class="tp-minis">${fs.map(tile).join('')}</div></div>`; };
-    return (secoes.length > 1 ? `<div class="seg tp-seg" role="tablist">${secoes.map(s => `<button role="tab" class="${s.k === ab ? 'on' : ''}" aria-selected="${s.k === ab}" data-act="tpSecao" data-secao="${s.k}">${esc(SECOES.find(x => x[0] === s.k)[2] + (s.k === 'rotativo' ? '' : 's'))}</button>`).join('')}</div>` : '')
+    const noDigital = ab === 'digital';
+    return (secoes.length > 1 ? `<div class="seg tp-seg" role="tablist">${secoes.map(s => `<button role="tab" class="${s.k === ab ? 'on' : ''}" aria-selected="${s.k === ab}" data-act="tpSecao" data-secao="${s.k}">${ABA[s.k]}</button>`).join('')}</div>` : '')
+      + (noDigital ? '<p class="muted small" style="margin:0 0 12px">Preço por publicação · a produção já está no preço.</p>' : '')
       + (secoes.find(s => s.k === ab) || { itens:[] }).itens.map(cartao).join('')
-      + (menus ? `<div class="tp-novos">${botoesNovo('tracej')}<button class="btn tracej" data-act="tpProduto" data-tipo="formato">${S.svg('mais')}Formato</button></div>` : '');
+      + (menus ? `<div class="tp-novos">${noDigital ? botoesDig('tracej') : `${botoesNovo('tracej')}<button class="btn tracej" data-act="tpProduto" data-tipo="formato">${S.svg('mais')}Formato</button>${!secoes.some(s => s.k === 'digital') ? `<button class="btn tracej" data-act="tpProduto" data-tipo="programa" data-secao="digital">${S.svg('mais')}Perfil digital</button>` : ''}`}</div>` : '');
   };
   const corpoGrade = (v, cadastro) => {
-    if (!lista('programa').length && !lista('formato').length) return `<div class="card empty"><b>Monte a tabela de preços</b>Cadastre os formatos (ex.: Spot 30", cobrado por duração; Testemunhal, com preço único) e onde vão ao ar: programas, quadros e o rotativo. Os preços ficam no cruzamento.
-      ${cadastro && pode() ? `<div class="row mid" style="justify-content:center;margin-top:18px"><button class="btn" data-act="tpProduto" data-tipo="formato">${S.svg('mais')}Formato</button><button class="btn pri" data-act="tpProduto" data-tipo="programa" data-secao="programa">${S.svg('mais')}Programa</button></div>` : ''}</div>`;
-    return S.celular ? cartoes(v, cadastro) : `<section class="card tp-grade">${grade(v, cadastro)}</section>`;
+    const semRadio = !lista('programa').some(p => !dig(p)) && !lista('formato').some(f => !dig(f));
+    if (S.celular) return semRadio && !lista('programa').length && !lista('formato').length ? vazioRadio(cadastro) : cartoes(v, cadastro);
+    return (semRadio ? vazioRadio(cadastro) : `<section class="card tp-grade">${grade(v, cadastro)}</section>`) + gradeDigital(v, cadastro);
   };
+  const vazioRadio = cadastro => `<div class="card empty"><b>Monte a tabela de preços</b>Cadastre os formatos (ex.: Spot 30", cobrado por duração; Testemunhal, com preço único) e onde vão ao ar: programas, quadros e o rotativo. Os preços ficam no cruzamento.
+      ${cadastro && pode() ? `<div class="row mid" style="justify-content:center;margin-top:18px"><button class="btn" data-act="tpProduto" data-tipo="formato">${S.svg('mais')}Formato</button><button class="btn pri" data-act="tpProduto" data-tipo="programa" data-secao="programa">${S.svg('mais')}Programa</button></div>` : ''}</div>`;
 
   // ---------- lista de tabelas ----------
   const periodo = t => { const s = sit(t), fim = s === 'encerrada' ? fimDe(t) : null;
@@ -144,7 +173,7 @@
       <span class="muted small">Prepare a tabela nova em rascunho, com calma. ${diretor() ? 'Ao publicar, você escolhe' : 'O diretor publica e escolhe'} a data de início, e ela entra sozinha no dia. PIs já feitos nunca mudam.</span></div>`;
     const cartoesT = ts.length ? `<div class="tp-tabelas">${ts.map(cartaoTabela).join('')}</div>`
       : `<div class="card empty"><b>Nenhuma tabela de preços ainda</b>Crie a primeira tabela, cadastre os programas e formatos e defina os preços.${pode() ? `<div class="row mid" style="justify-content:center;margin-top:18px"><button class="btn pri" data-act="tpNova">${S.svg('mais')}Nova tabela</button></div>` : ''}</div>`;
-    const previa = vig ? `<div class="hd tp-previa-cab"><h2>${esc(vig.nome)} · vigente</h2><a data-go="/cadastros/${vig.id}">Abrir</a></div>${corpoGrade(visaoVigente(), false)}<p class="muted small" style="margin-top:12px">Valores em R$ por inserção; "—" = não é vendido nesse espaço.</p>` : '';
+    const previa = vig ? `<div class="hd tp-previa-cab"><h2>${esc(vig.nome)} · vigente</h2><a data-go="/cadastros/${vig.id}">Abrir</a></div>${corpoGrade(visaoVigente(), false)}<p class="muted small" style="margin-top:12px">Valores em R$ por inserção (no digital, por publicação); "—" = não é vendido nesse espaço.</p>` : '';
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>Tabelas de preços`,
       actions:`${vig ? `<button class="btn" data-act="tpPdf" data-id="${vig.id}">${S.svg('baixar')}Baixar PDF da vigente</button>` : ''}${pode() ? `<button class="btn pri" data-act="tpNova">${S.svg('mais')}Nova tabela</button>` : ''}`,
       body:(ts.length ? passos : '') + cartoesT + previa };
@@ -165,10 +194,10 @@
       <label class="f">Começa a valer em (previsto)<input type="date" data-tp-inicio="1" value="${esc(ed.inicio)}"></label></div>` : '';
     const faixa = `<div class="card tp-faixa">${S.tag(rot, tom)}<span>${texto}</span><span class="grow"></span>${s === 'agendada' && diretor() ? `<button class="btn sm" data-act="tpDespublicar" data-id="${t.id}">Voltar para rascunho</button>` : ''}${campos}
       ${s === 'rascunho' && !diretor() && editar ? '<small class="muted tp-quem">Quando estiver pronta, o diretor publica.</small>' : ''}</div>`;
-    const forms = colunas();
+    const forms = [...colunas(), ...colunasDig()];
     const massa = editar && Object.keys(ed.cel).length ? `<section class="card tp-massa" aria-label="Reajustar vários de uma vez">
       <div class="tp-massa-tit"><b>Reajustar vários de uma vez</b><small class="muted">${ed.baseNome ? `Calcula a partir dos preços da ${esc(ed.baseNome)}.` : 'Calcula a partir dos preços desta tabela.'} Você confere antes de salvar.</small></div>
-      <label class="f">Aplicar em<select name="tp_alvo"><option value="tudo">Toda a tabela</option>${SECOES.filter(([k]) => lista('programa').some(p => secaoDe(p) === k)).map(([k, , n]) => `<option value="sec:${k}"${massaUlt.alvo === 'sec:' + k ? ' selected' : ''}>Só ${k === 'rotativo' ? 'o rotativo' : n.toLowerCase() + 's'}</option>`).join('')}${forms.map(f => `<option value="f:${f.id}"${massaUlt.alvo === 'f:' + f.id ? ' selected' : ''}>Só a coluna ${esc(f.nome)}</option>`).join('')}</select></label>
+      <label class="f">Aplicar em<select name="tp_alvo"><option value="tudo">Toda a tabela</option>${SECOES.filter(([k]) => lista('programa').some(p => secaoDe(p) === k)).map(([k, , n]) => `<option value="sec:${k}"${massaUlt.alvo === 'sec:' + k ? ' selected' : ''}>Só ${k === 'rotativo' ? 'o rotativo' : k === 'digital' ? 'o digital' : n.toLowerCase() + 's'}</option>`).join('')}${forms.map(f => `<option value="f:${f.id}"${massaUlt.alvo === 'f:' + f.id ? ' selected' : ''}>Só a coluna ${esc(f.nome)}${dig(f) ? ' (digital)' : ''}</option>`).join('')}</select></label>
       <label class="f">Reajuste<span class="duo"><select name="tp_op" aria-label="Tipo de reajuste">${[['pct+', 'Aumentar %'], ['pct-', 'Reduzir %'], ['brl+', 'Somar R$'], ['brl-', 'Tirar R$']].map(([k, n]) => `<option value="${k}"${massaUlt.op === k ? ' selected' : ''}>${n}</option>`).join('')}</select><input name="tp_val" data-mask="dec" inputmode="decimal" placeholder="Ex.: 8,5" value="${esc(massaUlt.val)}" aria-label="Valor do reajuste"></span></label>
       <label class="f">Arredondar<select name="tp_arr">${[['5', 'Para R$ 5,00'], ['1', 'Para R$ 1,00'], ['10', 'Para R$ 10,00'], ['0', 'Não arredondar']].map(([k, n]) => `<option value="${k}"${massaUlt.arr === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
       <button class="btn pri" data-act="tpAplicar">Aplicar na grade</button>${ed.baseNome ? `<button class="btn" data-act="tpVoltarBase">Voltar aos preços da ${esc(ed.baseNome)}</button>` : ''}</section>` : '';
@@ -225,28 +254,51 @@
 
   // ---------- PDF ----------
   const imprimir = t => {
-    const v = S.veh(), forms = colunas().filter(f => f.ativo), progs = lista('programa').filter(p => p.ativo), n = forms.length + 2, cel = ed && ed.id === t.id ? ed.cel : precosDe(t.id), desc = descontoPadrao(cel), s = sit(t);
-    const linha = p => `<tr><td><b>${esc(p.nome)}</b></td><td>${horario(p)}</td>${forms.map(f => { const x = cel[chave(p.id, f.id)]; return `<td style="text-align:right">${x ? brl(x.preco) : '—'}</td>`; }).join('')}</tr>`;
+    const v = S.veh(), forms = colunas().filter(f => f.ativo), progs = lista('programa').filter(p => p.ativo && !dig(p)), n = forms.length + 2, cel = ed && ed.id === t.id ? ed.cel : precosDe(t.id), desc = descontoPadrao(cel), s = sit(t);
+    const linha = (p, fs = forms) => `<tr><td><b>${esc(p.nome)}</b></td><td>${horario(p)}</td>${fs.map(f => { const x = cel[chave(p.id, f.id)]; return `<td style="text-align:right">${x ? brl(x.preco) : '—'}</td>`; }).join('')}</tr>`;
+    const fd = colunasDig().filter(f => f.ativo), pd = lista('programa').filter(p => p.ativo && dig(p));
+    const digital = pd.length && fd.length ? `<h2 style="margin:18px 0 6px;font-size:15px">Digital · redes sociais</h2><table><thead><tr><th>Rede</th><th>Perfil</th>${fd.map(f => `<th style="text-align:right">${esc(f.nome)}</th>`).join('')}</tr></thead>
+      <tbody>${pd.map(p => linha(p, fd)).join('')}</tbody></table><p>Valores por publicação; a produção do conteúdo já está no preço; as datas de publicação são combinadas com a rádio.</p>` : '';
     const quando = s === 'vigente' ? `Vigente desde ${dfmt(t.inicio)}` : s === 'agendada' ? `Válida a partir de ${dfmt(t.inicio)}` : s === 'encerrada' ? `Válida de ${dfmt(t.inicio)} a ${fimDe(t) ? dfmt(fimDe(t)) : '—'}` : 'Rascunho · ainda não vale';
     document.getElementById('print').innerHTML = `<div class="cab">${v.logo ? `<img src="${v.logo}" alt="">` : ''}<div><h1 style="border-left:6px solid ${v.cor || S.COR_PADRAO};padding-left:8px">${esc(v.nome)} · ${esc(t.nome)}</h1><div>${quando}${desc !== null ? ` · desconto máximo ${desc}%` : ''}</div></div></div>
       <table><thead><tr><th>Onde vai ao ar</th><th>Dias e horário</th>${forms.map(f => `<th style="text-align:right">${esc(f.nome)}</th>`).join('')}</tr></thead>
-      <tbody>${SECOES.map(([k, ti]) => { const l = progs.filter(p => secaoDe(p) === k); return l.length ? `<tr><th colspan="${n}" style="text-align:left">${esc(ti)}</th></tr>${l.map(linha).join('')}` : ''; }).join('')}</tbody></table>
-      <p>Valores por inserção; "—" = não é vendido. ${esc([v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, v.telefone, v.email].filter(Boolean).join(' · '))}</p>`;
+      <tbody>${SECOES_RADIO.map(([k, ti]) => { const l = progs.filter(p => secaoDe(p) === k); return l.length ? `<tr><th colspan="${n}" style="text-align:left">${esc(ti)}</th></tr>${l.map(p => linha(p)).join('')}` : ''; }).join('')}</tbody></table>
+      <p>Valores por inserção; "—" = não é vendido.</p>${digital}<p>${esc([v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, v.telefone, v.email].filter(Boolean).join(' · '))}</p>`;
     setTimeout(() => window.print(), 60);
   };
 
   // ---------- programas e formatos (cadastro da rádio, vale para todas as tabelas) ----------
   const mover = async (id, dir) => {
-    const it = prod(id), l = lista(it.tipo), i = l.findIndex(x => x.id === id), j = i + dir; if (j < 0 || j >= l.length) return;
+    const it = prod(id), l = lista(it.tipo).filter(x => dig(x) === dig(it)), i = l.findIndex(x => x.id === id), j = i + dir; if (j < 0 || j >= l.length) return;
     [l[i], l[j]] = [l[j], l[i]];
     await Promise.all(l.map((x, k) => x.ordem === k ? null : S.salvar('produtos', { id:x.id, ordem:k })));
   };
   const formProduto = (tipo, p, secao) => {
-    const prog = tipo === 'programa', comDesconto = prog && p.id && ed && emEdicao(), dp = comDesconto ? descontoDo(ed.cel, p) : undefined, sec = p.secao || secao || 'programa';
-    const novoTitulo = prog ? `Novo ${SECOES.find(x => x[0] === sec)[2].toLowerCase()}` : 'Novo formato';
+    const prog = tipo === 'programa', comDesconto = prog && p.id && ed && emEdicao(), dp = comDesconto ? descontoDo(ed.cel, p) : undefined;
+    const sec = p.id ? (dig(p) ? 'digital' : p.secao || 'programa') : secao || 'programa', digital = sec === 'digital';
+    const novoTitulo = digital ? (prog ? 'Novo perfil nas redes' : 'Novo formato digital') : prog ? `Novo ${SECOES.find(x => x[0] === sec)[2].toLowerCase()}` : 'Novo formato';
+    const campoDesc = comDesconto ? [{ k:'desconto', label:`Desconto máximo nesta tabela (%)${dp === null ? ' · hoje varia por formato' : ''}`, mask:'pct', ph:'Ex.: 30' }] : [];
+    // Digital: perfil (rede + @) ou formato (post, reels, stories…), cobrado por publicação
+    if (digital) return S.form(p.id ? esc(p.nome) : novoTitulo, prog ? [
+      { k:'nome', label:'Rede social', req:true, ph:'Ex.: Instagram' },
+      { k:'detalhe', label:'Perfil', ph:'Ex.: @suaradio' },
+      ...campoDesc,
+      { k:'ativo', label:'Aparece nas novas propostas e PIs', type:'checkbox' }] : [
+      { k:'nome', label:'Formato', req:true, ph:'Ex.: Reels, Stories (3 telas), Post no feed' },
+      { k:'detalhe', label:'Observação', ph:'Ex.: até 60 segundos · 3 telas' },
+      { k:'ativo', label:'Aparece nas novas propostas e PIs', type:'checkbox' }],
+      Object.assign({ ativo:true }, p, { desconto:dp === undefined || dp === null ? '' : String(dp) }),
+      v => {
+        if (comDesconto && v.desconto !== '' && v.desconto !== undefined) { const novo = S.num(v.desconto);
+          colunasDig().forEach(f => { const x = ed.cel[chave(p.id, f.id)]; if (x && x.desconto_max !== novo) { x.desconto_max = novo; ed.sujo = true; } }); }
+        S.run(async () => {
+          const row = Object.assign({ nome:v.nome.trim(), detalhe:(v.detalhe || '').trim(), ativo:v.ativo === 'on', secao:'digital' }, prog ? {} : { cobranca:'unico' }, p.id ? { id:p.id } : { veiculo_id:S.ui.vehicleId, tipo, ordem:lista(tipo).filter(dig).length });
+          await S.salvar('produtos', row); secCel = 'digital';
+        }, prog ? 'Perfil salvo' : 'Formato salvo');
+      }, 'Salvar', { editar:true });
     S.form(p.id ? esc(p.nome) : novoTitulo, prog ? [
       { k:'nome', label:sec === 'rotativo' ? 'Nome' : sec === 'quadro' ? 'Quadro' : 'Programa', req:true, ph:sec === 'rotativo' ? 'Ex.: Spot indeterminado' : sec === 'quadro' ? 'Ex.: Comunicação Política' : 'Ex.: Jornal da Manhã' },
-      { k:'secao', label:'Seção da tabela', type:'select', options:SECOES.map(([k, , n]) => [k, n]) },
+      { k:'secao', label:'Seção da tabela', type:'select', options:SECOES_RADIO.map(([k, , n]) => [k, n]) },
       { k:'detalhe', label:'Dias e horário (uma linha para cada faixa)', type:'textarea', ph:'Ex.: Seg a sex · 6h às 20h\nSáb e dom · 6h às 11h' },
       ...(comDesconto ? [{ k:'desconto', label:`Desconto máximo nesta tabela (%)${dp === null ? ' · hoje varia por formato' : ''}`, mask:'pct', ph:'Ex.: 30' }] : []),
       { k:'ativo', label:'Aparece nos novos PIs', type:'checkbox' }] : [
@@ -298,7 +350,7 @@
     tpCorrigir: () => { ed.corrigindo = true; S.render(); },
     tpEditar: d => { if (!emEdicao()) return;
       if (S.celular) { const k = chave(d.p, d.f), x = ed.cel[k];
-        return S.form(`${esc(prod(d.p).nome)} · ${esc(prod(d.f).nome)}`, [{ k:'preco', label:`Preço por inserção (R$)${ed.base[k] !== undefined ? ` · antes ${S.nfmt(ed.base[k])}` : ''}`, mask:'dec', ph:'Vazio = não é vendido' }], { preco:x ? S.nfmt(x.preco) : '' },
+        return S.form(`${esc(prod(d.p).nome)} · ${esc(prod(d.f).nome)}`, [{ k:'preco', label:`Preço por ${dig(prod(d.f)) ? 'publicação' : 'inserção'} (R$)${ed.base[k] !== undefined ? ` · antes ${S.nfmt(ed.base[k])}` : ''}`, mask:'dec', ph:'Vazio = não é vendido' }], { preco:x ? S.nfmt(x.preco) : '' },
           v => { if (!String(v.preco || '').trim()) { if (x) { delete ed.cel[k]; ed.mao.delete(k); ed.sujo = true; } return S.render(); }
             const n = S.num(v.preco); if (!x || x.preco !== n) { ed.cel[k] = { preco:n, desconto_max:x ? x.desconto_max : (descontoDo(ed.cel, prod(d.p)) ?? descontoPadrao(ed.cel) ?? 0) }; if (ed.base[k] !== undefined) ed.mao.add(k); ed.sujo = true; }
             S.render(); }, 'Confirmar', { editar:true }); }
@@ -310,7 +362,7 @@
       if (!val) { q('tp_val').focus(); return S.toast('Digite quanto reajustar.'); }
       Object.assign(massaUlt, { alvo, op, val:q('tp_val').value, arr:q('tp_arr').value });
       let n = 0;
-      lista('programa').forEach(p => colunas().forEach(f => {
+      lista('programa').forEach(p => colunasDe(p).forEach(f => {
         if (alvo.startsWith('sec:') && secaoDe(p) !== alvo.slice(4)) return;
         if (alvo.startsWith('f:') && f.id !== alvo.slice(2)) return;
         const k = chave(p.id, f.id), x = ed.cel[k]; if (!x) return;
@@ -337,7 +389,7 @@
     tpProduto: d => formProduto(d.tipo, {}, d.secao),
     tpSecao: d => { secCel = d.secao; S.render(); },
     tpMenuProg: (d, botao) => { const p = prod(d.id);
-      S.menu(botao, [{ label:'Editar nome, seção, horário' + (ed && emEdicao() ? ' e desconto' : ''), icon:'editar', act:'tpEditarProd', data:{ id:p.id } }, { label:'Subir', icon:'seta', act:'tpMover', data:{ id:p.id, dir:-1 } }, { label:'Descer', icon:'baixo', act:'tpMover', data:{ id:p.id, dir:1 } },
+      S.menu(botao, [{ label:(dig(p) ? 'Editar rede e perfil' : 'Editar nome, seção, horário') + (ed && emEdicao() ? ' e desconto' : ''), icon:'editar', act:'tpEditarProd', data:{ id:p.id } }, { label:'Subir', icon:'seta', act:'tpMover', data:{ id:p.id, dir:-1 } }, { label:'Descer', icon:'baixo', act:'tpMover', data:{ id:p.id, dir:1 } },
         { label:p.ativo ? 'Tirar dos novos PIs' : 'Voltar para os novos PIs', icon:p.ativo ? 'bloqueio' : 'check', act:'tpAtivo', data:{ id:p.id } }, '-', { label:'Excluir', icon:'lixo', act:'tpExcluir', data:{ id:p.id }, perigo:true }]); },
     tpMenuForm: (d, botao) => { const f = prod(d.id);
       S.menu(botao, [{ label:'Editar nome e cobrança', icon:'editar', act:'tpEditarProd', data:{ id:f.id } }, { label:'Mover para a esquerda', icon:'voltar', act:'tpMover', data:{ id:f.id, dir:-1 } }, { label:'Mover para a direita', icon:'seta', act:'tpMover', data:{ id:f.id, dir:1 } },

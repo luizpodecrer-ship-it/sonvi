@@ -211,7 +211,7 @@
   const entre = (d, [de, ate]) => !!d && (!de || d >= de) && (!ate || d <= ate);
   const piDe = id => S.db.pis.find(p => p.id === id);
   const doConsultor = l => !rel.consultor || (piDe(l.pi_id) || {}).consultor_id === rel.consultor;
-  const piNoPeriodo = (pi, [de, ate]) => (pi.dados.grids || []).some(g => { const ini = g.period + '-01', fim = iso(new Date(+g.period.slice(0, 4), +g.period.slice(5), 0)); return (!de || fim >= de) && (!ate || ini <= ate); });
+  const piNoPeriodo = (pi, [de, ate]) => [...(pi.dados.grids || []), ...(pi.dados.digital || [])].some(g => { const ini = g.period + '-01', fim = iso(new Date(+g.period.slice(0, 4), +g.period.slice(5), 0)); return (!de || fim >= de) && (!ate || ini <= ate); });
   const C = (t, tipo) => ({ t, tipo }); // tipo: 'brl' | 'num' | 'data' | 'sit' | ''
   const agrupa = (ls, chave) => { const m = new Map(); ls.forEach(x => { const k = chave(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return [...m.entries()]; };
   const nomeMesLongo = m => m ? `${MESES[+m.slice(5) - 1][0].toUpperCase()}${MESES[+m.slice(5) - 1].slice(1)} ${m.slice(0, 4)}` : 'Sem data';
