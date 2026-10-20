@@ -66,7 +66,7 @@
     authEsqueci: () => { S.esqueci = 'pedir'; S.render(); const i = document.querySelector('[data-form=esqueci] input'); if (i) i.focus(); },
     authVoltar: () => { S.esqueci = null; S.render(); },
     encerrarSuporte: async () => { await S.run(async () => { await S.q(S.sb.rpc('encerrar_suporte')); }, 'Acesso de suporte encerrado'); S.ui.vehicleId = null; location.hash = ''; S.iniciar(); },
-    contaMenu: (d, el) => S.menu(el, [{ label:'Trocar minha senha', icon:'chave', act:'trocarMinhaSenha' }, '-', { label:'Sair', icon:'voltar', act:'sair' }]),
+    contaMenu: (d, el) => S.menu(el, [{ label:'Trocar minha senha', icon:'chave', act:'trocarMinhaSenha' }, ...(S.ctx && S.ctx.suporte ? [] : [{ label:'Falar com o suporte', icon:'email', act:'irSuporte' }]), '-', { label:'Sair', icon:'voltar', act:'sair' }]),
     trocarMinhaSenha: () => S.trocarMinhaSenha(),
     sair: async () => { if (S.ctx && S.ctx.suporte) { try { await S.sb.rpc('encerrar_suporte'); } catch (e) { /* termina sozinho no horário */ } }
       await S.sb.auth.signOut(); S.me = null; S.ctx = null; S.bloqueio = null; S.db = {}; S.ui.vehicleId = null; location.hash = ''; S.render(); }

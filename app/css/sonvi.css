@@ -1412,3 +1412,16 @@ select[aria-expanded="true"] { border-color:var(--accent); box-shadow:0 0 0 3px 
   .credito.cel { display:flex; position:absolute; left:0; right:0; bottom:24px; color:var(--ink-2); }
   .acesso.music .credito.cel { color:#9ba1ad; }
 }
+
+/* Falar com o suporte (suporte.js): lista de chamados e a conversa com a equipe SONVI */
+.sp-duas { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.3fr); gap:20px; align-items:start; }
+.sp-lista > a { justify-content:space-between; }
+.sp-lista > a.on { background:color-mix(in srgb, var(--accent) 8%, transparent); }
+.sp-det { position:sticky; top:20px; }
+.sp-det .hd h2 { overflow-wrap:anywhere; }
+.sp-fio { display:flex; flex-direction:column; gap:8px; max-height:52vh; overflow-y:auto; padding:2px; margin-bottom:12px; }
+.sp-msg { display:flex; flex-direction:column; gap:3px; padding:10px 12px; border-radius:var(--radius-m); background:color-mix(in srgb, var(--accent) 9%, var(--surface)); font-size:14px; max-width:92%; align-self:flex-end; overflow-wrap:anywhere; }
+.sp-msg.sup { align-self:flex-start; background:var(--fill); }
+.sp-msg small { color:var(--ink-2); font-size:11.5px; }
+@media (max-width:1100px) { .sp-duas { grid-template-columns:minmax(0, 1fr); } .sp-det { position:static; } }
+.sp-det form .row { margin-top:10px; }
