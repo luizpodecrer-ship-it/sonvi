@@ -39,6 +39,14 @@ S.logo = (cls = '') => S.APP === 'music'
   : `<picture><source srcset="img/sonvi-branco.svg" media="(prefers-color-scheme: dark)"><img src="img/sonvi.svg" width="343" height="78" alt="SONVI"${cls ? ` class="${cls}"` : ''}></picture>`;
 // Logo da empresa comercial quando ela ainda não tem logo próprio: o da Head 14 (primeiro cliente) ou o do SONVI
 S.logoReserva = () => S.ctx && S.ctx.org && S.ctx.org.slug !== 'head14' ? 'img/sonvi.svg' : 'img/head14.png';
+// Assinatura "Desenvolvido por Astravox" no rodapé das telas de entrada (pedido em 20/10/2026).
+// fundo: 'escuro' (logo branco), 'claro' (logo preto) ou 'auto' (segue o tema claro/escuro). raiz: '' no app, '/' no Console.
+S.credito = (fundo = 'auto', raiz = '', cls = '') => {
+  const img = c => `${raiz}img/astravox-${c}.png`, alt = 'alt="Astravox" width="360" height="80"';
+  const logo = fundo === 'escuro' ? `<img src="${img('branco')}" ${alt}>` : fundo === 'claro' ? `<img src="${img('preto')}" ${alt}>`
+    : `<picture><source srcset="${img('branco')}" media="(prefers-color-scheme: dark)"><img src="${img('preto')}" ${alt}></picture>`;
+  return `<p class="credito${cls ? ' ' + cls : ''}">Desenvolvido por ${logo}</p>`;
+};
 S.iniciais = nome => String(nome || '?').trim().split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
 S.ICON = {
   dashboard:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',

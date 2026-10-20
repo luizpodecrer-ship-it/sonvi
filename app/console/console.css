@@ -124,3 +124,8 @@ tr.click { cursor:pointer; }
   .c-radio { grid-template-columns:minmax(0, 1fr) minmax(0, 1.4fr) 44px; }
   .c-radio label:first-child { grid-column:1 / -1; }
 }
+
+.c-entrar .lado { position:relative; padding-bottom:72px; }
+.c-entrar .lado > .credito { max-width:none; margin:0; position:absolute; left:0; right:0; bottom:26px; color:rgba(255,255,255,.72); }
+.c-entrar .forma { position:relative; }
+@media (max-width:820px) { .c-entrar .forma { padding-bottom:72px; } .c-entrar .credito.cel { display:flex; position:absolute; left:0; right:0; bottom:24px; color:var(--ink-2); } }

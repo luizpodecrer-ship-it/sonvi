@@ -34,12 +34,12 @@
   // ---------- Entrar ----------
   const telaEntrar = (msg = '') => `<div class="c-entrar"><div class="lado"><div class="c-marca"><img src="/img/sonvi-branco.svg" width="343" height="78" alt="SONVI"><span class="c-selo">CONSOLE</span></div>
       <div><h2>O painel de quem cuida da plataforma.</h2><p>Clientes, rádios, acessos e suporte. Acesso restrito à equipe SONVI.</p></div>
-      <p class="c-rodape">${S.svg('chave', 16)}console.sonvi.com.br · cada entrada de suporte fica registrada</p></div>
+      <p class="c-rodape">${S.svg('chave', 16)}console.sonvi.com.br · cada entrada de suporte fica registrada</p>${S.credito('escuro', '/')}</div>
     <div class="forma"><form class="auth" data-form="entrar" novalidate><div class="c-marca so-cel"><img src="/img/sonvi.svg" width="343" height="78" alt="SONVI"><span class="c-selo">CONSOLE</span></div>
       <h1>Entrar no Console</h1>${msg ? `<p class="c-aviso" role="alert">${esc(msg)}</p>` : '<p class="muted">Use o seu e-mail e a sua senha do SONVI.</p>'}
       <label class="f">E-mail<input name="email" type="email" required autocomplete="email" placeholder="seu@email.com.br"></label>
       <label class="f">Senha<input name="senha" type="password" required autocomplete="current-password" placeholder="Sua senha"></label>
-      <button class="btn pri">Entrar</button></form></div></div>`;
+      <button class="btn pri">Entrar</button></form>${S.credito('auto', '/', 'cel')}</div></div>`;
 
   // ---------- Menu ----------
   const NAV = [['clientes', 'Clientes', 'predio'], ['suporte', 'Acessos de suporte', 'escudo']];

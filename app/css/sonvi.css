@@ -1397,3 +1397,18 @@ select[aria-expanded="true"] { border-color:var(--accent); box-shadow:0 0 0 3px 
 .veh:has(select[aria-expanded="true"]) > svg { transform:rotate(180deg); }
 .veh > svg { transition:transform .3s cubic-bezier(.22,1,.36,1); }
 @media (prefers-reduced-motion: reduce) { .fl-painel, .fl-realce, .fl-item, .fl-ok, .fl-item .vav, .veh > svg { transition:none !important; } }
+
+/* Assinatura "Desenvolvido por Astravox" nas telas de entrada: pequena, embaixo e no centro do painel da esquerda;
+   no celular (painel escondido) vai para baixo do formulário */
+.credito { margin:0; display:flex; align-items:center; justify-content:center; gap:7px; font-size:11px; font-weight:500; letter-spacing:.02em; white-space:nowrap; }
+.credito img { width:auto; height:13px; display:block; }
+.credito picture { display:block; line-height:0; }
+.acesso .lado { padding-bottom:72px; }
+.acesso .lado > .credito { max-width:none; margin:0; position:absolute; left:0; right:0; bottom:26px; color:rgba(255,255,255,.72); }
+.acesso .forma { position:relative; }
+.credito.cel { display:none; }
+@media (max-width:820px) {
+  .acesso .forma { padding-bottom:72px; }
+  .credito.cel { display:flex; position:absolute; left:0; right:0; bottom:24px; color:var(--ink-2); }
+  .acesso.music .credito.cel { color:#9ba1ad; }
+}

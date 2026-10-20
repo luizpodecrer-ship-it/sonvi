@@ -9,12 +9,12 @@
   // Sonvi Music: tela escura com a marca do Sonvi Music
   const molduraMusic = miolo => `<div class="acesso music"><div class="lado"><img class="marca" src="img/sonvi-music-branco.png" width="1074" height="300" alt="Sonvi Music">
     <div><h2>A programação da rádio, do acervo ao ar.</h2><p>Para programadores e locutores. Os comerciais vendidos chegam prontos da OPEC do SONVI.</p></div>
-    <div class="eq" style="--tone:#0199ff" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div></div>
-    <div class="forma">${miolo}</div></div>`;
+    <div class="eq" style="--tone:#0199ff" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>${S.credito('escuro')}</div>
+    <div class="forma">${miolo}${S.credito('escuro', '', 'cel')}</div></div>`;
   const moldura_ = miolo => `<div class="acesso"><div class="lado"><img class="marca" src="img/sonvi-branco.svg" width="343" height="78" alt="SONVI"><img class="simbolo" src="img/simbolo-branco.svg" width="66" height="78" alt="">
     <div><h2>Do primeiro contato ao comercial no ar.</h2><p>Comercial, PI, OPEC, programação e financeiro da sua rádio em um só lugar.</p></div>
-    <div class="eq" style="--tone:#fff;opacity:.6" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div></div>
-    <div class="forma">${miolo}</div></div>`;
+    <div class="eq" style="--tone:#fff;opacity:.6" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>${S.credito('escuro')}</div>
+    <div class="forma">${miolo}${S.credito('auto', '', 'cel')}</div></div>`;
 
   const moldura = miolo => S.APP === 'music' ? molduraMusic(miolo) : moldura_(miolo);
 
