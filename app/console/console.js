@@ -191,6 +191,74 @@
     document.getElementById('dlg').dataset.guarda = '1';
   };
 
+  const enderecoCompleto = c => { const o = c.dados || {}; return [[o.endereco, o.numero].filter(Boolean).join(', '), o.complemento, o.bairro, c.cidade, o.cep].filter(Boolean).join(' · '); };
+  const emailsDe = c => ((c.dados || {}).emails_cobranca || '').split(/[,;\s]+/).filter(Boolean);
+
+  // ---------- Dados completos do cliente (Editar dados) ----------
+  const campo = (rotulo, nome, valor, extra = '', cls = '') => `<label class="f${cls ? ' ' + cls : ''}">${rotulo}<input name="${nome}" value="${esc(valor || '')}" ${extra}></label>`;
+  const formCliente = c => {
+    const o = c.dados || {}, sit = c.situacao;
+    S.dialog(`<h2>Dados · ${esc(c.nome)}</h2><p class="muted small c-dlg-sub">${esc(endereco(c.slug))} · cliente desde ${S.dfmt(c.criado_em)}</p>
+      <fieldset class="c-sec"><legend><span class="n">1</span>Empresa</legend><div class="g2">
+        <label class="f">CNPJ<span class="c-busca-campo"><input name="cnpj" data-mask="cnpj" inputmode="numeric" value="${esc(c.cnpj || '')}" autocomplete="off"><button type="button" class="btn sm" data-act="cnpjBuscar" data-alvo="cliente">Buscar</button></span></label>
+        ${campo('Nome no SONVI (aparece na tela de entrada)', 'nome', c.nome, 'required autocomplete="off" data-form-type="other"')}
+        ${campo('Razão social', 'razao_social', o.razao_social, 'autocomplete="off"', 'g-full')}</div></fieldset>
+      <fieldset class="c-sec"><legend><span class="n">2</span>Endereço</legend>
+        <div class="c-g-end">${campo('CEP', 'cep_c', o.cep, 'data-mask="cep" inputmode="numeric" autocomplete="off"')}${campo('Rua', 'endereco', o.endereco, 'autocomplete="off"')}${campo('Número', 'numero', o.numero, 'autocomplete="off"')}</div>
+        <div class="c-g3">${campo('Complemento', 'complemento', o.complemento, 'placeholder="Sala, andar" autocomplete="off"')}${campo('Bairro', 'bairro', o.bairro, 'autocomplete="off"')}${campo('Cidade / UF', 'cidade', c.cidade, 'placeholder="Cuiabá / MT" autocomplete="off"')}</div></fieldset>
+      <fieldset class="c-sec"><legend><span class="n">3</span>Contato e cobrança</legend><div class="g2">
+        ${campo('Responsável financeiro', 'responsavel_financeiro', o.responsavel_financeiro, 'placeholder="Nome de quem cuida dos pagamentos" autocomplete="off"')}
+        ${campo('Telefone / WhatsApp', 'telefone', o.telefone, 'data-mask="tel" inputmode="tel" autocomplete="off"')}
+        <div class="f g-full"><label for="emailsNovo">E-mails de cobrança (recebem mensalidades, avisos e recibos)</label>
+          <div class="c-emails" data-emails>${emailsDe(c).map(e => chipEmail(e)).join('')}<input id="emailsNovo" type="email" placeholder="Digite e aperte Enter para mais um" autocomplete="off" data-email-novo></div>
+          <input type="hidden" name="emails_cobranca" value="${esc(emailsDe(c).join(', '))}"></div></div></fieldset>
+      <fieldset class="c-sec"><legend><span class="n">4</span>Acesso ao SONVI</legend>
+        <div class="row c-acesso"><div class="f">Situação<div class="seg c-seg-f" role="radiogroup" aria-label="Situação">${[['teste', 'Em teste'], ['ativo', 'Ativo'], ['suspenso', 'Suspenso']].map(([k, n]) => `<label class="${sit === k ? 'on' : ''}"><input type="radio" name="situacao" value="${k}"${sit === k ? ' checked' : ''}>${n}</label>`).join('')}</div></div>
+          <label class="f" data-so-teste${sit === 'teste' ? '' : ' hidden'}>Teste até<input type="date" name="teste_ate" value="${esc(c.teste_ate || fimTeste())}"></label>
+          <span class="muted small">Endereço: <b>${esc(endereco(c.slug))}</b> (não muda)</span></div>
+        <p class="c-aviso" data-so-suspenso${sit === 'suspenso' ? '' : ' hidden'}>Suspenso: ninguém da ${esc(c.nome)} entra no SONVI; quem tentar vê "Acesso suspenso". Os dados ficam guardados.</p>
+        <div class="c-logo-campo"><span class="c-logo-prev" id="logoPrev">${c.logo ? `<img src="${esc(c.logo.startsWith('img/') ? '/' + c.logo : c.logo)}" width="600" height="122" alt="Logo atual">` : '<span class="muted small">Sem logo</span>'}</span>
+          <span class="tx"><b>Logo</b><small class="muted">Horizontal, PNG ou JPG. Aparece na tela de entrada e nas propostas.</small><span class="row"><button type="button" class="btn sm" data-act="logoEscolher">Trocar logo</button></span></span>
+          <input type="file" id="logoArq" accept="image/png,image/jpeg,image/webp" hidden><input type="hidden" name="logo" value=""></div></fieldset>
+      <div class="row c-dlg-fim"><span class="grow muted small">Contrato, mensalidades e equipe ficam nos cartões da página do cliente.</span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar</button></div>`,
+      f => (async () => {
+        const p = { nome:f.nome, cnpj:f.cnpj, razao_social:f.razao_social, cep:f.cep_c, endereco:f.endereco, numero:f.numero, complemento:f.complemento, bairro:f.bairro, cidade:f.cidade,
+          responsavel_financeiro:f.responsavel_financeiro, telefone:f.telefone, emails_cobranca:f.emails_cobranca, situacao:f.situacao, teste_ate:f.situacao === 'teste' ? f.teste_ate || '' : '' };
+        if (f.logo) p.logo = f.logo;
+        try { await q(sb.rpc('console_salvar_cliente', { p_id:c.id, p })); await recarregar(); S.toast('Dados salvos'); render(); } catch (e) { S.toast(S.erro(e)); formCliente(Object.assign({}, c)); }
+      })());
+    const dlg = document.getElementById('dlg'); dlg.dataset.guarda = '1'; dlg.classList.add('c-dlg-largo');
+    dlg.addEventListener('close', () => dlg.classList.remove('c-dlg-largo'), { once:true });
+  };
+  const chipEmail = e => `<span class="c-chip-email">${esc(e)}<button type="button" data-tirar-email="${esc(e)}" aria-label="Tirar ${esc(e)}">✕</button></span>`;
+  const sincronizarEmails = box => { const h = box.parentElement.querySelector('[name=emails_cobranca]'); h.value = [...box.querySelectorAll('.c-chip-email')].map(x => x.firstChild.textContent).join(', '); document.getElementById('dlg').dataset.sujo = '1'; };
+  const addEmail = inp => { const box = inp.closest('[data-emails]'), novos = inp.value.split(/[,;\s]+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+    for (const e of novos) { if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { S.toast(`E-mail inválido: ${e}`); return; }
+      if (![...box.querySelectorAll('.c-chip-email')].some(x => x.firstChild.textContent === e)) inp.insertAdjacentHTML('beforebegin', chipEmail(e)); }
+    inp.value = ''; sincronizarEmails(box); };
+  // Busca de CNPJ (Receita, pela BrasilAPI): preenche o que estiver vazio e a razão social
+  const buscarCnpj = async num => { const n = String(num || '').replace(/\D/g, ''); if (n.length !== 14) throw new Error('Digite o CNPJ completo (14 números).');
+    const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${n}`); if (r.status === 404) throw new Error('CNPJ não encontrado na Receita.'); if (!r.ok) throw new Error('A consulta do CNPJ não respondeu agora. Tente de novo.');
+    return r.json(); };
+  // Lista de bancos (BrasilAPI), carregada uma vez
+  let BANCOS = null;
+  const RESERVA_BANCOS = [['001', 'Banco do Brasil'], ['033', 'Santander'], ['077', 'Banco Inter'], ['104', 'Caixa Econômica Federal'], ['208', 'BTG Pactual'], ['237', 'Bradesco'], ['260', 'Nu Pagamentos (Nubank)'], ['290', 'PagBank'], ['323', 'Mercado Pago'], ['336', 'C6 Bank'], ['341', 'Itaú Unibanco'], ['403', 'Cora'], ['748', 'Sicredi'], ['756', 'Sicoob']];
+  const carregarBancos = async () => { if (BANCOS) return BANCOS;
+    try { const r = await fetch('https://brasilapi.com.br/api/banks/v1'); const l = await r.json();
+      BANCOS = l.filter(b => b.code).map(b => [String(b.code).padStart(3, '0'), b.name || b.fullName]).sort((a, b) => a[0].localeCompare(b[0])); }
+    catch (e) { BANCOS = RESERVA_BANCOS; }
+    return BANCOS; };
+  const semAcento = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const PIX = { cnpj:['CNPJ', 'cnpj', '00.000.000/0000-00'], cpf:['CPF', 'cpf', '000.000.000-00'], email:['E-mail', '', 'financeiro@empresa.com.br'], celular:['Celular', 'tel', '(65) 99999-9999'], aleatoria:['Aleatória', '', 'Chave de 32 caracteres'] };
+  const previaCobranca = f => { const v = k => (f.querySelector(`[name=${k}]`) || {}).value || '', tipo = (f.querySelector('[name=conta_tipo]:checked') || {}).value || 'corrente';
+    const prop = (f.querySelector('[name=favorecido_proprio]') || {}).checked, pt = (f.querySelector('[name=pix_tipo]:checked') || {}).value || 'cnpj';
+    const fav = prop ? `${v('razao_social') || v('empresa')} · CNPJ ${v('cnpj')}` : [v('favorecido_nome'), v('favorecido_doc')].filter(Boolean).join(' · ');
+    const multa = S.num(v('multa')), juros = S.num(v('juros')), ex = 1500 + 1500 * multa / 100 + 1500 * juros / 100 * 10 / 30;
+    return `<small class="c-prev-rot">COBRANÇA · SONVI</small><span>Segue a cobrança do SONVI de <b>[cliente]</b>.</span><span class="muted">Mensalidade 2/12 · vence [data] · <b>R$ 2.800,00</b></span>
+      <div class="c-prev-pagar"><small class="muted">Como pagar</small>${v('pix_chave') ? `<span>Pix (${PIX[pt][0]}): <b>${esc(v('pix_chave'))}</b></span>` : '<span class="muted">Pix: [cadastre a chave]</span>'}
+        ${v('banco_codigo') && v('conta') ? `<span>Transferência: ${esc(v('banco_nome'))} (${esc(v('banco_codigo'))})<br>Agência ${esc(v('agencia'))}${v('agencia_dv') ? '-' + esc(v('agencia_dv')) : ''} · ${{ corrente:'Conta corrente', poupanca:'Conta poupança', pagamento:'Conta de pagamento' }[tipo]} ${esc(v('conta'))}${v('conta_dv') ? '-' + esc(v('conta_dv')) : ''}<br>Favorecido: ${esc(fav)}</span>` : '<span class="muted">Transferência: [escolha o banco e a conta]</span>'}</div>
+      <small class="muted">Após o vencimento: multa de ${esc(v('multa') || '0')}% e juros de ${esc(v('juros') || '0')}% ao mês. Ex.: R$ 1.500,00 pagos com 10 dias de atraso = ${S.brl(ex)}.</small>`; };
+
   // ---------- Contrato do cliente ----------
   const cartaoContrato = c => {
     const k = c.contrato, cs = cobsDe(c).filter(x => x.situacao !== 'cancelada'), edita = pode('proprietario', 'financeiro');
@@ -206,7 +274,7 @@
         <div><small>Vigência</small><span><b>${S.dfmt(k.inicio)} a ${S.dfmt(fimContrato(k))}</b> · ${pagas} de ${k.meses} pagas</span></div>
         <div><small>Próxima</small><span>${prox ? `<b>${S.dfmt(prox.vencimento)}</b> · ${ate(diasAte(prox.vencimento))}` : '<span class="muted">nenhuma em aberto</span>'}</span></div>
         <div><small>Implantação</small><span>${Number(k.implantacao_valor) ? `${S.brl(k.implantacao_valor)} em ${k.implantacao_parcelas}x` : '<span class="muted">sem taxa</span>'}</span></div>
-        <div><small>E-mail de cobrança</small><span>${k.email_cobranca ? esc(k.email_cobranca) : '<span class="muted">— (sem e-mail, os avisos não saem)</span>'}</span></div>
+        <div><small>E-mails de cobrança</small><span>${emailsDe(c).length ? esc(emailsDe(c).join(', ')) : '<span class="muted">— cadastre em "Editar dados" (sem e-mail os avisos não saem)</span>'}</span></div>
         <div><small>Quem paga · reajuste</small><span>${esc(k.pagador || c.nome)} · ${esc(k.reajuste || 'IPCA')}</span></div></div>
       ${lista.length ? `<div class="scroll"><table class="c-mini"><thead><tr><th>Referente</th><th>Vencimento</th><th class="r">Valor</th><th>Situação</th></tr></thead><tbody>${lista.map(x => `<tr><td>${esc(x.descricao)}</td><td class="nowrap">${S.dfmt(x.vencimento)}</td><td class="r nowrap">${S.brl(x.valor)}</td><td>${cobPill(x)}</td></tr>`).join('')}</tbody></table></div>
         <a class="c-link" href="#/financeiro" data-act="verFinCliente" data-id="${c.id}">Ver todas no Financeiro</a>` : ''}</section>`;
@@ -232,7 +300,7 @@
           <p class="muted small">Logo, cores, textos do PI e tabela de preços o diretor completa dentro do SONVI.</p></section>
 
         <section class="card"><div class="hd"><h2>Dados da empresa</h2>${prop ? `<button class="btn sm" data-act="editarCliente" data-id="${c.id}">${S.svg('editar')}Editar dados</button>` : ''}</div>
-          <div class="c-kv">${kv('Nome', c.nome)}${kv('CNPJ', c.cnpj)}${kv('Cidade', c.cidade)}${kv('Endereço no SONVI', endereco(c.slug))}${kv('Situação', (SIT[c.situacao] || [c.situacao])[0] + (c.situacao === 'teste' && c.teste_ate ? ' até ' + S.dfmt(c.teste_ate) : ''))}${kv('Chamados abertos', String(abertos().filter(ch => ch.organizacao_id === c.id).length))}</div></section>
+          <div class="c-kv">${kv('Nome no SONVI', c.nome)}${kv('Razão social', (c.dados || {}).razao_social)}${kv('CNPJ', c.cnpj)}${kv('Endereço', enderecoCompleto(c))}${kv('Responsável financeiro', [(c.dados || {}).responsavel_financeiro, (c.dados || {}).telefone].filter(Boolean).join(' · '))}${kv('E-mails de cobrança', (c.dados || {}).emails_cobranca)}${kv('Endereço no SONVI', endereco(c.slug))}${kv('Situação', (SIT[c.situacao] || [c.situacao])[0] + (c.situacao === 'teste' && c.teste_ate ? ' até ' + S.dfmt(c.teste_ate) : ''))}${kv('Chamados abertos', String(abertos().filter(ch => ch.organizacao_id === c.id).length))}</div></section>
         <section class="card c-largo"><div class="hd"><h2>Equipe</h2><span>${plural(c.equipe.filter(u => u.ativo).length, 'usuário ativo', 'usuários ativos')}</span>${prop ? `<button class="btn sm" data-act="novoUsuario" data-id="${c.id}">${S.svg('mais')}Cadastrar usuário</button>` : ''}</div>
           ${c.equipe.length ? `<div class="list">${c.equipe.map(u => `<div class="${u.ativo ? '' : 'c-inativo'}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome || '—')}</b><small>${esc(funcaoTexto(c, u))}</small><small>${esc(u.email)}${u.celular ? ' · <span class="nowrap">' + esc(u.celular) + '</span>' : ''}</small></span>
             <span class="c-sit">${situacaoUsuario(u)}</span>${prop ? `<button class="btn tres" data-act="usuarioMenu" data-id="${u.id}" data-org="${c.slug}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button>` : ''}</div>`).join('')}</div>`
@@ -397,15 +465,38 @@
         <div class="scroll"><table class="c-matriz"><thead><tr><th><span class="sr">Permissão</span></th><th>Proprietário</th><th>Suporte</th><th>Financeiro</th></tr></thead><tbody>
           ${[['Clientes: ver', '✓', '✓', '✓'], ['Clientes: criar, editar, excluir', '✓', '—', '—'], ['Contratos e mensalidades', '✓', 'ver', '✓'], ['Chamados', '✓', '✓', 'ver'], ['Entrar como suporte', '✓', '✓', '—'], ['Configurações', '✓', '—', '—']]
             .map(([n, ...v]) => `<tr><td>${n}</td>${v.map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section></div>`;
-    if (abaCfg === 'cobranca') corpo = `<form class="card c-cfg" data-form="config" novalidate><div class="hd"><h2>Quem cobra</h2></div>
-        <div class="g2"><label class="f">Empresa<input name="empresa" required value="${esc(cfg.empresa || '')}"></label><label class="f">CNPJ<input name="cnpj" data-mask="cnpj" inputmode="numeric" value="${esc(cfg.cnpj || '')}"></label>
-          <label class="f">Chave Pix<input name="pix_chave" value="${esc(cfg.pix_chave || '')}" placeholder="CNPJ, e-mail, celular ou chave aleatória" autocomplete="off"></label>
-          <label class="f">E-mail que recebe respostas e cópias<input name="email_resposta" type="email" value="${esc(cfg.email_resposta || '')}" placeholder="financeiro@astravox.com.br"></label>
-          <label class="f" style="grid-column:1/-1">Dados bancários (saem no e-mail de cobrança)<textarea name="dados_bancarios" rows="3" placeholder="Banco, agência, conta e favorecido">${esc(cfg.dados_bancarios || '')}</textarea></label>
-          <label class="f">Multa após o vencimento (%)<input name="multa" data-mask="dec" inputmode="decimal" value="${esc(String(cfg.multa ?? 2).replace('.', ','))}"></label>
-          <label class="f">Juros ao mês (%)<input name="juros" data-mask="dec" inputmode="decimal" value="${esc(String(cfg.juros ?? 1).replace('.', ','))}"></label>
-          <label class="f" style="grid-column:1/-1">Serviço de boletos<select disabled data-nativo><option>A configurar depois</option></select></label></div>
-        <div class="row"><span class="grow"></span><button class="btn pri">Salvar</button></div></form>`;
+    if (abaCfg === 'cobranca') { const sg = (nome, ops, atual, rot) => `<div class="seg c-seg-f" role="radiogroup" aria-label="${rot}">${ops.map(([k, n]) => `<label class="${atual === k ? 'on' : ''}"><input type="radio" name="${nome}" value="${k}"${atual === k ? ' checked' : ''}>${n}</label>`).join('')}</div>`;
+      const pt = cfg.pix_tipo || 'cnpj', banco = cfg.banco_codigo ? `${cfg.banco_codigo} · ${cfg.banco_nome}` : '';
+      corpo = `<form class="c-cfg-cob" data-form="config" data-cob novalidate><div class="c-duas c-duas-cob"><div class="c-col">
+        <section class="card"><div class="hd"><h2>Quem cobra</h2></div><div class="g2">
+          <label class="f">CNPJ<span class="c-busca-campo"><input name="cnpj" data-mask="cnpj" inputmode="numeric" value="${esc(cfg.cnpj || '')}" autocomplete="off"><button type="button" class="btn sm" data-act="cnpjBuscar" data-alvo="config">Buscar</button></span></label>
+          <label class="f">Nome que aparece nos e-mails<input name="empresa" required value="${esc(cfg.empresa || '')}" autocomplete="off" data-form-type="other"></label>
+          <label class="f g-full">Razão social<input name="razao_social" value="${esc(cfg.razao_social || '')}" autocomplete="off"></label>
+          <label class="f g-full">E-mail que recebe as respostas e as cópias de atraso<input name="email_resposta" type="email" value="${esc(cfg.email_resposta || '')}" placeholder="financeiro@astravox.com.br" autocomplete="off"></label></div></section>
+        <section class="card"><div class="hd"><h2>Conta para receber</h2></div>
+          <div class="f c-banco"><label for="bancoBusca">Banco · digite o número ou o nome</label>
+            <input id="bancoBusca" value="${esc(banco)}" placeholder="Ex.: 341 ou Itaú" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="bancoLista" aria-autocomplete="list">
+            <div class="c-banco-lista" id="bancoLista" role="listbox" hidden></div>
+            <small class="${banco ? 'c-ok' : 'muted'}" data-banco-ok>${banco ? '✓ Banco ' + esc(banco) : 'Busca na lista oficial de bancos do Brasil.'}</small>
+            <input type="hidden" name="banco_codigo" value="${esc(cfg.banco_codigo || '')}"><input type="hidden" name="banco_nome" value="${esc(cfg.banco_nome || '')}"></div>
+          <div class="c-g-conta"><label class="f">Agência<input name="agencia" value="${esc(cfg.agencia || '')}" inputmode="numeric" placeholder="0000" autocomplete="off" maxlength="6"></label>
+            <label class="f">Dígito<input name="agencia_dv" value="${esc(cfg.agencia_dv || '')}" placeholder="—" autocomplete="off" maxlength="2"></label>
+            <label class="f">Conta<input name="conta" value="${esc(cfg.conta || '')}" inputmode="numeric" placeholder="00000000" autocomplete="off" maxlength="14"></label>
+            <label class="f">Dígito<input name="conta_dv" value="${esc(cfg.conta_dv || '')}" placeholder="0" autocomplete="off" maxlength="2"></label></div>
+          <div class="row c-acesso"><div class="f">Tipo de conta${sg('conta_tipo', [['corrente', 'Corrente'], ['poupanca', 'Poupança'], ['pagamento', 'Pagamento']], cfg.conta_tipo || 'corrente', 'Tipo de conta')}</div>
+            <label class="c-chk"><input type="checkbox" name="favorecido_proprio"${cfg.favorecido_proprio === false ? '' : ' checked'}>Favorecido é quem cobra (mesmo CNPJ)</label></div>
+          <div class="g2" data-favorecido${cfg.favorecido_proprio === false ? '' : ' hidden'}><label class="f">Nome do favorecido<input name="favorecido_nome" value="${esc(cfg.favorecido_nome || '')}" autocomplete="off"></label>
+            <label class="f">CPF ou CNPJ do favorecido<input name="favorecido_doc" data-mask="doc" inputmode="numeric" value="${esc(cfg.favorecido_doc || '')}" autocomplete="off"></label></div></section>
+        <section class="card"><div class="hd"><h2>Pix</h2></div>
+          <div class="f">Tipo de chave${sg('pix_tipo', Object.entries(PIX).map(([k, [n]]) => [k, n]), pt, 'Tipo de chave Pix')}</div>
+          <label class="f">Chave<input name="pix_chave" value="${esc(cfg.pix_chave || '')}" ${PIX[pt][1] ? `data-mask="${PIX[pt][1]}"` : ''} placeholder="${PIX[pt][2]}" autocomplete="off"></label></section>
+        <section class="card"><div class="hd"><h2>Depois do vencimento</h2></div><div class="g2">
+          <label class="f">Multa<span class="c-sufixo"><input name="multa" data-mask="dec" inputmode="decimal" value="${esc(String(cfg.multa ?? 2).replace('.', ','))}"><span>% uma vez</span></span></label>
+          <label class="f">Juros<span class="c-sufixo"><input name="juros" data-mask="dec" inputmode="decimal" value="${esc(String(cfg.juros ?? 1).replace('.', ','))}"><span>% ao mês</span></span></label></div></section>
+        <div class="row c-fim-cfg"><span class="grow"></span><button type="button" class="btn" data-act="cfgDescartar">Descartar</button><button class="btn pri">Salvar</button></div></div>
+      <div class="c-col"><section class="card"><div class="hd"><h2>Como sai no e-mail de cobrança</h2></div><div class="c-prev" data-previa></div></section>
+        <section class="card"><div class="hd"><h2>Boleto automático</h2><span class="pill" style="--tone:var(--orange)">A configurar</span></div>
+          <p class="muted">Escolha o serviço quando quiser (Asaas, Efí, Inter, Mercado Pago). Com ele, boleto e Pix com QR Code saem sozinhos e a baixa é automática.</p></section></div></div></form>`; }
     if (abaCfg === 'avisos') corpo = `<form class="card c-cfg" data-form="config" novalidate><div class="hd"><h2>Avisos de cobrança por e-mail</h2></div>
         <label class="c-op"><input type="checkbox" name="avisos_ligados"${cfg.avisos_ligados ? ' checked' : ''}><span><b>Mandar os avisos automáticos</b><small>Todo dia às 8h (Cuiabá), de cobranca@sonvi.com.br para o e-mail de cobrança de cada contrato. Cliente suspenso não recebe.</small></span></label>
         <div class="g2"><label class="f">Lembrete: dias antes do vencimento<input name="aviso_dias_antes" type="number" min="1" max="30" value="${esc(cfg.aviso_dias_antes ?? 5)}"></label>
@@ -432,6 +523,7 @@
     if (v === 'suporte' && id && id !== 'acessos' && window.matchMedia('(max-width:1100px)').matches && S._rolarCh !== id) { S._rolarCh = id; const det = document.getElementById('chDet'); if (det) det.scrollIntoView({ block:'start' }); }
     ultima = chave; document.title = `${t.titulo.replace(/<[^>]+>/g, '')} · Console SONVI`;
     S.mascarar(cmain);
+    const pv = cmain.querySelector('[data-previa]'); if (pv) pv.innerHTML = previaCobranca(pv.closest('form'));
   };
   S.render = render;
 
@@ -532,14 +624,7 @@
       if (!ok) return;
       try { await q(sb.rpc('console_salvar_cliente', { p_id:c.id, p:{ nome:c.nome, cnpj:c.cnpj, cidade:c.cidade, situacao:susp ? 'ativo' : 'suspenso' } })); await recarregar(); S.toast(susp ? `${c.nome} reativada` : `${c.nome} suspensa`); render(); }
       catch (e) { S.toast(S.erro(e)); } },
-    editarCliente: d => { const c = D.clientes.find(x => x.id === d.id);
-      S.form(`Dados · ${esc(c.nome)}`, [{ k:'nome', label:'Nome da empresa', req:true, full:true }, { k:'cnpj', label:'CNPJ', mask:'cnpj' }, { k:'cidade', label:'Cidade / UF' },
-        { k:'situacao', label:'Situação', type:'select', options:[['teste', 'Em teste'], ['ativo', 'Ativo'], ['suspenso', 'Suspenso']] }, { k:'teste_ate', label:'Teste até (se em teste)', type:'date' },
-        { html:`<div class="c-logo-campo" style="grid-column:1/-1"><span class="c-logo-prev" id="logoPrev">${c.logo ? `<img src="${esc(c.logo.startsWith('img/') ? '/' + c.logo : c.logo)}" width="600" height="122" alt="Logo atual">` : '<span class="muted small">Sem logo</span>'}</span>
-          <span class="tx"><b>Logo</b><small class="muted">Aparece na tela de entrada do cliente.</small><span class="row"><button type="button" class="btn sm" data-act="logoEscolher">Trocar logo</button></span></span>
-          <input type="file" id="logoArq" accept="image/png,image/jpeg,image/webp" hidden><input type="hidden" name="logo" value=""></div>` }],
-        c, f => (async () => { try { const p = { nome:f.nome, cnpj:f.cnpj, cidade:f.cidade, situacao:f.situacao, teste_ate:f.teste_ate || '' }; if (f.logo) p.logo = f.logo;
-          await q(sb.rpc('console_salvar_cliente', { p_id:c.id, p })); await recarregar(); S.toast('Dados salvos'); render(); } catch (e) { S.toast(S.erro(e)); } })(), 'Salvar', { editar:true }); },
+    editarCliente: d => formCliente(D.clientes.find(x => x.id === d.id)),
     novaRadio: d => S.form('Adicionar rádio', [{ k:'nome', label:'Nome da rádio', req:true, full:true }, { k:'sigla', label:'Sigla do PI', req:true }, { k:'cidade', label:'Cidade / UF' }], {},
       f => (async () => { try { await q(sb.rpc('console_adicionar_radio', { p_org:d.id, p_nome:f.nome, p_sigla:f.sigla, p_cidade:f.cidade || '' })); await recarregar(); S.toast('Rádio adicionada'); render(); } catch (e) { S.toast(S.erro(e)); } })(), 'Adicionar'),
     novoUsuario: d => formUsuario(D.clientes.find(x => x.id === d.id)),
@@ -591,21 +676,20 @@
     contrato: d => { const c = D.clientes.find(x => x.id === d.id), k = c.contrato;
       const dir = c.equipe.find(u => u.diretor && u.ativo);
       const v = k ? Object.assign({}, k, { valor_mensal:String(k.valor_mensal).replace('.', ','), implantacao_valor:Number(k.implantacao_valor) ? String(k.implantacao_valor).replace('.', ',') : '' })
-        : { valor_mensal:'', implantacao_valor:'', implantacao_parcelas:'1', dia_vencimento:'10', inicio:hojeISO(), meses:'12', reajuste:'IPCA', forma:'pix', email_cobranca:dir ? dir.email : '', pagador:[c.nome, c.cnpj ? 'CNPJ ' + c.cnpj : ''].filter(Boolean).join(' · ') };
+        : { valor_mensal:'', implantacao_valor:'', implantacao_parcelas:'1', dia_vencimento:'10', inicio:hojeISO(), meses:'12', reajuste:'IPCA', forma:'pix', pagador:[c.nome, c.cnpj ? 'CNPJ ' + c.cnpj : ''].filter(Boolean).join(' · ') };
       S.form(`Contrato · ${esc(c.nome)}`, [
         { k:'valor_mensal', label:'Valor da mensalidade (R$)', mask:'dec', req:true }, { k:'dia_vencimento', label:'Dia do vencimento', type:'select', options:Array.from({ length:28 }, (_, i) => [String(i + 1), 'Dia ' + (i + 1)]) },
         { k:'implantacao_valor', label:'Taxa de implantação (R$, opcional)', mask:'dec' }, { k:'implantacao_parcelas', label:'Implantação em', type:'select', options:Array.from({ length:12 }, (_, i) => [String(i + 1), (i + 1) + 'x']) },
         { k:'inicio', label:'Início da cobrança', type:'date', req:true }, { k:'meses', label:'Período do contrato', type:'select', options:mesesOpc(v.meses) },
         { k:'reajuste', label:'Reajuste anual', type:'select', options:[['IPCA', 'IPCA, no aniversário'], ['IGP-M', 'IGP-M, no aniversário'], ['Sem reajuste', 'Sem reajuste']] },
         { k:'forma', label:'Forma de pagamento', type:'select', options:FORMAS },
-        { k:'email_cobranca', label:'E-mail de cobrança (para mais de um, separe com vírgula)', full:true, ph:'financeiro@empresa.com.br' },
+        { html:`<p class="muted small" style="grid-column:1/-1">E-mails de cobrança: <b>${esc(emailsDe(c).join(', ') || 'nenhum')}</b> (mudam em "Editar dados" do cliente).</p>` },
         { k:'pagador', label:'Dados de quem paga', full:true, ph:'Razão social · CNPJ' }, { k:'observacoes', label:'Observações', type:'textarea' },
         { html:`<p class="muted small" style="grid-column:1/-1">Ao salvar, o Console cria as mensalidades do período (a primeira no dia escolhido do mês do início, ou do mês seguinte se o dia já passou) e as parcelas da implantação. Mudar o valor depois vale para as que estão em aberto e ainda não venceram; as pagas não mudam.</p>` }],
         v, f => (async () => {
           const mensal = S.num(f.valor_mensal), imp = S.num(f.implantacao_valor);
           if (mensal <= 0 && imp <= 0) return S.toast('Informe o valor da mensalidade.');
-          const emails = String(f.email_cobranca || '').split(/[,;\s]+/).filter(Boolean);
-          if (emails.some(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) return S.toast('Confira o e-mail de cobrança.');
+          const emails = emailsDe(c);
           try { const r = await q(sb.rpc('console_salvar_contrato', { p_org:c.id, p:{ valor_mensal:mensal, implantacao_valor:imp, implantacao_parcelas:Number(f.implantacao_parcelas), dia_vencimento:Number(f.dia_vencimento),
               inicio:f.inicio, meses:Number(f.meses), reajuste:f.reajuste, forma:f.forma, email_cobranca:emails.join(', '), pagador:f.pagador, observacoes:f.observacoes } }));
             await recarregar(); render(); S.toast(k ? 'Contrato salvo' : `Contrato salvo · ${plural(cobsDe(c).filter(x => x.situacao === 'aberta').length || r.mensalidades, 'cobrança criada', 'cobranças criadas')}`); }
@@ -668,6 +752,18 @@
 
     // Configurações
     cfgAba: d => { abaCfg = d.tab; render(); },
+    cfgDescartar: () => render(),
+    cnpjBuscar: async (d, botao) => { const f = botao.closest('form'), cnpj = f.querySelector('[name=cnpj]'), txt = botao.textContent;
+      botao.disabled = true; botao.textContent = 'Buscando…';
+      try { const r = await buscarCnpj(cnpj.value), pôr = (nome, val, sempre) => { const el = f.querySelector(`[name=${nome}]`); if (el && val && (sempre || !el.value.trim())) el.value = val; };
+        pôr('razao_social', r.razao_social, true);
+        if (d.alvo === 'cliente') { pôr('nome', r.nome_fantasia); pôr('cep_c', r.cep ? String(r.cep).replace(/^(\d{5})(\d{3})$/, '$1-$2') : ''); pôr('endereco', [r.descricao_tipo_de_logradouro, r.logradouro].filter(Boolean).join(' '));
+          pôr('numero', r.numero); pôr('complemento', r.complemento); pôr('bairro', r.bairro); pôr('cidade', r.municipio ? `${r.municipio.charAt(0) + r.municipio.slice(1).toLowerCase().replace(/(^|\s)\S/g, m => m.toUpperCase())} / ${r.uf}` : '');
+          pôr('telefone', r.ddd_telefone_1); }
+        f.dispatchEvent(new Event('input', { bubbles:true })); const dlg = document.getElementById('dlg'); if (dlg.open) dlg.dataset.sujo = '1';
+        S.toast('Dados da Receita preenchidos'); }
+      catch (e) { S.toast(S.erro(e)); }
+      botao.disabled = false; botao.textContent = txt; },
     equipeNovo: () => formEquipe(),
     equipeMenu: (d, botao) => { const u = membro(d.id);
       S.menu(botao, [{ label:'Editar', icon:'editar', act:'equipeEditar', data:d }, { label:'Gerar nova senha provisória', icon:'chave', act:'equipeSenha', data:d },
@@ -695,6 +791,42 @@
   });
   document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('tr[data-go]')) { e.preventDefault(); location.hash = e.target.dataset.go; } });
   window.addEventListener('hashchange', render);
+  // Editar dados: e-mails em etiquetas, situação, CEP
+  document.addEventListener('keydown', e => { if (!e.target.matches('[data-email-novo]')) return;
+    if (e.key === 'Enter' || e.key === ',' || e.key === ';') { e.preventDefault(); if (e.target.value.trim()) addEmail(e.target); }
+    if (e.key === 'Backspace' && !e.target.value) { const ult = e.target.previousElementSibling; if (ult && ult.classList.contains('c-chip-email')) { ult.remove(); sincronizarEmails(e.target.closest('[data-emails]')); } } });
+  document.addEventListener('focusout', e => { if (e.target.matches('[data-email-novo]') && e.target.value.trim()) addEmail(e.target); });
+  document.addEventListener('click', e => { const b = e.target.closest('[data-tirar-email]'); if (!b) return; const box = b.closest('[data-emails]'); b.parentElement.remove(); sincronizarEmails(box); box.querySelector('input').focus(); });
+  document.addEventListener('change', e => { const t = e.target;
+    if (t.matches('.c-seg-f input[type=radio]')) { t.closest('.c-seg-f').querySelectorAll('label').forEach(l => l.classList.toggle('on', l.contains(t)));
+      const f = t.closest('form');
+      if (t.name === 'situacao') { f.querySelector('[data-so-teste]').hidden = t.value !== 'teste'; f.querySelector('[data-so-suspenso]').hidden = t.value !== 'suspenso'; }
+      if (t.name === 'pix_tipo') { const k = f.querySelector('[name=pix_chave]'), m = PIX[t.value]; if (m[1]) k.dataset.mask = m[1]; else delete k.dataset.mask; k.placeholder = m[2]; k.setCustomValidity(''); S.mascarar(f); k.focus(); } }
+    if (t.name === 'favorecido_proprio') t.closest('form').querySelector('[data-favorecido]').hidden = t.checked;
+    const pv = t.closest('form') && t.closest('form').querySelector('[data-previa]'); if (pv) pv.innerHTML = previaCobranca(t.closest('form')); });
+  document.addEventListener('input', async e => { const t = e.target;
+    if (t.name === 'cep_c') { const n = t.value.replace(/\D/g, ''); if (n.length !== 8 || t._cep === n) return; t._cep = n;
+      const r = await S.buscarCep(n); if (!r || t._cep !== n) { if (r === false) S.toast('CEP não encontrado. Preencha o endereço.'); return; }
+      const f = t.form, pôr = (k, v) => { if (v) f.querySelector(`[name=${k}]`).value = v; };
+      pôr('endereco', r.logradouro); pôr('bairro', r.bairro); pôr('cidade', [r.cidade, r.uf].filter(Boolean).join(' / ')); f.querySelector('[name=numero]').focus(); return; }
+    if (t.id === 'bancoBusca') { const f = t.form, lista = document.getElementById('bancoLista'), ok = f.querySelector('[data-banco-ok]');
+      f.banco_codigo.value = ''; f.banco_nome.value = ''; ok.className = 'muted'; ok.textContent = 'Escolha o banco na lista.';
+      const bs = await carregarBancos(), q2 = semAcento(t.value.trim()); if (!q2) { lista.hidden = true; t.setAttribute('aria-expanded', 'false'); return; }
+      const achados = bs.filter(([c, n]) => c.startsWith(q2) || c.startsWith(q2.padStart(3, '0')) || semAcento(n).includes(q2)).slice(0, 7);
+      lista.innerHTML = achados.length ? achados.map(([c, n], i) => `<button type="button" role="option" id="bco${i}" data-banco="${c}" data-nome="${esc(n)}"><b>${c}</b>${esc(n)}</button>`).join('') : '<p class="muted small">Nenhum banco com esse número ou nome.</p>';
+      lista.hidden = false; t.setAttribute('aria-expanded', 'true'); }
+    const pv = t.closest('form') && t.closest('form').querySelector('[data-previa]'); if (pv) pv.innerHTML = previaCobranca(t.closest('form')); });
+  document.addEventListener('click', e => { const b = e.target.closest('[data-banco]');
+    if (!b) { const l = document.getElementById('bancoLista'); if (l && !e.target.closest('.c-banco')) l.hidden = true; return; }
+    const f = b.closest('form'), inp = document.getElementById('bancoBusca'), ok = f.querySelector('[data-banco-ok]');
+    f.banco_codigo.value = b.dataset.banco; f.banco_nome.value = b.dataset.nome; inp.value = `${b.dataset.banco} · ${b.dataset.nome}`;
+    ok.className = 'c-ok'; ok.textContent = `✓ Banco ${b.dataset.banco} · ${b.dataset.nome}`; document.getElementById('bancoLista').hidden = true; inp.setAttribute('aria-expanded', 'false');
+    f.querySelector('[name=agencia]').focus(); const pv = f.querySelector('[data-previa]'); if (pv) pv.innerHTML = previaCobranca(f); });
+  document.addEventListener('keydown', e => { if (e.target.id !== 'bancoBusca' || e.key !== 'ArrowDown') return; const p1 = document.querySelector('#bancoLista button'); if (p1) { e.preventDefault(); p1.focus(); } });
+  document.addEventListener('keydown', e => { const b = e.target.closest && e.target.closest('#bancoLista button'); if (!b) return;
+    if (e.key === 'ArrowDown' && b.nextElementSibling) { e.preventDefault(); b.nextElementSibling.focus(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); (b.previousElementSibling || document.getElementById('bancoBusca')).focus(); }
+    if (e.key === 'Escape') { document.getElementById('bancoLista').hidden = true; document.getElementById('bancoBusca').focus(); } });
   document.addEventListener('click', e => { if (S._menu && !e.target.closest('.menu') && !e.target.closest('[data-act$="Menu"]')) S.fecharMenu(); }, true);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && S._menu) S.fecharMenu(); });
   document.addEventListener('change', e => { if (!e.target.matches('[data-funcao]')) return; const a = e.target.closest('form').querySelector('.acessos'); if (a) a.hidden = e.target.value === 'diretor'; });
@@ -742,7 +874,15 @@
         await recarregar(); render(); S.toast('Resposta enviada'); } catch (err) { b.disabled = false; S.toast(S.erro(err)); }
       return; }
     if (f.dataset.form === 'config') { e.preventDefault(); const v = Object.fromEntries(new FormData(f)), p = {};
-      if ('empresa' in v) Object.assign(p, { empresa:v.empresa, cnpj:v.cnpj, pix_chave:v.pix_chave, email_resposta:v.email_resposta, dados_bancarios:v.dados_bancarios, multa:S.num(v.multa), juros:S.num(v.juros) });
+      if (f.dataset.cob !== undefined) {
+        if (!v.empresa.trim()) return S.toast('Informe o nome que aparece nos e-mails.');
+        if (v.conta && !v.banco_codigo) { document.getElementById('bancoBusca').focus(); return S.toast('Escolha o banco na lista.'); }
+        if (v.banco_codigo && (!v.agencia || !v.conta)) return S.toast('Preencha a agência e a conta.');
+        const ruim = [...f.querySelectorAll('input[data-mask]')].find(x => x.validationMessage); if (ruim) { ruim.focus(); return S.toast(ruim.validationMessage); }
+        Object.assign(p, { empresa:v.empresa, cnpj:v.cnpj, razao_social:v.razao_social, email_resposta:v.email_resposta, banco_codigo:v.banco_codigo, banco_nome:v.banco_nome,
+          agencia:v.agencia.replace(/\D/g, ''), agencia_dv:v.agencia_dv, conta:v.conta.replace(/\D/g, ''), conta_dv:v.conta_dv, conta_tipo:v.conta_tipo,
+          favorecido_proprio:!!f.favorecido_proprio.checked, favorecido_nome:v.favorecido_nome || '', favorecido_doc:v.favorecido_doc || '',
+          pix_tipo:v.pix_tipo, pix_chave:v.pix_chave, multa:S.num(v.multa), juros:S.num(v.juros) }); }
       else Object.assign(p, { avisos_ligados:!!f.avisos_ligados.checked, aviso_dias_antes:Number(v.aviso_dias_antes) || 5, aviso_dias_depois:Number(v.aviso_dias_depois) || 3 });
       if (p.email_resposta && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email_resposta)) return S.toast('Confira o e-mail de respostas.');
       try { await q(sb.rpc('console_salvar_config', { p })); await recarregar(); render(); S.toast('Configurações salvas'); } catch (err) { S.toast(S.erro(err)); }
