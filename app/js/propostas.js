@@ -28,7 +28,7 @@
     : { nome:emp().responsavel, cargo:[emp().cargo, empCurto()].filter(Boolean).join(' · ') };
   // "Spot 30" · Rotativo seg. a sáb." (o que a proposta vende, numa linha)
   const ehDig = it => it.secao === 'digital';
-  const resumoItem = it => ehDig(it) ? `${it.formato} · ${it.programa}` : `${it.formato} · ${it.programa}${(it.dias || []).length < 7 ? ' ' + S.diasTexto(it.dias) : ''}`;
+  const resumoItem = it => ehDig(it) ? (it.entregas ? `${S.acaoTitulo(it)} (${S.acaoEntregasTxt(it)})` : `${it.formato} · ${it.programa}`) : `${it.formato} · ${it.programa}${(it.dias || []).length < 7 ? ' ' + S.diasTexto(it.dias) : ''}`;
   // Quantidade por mês na lista: inserções da rádio e, se houver, as publicações digitais
   const qtdMes = p => Number(p.publicacoes) ? `${p.insercoes ? p.insercoes + ' + ' : ''}${p.publicacoes} pub.` : p.insercoes;
   const resumo = p => { const its = (p.itens || []).filter(it => it.insercoes); if (!its.length) return (p.itens || []).length ? resumoItem(p.itens[0]) : 'Sem itens';
@@ -104,13 +104,15 @@
   const VALIDADES = [5, 7, 10, 15, 20, 30, 45, 60, 90];
   const linhasCond = txt => String(txt || '').split('\n').map(l => l.replace(/^[•\-–*]\s*/, '').trim()).filter(Boolean);
 
-  const qtdTxt = t => [t.ins && `${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'}`, t.pub && `${t.pub} ${t.pub === 1 ? 'publicação' : 'publicações'}`].filter(Boolean).join(' + ') || '0 inserções';
+  // Só rádio: investimento mensal; com ação digital (única), o total do 1º mês; só digital: investimento
+  const invRot = t => t.digital ? (t.ins ? 'Investimento (1º mês)' : 'Investimento') : 'Investimento mensal';
+  const qtdTxt = t => [t.ins && `${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'}`, t.pub && `${t.pub} ${t.pub === 1 ? 'entrega digital' : 'entregas digitais'}`].filter(Boolean).join(' + ') || '0 inserções';
   const resumoHtml = (p, v) => { const t = S.propTotais(p), its = (p.itens || []).filter(it => it.insercoes), um = its.length === 1 ? its[0] : null, as = assinante(p);
-    const partes = t.pub && t.ins ? `<div class="pr-lin"><span>Rádio<small>${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'}</small></span><b>${brl(t.radio)}</b></div><div class="pr-lin"><span>Digital<small>${t.pub} ${t.pub === 1 ? 'publicação' : 'publicações'}</small></span><b>${brl(t.digital)}</b></div>` : '';
-    return `<h2 class="pr-rot">Resumo mensal</h2>${partes}
+    const partes = t.digital && t.ins ? `<div class="pr-lin"><span>Rádio<small>${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'} por mês</small></span><b>${brl(t.radio)}</b></div><div class="pr-lin"><span>Ação digital<small>única · ${t.pub} ${t.pub === 1 ? 'entrega' : 'entregas'}</small></span><b>${brl(t.digital)}</b></div>` : '';
+    return `<h2 class="pr-rot">${t.digital ? 'Resumo' : 'Resumo mensal'}</h2>${partes}
       <div class="pr-lin"><span>Valor de tabela${um ? `<small>${um.insercoes} × ${brl(um.preco_tabela)}</small>` : `<small>${qtdTxt(t)}</small>`}</span><b>${brl(t.tabela)}</b></div>
       <div class="pr-lin"><span>Desconto negociado<small>${t.tabela ? nfmt(t.pct).replace(/,?0+$/, '') || '0' : '0'}% sobre a tabela</small></span><b>${t.desconto > 0.004 ? '− ' : ''}${brl(Math.abs(t.desconto))}</b></div>
-      <div class="pr-lin pr-inv"><span>Investimento mensal</span><b>${brl(t.total)}</b></div>
+      <div class="pr-lin pr-inv"><span>${invRot(t)}</span><b>${brl(t.total)}</b></div>
       <div class="pr-marca"><small>Sai com a marca da</small><span class="pr-logo">${empImg()}</span><small>${as.nome ? `Assina: ${esc(as.nome)}${as.cargo ? ' · ' + esc(as.cargo.split(' · ')[0]) : ''}` : ''}</small></div>
       <p class="muted small">${p.situacao === 'rascunho' ? 'Clique em "Enviar ao cliente": ele recebe o link da proposta pelo WhatsApp ou e-mail e ela fica marcada como enviada.' : p.situacao === 'enviada' ? 'Quando o cliente responder, marque como aprovada ou recusada.' : p.situacao === 'aprovada' ? (p.pi_id ? 'O PI desta proposta já foi gerado.' : 'Aprovada: o PI é gerado na tela de PIs, em "Propostas aprovadas".') : 'Para negociar de novo, volte a proposta para rascunho.'}</p>`; };
 
@@ -139,25 +141,16 @@
         <label class="pr-ng"><small class="pr-k">Negociado</small>${em ? `<input data-pf="preco" data-i="${i}" data-mask="dec" inputmode="decimal" value="${nfmt(r2(it.preco))}" placeholder="0,00" aria-label="Valor unitário negociado de ${esc(it.programa)}">` : `<span>${brl(it.preco)}</span>`}</label>
         <label class="pr-tt"><small class="pr-k">Total mensal</small>${em ? `<input data-pf="total" data-i="${i}" data-mask="dec" inputmode="decimal" value="${nfmt(it.total)}" placeholder="0,00" aria-label="Total mensal de ${esc(it.programa)}">` : `<b>${brl(it.total)}</b>`}</label>
         <span class="pr-x">${em ? `<button type="button" class="x" data-act="prRmItem" data-i="${i}" aria-label="Remover ${esc(it.formato)} · ${esc(it.programa)}" title="Remover item">×</button>` : ''}</span></div>`;
-    // Item digital: perfil e formato, publicações por mês (sem dias nem faixa: a rádio define as datas)
-    const linhaDig = (it, i) => `<div class="pr-it pr-dig">
-        <span class="pr-id"><b>${esc(it.formato)} · ${esc(it.programa)}</b><small class="muted">${esc(it.detalhe) || 'perfil da rádio'}</small></span>
-        <span class="pr-dd"><small class="pr-k">Datas</small><span class="muted small">a rádio define</span></span>
-        <label class="pr-q"><small class="pr-k">Publicações/mês</small>${em ? `<input data-pf="insercoes" data-i="${i}" data-mask="int" inputmode="numeric" value="${it.insercoes || ''}" placeholder="0" aria-label="Publicações por mês de ${esc(it.formato)}">` : `<b>${it.insercoes}</b>`}</label>
-        <span class="pr-tb"><small class="pr-k">Tabela</small><span class="muted">${it.preco_tabela ? brl(it.preco_tabela) : 'sem preço'}</span></span>
-        <label class="pr-ng"><small class="pr-k">Negociado</small>${em ? `<input data-pf="preco" data-i="${i}" data-mask="dec" inputmode="decimal" value="${nfmt(r2(it.preco))}" placeholder="0,00" aria-label="Valor negociado por publicação de ${esc(it.formato)}">` : `<span>${brl(it.preco)}</span>`}</label>
-        <label class="pr-tt"><small class="pr-k">Total mensal</small>${em ? `<input data-pf="total" data-i="${i}" data-mask="dec" inputmode="decimal" value="${nfmt(it.total)}" placeholder="0,00" aria-label="Total mensal de ${esc(it.formato)}">` : `<b>${brl(it.total)}</b>`}</label>
-        <span class="pr-x">${em ? `<button type="button" class="x" data-act="prRmItem" data-i="${i}" aria-label="Remover ${esc(it.formato)} · ${esc(it.programa)}" title="Remover item">×</button>` : ''}</span></div>`;
     const comI = p.itens.map((it, i) => ({ it, i })), rad = comI.filter(x => !ehDig(x.it)), dgs = comI.filter(x => ehDig(x.it));
     const temDigital = S.db.produtos.some(x => x.tipo === 'programa' && S.ehDigital(x) && x.ativo) || dgs.length;
+    const avisoCanal = S.pode('diretor', 'gerente') ? 'Cadastre o canal da rádio em <b>Tabela de preços → Digital</b>.' : '';
     const itensCard = `<section class="card"><div class="hd"><h2>${temDigital ? 'Rádio' : 'Itens da tabela'}${tab ? ` <span class="muted small" style="font:500 13px var(--font)">· ${esc(tab.nome)}</span>` : ''}</h2>${em ? `<button class="btn" data-act="prAddItem">${S.svg('mais')}${temDigital ? 'Item de rádio' : 'Adicionar da tabela'}</button>` : ''}</div>
       ${rad.length ? `<div class="pr-its"><div class="pr-it pr-cab" aria-hidden="true"><span>Formato · programação</span><span>Dias</span><span class="r">Inserções/mês</span><span class="r">Tabela</span><span class="r">Negociado</span><span class="r">Total mensal</span><span></span></div>${rad.map(x => linhaRadio(x.it, x.i)).join('')}</div>`
         : `<p class="muted" style="margin:4px 0 0">${em ? `Nenhum item de rádio${dgs.length ? '' : ' ainda'}. Clique em <b>${temDigital ? 'Item de rádio' : 'Adicionar da tabela'}</b> para escolher programa e formato.` : 'Nenhum item de rádio.'}</p>`}
       ${em && rad.length ? '<p class="muted small" style="margin-top:14px">O preço vem da tabela vigente e fica guardado na proposta. Dá para negociar pelo valor unitário ou pelo total do mês: um ajusta o outro.</p>' : ''}</section>
-      ${temDigital ? `<section class="card pr-digital"><div class="hd"><h2>Digital <span class="muted small" style="font:500 13px var(--font)">· redes sociais da rádio</span></h2>${em ? `<button class="btn" data-act="prAddItem" data-digital="1">${S.svg('mais')}Item digital</button>` : ''}</div>
-        ${dgs.length ? `<div class="pr-its"><div class="pr-it pr-dig pr-cab" aria-hidden="true"><span>Formato · perfil</span><span>Datas</span><span class="r">Publicações/mês</span><span class="r">Tabela</span><span class="r">Negociado</span><span class="r">Total mensal</span><span></span></div>${dgs.map(x => linhaDig(x.it, x.i)).join('')}</div>`
-          : `<p class="muted" style="margin:4px 0 0">${em ? 'Post, reels, stories nos perfis da rádio. Clique em <b>Item digital</b> para escolher perfil e formato.' : 'Sem itens digitais.'}</p>`}
-        ${dgs.length ? '<p class="muted small" style="margin-top:14px">Sem dias nem faixa horária: a rádio define as datas de publicação dentro do mês. A produção do conteúdo já está no preço.</p>' : ''}</section>` : ''}`;
+      <section class="card pr-digital"><div class="hd"><h2>Digital <span class="muted small" style="font:500 13px var(--font)">· ações nas redes da rádio</span></h2>${em && temDigital ? `<button class="btn" data-act="prAcao" data-op="nova">${S.svg('mais')}Ação digital</button>` : ''}</div>
+        ${dgs.length ? `<div class="ad-ls">${dgs.map(x => S.acaoHtml(x.it, em ? { act:'prAcao', data:`data-i="${x.i}"` } : null)).join('')}</div>`
+          : `<p class="muted" style="margin:4px 0 0">${!temDigital ? (em ? `Nenhum canal digital cadastrado. ${avisoCanal}` : 'Sem ação digital.') : em ? 'Reels, Stories, Feed, Live… nos canais da rádio, por um valor só. Clique em <b>Ação digital</b>.' : 'Sem ação digital.'}</p>`}</section>`;
     const cond = `<section class="card"><div class="hd"><h2>Condições comerciais</h2><span>uma por linha · saem no PDF</span></div>
       ${em ? `<textarea class="alto" data-pf="condicoes" aria-label="Condições comerciais">${esc(p.condicoes)}</textarea>` : `<ul class="pr-cond">${linhasCond(p.condicoes).map(l => `<li>${esc(l)}</li>`).join('') || '<li class="muted">Sem condições.</li>'}</ul>`}</section>`;
     const s = sitDe(orig), aviso = !pode(orig) ? '<div class="note info">Esta proposta é de outro consultor: está só para consulta.</div>'
@@ -213,7 +206,8 @@
   window.addEventListener('beforeunload', e => { if (ed.sujo) { e.preventDefault(); e.returnValue = ''; } });
 
   // ---------- gravar e mudar de situação ----------
-  const limpo = it => ({ id:it.id, programa_id:it.programa_id, formato_id:it.formato_id, programa:it.programa, formato:it.formato, secao:it.secao, detalhe:it.detalhe,
+  const limpo = it => it.secao === 'digital' && it.entregas ? { id:it.id, secao:'digital', tipo:'acao', canal_id:it.canal_id, perfil:it.perfil, detalhe:it.detalhe || '', nome:it.nome || '',
+    entregas:it.entregas.map(e => ({ nome:e.nome, qtd:parseInt(e.qtd) || 0 })), inicio:it.inicio, fim:it.fim, period:it.period, valor:r2(it.valor), total:r2(it.valor), programa:it.perfil, formato:'Ação digital', insercoes:S.acaoQtd(it), dias:[], faixa:'' } : ({ id:it.id, programa_id:it.programa_id, formato_id:it.formato_id, programa:it.programa, formato:it.formato, secao:it.secao, detalhe:it.detalhe,
     dias:S.SEMANA.filter(d => (it.dias || []).includes(d)).sort((a, b) => a - b), faixa:String(it.faixa || '').trim(), insercoes:parseInt(it.insercoes) || 0,
     preco_tabela:Number(it.preco_tabela) || 0, preco:Number(it.preco) || 0, total:r2(it.total) });
   const gravar = async () => { const p = ed.p, t = S.propTotais(p);
@@ -223,9 +217,9 @@
   // O que falta para a proposta poder ir ao cliente
   const problemas = p => { const out = [];
     if (!p.cliente_id) out.push('escolha o cliente');
-    if (!(p.itens || []).some(it => it.insercoes)) out.push('coloque ao menos um item com inserções ou publicações');
+    if (!(p.itens || []).some(it => it.insercoes || (it.entregas && S.acaoQtd(it)))) out.push('coloque ao menos um item de rádio ou uma ação digital');
     if ((p.itens || []).some(it => it.insercoes && !ehDig(it) && !(it.dias || []).length)) out.push('há item sem nenhum dia marcado');
-    if ((p.itens || []).some(it => it.insercoes && !Number(it.total))) out.push('há item com quantidade e sem valor');
+    if ((p.itens || []).some(it => (it.insercoes || it.entregas) && !Number(it.total))) out.push('há item sem valor');
     return out; };
   const situacao = (p, para, motivo, ok) => S.run(async () => {
     const r = await S.q(S.sb.rpc('mudar_situacao_proposta', { p_proposta:p.id, p_situacao:para, p_motivo:motivo || '' })); trocar(r); return r; }, ok);
@@ -236,7 +230,7 @@
 
   // ---------- gerar o PI da proposta aprovada ----------
   const gerarDlg = p => {
-    const v = S.veh(), todos = (p.itens || []).filter(it => parseInt(it.insercoes) > 0), itens = todos.filter(it => !ehDig(it)), digs = todos.filter(ehDig), t = S.propTotais(p);
+    const v = S.veh(), itens = (p.itens || []).filter(it => !ehDig(it) && parseInt(it.insercoes) > 0), digs = (p.itens || []).filter(it => ehDig(it) && it.entregas && S.acaoQtd(it)), todos = [...itens, ...digs], t = S.propTotais(p);
     if (!todos.length) return S.toast('Esta proposta não tem itens com inserções ou publicações.');
     const proxNo = `PI ${v.sigla} ${String((v.pi_seq || 0) + 1).padStart(4, '0')}`, marca = v.pi_marca === 'comercial' ? 'comercial' : 'radio';
     const faixas = [...new Set(itens.map(it => it.faixa).filter(Boolean))];
@@ -249,7 +243,7 @@
           <label><input type="radio" name="marca" value="comercial"${marca === 'comercial' ? ' checked' : ''}>${esc(empCurto())}</label>
           <label><input type="radio" name="marca" value="radio"${marca === 'radio' ? ' checked' : ''}>${esc(v.nome)}</label></div></fieldset></div>
       <div id="prDist" aria-live="polite"></div>
-      ${digs.length ? `<div class="note info" style="margin:14px 0 0"><b>Digital:</b> ${digs.map(it => `${parseInt(it.insercoes)} ${esc(it.formato)} (${esc(it.programa)})`).join(', ')} por mês entram no PI no bloco Digital, sem data. Depois da aprovação, a rádio marca a data de cada publicação.</div>` : ''}
+      ${digs.length ? `<div class="note info" style="margin:14px 0 0"><b>Digital:</b> ${digs.map(it => `${esc(S.acaoTitulo(it))} (${esc(S.acaoEntregasTxt(it))}, ${S.acaoPeriodo(it)})`).join('; ')} ${digs.length === 1 ? 'entra' : 'entram'} no PI uma vez só, com o período e o valor da proposta. Depois da aprovação, a rádio marca a data de cada publicação.</div>` : ''}
       ${itens.length ? `<div class="note info" style="margin:14px 0 0">No PI, cada dia leva só a <b>quantidade</b>. ${faixas.length ? `A faixa <b>${faixas.map(esc).join('</b>, <b>')}</b> sai escrita no PI, para a OPEC lançar no Pulsar.` : 'Sem faixa horária nos itens: a OPEC lança conforme o programa.'} Depois de gerado, o PI fica em Rascunho e ainda dá para ajustar algum dia antes de mandar para a OPEC.</div>` : ''}
       <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok" id="prGerarOk">${S.svg('pis')}Gerar ${proxNo}</button></div>`,
       f => gerar(p, itens, digs, f));
@@ -260,7 +254,7 @@
       const f = dl.querySelector('form'), ini = f.inicio.value, n = parseInt(f.meses.value) || 1, box = document.getElementById('prDist'), okB = document.getElementById('prGerarOk');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(ini)) { box.innerHTML = '<p class="muted" style="margin-top:16px">Escolha a data de início.</p>'; okB.disabled = true; return; }
       if (!itens.length) { okB.disabled = false;
-        box.innerHTML = `<p class="muted" style="margin-top:16px">Só digital: ${n === 1 ? `o mês de ${mesExt(ini.slice(0, 7)).toLowerCase()}` : `${n} meses, de ${mesExt(ini.slice(0, 7)).toLowerCase()} a ${mesExt(mesDe(ini, n - 1)).toLowerCase()}`}, com ${t.pub} ${t.pub === 1 ? 'publicação' : 'publicações'} por mês.</p>`; return; }
+        box.innerHTML = `<p class="muted" style="margin-top:16px">Só ação digital: o início e os meses não mudam nada; vale o período de cada ação.</p>`; return; }
       const r = S.distribuir(itens, ini, n); if (ver >= r.meses.length) ver = 0;
       okB.disabled = !r.soma;
       const m = r.meses[ver], cert = r.soma === r.esperado;
@@ -291,8 +285,7 @@
     const v = S.veh(), ag = S.pessoa(p.agencia_id), n = parseInt(f.meses) || 1, r = itens.length ? S.distribuir(itens, f.inicio, n) : { meses:[], soma:0 };
     if (itens.length && !r.soma) throw new Error('A distribuição ficou sem inserções: confira os dias dos itens.');
     const digital = [];
-    for (let k = 0; k < n; k++) digs.forEach(it => digital.push({ id:uid(), period:mesDe(f.inicio, k), programa_id:it.programa_id, formato_id:it.formato_id, perfil:it.programa, detalhe:it.detalhe || '',
-      formato:it.formato, tema:'', qtd:parseInt(it.insercoes) || 0, unit:Number(it.preco) || 0 }));
+    digs.forEach(it => { const a = limpo(it); digital.push({ id:uid(), tipo:'acao', canal_id:a.canal_id, perfil:a.perfil, detalhe:a.detalhe, nome:a.nome, entregas:a.entregas, inicio:a.inicio, fim:a.fim, period:a.period, valor:a.valor }); });
     const grids = r.meses.map(m => ({ id:uid(), period:m.period, praca:v.cidade || '', items:Object.entries(m.itens).map(([i, days]) => { const it = itens[+i];
       return { id:uid(), piece:'', f1:it.programa, f2:it.formato, faixa:it.faixa || '', days, unit:Number(it.preco) || 0, disc:{ type:'pct', value:0 }, bonus:false }; }) }));
     const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:ag ? num(ag.comissao) : 0 }, grids, digital, marca:f.marca === 'comercial' ? 'comercial' : 'radio',
@@ -400,12 +393,12 @@
         ${p.texto ? `<p class="prd-texto">${esc(p.texto).replace(/\n/g, '<br>')}</p>` : ''}
         ${rad.length ? `${ambos ? '<div class="prd-sec">Rádio</div>' : ''}<table class="prd-tab"><thead><tr><th>Formato</th><th>Programação</th><th class="r">Inserções/mês</th><th class="r">Valor unitário</th><th class="r">Total mensal</th></tr></thead>
           <tbody>${rad.map(it => `<tr><td>${esc(it.formato)}</td><td>${prog(it)}</td><td class="r">${it.insercoes}</td><td class="r">${brl(it.preco)}</td><td class="r"><b>${brl(it.total)}</b></td></tr>`).join('')}</tbody></table>` : ''}
-        ${dgs.length ? `<div class="prd-sec">Digital · redes sociais da ${esc(v.nome)}</div><table class="prd-tab"><thead><tr><th>Formato</th><th>Perfil</th><th class="r">Publicações/mês</th><th class="r">Valor unitário</th><th class="r">Total mensal</th></tr></thead>
-          <tbody>${dgs.map(it => `<tr><td>${esc(it.formato)}</td><td>${esc(it.programa)}${it.detalhe ? ' · ' + esc(it.detalhe) : ''}</td><td class="r">${it.insercoes}</td><td class="r">${brl(it.preco)}</td><td class="r"><b>${brl(it.total)}</b></td></tr>`).join('')}</tbody></table>
-          <p class="prd-nota">Datas de publicação definidas pela rádio dentro de cada mês. A produção do conteúdo está incluída.</p>` : ''}
-        <div class="prd-tot">${ambos ? `<span>Rádio · ${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'}</span><span class="r">${brl(t.radio)}</span><span>Digital · ${t.pub} ${t.pub === 1 ? 'publicação' : 'publicações'}</span><span class="r">${brl(t.digital)}</span>` : ''}<span>Valor de tabela${um ? ` (${um.insercoes} × ${brl(um.preco_tabela)})` : ''}</span><span class="r">${brl(t.tabela)}</span>
+        ${dgs.length ? `<div class="prd-sec">Ação digital · redes sociais da ${esc(v.nome)}</div><table class="prd-tab"><thead><tr><th>Ação</th><th>Entregas</th><th>Período</th><th class="r">Valor</th></tr></thead>
+          <tbody>${dgs.map(it => `<tr><td><b>${esc(S.acaoTitulo(it))}</b><br>${esc(S.acaoCanal(it))}</td><td>${esc(S.acaoEntregasTxt(it))}</td><td>${S.acaoPeriodo(it)}</td><td class="r"><b>${brl(it.total)}</b></td></tr>`).join('')}</tbody></table>
+          <p class="prd-nota">Ação única. Datas das publicações definidas pela rádio dentro do período. A produção do conteúdo está incluída.</p>` : ''}
+        <div class="prd-tot">${ambos ? `<span>Rádio · ${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'} por mês</span><span class="r">${brl(t.radio)}</span><span>Ação digital · única</span><span class="r">${brl(t.digital)}</span>` : ''}<span>Valor de tabela${um ? ` (${um.insercoes} × ${brl(um.preco_tabela)})` : ''}</span><span class="r">${brl(t.tabela)}</span>
           ${t.desconto > 0.004 ? `<span>Desconto negociado</span><span class="r">− ${brl(t.desconto)}</span>` : ''}
-          <b class="prd-inv">Investimento mensal</b><b class="prd-inv r">${brl(t.total)}</b></div>
+          <b class="prd-inv">${invRot(t)}</b><b class="prd-inv r">${brl(t.total)}</b></div>
         ${linhasCond(p.condicoes).length ? `<div class="prd-cond"><small>Condições comerciais</small><ul>${linhasCond(p.condicoes).map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>` : ''}
         <div class="prd-ass"><div><b>${esc(as.nome)}</b><span>${esc(as.cargo)}</span></div><div><b>De acordo</b><span>${esc(cli.nome)}</span></div></div>
       </div>
@@ -436,8 +429,8 @@
   const sugerir = p => { const v = S.veh(), cli = S.pessoa(p.cliente_id) || {}, its = (p.itens || []).filter(it => it.insercoes), t = S.propTotais(p), cid = cidadeDe(v.cidade);
     const rads = its.filter(it => !ehDig(it)), comoUm = rads.length === 1 ? rads[0] : null, seg = comoUm && /(\d+)\s*(?:"|''|”|s\b|seg)/i.exec(comoUm.formato);
     const dist = comoUm ? (comoUm.dias.length === 7 ? 'distribuídas todos os dias' : `distribuídas de ${S.diasTexto(comoUm.dias).replace('seg.', 'segunda').replace('sex.', 'sexta').replace('sáb.', 'sábado').replace('dom.', 'domingo').replace('ter.', 'terça').replace('qua.', 'quarta').replace('qui.', 'quinta')}`) : 'em diferentes horários da programação';
-    const dg = t.pub ? `${t.pub} ${t.pub === 1 ? 'publicação' : 'publicações'} por mês nas redes sociais da rádio` : '';
-    if (!t.ins) return `Apresentamos à ${cli.nome || 'sua empresa'} a proposta de presença digital na ${v.nome}: ${dg}, com conteúdo produzido pela equipe da rádio e datas combinadas ao longo do mês.`;
+    const acs = its.filter(ehDig), dg = acs.length ? `uma ação nas redes sociais da rádio (${acs.map(a => S.acaoEntregasTxt(a)).join('; ')})` : '';
+    if (!t.ins) return `Apresentamos à ${cli.nome || 'sua empresa'} a proposta de presença digital na ${v.nome}: ${dg}, com conteúdo produzido pela equipe da rádio e datas combinadas dentro do período.`;
     return `Apresentamos à ${cli.nome || 'sua empresa'} a proposta de veiculação na ${v.nome}, com presença diária na programação da emissora${cid ? ' em ' + cid : ''}. O pacote reúne ${t.ins} inserções${seg ? ` de ${seg[1]}"` : ''} por mês, ${dist}${dg ? `, e ${dg}` : ''}, garantindo lembrança de marca contínua ao longo do mês.`; };
 
   // ---------- ações ----------
@@ -513,6 +506,11 @@
     prDia: d => { comItem(p => { const it = p.itens[+d.i], k = +d.d; it.dias = (it.dias || []).includes(k) ? it.dias.filter(x => x !== k) : [...(it.dias || []), k]; });
       const b = document.querySelector(`#content [data-act="prDia"][data-i="${d.i}"][data-d="${d.d}"]`); if (b) b.focus(); },
     prRmItem: d => comItem(p => { p.itens.splice(+d.i, 1); }),
+    // Ação digital: nova, editar ou tirar (digital.js)
+    prAcao: async d => { const p = atualEd(); if (!p || !editavel(achar(p.id))) return;
+      if (d.op === 'tirar') { const it = p.itens[+d.i]; if (!await S.confirmar(`Tirar a ação "${S.acaoTitulo(it)}" da proposta?`, { ok:'Tirar ação', perigo:true })) return; return comItem(pp => { pp.itens.splice(+d.i, 1); }); }
+      const atual = d.op === 'editar' ? p.itens[+d.i] : null;
+      S.acaoDigitalDlg(atual, a => comItem(pp => { const it = limpo(Object.assign({ secao:'digital' }, a)); if (atual) pp.itens[+d.i] = it; else pp.itens.push(it); })); },
     // Escolher da tabela vigente: programa (por seção) × formato, com o preço dela
     prAddItem: (d = {}) => { const p = atualEd(); if (!p) return; const vig = S.tabelaVigente(), v = S.veh(), digital = !!d.digital;
       if (!vig) return S.toast('Não há tabela de preços vigente nesta rádio. Publique uma em Tabela de preços.');

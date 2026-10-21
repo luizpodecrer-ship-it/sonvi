@@ -23,8 +23,10 @@
     return { ins, gross, sub: it.bonus ? 0 : sub }; // item bonificado não é cobrado
   };
 
-  // Item digital (database/033): quantidade de publicações × valor unitário; a rádio define as datas depois
-  S.digCalc = it => { const qtd = Math.max(0, parseInt(it.qtd) || 0); return { qtd, sub:Math.round(qtd * num(it.unit) * 100) / 100 }; };
+  // Ação digital (database/034): entregas (texto + quantidade) e um valor só; a rádio define as datas depois.
+  // Itens antigos (033) eram quantidade × valor unitário.
+  S.digCalc = it => { if (Array.isArray(it.entregas)) return { qtd:it.entregas.reduce((s, e) => s + Math.max(0, parseInt(e.qtd) || 0), 0), sub:Math.round(num(it.valor) * 100) / 100 };
+    const qtd = Math.max(0, parseInt(it.qtd) || 0); return { qtd, sub:Math.round(qtd * num(it.unit) * 100) / 100 }; };
 
   S.calc = pi => {
     const d = pi.dados; let media = 0, bonus = 0, ins = 0, pub = 0, radio = 0, digital = 0;
@@ -84,7 +86,7 @@
   S.tabelaVigente = (data = S.today()) => (S.db.tabelas || []).filter(t => t.situacao === 'publicada' && t.inicio <= data).sort((a, b) => b.inicio.localeCompare(a.inicio))[0] || null;
   S.situacaoTabela = t => { if (!t) return null; if (t.situacao !== 'publicada') return 'rascunho'; if (t.inicio > S.today()) return 'agendada';
     const v = S.tabelaVigente(); return v && v.id === t.id ? 'vigente' : 'encerrada'; };
-  S.SITUACAO_TABELA = { rascunho:['Rascunho', 'gray'], agendada:['Agendada', 'blue'], vigente:['Vigente', 'green'], encerrada:['Encerrada', 'gray'] };
+  S.SITUACAO_TABELA = { rascunho:['Em preparação', 'gray'], agendada:['Agendada', 'blue'], vigente:['Vigente', 'green'], encerrada:['Encerrada', 'gray'] };
   // Preço de um programa × formato numa tabela (a vigente, se nenhuma for indicada). Rascunhos nunca entram no PI.
   S.precoNaTabela = (tabelaId, programaId, formatoId) => S.db.precos.find(x => x.tabela_id === tabelaId && x.programa_id === programaId && x.formato_id === formatoId) || null;
   S.ehDigital = p => !!p && p.secao === 'digital';
@@ -110,7 +112,7 @@
     const c = S.calc(pi);
     if (!c.ins && !c.pub) out.push('distribua ao menos uma inserção na grade ou coloque uma publicação digital');
     if (pi.dados.grids.some(g => g.items.some(it => S.itemCalc(it).ins && !num(it.unit) && !it.bonus))) out.push('há itens com inserções e sem valor unitário');
-    if ((pi.dados.digital || []).some(it => S.digCalc(it).qtd && !num(it.unit))) out.push('há publicações digitais sem valor unitário');
+    if ((pi.dados.digital || []).some(it => !S.digCalc(it).qtd)) out.push('há ação digital sem entregas');
     return out;
   };
   // Condições gerais do PI (dizeres obrigatórios). Cada rádio pode ter o seu texto (veiculos.pi_condicoes);
@@ -168,10 +170,12 @@
   };
   const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
   // Totais da proposta (por mês): valor de tabela, investimento e o desconto negociado
-  // No item digital, "insercoes" guarda as publicações por mês
+  // Ação digital (secao 'digital', tipo 'acao'): entregas e um valor só (total), sem preço de tabela
   S.propTotais = p => { let ins = 0, pub = 0, tabela = 0, total = 0, radio = 0, digital = 0;
-    (p.itens || []).forEach(it => { const n = parseInt(it.insercoes) || 0, t = Number(it.total) || 0; if (it.secao === 'digital') { pub += n; digital += t; } else { ins += n; radio += t; }
-      tabela += n * (Number(it.preco_tabela) || 0); total += t; });
+    (p.itens || []).forEach(it => { const t = Number(it.total) || 0;
+      if (it.secao === 'digital') { pub += it.entregas ? S.acaoQtd(it) : parseInt(it.insercoes) || 0; digital += t; tabela += t; }
+      else { const n = parseInt(it.insercoes) || 0; ins += n; radio += t; tabela += n * (Number(it.preco_tabela) || 0); }
+      total += t; });
     tabela = r2(tabela); total = r2(total); const desconto = r2(tabela - total);
     return { ins, pub, radio:r2(radio), digital:r2(digital), tabela, total, desconto, pct:tabela ? desconto / tabela * 100 : 0 }; };
   S.propNo = p => `${p.ano}/${String(p.numero).padStart(3, '0')}`;

@@ -142,7 +142,7 @@
   const regra = r => num(r.value) ? (r.type === 'pct' ? nfmt(num(r.value)).replace(/,00$/, '') + '%' : brl(num(r.value))) : (r.type === 'pct' ? '0%' : 'R$ 0,00');
 
   const summary = c => `<h2>Resumo financeiro</h2>
-    ${c.pub ? `<div><small>Rádio · ${c.ins} ${c.ins === 1 ? 'inserção' : 'inserções'}</small><b>${brl(c.radio)}</b></div><div><small>Digital · ${c.pub} ${c.pub === 1 ? 'publicação' : 'publicações'}</small><b>${brl(c.digital)}</b></div>` : ''}
+    ${c.pub ? `<div><small>Rádio · ${c.ins} ${c.ins === 1 ? 'inserção' : 'inserções'}</small><b>${brl(c.radio)}</b></div><div><small>Ação digital · ${c.pub} ${c.pub === 1 ? 'entrega' : 'entregas'}</small><b>${brl(c.digital)}</b></div>` : ''}
     <div${c.pub ? ' class="hr"' : ''}><small>Total da mídia</small><b>${brl(c.media)}</b></div><div><small>Desconto geral</small><b>${brl(c.discount)}</b></div>
     <div class="hr"><small>Valor total</small><b>${brl(c.total)}</b></div><div class="g"><small>Comissão da agência</small><b>${brl(c.commission)}</b></div><div><small>Valor líquido</small><b>${brl(c.net)}</b></div>
     <div class="hr"><small>Bonificação</small><b>${brl(c.bonus)}</b></div><div class="g"><small>Honorários</small><b>${brl(c.fee)}</b></div><div><small>Inserções</small><b>${c.ins}</b></div>${c.pub ? `<div><small>Publicações</small><b>${c.pub}</b></div>` : ''}`;
@@ -166,7 +166,7 @@
       ${em ? '<button class="btn sm tracej" data-act="piAddPiece">+ Adicionar peça</button>' : d.pieces.length ? '' : '<span class="muted small">Nenhuma peça cadastrada.</span>'}</section>`;
     const avisoTab = em && (semCadastro('programa') || semCadastro('formato')) ? `<div class="note info">Para escolher programa e formato na grade, cadastre-os antes em <a data-go="/cadastros">Tabelas</a>.</div>` : '';
     const grades = d.grids.map((g, i) => (S.celular ? gradeCelular : gradeTela)(pi, g, i, em)).join('') + digitalHtml(pi, em)
-      + (em ? `<p class="row" style="gap:10px;flex-wrap:wrap"><button class="btn pri" data-act="piAddGrid">+ Adicionar grade</button>${temDigTabela() || temDig ? '<button class="btn" data-act="piAddDig">+ Item digital</button>' : ''}</p>` : '')
+      + (em ? `<p class="row" style="gap:10px;flex-wrap:wrap"><button class="btn pri" data-act="piAddGrid">+ Adicionar grade</button>${temDigTabela() || temDig ? '<button class="btn" data-act="piAcao" data-op="nova">+ Ação digital</button>' : ''}</p>` : '')
       + entregasHtml(pi);
     const obs = `<section class="card"><div class="hd"><h2>Observações</h2><span>saem no PI exportado</span></div>${em ? `<textarea data-f="dados.billing.obsClient" placeholder="Ex.: veicular longe de concorrentes; material enviado pela agência até o dia 29">${esc(d.billing.obsClient)}</textarea>` : `<p class="obs">${esc(d.billing.obsClient) || '<span class="muted">Sem observações.</span>'}</p>`}</section>`;
     const totalCel = S.celular ? `<button class="pi-total" data-act="piVerResumo"><span><small>Valor total · ver resumo</small><b id="totalCel">${brl(c.total)}</b></span>${S.svg('baixo')}</button>` : '';
@@ -190,37 +190,30 @@
   // ---------- Digital (database/033): publicações nos perfis da rádio, por mês; a rádio define as datas ----------
   const temDigTabela = () => S.db.produtos.some(p => p.tipo === 'programa' && p.ativo && S.ehDigital(p));
   const digPeriodos = pi => [...new Set(pi.dados.digital.map(it => it.period))].sort();
+  // Ações digitais do PI: uma linha por ação (canal, entregas, período e valor); editar e tirar só na edição
   function digitalHtml(pi, em) {
     const d = pi.dados; if (!d.digital.length) return '';
-    return digPeriodos(pi).map(per => {
-      const its = d.digital.filter(it => it.period === per); let tq = 0, ts = 0;
-      const linhas = its.map(it => { const c = S.digCalc(it), a = `data-dg="${it.id}"`; tq += c.qtd; ts += c.sub;
-        return `<div class="dg-l"><span class="dg-p"><b>${esc(it.formato)}</b><small>${esc([it.perfil, it.detalhe].filter(Boolean).join(' · '))}</small></span>
-          <span class="dg-t"><small class="dg-k">Peça / tema</small>${em ? `<input value="${esc(it.tema || '')}" data-f="tema" ${a} placeholder="Ex.: Ofertas da semana" aria-label="Peça ou tema de ${esc(it.formato)}">` : `<span>${esc(it.tema) || '<span class="muted">—</span>'}</span>`}</span>
-          <span class="dg-q"><small class="dg-k">Quantidade</small>${em ? `<input value="${c.qtd || ''}" data-f="qtd" data-k="int0" data-mask="int" inputmode="numeric" placeholder="0" ${a} aria-label="Quantidade de ${esc(it.formato)}">` : `<b>${c.qtd}</b>`}</span>
-          <span class="dg-u"><small class="dg-k">Valor unit.</small>${em ? `<input value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a} aria-label="Valor por publicação de ${esc(it.formato)}">` : `<span>${brl(num(it.unit))}</span>`}</span>
-          <b class="dg-s" id="dgs-${it.id}">${brl(c.sub)}</b>
-          <span class="dg-x">${em ? `<button class="x" data-act="piRmDig" data-id="${it.id}" aria-label="Tirar ${esc(it.formato)}" title="Tirar item">×</button>` : ''}</span></div>`; }).join('');
-      return `<section class="card dg"><div class="hd"><h2>Digital · ${mesExt(per)}</h2><span>a rádio define as datas dentro do mês</span></div>
-        <div class="dg-l dg-cab" aria-hidden="true"><span>Formato · perfil</span><span>Peça / tema</span><span class="r">Quantidade</span><span class="r">Valor unit.</span><span class="r">Total</span><span></span></div>${linhas}
-        <div class="dg-l dg-tot"><span>Total do digital</span><span></span><b class="r" id="dgq-${per}">${tq}</b><span></span><b class="dg-s" id="dgt-${per}">${brl(ts)}</b><span></span></div></section>`;
-    }).join('');
+    const total = d.digital.reduce((s, a) => s + S.digCalc(a).sub, 0), n = d.digital.reduce((s, a) => s + S.digCalc(a).qtd, 0);
+    return `<section class="card dg"><div class="hd"><h2>Digital · ${d.digital.length === 1 ? 'ação' : 'ações'} nas redes da rádio</h2><span>${n} ${n === 1 ? 'entrega' : 'entregas'} · ${brl(total)}</span></div>
+      <div class="ad-ls">${d.digital.map(a => S.acaoHtml(a, em ? { act:'piAcao', data:`data-id="${a.id}"` } : null)).join('')}</div>
+      <p class="muted small" style="margin:0">Ação única: as datas de cada publicação a rádio define depois da aprovação, dentro do período.</p></section>`;
   }
   // Acompanhamento das publicações: depois de aprovado, a equipe da rádio marca a data e o "publicado" (com o link)
   const ENT_STATUS = ['aprovado', 'programado', 'faturado'];
   const podeEntregas = pi => ENT_STATUS.includes(pi.status) && S.pode('diretor', 'gerente', 'opec');
-  const entregasDe = pi => pi.dados.digital.flatMap(it => { const q = S.digCalc(it).qtd, arr = (pi.entregas || {})[it.id] || [];
-    return Array.from({ length:q }, (_, k) => ({ it, n:k + 1, q, e:arr[k] || {} })); });
+  // Uma linha por entrega de cada ação (n = posição na ação, como em marcar_entrega)
+  const entregasDe = pi => pi.dados.digital.flatMap(it => { const arr = (pi.entregas || {})[it.id] || [];
+    return S.acaoUnidades(it).map(u => ({ it, u, n:u.n, e:arr[u.n - 1] || {} })); });
   S.piEntregasPendentes = pi => entregasDe(pi).filter(x => !x.e.data).length;
   function entregasHtml(pi) {
     if (!ENT_STATUS.includes(pi.status) || !pi.dados.digital.length) return '';
     const l = entregasDe(pi), pub = l.filter(x => x.e.publicado).length, comData = l.filter(x => x.e.data).length, pode = podeEntregas(pi);
-    const linhas = l.map(({ it, n, q, e }) => { const [y, m] = it.period.split('-').map(Number), ini = `${it.period}-01`, fim = `${it.period}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+    const linhas = l.map(({ it, u, n, e }) => { const ini = it.inicio || '', fim = it.fim || it.inicio || '', rot = `${u.nome} ${u.de > 1 ? `${u.k} de ${u.de}` : ''}`.trim();
       const sit = e.publicado ? ['Publicado', 'green'] : e.data ? ['Agendado', 'sky'] : ['Sem data', 'orange'];
       const link = e.link ? `<a href="${esc(/^https?:\/\//.test(e.link) ? e.link : 'https://' + e.link)}" target="_blank" rel="noopener">${esc(e.link.replace(/^https?:\/\/(www\.)?/, '').slice(0, 38))}</a>` : '<span class="muted">—</span>';
       const dt = `data-ent="${it.id}" data-n="${n}"`;
-      return `<div class="dg-e"><span class="dg-p"><b>${esc(it.formato)} ${n} de ${q}</b><small>${esc([it.perfil, it.detalhe].filter(Boolean).join(' · '))} · ${mesExt(it.period).replace(/ de \d+$/, '')}${it.tema ? ' · ' + esc(it.tema) : ''}</small></span>
-        <span class="dg-d"><small class="dg-k">Data prevista</small>${pode && !e.publicado ? `<input type="date" value="${e.data || ''}" min="${ini}" max="${fim}" ${dt} aria-label="Data de ${esc(it.formato)} ${n} de ${q}">` : `<span>${e.data ? dfmt(e.data) : '—'}</span>`}</span>
+      return `<div class="dg-e"><span class="dg-p"><b>${esc(rot)}</b><small>${esc([S.acaoTitulo(it), S.acaoCanal(it)].filter(Boolean).join(' · '))}${it.inicio ? ' · ' + S.acaoPeriodo(it) : ''}</small></span>
+        <span class="dg-d"><small class="dg-k">Data prevista</small>${pode && !e.publicado ? `<input type="date" value="${e.data || ''}"${ini ? ` min="${ini}"` : ''}${fim ? ` max="${fim}"` : ''} ${dt} aria-label="Data de ${esc(rot)}">` : `<span>${e.data ? dfmt(e.data) : '—'}</span>`}</span>
         <span class="dg-s2"><span class="pill" style="--tone:var(--${sit[1]})">${sit[0]}</span></span>
         <span class="dg-lk">${link}</span>
         <span class="dg-a">${pode ? (e.publicado ? `<button class="btn sm" data-act="piEntDesfazer" ${dt.replace('data-ent', 'data-id')}>Desfazer</button>` : `<button class="btn sm" data-act="piEntPublicar" ${dt.replace('data-ent', 'data-id')}>Marcar publicado</button>`) : ''}</span></div>`; }).join('');
@@ -425,7 +418,7 @@
     piWhats: d => {
       const pi = S.db.pis.find(p => p.id === d.id), c = S.calc(pi), cli = S.pessoa(pi.cliente_id) || {}, v = S.veh(pi.veiculo_id);
       const meses = [...new Set([...pi.dados.grids, ...pi.dados.digital].map(g => g.period.split('-').reverse().join('/')))].join(', ');
-      const texto = [`*${v.nome} · ${S.piNo(pi)}*`, pi.titulo, cli.nome ? `Cliente: ${cli.nome}` : '', meses ? `Período: ${meses}` : '', c.ins || !c.pub ? `Inserções: ${c.ins}` : '', c.pub ? `Publicações digitais: ${c.pub}` : '', `Valor total: ${brl(c.total)}`, pi.dados.billing.obsClient ? `Observações: ${pi.dados.billing.obsClient}` : '', '', `Consultor(a): ${S.usuario(pi.consultor_id)}`].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
+      const texto = [`*${v.nome} · ${S.piNo(pi)}*`, pi.titulo, cli.nome ? `Cliente: ${cli.nome}` : '', meses ? `Período: ${meses}` : '', c.ins || !c.pub ? `Inserções: ${c.ins}` : '', c.pub ? `Ação digital: ${S.acaoEntregasTxt({ entregas:pi.dados.digital.flatMap(a => a.entregas || []) })}` : '', `Valor total: ${brl(c.total)}`, pi.dados.billing.obsClient ? `Observações: ${pi.dados.billing.obsClient}` : '', '', `Consultor(a): ${S.usuario(pi.consultor_id)}`].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
       let fone = String(cli.whatsapp || cli.telefone || '').replace(/\D/g, ''); if (fone && fone.length <= 11) fone = '55' + fone;
       window.open(`https://wa.me/${fone}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
       if (!fone) S.toast('Este cliente não tem WhatsApp cadastrado: escolha o contato no WhatsApp.');
@@ -456,30 +449,14 @@
       mexer((pi, d) => { d.grids = d.grids.filter(g => g.id !== x.id); }); },
     piAddItem: x => mexer((pi, d) => { const it = blankItem(), g = d.grids.find(g => g.id === x.id); it.piece = (d.pieces[0] || {}).id || ''; g.items.push(it); S.ui.piItem = Object.assign({}, S.ui.piItem, { [g.id]:it.id }); }),
     piRmItem: x => mexer((pi, d) => { const g = d.grids.find(g => g.id === x.g); g.items = g.items.filter(i => i.id !== x.id); }),
-    // Item digital: perfil × formato da tabela vigente, mês, peça/tema e quantidade
-    piAddDig: () => { const pi = cur(); if (!editando(pi)) return; const vig = S.tabelaVigente();
-      const ord = tipo => S.db.produtos.filter(p => p.tipo === tipo && p.ativo && S.ehDigital(p)).sort((a, b) => (a.ordem || 0) - (b.ordem || 0) || a.nome.localeCompare(b.nome));
-      const perfis = ord('programa').filter(p => !vig || ord('formato').some(f => S.precoNaTabela(vig.id, p.id, f.id)));
-      if (!perfis.length) return S.toast('Cadastre os perfis e formatos digitais em Tabela de preços.');
-      const pers = [...new Set([...pi.dados.grids.map(g => g.period), ...digPeriodos(pi)])].sort(), per0 = pers[pers.length - 1] || today().slice(0, 7);
-      S.dialog(`<h2>Item digital</h2><p class="muted small" style="margin-top:-6px">${vig ? `Preço da ${esc(vig.nome)}` : 'Sem tabela vigente: digite o valor'} · a rádio define as datas depois da aprovação</p>
-        <div class="g2"><label class="f">Perfil<select name="perfil" required>${perfis.map(p => `<option value="${p.id}">${esc(p.nome)}${p.detalhe ? ' · ' + esc(p.detalhe) : ''}</option>`).join('')}</select></label>
-          <label class="f">Formato<select name="formato" required></select></label>
-          <label class="f">Mês<select name="period">${meses(per0)}</select></label>
-          <label class="f">Quantidade no mês<input name="qtd" data-mask="int" inputmode="numeric" value="1" required></label>
-          <label class="f" style="grid-column:1/-1">Peça / tema<input name="tema" placeholder="Ex.: Ofertas da semana"></label>
-          <label class="f">Valor por publicação (R$)<input name="unit" data-mask="dec" inputmode="decimal" placeholder="0,00"></label>
-          <div class="f"><small class="muted" id="piDigTab" style="margin-top:28px"></small></div></div>
-        <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar</button></div>`,
-        f => mexer((pi2, d) => { const pr = S.db.produtos.find(x => x.id === f.perfil), fm = S.db.produtos.find(x => x.id === f.formato); if (!pr || !fm) return;
-          d.digital.push({ id:uid(), period:f.period, programa_id:pr.id, formato_id:fm.id, perfil:pr.nome.trim(), detalhe:pr.detalhe || '', formato:fm.nome.trim(), tema:(f.tema || '').trim(), qtd:Math.max(0, parseInt(f.qtd) || 0), unit:num(f.unit) }); }));
-      const fp = document.querySelector('#dlg [name="perfil"]'), ff = document.querySelector('#dlg [name="formato"]'), fu = document.querySelector('#dlg [name="unit"]'), dica = document.getElementById('piDigTab');
-      const preco = () => { const pc = vig && S.precoNaTabela(vig.id, fp.value, ff.value); if (pc) { fu.value = nfmt(num(pc.preco)); dica.textContent = `Tabela: ${brl(num(pc.preco))} por publicação`; } else dica.textContent = ''; };
-      const formatos = () => { const fs = ord('formato').filter(f => !vig || S.precoNaTabela(vig.id, fp.value, f.id)); ff.innerHTML = fs.map(f => `<option value="${f.id}">${esc(f.nome)}</option>`).join('') || '<option value="">Sem formato com preço</option>'; preco(); };
-      fp.addEventListener('change', formatos); ff.addEventListener('change', preco); formatos(); },
-    piRmDig: x => mexer((pi, d) => { d.digital = d.digital.filter(it => it.id !== x.id); }),
-    piEntPublicar: d => { const pi = cur(), it = pi.dados.digital.find(x => x.id === d.id), e = ((pi.entregas || {})[d.id] || [])[+d.n - 1] || {};
-      S.form(`${esc(it.formato)} ${d.n} de ${S.digCalc(it).qtd} · publicado`, [
+    // Ação digital (digital.js): nova, editar ou tirar; vale depois de Salvar
+    piAcao: async x => { const pi = cur(); if (!editando(pi)) return;
+      if (x.op === 'tirar') { const a = pi.dados.digital.find(it => it.id === x.id); if (!await S.confirmar(`Tirar a ação "${S.acaoTitulo(a)}" do PI?`, { ok:'Tirar ação', perigo:true })) return;
+        return mexer((p2, d) => { d.digital = d.digital.filter(it => it.id !== x.id); }); }
+      const atual = x.op === 'editar' ? pi.dados.digital.find(it => it.id === x.id) : null;
+      S.acaoDigitalDlg(atual, a => mexer((p2, d) => { if (atual) d.digital = d.digital.map(it => it.id === a.id ? a : it); else d.digital.push(a); })); },
+    piEntPublicar: d => { const pi = cur(), it = pi.dados.digital.find(x => x.id === d.id), e = ((pi.entregas || {})[d.id] || [])[+d.n - 1] || {}, u = S.acaoUnidades(it)[+d.n - 1] || { nome:'Entrega', k:+d.n, de:+d.n };
+      S.form(`${esc(u.nome)}${u.de > 1 ? ` ${u.k} de ${u.de}` : ''} · publicado`, [
         { k:'data', label:'Data da publicação', type:'date', req:true },
         { k:'link', label:'Link do post (opcional)', ph:'https://instagram.com/p/…', full:true }], { data:e.data || today(), link:e.link || '' },
         v => entrega(pi, d.id, +d.n, v.data, true, (v.link || '').trim(), 'Publicação marcada'), 'Marcar publicado'); },
@@ -509,7 +486,7 @@
     const faixas = [...new Set(pi.dados.grids.flatMap(g => g.items.map(it => it.faixa)).filter(Boolean))];
     const ag = S.nome(pi.agencia_id), obs = String(pi.dados.billing.obsClient || '').trim();
     const msg = [`Olá, OPEC!`, '', `${reenvio ? 'Segue de novo, com os ajustes,' : 'Segue para conferência'} o ${S.piNo(pi)} · ${pi.titulo}.`,
-      `Cliente: ${S.nome(pi.cliente_id) || '—'}${ag ? ` (agência ${ag})` : ''}`, `Período: ${mesesPi(pi)}`, c.ins || !c.pub ? `Inserções: ${c.ins}` : '', c.pub ? `Publicações digitais: ${c.pub} (${[...new Set(pi.dados.digital.map(it => it.formato))].join(', ')}; a rádio define as datas)` : '',
+      `Cliente: ${S.nome(pi.cliente_id) || '—'}${ag ? ` (agência ${ag})` : ''}`, `Período: ${mesesPi(pi)}`, c.ins || !c.pub ? `Inserções: ${c.ins}` : '', c.pub ? `Ação digital: ${pi.dados.digital.map(a => `${S.acaoTitulo(a)} · ${S.acaoCanal(a)} · ${S.acaoEntregasTxt(a)} · ${S.acaoPeriodo(a)}`).join('; ')} (a rádio define as datas)` : '',
       faixas.length ? `Faixa: ${faixas.join(', ')}` : '', obs ? `Observações: ${obs}` : '', '', 'Ver o PI e baixar o PDF:', link, '', S.me.nome || S.me.email, v.nome]
       .filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
     S.dialog(`<h2>${reenvio ? 'Reenviar' : 'Enviar'} ${S.piNo(pi)} para a OPEC</h2>
@@ -617,15 +594,13 @@
         <tr>${days.map(d => `<th class="${fim(d) ? 'fim' : ''}">${String(d).padStart(2, '0')}</th>`).join('')}</tr></thead><tbody>${rows}</tbody>
         ${varias ? `<tfoot><tr><td colspan="${3 + nd}" class="r">Subtotal ${mesCurto(g.period)}</td><td class="c"><b>${ins}</b></td><td colspan="3" class="r"><b>${brl(sub)}</b></td></tr></tfoot>` : ''}</table>`;
     }).join('');
-    // Mídia digital: perfil, formato, peça e quantidade no mês; as datas a rádio define
-    const dps = digPeriodos(pi), variosDig = dps.length > 1;
-    const digital = dps.length ? `<div class="pd-dig-tit">MÍDIA DIGITAL <span>· datas de publicação definidas pela rádio dentro do mês</span></div>` + dps.map(per => {
-      let q = 0, t = 0;
-      const rows = pi.dados.digital.filter(it => it.period === per).map(it => { const k = S.digCalc(it); q += k.qtd; t += k.sub; tabela += k.sub;
-        return `<tr><td>${esc([it.perfil, it.detalhe].filter(Boolean).join(' · '))}</td><td><b>${esc(it.formato)}</b></td><td>${esc(it.tema)}</td><td class="c">${k.qtd}</td><td class="r">${nfmt(num(it.unit)) || '0,00'}</td><td class="r"><b>${nfmt(k.sub) || '0,00'}</b></td></tr>`; }).join('');
-      return `<table class="pd-dig"><colgroup><col class="k-pf"><col class="k-fm"><col><col class="k-qt"><col class="k-un"><col class="k-tt"></colgroup>
-        <thead><tr><th class="l">Perfil${variosDig || pi.dados.grids.length ? ` · ${mesCurto(per)}` : ''}</th><th class="l">Formato</th><th class="l">Peça / tema</th><th>Quantidade</th><th class="r">Valor unit.</th><th class="r">Total</th></tr></thead><tbody>${rows}</tbody>
-        ${variosDig ? `<tfoot><tr><td colspan="3" class="r">Subtotal ${mesCurto(per)}</td><td class="c"><b>${q}</b></td><td colspan="2" class="r"><b>${brl(t)}</b></td></tr></tfoot>` : ''}</table>`; }).join('') : '';
+    // Ação digital: canal, ação, entregas, período e valor; as datas de cada publicação a rádio define
+    const dps = digPeriodos(pi);
+    const digital = pi.dados.digital.length ? `<div class="pd-dig-tit">AÇÃO DIGITAL <span>· ação única; datas das publicações definidas pela rádio dentro do período; produção incluída</span></div>
+      <table class="pd-dig"><colgroup><col class="k-pf"><col class="k-fm"><col><col class="k-pe"><col class="k-tt"></colgroup>
+        <thead><tr><th class="l">Canal</th><th class="l">Ação</th><th class="l">Entregas</th><th>Período</th><th class="r">Valor</th></tr></thead>
+        <tbody>${pi.dados.digital.map(a => { const k = S.digCalc(a); tabela += k.sub;
+          return `<tr><td>${esc(S.acaoCanal(a))}</td><td><b>${esc(S.acaoTitulo(a))}</b></td><td>${esc(S.acaoEntregasTxt(a))}</td><td class="c">${S.acaoPeriodo(a)}</td><td class="r"><b>${nfmt(k.sub) || '0,00'}</b></td></tr>`; }).join('')}</tbody></table>` : '';
     const periodos = [...new Set([...pi.dados.grids.map(g => g.period), ...dps])].sort(), periodo = !periodos.length ? '—' : periodos.length === 1 ? mesCurto(periodos[0]) : `${mesCurto(periodos[0])} a ${mesCurto(periodos[periodos.length - 1])}`;
     const descLinhas = tabela - c.media;
     // Quem paga a rádio recebe a fatura: o e-mail de faturamento é o dele
@@ -641,7 +616,7 @@
         ${paga.map(e => `<div class="mut">${esc(e.what)} paga pela rádio à agência: <b class="tx">${brl(e.value)}</b></div>`).join('')}` : ''}
       ${v.pi_pagamento || emailFat ? `<div class="mut">${esc(v.pi_pagamento)}${v.pi_pagamento && emailFat ? '. ' : ''}${emailFat ? `E-mail de faturamento: <b class="tx">${esc(emailFat)}</b>` : ''}</div>` : ''}</div>`;
     const linhaT = (rot, val, cls = '') => `<span class="${cls}">${rot}</span><span class="r ${cls}">${val}</span>`;
-    const totais = `<div class="pd-box pd-tot">${c.pub ? linhaT(`Rádio · ${c.ins} ${c.ins === 1 ? 'inserção' : 'inserções'}`, brl(c.radio), 'mut') + linhaT(`Digital · ${c.pub} ${c.pub === 1 ? 'publicação' : 'publicações'}`, brl(c.digital), 'mut') : ''}${linhaT('Valor de tabela', brl(tabela))}${descLinhas > 0.004 ? linhaT('Descontos nas linhas', '− ' + brl(descLinhas)) : ''}${c.discount ? linhaT('Desconto geral', '− ' + brl(c.discount)) : ''}
+    const totais = `<div class="pd-box pd-tot">${c.pub ? linhaT(`Rádio · ${c.ins} ${c.ins === 1 ? 'inserção' : 'inserções'}`, brl(c.radio), 'mut') + linhaT(`Ação digital · ${c.pub} ${c.pub === 1 ? 'entrega' : 'entregas'}`, brl(c.digital), 'mut') : ''}${linhaT('Valor de tabela', brl(tabela))}${descLinhas > 0.004 ? linhaT('Descontos nas linhas', '− ' + brl(descLinhas)) : ''}${c.discount ? linhaT('Desconto geral', '− ' + brl(c.discount)) : ''}
       ${linhaT('Valor do PI', brl(c.total), 'forte')}${c.bonus ? linhaT('Bonificação (sem custo)', brl(c.bonus), 'mut') : ''}
       ${o.commission && ag ? linhaT(`Comissão da agência${d_pct(pi)}`, '− ' + brl(c.commission), 'mut') + linhaT('Total líquido', brl(c.net), 'final') : ''}
       ${o.commission && c.fee ? linhaT('Honorários da agência', brl(c.fee), 'mut') : ''}</div>`;
@@ -670,7 +645,7 @@
       <div class="pd-topo">${radio}<div class="pd-meio"><div class="pd-titulo">PEDIDO DE INSERÇÃO</div>${cliente}</div>${numero}</div>
       <div class="pd-autoriza">AUTORIZAMOS EXECUTAR ESTE PLANO DE MÍDIA${c.pub ? ' E AS PUBLICAÇÕES' : ''} DE ACORDO COM AS CONDIÇÕES ABAIXO DISCRIMINADAS</div>
       ${grids}${digital}
-      <div class="pd-pecas"><span><b>Peças:</b> ${pi.dados.pieces.map((p, i) => `${String.fromCharCode(65 + i)} · ${esc(p.name)}`).join(' &nbsp; ') || '—'}</span><span>${c.ins || !c.pub ? `Total de inserções: <b>${c.ins}</b>` : ''}${c.ins && c.pub ? ' &nbsp; · &nbsp; ' : ''}${c.pub ? `Publicações digitais: <b>${c.pub}</b>` : ''}</span></div>
+      <div class="pd-pecas"><span><b>Peças:</b> ${pi.dados.pieces.map((p, i) => `${String.fromCharCode(65 + i)} · ${esc(p.name)}`).join(' &nbsp; ') || '—'}</span><span>${c.ins || !c.pub ? `Total de inserções: <b>${c.ins}</b>` : ''}${c.ins && c.pub ? ' &nbsp; · &nbsp; ' : ''}${c.pub ? `Entregas digitais: <b>${c.pub}</b>` : ''}</span></div>
       <div class="pd-baixo">${pagamento}<div class="pd-box"><b class="pd-tit">Observações</b><div>${o.obs && b.obsClient ? esc(b.obsClient).replace(/\n/g, '<br>') : ''}</div></div>${totais}</div>
       <div class="pd-fecho"><div><div>E, por estarem de acordo com as especificações e condições deste pedido${o.conds ? ' e das condições gerais abaixo' : ''}, as partes assinam o presente para todos os efeitos legais.</div>
         <div>${esc(cidade ? cidade + ', ' : '')}${dataExt(o.date)}.</div>
