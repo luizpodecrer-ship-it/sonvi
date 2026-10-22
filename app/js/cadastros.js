@@ -63,14 +63,15 @@
   const fmtPct = n => n === null ? '—' : (n > 0.05 ? '+' : n < -0.05 ? '−' : '') + Math.abs(n).toFixed(1).replace('.', ',') + '%';
 
   // ---------- editor (as mudanças ficam aqui até Salvar) ----------
-  let ed = null;            // { id, tipo, nome, inicio, progs:[ids], forms:[ids], pacotes:[…], cel:{chave:{preco, desconto_max}}, base:{chave:preco}, baseNome, mao:Set, sujo, corrigindo }
+  let ed = null;            // { id, tipo, nome, inicio, progs:[ids], forms:[ids], pacotes:[…], cel:{chave:{preco, desconto_max}}, base:{chave:preco}, baseNome, mao:Set, sujo, edit } · edit = clicou em Editar
+  let pedirEdit = null;     // tabela que deve abrir já em edição (Editar no ⋯ da lista)
   let editando = null;      // célula com o campo de preço aberto { p, f }
   let secCel = 'programa';  // seção aberta no celular
   const massaUlt = { alvo:'tudo', op:'pct+', val:'', arr:'5' };   // último reajuste em massa, para não apagar ao redesenhar
   const abrir = t => { const b = baseDe(t), bp = b ? precosDe(b.id) : {}, m = membros(t);
-    ed = { id:t.id, tipo:tipoDe(t), nome:t.nome, inicio:t.inicio || '', progs:m.progs, forms:m.forms, pacotes:JSON.parse(JSON.stringify(t.pacotes || [])), cel:precosDe(t.id), base:Object.fromEntries(Object.entries(bp).map(([k, v]) => [k, v.preco])), baseNome:b ? b.nome : '', mao:new Set(), sujo:false, corrigindo:false };
-    editando = null; };
-  const emEdicao = () => { const t = ed && tab(ed.id); return !!t && podeEditar(t) && (sit(t) !== 'vigente' || ed.corrigindo); };
+    ed = { id:t.id, tipo:tipoDe(t), nome:t.nome, inicio:t.inicio || '', progs:m.progs, forms:m.forms, pacotes:JSON.parse(JSON.stringify(t.pacotes || [])), cel:precosDe(t.id), base:Object.fromEntries(Object.entries(bp).map(([k, v]) => [k, v.preco])), baseNome:b ? b.nome : '', mao:new Set(), sujo:false, edit:pedirEdit === t.id };
+    pedirEdit = null; editando = null; };
+  const emEdicao = () => { const t = ed && tab(ed.id); return !!t && podeEditar(t) && ed.edit; };
   S.tpSujo = () => !!(ed && ed.sujo);
   const sujar = () => { if (!ed.sujo) { ed.sujo = true; document.querySelectorAll('.tp-sujo').forEach(e => { e.hidden = false; }); } };
   const descontoPadrao = cel => { const c = {}; Object.values(cel).forEach(x => { c[x.desconto_max] = (c[x.desconto_max] || 0) + 1; }); const k = Object.keys(c).sort((a, b) => c[b] - c[a])[0]; return k === undefined ? null : Number(k); };
@@ -191,7 +192,7 @@
     return d ? [q(m.forms.length, 'entrega', 'entregas'), q(m.progs.length, 'canal', 'canais'), q((t.pacotes || []).length, 'pacote', 'pacotes')].join(' · ') : [q(m.progs.length, 'programa', 'programas'), q(m.forms.length, 'formato', 'formatos')].join(' · '); };
   const cartaoTabela = t => {
     const s = sit(t), [rot, tom] = S.SITUACAO_TABELA[s], cel = precosDe(t.id), b = baseDe(t), c = b ? comparar(cel, Object.fromEntries(Object.entries(precosDe(b.id)).map(([k, v]) => [k, v.preco]))) : null;
-    const acao = s === 'rascunho' ? (pode() ? 'Continuar' : 'Abrir') : s === 'encerrada' ? 'Consultar' : 'Abrir';
+    const acao = 'Abrir';
     const info = s === 'rascunho' || s === 'agendada' ? ['Reajuste médio', c && c.media !== null ? fmtPct(c.media) : '—'] : ['PIs feitos no período', String(pisNoPeriodo(t))];
     const obs = s === 'rascunho' ? `${contagem(t)} · ainda não vale` : s === 'agendada' ? 'Publicada. Até essa data vale a tabela atual.' : s === 'vigente' ? `${contagem(t)} · é a que se usa hoje` : 'Só consulta';
     return `<article class="card tp-tabela ${s}"><div class="tp-tabela-cab"><div><h2>${esc(t.nome)}</h2><small class="muted">${periodo(t)}</small></div>${S.tag(rot, tom)}</div>
@@ -250,15 +251,16 @@
     const s = sit(t), v = visaoEditor(), editar = v.editar, [rot, tom] = S.SITUACAO_TABELA[s], tt = tipoDe(t), d = tt === 'digital', vig = vigenteDe(tt);
     const c = ed.baseNome ? comparar(ed.cel, ed.base, ed.mao) : null;
     const sujo = `<span class="sujo tp-sujo"${ed.sujo ? '' : ' hidden'}><i></i>Alterações não salvas</span>`;
-    const botoesEdicao = `${sujo}<button class="btn" data-act="tpDescartar">Descartar</button><button class="btn${s === 'rascunho' && diretor() ? '' : ' pri'}" data-act="tpSalvarTabela">Salvar</button>${s === 'rascunho' && diretor() ? `<button class="btn pri" data-act="tpPublicar">Publicar…</button>` : ''}`;
+    const botoesEdicao = `${sujo}<button class="btn" data-act="tpDescartar">Descartar</button><button class="btn pri" data-act="tpSalvarTabela">Salvar</button>`;
+    const publicar = s === 'rascunho' && diretor(), podeEd = podeEditar(t);
     const acoes = editar ? botoesEdicao
-      : `<button class="btn" data-act="tpPdf" data-id="${t.id}">${S.svg('baixar')}PDF</button>${s === 'vigente' && diretor() ? `<button class="btn pri" data-act="tpCorrigir">${S.svg('editar')}Corrigir preços</button>` : ''}${pode() && s !== 'rascunho' ? `<button class="btn${s === 'vigente' && diretor() ? '' : ' pri'}" data-act="tpNova" data-base="${t.id}">${S.svg('copia')}Usar como base de uma nova</button>` : ''}`;
+      : `<button class="btn" data-act="tpPdf" data-id="${t.id}">${S.svg('baixar')}PDF</button>${pode() ? `<button class="btn tres" data-act="tpMenuTabela" data-id="${t.id}" data-dentro="1" aria-label="Mais opções da tabela">${S.svg('mais3')}</button>` : ''}${podeEd ? `<button class="btn${publicar ? '' : ' pri'}" data-act="tpEditarTabela" data-id="${t.id}">${S.svg('editar')}Editar</button>` : ''}${publicar ? `<button class="btn pri" data-act="tpPublicar">Publicar…</button>` : ''}`;
     const texto = s === 'rascunho' ? `Em preparação: ainda não vale.${vig ? ` A ${esc(vig.nome)} continua vigente.` : ''}${d ? ' A tabela de rádio não muda.' : ''}${ed.baseNome ? ` Cópia da ${esc(ed.baseNome)}.` : ' Começou do zero.'}`
       : s === 'agendada' ? `Publicada: começa a valer em ${dfmt(t.inicio)}. Até lá os PIs usam a ${vig ? esc(vig.nome) : 'tabela atual'}.`
-      : s === 'vigente' ? `Vigente desde ${dfmt(t.inicio)}: é a que as propostas e os PIs novos usam.${ed.corrigindo ? ' A correção vale para os PIs feitos a partir de agora.' : ''}` : `Encerrada: valeu de ${dfmt(t.inicio)} a ${fimDe(t) ? dfmt(fimDe(t)) : '—'}. Só consulta.`;
-    const campos = editar && s === 'rascunho' ? `<div class="tp-campos"><label class="f">Nome da tabela<input data-tp-nome="1" value="${esc(ed.nome)}" placeholder="Ex.: Tabela 2027"></label>
-      <label class="f">Começa a valer em (previsto)<input type="date" data-tp-inicio="1" value="${esc(ed.inicio)}"></label></div>` : '';
-    const faixa = `<div class="card tp-faixa"><span class="tp-tags">${S.tag(rot, tom)}${S.tag(d ? 'Digital' : 'Rádio', d ? 'purple' : 'blue')}</span><span>${texto}</span><span class="grow"></span>${s === 'agendada' && diretor() ? `<button class="btn sm" data-act="tpDespublicar" data-id="${t.id}">Voltar para preparação</button>` : ''}${campos}
+      : s === 'vigente' ? `Vigente desde ${dfmt(t.inicio)}: é a que as propostas e os PIs novos usam.${editar ? ' <b>Editando a tabela vigente:</b> o que você salvar vale para as propostas e PIs feitos a partir de agora; os já feitos não mudam.' : ''}` : `Encerrada: valeu de ${dfmt(t.inicio)} a ${fimDe(t) ? dfmt(fimDe(t)) : '—'}. Só consulta.`;
+    const campos = editar ? `<div class="tp-campos"><label class="f">Nome da tabela<input data-tp-nome="1" value="${esc(ed.nome)}" placeholder="Ex.: Tabela 2027"></label>
+      ${s === 'rascunho' ? `<label class="f">Começa a valer em (previsto)<input type="date" data-tp-inicio="1" value="${esc(ed.inicio)}"></label>` : s === 'agendada' ? `<label class="f">Começa a valer em<input type="date" data-tp-inicio="1" min="${S.today()}" value="${esc(ed.inicio)}"></label>` : ''}</div>` : '';
+    const faixa = `<div class="card tp-faixa"><span class="tp-tags">${S.tag(rot, tom)}${S.tag(d ? 'Digital' : 'Rádio', d ? 'purple' : 'blue')}</span><span>${texto}</span><span class="grow"></span>${campos}
       ${s === 'rascunho' && !diretor() && editar ? '<small class="muted tp-quem">Quando estiver pronta, o diretor publica.</small>' : ''}</div>`;
     const forms = formsDe(v), progs = progsDe(v);
     const massa = editar && Object.keys(ed.cel).length ? `<section class="card tp-massa" aria-label="Reajustar vários de uma vez">
@@ -273,7 +275,7 @@
       <div class="tile"><small>Reajuste médio</small><b>${fmtPct(c.media)}</b><small>menor ${fmtPct(c.menor)} · maior ${fmtPct(c.maior)}</small></div>
       <div class="tile"><small>Comparando com</small><b class="tp-comp">${esc(ed.baseNome)}</b><small>embaixo de cada preço: o valor de antes</small></div></div>` : '';
     const legenda = c && c.comBase ? `<div class="tp-legenda"><span><i class="tp-q mudou"></i>Reajustado</span><span><i class="tp-q mao"></i>Mudado à mão</span><span><i class="tp-q igual"></i>Igual à anterior</span><span><i class="tp-q novo"></i>Novo</span></div>` : '';
-    const barraCel = editar ? `<div class="tp-barra">${sujo}<div class="row">${s === 'rascunho' && diretor() ? `<button class="btn" data-act="tpSalvarTabela">Salvar</button><button class="btn pri" data-act="tpPublicar">Publicar…</button>` : `<button class="btn" data-act="tpDescartar">Descartar</button><button class="btn pri" data-act="tpSalvarTabela">Salvar</button>`}</div></div>` : '';
+    const barraCel = editar ? `<div class="tp-barra">${sujo}<div class="row"><button class="btn" data-act="tpDescartar">Descartar</button><button class="btn pri" data-act="tpSalvarTabela">Salvar</button></div></div>` : '';
     return { title:`<span class="sub">${pode() ? `<a data-go="/cadastros${d ? '/digital' : ''}">← Tabela de preços · ${d ? 'Digital' : 'Rádio'}</a> · ` : 'Tabela de preços vigente · '}${esc(S.veh().nome)}</span>${esc(ed.nome || t.nome)}`,
       actions:editar ? `<span class="tp-topo">${acoes}</span>` : acoes, body:(pode() ? '' : abas(tt, '')) + faixa + massa + resumo + legenda + corpoGrade(v) + (editar && !S.celular && (progs.length || forms.length) ? `<p class="muted small" style="margin-top:12px">Clique num valor para digitar outro (Enter confirma, Esc desiste). Nada vale até ${s === 'rascunho' ? 'publicar' : 'salvar'}.</p>` : '') + barraCel };
   };
@@ -463,28 +465,45 @@
         <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Nova tabela</button></div>`,
         v => S.run(async () => {
           const id = await S.q(S.sb.rpc('nova_tabela', { p_veiculo:S.ui.vehicleId, p_nome:v.tp_nome, p_base:v.tp_base || null, p_inicio:v.tp_prev || null, p_tipo:v.tp_tipo === 'digital' ? 'digital' : 'radio' }));
-          await S.recarregarTabelas(); ed = null; location.hash = '/cadastros/' + id;
+          await S.recarregarTabelas(); ed = null; pedirEdit = id; location.hash = '/cadastros/' + id;
         }, 'Tabela criada'));
       // Trocar o tipo troca as tabelas de origem (e o nome sugerido, se ainda não foi mexido)
       const f = document.querySelector('#dlg form'); let sug = nomeSugerido(tt0);
       f.addEventListener('change', e => { if (e.target.name !== 'tp_tipo') return; const tt = e.target.value;
         document.getElementById('tpBases').innerHTML = bases(tt); if (f.tp_nome.value === sug) { sug = nomeSugerido(tt); f.tp_nome.value = sug; } });
     },
-    tpMenuTabela: (d, botao) => { const t = tab(d.id), s = sit(t);
-      S.menu(botao, [{ label:s === 'rascunho' && pode() ? 'Continuar' : 'Abrir', icon:'abrir', act:'tpAbrir', data:{ id:t.id } },
+    tpMenuTabela: (d, botao) => { const t = tab(d.id), s = sit(t), dentro = !!d.dentro, podeEx = s === 'rascunho' ? pode() : diretor();
+      S.menu(botao, [...(dentro ? [] : [{ label:'Abrir', icon:'abrir', act:'tpAbrir', data:{ id:t.id } }]),
+        ...(!dentro && podeEditar(t) ? [{ label:'Editar', icon:'editar', act:'tpEditarTabela', data:{ id:t.id } }] : []),
         ...(pode() ? [{ label:'Usar como base de uma nova', icon:'copia', act:'tpNova', data:{ base:t.id } }] : []),
-        { label:'Baixar PDF', icon:'baixar', act:'tpPdf', data:{ id:t.id } },
+        ...(dentro ? [] : [{ label:'Baixar PDF', icon:'baixar', act:'tpPdf', data:{ id:t.id } }]),
         ...(s === 'agendada' && diretor() ? ['-', { label:'Voltar para preparação', icon:'voltar', act:'tpDespublicar', data:{ id:t.id } }] : []),
-        ...(s === 'rascunho' && pode() ? ['-', { label:'Excluir tabela', icon:'lixo', act:'tpExcluirTabela', data:{ id:t.id }, perigo:true }] : [])]); },
+        ...(podeEx ? ['-', { label:'Excluir tabela', icon:'lixo', act:'tpExcluirTabela', data:{ id:t.id }, perigo:true }] : [])]); },
     tpAbrir: d => { location.hash = '/cadastros/' + d.id; },
-    tpExcluirTabela: async d => { const t = tab(d.id); if (!await S.confirmar(`Excluir a tabela "${t.nome}"? Ela ainda está em preparação e não dá para desfazer.`, { ok:'Excluir tabela', perigo:true })) return;
-      S.run(async () => { await S.q(S.sb.from('tabelas_preco').delete().eq('id', t.id)); if (ed && ed.id === t.id) ed = null; await S.recarregarTabelas(); if (S.route().id === t.id) location.hash = '/cadastros'; }, 'Tabela excluída'); },
+    tpEditarTabela: d => { if (ed && ed.id === d.id && S.route().id === d.id) { ed.edit = true; return S.render(); }
+      pedirEdit = d.id; if (ed && ed.id === d.id && !ed.sujo) ed = null; location.hash = '/cadastros/' + d.id; },
+    tpExcluirTabela: async d => { const t = tab(d.id), s = sit(t), tt = tipoDe(t), volta = tt === 'digital' ? '/cadastros/digital' : '/cadastros';
+      const fim = () => S.run(async () => { await S.q(S.sb.rpc('excluir_tabela', { p_tabela:t.id })); if (ed && ed.id === t.id) ed = null;
+        await S.recarregarTabelas(); if (S.route().id === t.id) location.hash = volta; }, 'Tabela excluída');
+      if (s === 'vigente') {
+        const ant = tabelas(tt).filter(x => x.id !== t.id && x.situacao === 'publicada' && x.inicio && x.inicio <= S.today()).sort((a, b) => b.inicio.localeCompare(a.inicio))[0];
+        S.dialog(`<h2>Excluir a tabela vigente?</h2>
+          <p>"${esc(t.nome)}" é a que se usa hoje. Ao excluir, ${ant ? `<b>a ${esc(ant.nome)} volta a valer</b> para as propostas e PIs novos` : `<b>fica sem tabela ${NOME[tt]} vigente</b> até você publicar outra`}. Propostas e PIs já feitos não mudam: os preços ficam guardados neles. Não dá para desfazer.</p>
+          <label class="f">Para confirmar, digite o nome da tabela<input name="tp_conf" autocomplete="off" required placeholder="${esc(t.nome)}"></label>
+          <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Voltar</button><button class="btn danger" value="ok">Excluir tabela</button></div>`,
+          () => fim());
+        const campo = document.querySelector('#dlg [name="tp_conf"]'), confere = () => campo.setCustomValidity(campo.value.trim().toLowerCase() === String(t.nome).trim().toLowerCase() ? '' : `Digite o nome da tabela: ${t.nome}`);
+        confere(); campo.addEventListener('input', confere); return; }
+      const txt = s === 'rascunho' ? `Excluir a tabela "${t.nome}"? Ela ainda está em preparação.`
+        : s === 'agendada' ? `Excluir a tabela "${t.nome}"? Ela está agendada para ${dfmt(t.inicio)} e ainda não começou a valer.`
+        : `Excluir a tabela "${t.nome}"? Ela já foi encerrada e sai do histórico. Propostas e PIs já feitos não mudam.`;
+      if (!await S.confirmar(`${txt} Os preços dela saem junto. Não dá para desfazer.`, { ok:'Excluir tabela', perigo:true })) return;
+      fim(); },
     tpDespublicar: async d => { const t = tab(d.id);
       if (!await S.confirmar(`Voltar a "${t.nome}" para preparação? Ela deixa de estar agendada para ${dfmt(t.inicio)} e pode ser mudada de novo antes de publicar.`, { ok:'Voltar para preparação' })) return;
       S.run(async () => { await S.q(S.sb.rpc('despublicar_tabela', { p_tabela:t.id })); await S.recarregarTabelas(); if (ed && ed.id === t.id) abrir(tab(t.id)); }, 'Voltou para preparação'); },
     tpPdf: d => imprimir(tab(d.id) || tab(ed && ed.id)),
     // Editor
-    tpCorrigir: () => { ed.corrigindo = true; S.render(); },
     tpEditar: d => { if (!emEdicao()) return;
       if (S.celular) { const k = chave(d.p, d.f), x = ed.cel[k];
         return S.form(`${esc(prod(d.p).nome)} · ${esc(prod(d.f).nome)}`, [{ k:'preco', label:`Preço por inserção (R$)${ed.base[k] !== undefined ? ` · antes ${S.nfmt(ed.base[k])}` : ''}`, mask:'dec', ph:'Vazio = não é vendido' }], { preco:x ? S.nfmt(x.preco) : '' },
@@ -517,7 +536,7 @@
         <div class="tp-pub">${vig ? `<div><i class="tp-pt" style="--tone:var(--green)"></i><span><b>Até <span data-pub-ate></span></b> continua valendo a ${esc(vig.nome)}, como hoje.</span></div>` : ''}
           <div><i class="tp-pt" style="--tone:var(--accent)"></i><span><b>A partir de <span data-pub-dia></span></b> as propostas e os PIs novos já abrem com os preços da ${esc(ed.nome)}${c && c.media !== null ? ` (reajuste médio de ${fmtPct(c.media)})` : ''}.</span></div>
           <div><i class="tp-pt" style="--tone:var(--gray)"></i><span><b>PIs já feitos não mudam.</b> Cada PI guarda o preço do dia em que foi criado.</span></div></div>
-        <p class="muted small">Até a data de início você ainda pode abrir a tabela e corrigir um preço, ou voltar com ela para preparação.${ed.sujo ? ' As alterações que ainda não foram salvas são salvas junto.' : ''}</p>
+        <p class="muted small">Até a data de início você ainda pode abrir a tabela e clicar em Editar para mudar preços ou a data.${ed.sujo ? ' As alterações que ainda não foram salvas são salvas junto.' : ''}</p>
         <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Voltar</button><button class="btn pri" value="ok">Publicar</button></div>`,
         v => S.run(async () => { if (ed.sujo) await gravar();
           await S.q(S.sb.rpc('publicar_tabela', { p_tabela:ed.id, p_inicio:v.tp_inicio })); await S.recarregarTabelas(); abrir(tab(ed.id));

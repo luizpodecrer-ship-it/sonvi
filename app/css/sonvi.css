@@ -610,6 +610,7 @@ input.day:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-
   .tp-resumo .tile b { font-size:18px; }
   .tp-barra { display:flex; flex-direction:column; gap:8px; position:sticky; bottom:96px; z-index:5; margin-top:12px; padding:12px; border-radius:8px; background:var(--surface); box-shadow:var(--shadow-up); }
   .tp-barra .row { gap:8px; } .tp-barra .btn { flex:1; }
+  .tp-barra { padding-right:84px; }   /* o balão do chat de suporte fica no canto, sem cobrir o Salvar */
   .tp-topo { display:none; }
 }
 /* ---------- Sonvi Music ---------- */
