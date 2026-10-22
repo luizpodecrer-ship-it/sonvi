@@ -207,7 +207,7 @@
 
   // ---------- gravar e mudar de situação ----------
   const limpo = it => it.secao === 'digital' && it.entregas ? { id:it.id, secao:'digital', tipo:'acao', canal_id:it.canal_id, perfil:it.perfil, detalhe:it.detalhe || '', nome:it.nome || '',
-    entregas:it.entregas.map(e => ({ nome:e.nome, qtd:parseInt(e.qtd) || 0 })), inicio:it.inicio, fim:it.fim, period:it.period, valor:r2(it.valor), total:r2(it.valor), programa:it.perfil, formato:'Ação digital', insercoes:S.acaoQtd(it), dias:[], faixa:'' } : ({ id:it.id, programa_id:it.programa_id, formato_id:it.formato_id, programa:it.programa, formato:it.formato, secao:it.secao, detalhe:it.detalhe,
+    entregas:it.entregas.map(e => ({ nome:e.nome, qtd:parseInt(e.qtd) || 0 })), inicio:it.inicio, fim:it.fim, period:it.period, valor:r2(it.valor), total:r2(it.valor), valor_tabela:r2(it.valor_tabela), pacote:it.pacote || '', pacote_id:it.pacote_id || null, programa:it.perfil, formato:'Ação digital', insercoes:S.acaoQtd(it), dias:[], faixa:'' } : ({ id:it.id, programa_id:it.programa_id, formato_id:it.formato_id, programa:it.programa, formato:it.formato, secao:it.secao, detalhe:it.detalhe,
     dias:S.SEMANA.filter(d => (it.dias || []).includes(d)).sort((a, b) => a - b), faixa:String(it.faixa || '').trim(), insercoes:parseInt(it.insercoes) || 0,
     preco_tabela:Number(it.preco_tabela) || 0, preco:Number(it.preco) || 0, total:r2(it.total) });
   const gravar = async () => { const p = ed.p, t = S.propTotais(p);
@@ -285,7 +285,7 @@
     const v = S.veh(), ag = S.pessoa(p.agencia_id), n = parseInt(f.meses) || 1, r = itens.length ? S.distribuir(itens, f.inicio, n) : { meses:[], soma:0 };
     if (itens.length && !r.soma) throw new Error('A distribuição ficou sem inserções: confira os dias dos itens.');
     const digital = [];
-    digs.forEach(it => { const a = limpo(it); digital.push({ id:uid(), tipo:'acao', canal_id:a.canal_id, perfil:a.perfil, detalhe:a.detalhe, nome:a.nome, entregas:a.entregas, inicio:a.inicio, fim:a.fim, period:a.period, valor:a.valor }); });
+    digs.forEach(it => { const a = limpo(it); digital.push({ id:uid(), tipo:'acao', canal_id:a.canal_id, perfil:a.perfil, detalhe:a.detalhe, nome:a.nome, entregas:a.entregas, inicio:a.inicio, fim:a.fim, period:a.period, valor:a.valor, valor_tabela:a.valor_tabela, pacote:a.pacote, pacote_id:a.pacote_id }); });
     const grids = r.meses.map(m => ({ id:uid(), period:m.period, praca:v.cidade || '', items:Object.entries(m.itens).map(([i, days]) => { const it = itens[+i];
       return { id:uid(), piece:'', f1:it.programa, f2:it.formato, faixa:it.faixa || '', days, unit:Number(it.preco) || 0, disc:{ type:'pct', value:0 }, bonus:false }; }) }));
     const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:ag ? num(ag.comissao) : 0 }, grids, digital, marca:f.marca === 'comercial' ? 'comercial' : 'radio',

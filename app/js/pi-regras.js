@@ -83,9 +83,11 @@
   // ---------- tabelas de preço ----------
   // Situação de uma tabela: rascunho (só se prepara), agendada (publicada, ainda não começou),
   // vigente (a publicada mais recente que já começou) ou encerrada (substituída por outra).
-  S.tabelaVigente = (data = S.today()) => (S.db.tabelas || []).filter(t => t.situacao === 'publicada' && t.inicio <= data).sort((a, b) => b.inicio.localeCompare(a.inicio))[0] || null;
+  // Cada tipo (rádio ou digital, database/035) tem a sua vigente; sem tipo = rádio
+  S.tipoTabela = t => (t && t.tipo) || 'radio';
+  S.tabelaVigente = (data = S.today(), tipo = 'radio') => (S.db.tabelas || []).filter(t => t.situacao === 'publicada' && t.inicio <= data && S.tipoTabela(t) === tipo).sort((a, b) => b.inicio.localeCompare(a.inicio))[0] || null;
   S.situacaoTabela = t => { if (!t) return null; if (t.situacao !== 'publicada') return 'rascunho'; if (t.inicio > S.today()) return 'agendada';
-    const v = S.tabelaVigente(); return v && v.id === t.id ? 'vigente' : 'encerrada'; };
+    const v = S.tabelaVigente(S.today(), S.tipoTabela(t)); return v && v.id === t.id ? 'vigente' : 'encerrada'; };
   S.SITUACAO_TABELA = { rascunho:['Em preparação', 'gray'], agendada:['Agendada', 'blue'], vigente:['Vigente', 'green'], encerrada:['Encerrada', 'gray'] };
   // Preço de um programa × formato numa tabela (a vigente, se nenhuma for indicada). Rascunhos nunca entram no PI.
   S.precoNaTabela = (tabelaId, programaId, formatoId) => S.db.precos.find(x => x.tabela_id === tabelaId && x.programa_id === programaId && x.formato_id === formatoId) || null;
@@ -173,7 +175,7 @@
   // Ação digital (secao 'digital', tipo 'acao'): entregas e um valor só (total), sem preço de tabela
   S.propTotais = p => { let ins = 0, pub = 0, tabela = 0, total = 0, radio = 0, digital = 0;
     (p.itens || []).forEach(it => { const t = Number(it.total) || 0;
-      if (it.secao === 'digital') { pub += it.entregas ? S.acaoQtd(it) : parseInt(it.insercoes) || 0; digital += t; tabela += t; }
+      if (it.secao === 'digital') { pub += it.entregas ? S.acaoQtd(it) : parseInt(it.insercoes) || 0; digital += t; tabela += Number(it.valor_tabela) > 0 ? Number(it.valor_tabela) : t; }
       else { const n = parseInt(it.insercoes) || 0; ins += n; radio += t; tabela += n * (Number(it.preco_tabela) || 0); }
       total += t; });
     tabela = r2(tabela); total = r2(total); const desconto = r2(tabela - total);
