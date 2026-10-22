@@ -513,7 +513,8 @@
       S.acaoDigitalDlg(atual, a => comItem(pp => { const it = limpo(Object.assign({ secao:'digital' }, a)); if (atual) pp.itens[+d.i] = it; else pp.itens.push(it); })); },
     // Escolher da tabela vigente: programa (por seção) × formato, com o preço dela
     prAddItem: (d = {}) => { const p = atualEd(); if (!p) return; const vig = S.tabelaVigente(), v = S.veh(), digital = !!d.digital;
-      if (!vig) return S.toast('Não há tabela de preços vigente nesta rádio. Publique uma em Tabela de preços.');
+      if (!vig) { const prox = (S.db.tabelas || []).filter(t => t.situacao === 'publicada' && S.tipoTabela(t) === 'radio' && t.inicio > S.today()).sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
+        return S.toast(prox ? `A ${prox.nome} só começa a valer em ${S.dfmt(prox.inicio)}. Para usar agora, abra a tabela em Tabela de preços, clique em Editar e mude a data de início para hoje.` : 'Não há tabela de preços de rádio vigente nesta rádio. Publique uma em Tabela de preços.'); }
       const prods = tipo => S.db.produtos.filter(x => x.tipo === tipo && x.ativo && S.ehDigital(x) === digital).sort((a, b) => (a.ordem || 0) - (b.ordem || 0) || a.nome.localeCompare(b.nome));
       const secoes = digital ? [['digital', 'Perfis da rádio']] : [['rotativo', 'Rotativo'], ['programa', 'Programas'], ['quadro', 'Quadros']];
       const progs = prods('programa').filter(x => prods('formato').some(f => S.precoNaTabela(vig.id, x.id, f.id)));
