@@ -115,7 +115,14 @@
       const ativo = a => !a.encerrado_em && new Date(a.fim) > new Date();
       body += `<section class="card sup-log" style="margin-top:18px"><div class="hd"><h2>Acessos do suporte SONVI</h2><span>${log.length ? `${log.length} registro${log.length === 1 ? '' : 's'}` : 'nenhum até agora'}</span></div>
         <p class="muted small" style="margin:0 0 12px">A equipe SONVI só vê os dados da empresa quando entra como suporte. Cada entrada fica anotada aqui, com o motivo e o tempo. O que o suporte alterar aparece no histórico como "Suporte SONVI".</p>
-        ${log.length ? `<div class="list">${log.map(a => `<div><span class="ic" aria-hidden="true">${S.svg('chave')}</span><span class="tx"><b>${dt(a.inicio)}${ativo(a) ? ' · <span class="pill" style="--tone:var(--blue)">agora</span>' : ''}</b><small>Suporte SONVI · ${ativo(a) ? `até ${new Date(a.fim).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })}` : `${dur(a)} min`} · motivo: ${esc(a.motivo)}</small></span></div>`).join('')}</div>` : ''}</section>`;
+        ${log.length ? `<div class="acc">${log.map(a => { const fimReal = a.encerrado_em && new Date(a.encerrado_em) < new Date(a.fim) ? a.encerrado_em : a.fim, hora = d => new Date(d).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+          const comoTerminou = ativo(a) ? 'Em andamento' : a.encerrado_em && new Date(a.encerrado_em) < new Date(a.fim) ? 'Encerrado pelo suporte' : 'Terminou no horário combinado';
+          const previsto = Math.round((new Date(a.fim) - new Date(a.inicio)) / 60000), fmtMin = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`;
+          return `<details class="acc-item" name="suplog"${ativo(a) ? ' open' : ''}><summary><span class="ic" aria-hidden="true">${S.svg('chave')}</span>
+            <span class="acc-tit"><b>${esc(a.motivo)}${ativo(a) ? ' <span class="pill" style="--tone:var(--blue)">agora</span>' : ''}</b><small>${dt(a.inicio)} · ${ativo(a) ? `até ${hora(a.fim)}` : fmtMin(dur(a))}</small></span><span class="acc-seta" aria-hidden="true">${S.svg('baixo')}</span></summary>
+            <dl class="acc-corpo"><div><dt>Quem</dt><dd>Equipe SONVI (aparece como "Suporte SONVI")</dd></div><div><dt>Motivo</dt><dd>${esc(a.motivo)}</dd></div>
+              <div><dt>Entrou</dt><dd>${dt(a.inicio)}</dd></div><div><dt>${ativo(a) ? 'Termina' : 'Saiu'}</dt><dd>${ativo(a) ? hora(a.fim) : dt(fimReal)}</dd></div>
+              <div><dt>Tempo</dt><dd>${ativo(a) ? `liberado por ${fmtMin(previsto)}` : `${fmtMin(dur(a))} de ${fmtMin(previsto)} liberados`}</dd></div><div><dt>Situação</dt><dd>${comoTerminou}</dd></div></dl></details>`; }).join('')}</div>` : ''}</section>`;
     }
     if (ehGer()) return { title:`<span class="sub">${esc(minhas().map(v => v.nome).join(' · '))}</span>Usuários`, actions:`<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`,
       body:`<p class="muted small" style="margin:0 0 14px">Você cadastra e edita consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente. Gerentes e diretores ficam com o diretor.</p>${body}` };
