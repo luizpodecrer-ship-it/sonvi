@@ -52,10 +52,10 @@
   S.faixaTexto = f => [diasNome(f.dias), f.ini && f.fim ? `${hTxt(f.ini)} às ${hTxt(f.fim)}` : ''].filter(Boolean).join(' · ');
   S.faixaHoras = f => f.ini && f.fim ? `${hTxt(f.ini)} às ${hTxt(f.fim)}` : '';
   const ehLocal = p => !!dadosDe(p).local || LOCAL.test(semAc(p.detalhe));
-  const horario = p => String(p.detalhe || '').split(/\n|\|/).map(x => x.trim()).filter(x => x && !LOCAL.test(semAc(x))).map(esc).join('<span class="pd-sep">·</span>') || 'Horário a combinar';
+  const horario = p => String(p.detalhe || '').split(/\n|\|/).map(x => x.trim()).filter(x => x && !LOCAL.test(semAc(x))).map(esc).join('<span class="pdt-sep">·</span>') || 'Horário a combinar';
   const HORA = '^([01]?\\d|2[0-4]):[0-5]\\d$';
   const linhaFaixa = (f, i) => { const tem = DIAS.some(d => d[0] === f.dias);
-    return `<div class="pd-faixa" data-faixa="${i}"><select name="fx_dias_${i}" aria-label="Dias da faixa ${i + 1}">${(tem ? DIAS : [[f.dias, diasNome(f.dias)], ...DIAS]).map(([k, n]) => `<option value="${k}"${k === f.dias ? ' selected' : ''}>${n}</option>`).join('')}</select>
+    return `<div class="pdt-faixa" data-faixa="${i}"><select name="fx_dias_${i}" aria-label="Dias da faixa ${i + 1}">${(tem ? DIAS : [[f.dias, diasNome(f.dias)], ...DIAS]).map(([k, n]) => `<option value="${k}"${k === f.dias ? ' selected' : ''}>${n}</option>`).join('')}</select>
       <input name="fx_ini_${i}" value="${esc(f.ini)}" placeholder="08:00" pattern="${HORA}" inputmode="numeric" aria-label="Começa às"><span class="muted">às</span>
       <input name="fx_fim_${i}" value="${esc(f.fim)}" placeholder="11:00" pattern="${HORA}" inputmode="numeric" aria-label="Termina às">
       <button type="button" class="btn tres" data-act="pdTirarLinha" aria-label="Tirar esta faixa">×</button></div>`; };
@@ -74,18 +74,18 @@
   };
 
   // ---------- rádio: produtos ----------
-  const chip = (nome, valor, cls) => `<span class="pd-var${cls ? ' ' + cls : ''}"><small>${esc(nome)}</small><b>${brl(valor)}</b></span>`;
+  const chip = (nome, valor, cls) => `<span class="pdt-var${cls ? ' ' + cls : ''}"><small>${esc(nome)}</small><b>${brl(valor)}</b></span>`;
   const cartaoRadio = p => { const vs = formatos(true).map(f => [f, precoDe(p, f)]).filter(x => x[1] > 0), d = dadosDe(p);
-    return `<article class="card pd-card${p.ativo ? '' : ' inativo'}"><div class="pd-cab"><h3>${esc(p.nome)}</h3>${ehLocal(p) ? S.tag('Local', 'green') : ''}${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pd-tipo">${TIPO[p.secao] || 'Determinado'}</span>${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
-      <small class="muted pd-hor">${horario(p)}</small>${d.obs ? `<small class="muted">${esc(d.obs)}</small>` : ''}
-      <div class="pd-vars">${vs.length ? vs.map(([f, v]) => chip(f.nome, v, unico(f) ? 't' : '')).join('') : '<span class="muted small">Sem preço ainda</span>'}</div></article>`; };
+    return `<article class="card pdt-card${p.ativo ? '' : ' inativo'}"><div class="pdt-cab"><h3>${esc(p.nome)}</h3>${ehLocal(p) ? S.tag('Local', 'green') : ''}${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pdt-tipo">${TIPO[p.secao] || 'Determinado'}</span>${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
+      <small class="muted pdt-hor">${horario(p)}</small>${d.obs ? `<small class="muted">${esc(d.obs)}</small>` : ''}
+      <div class="pdt-vars">${vs.length ? vs.map(([f, v]) => chip(f.nome, v, unico(f) ? 't' : '')).join('') : '<span class="muted small">Sem preço ainda</span>'}</div></article>`; };
   const vistaRadio = () => {
     const ps = radioProds().filter(p => p.secao !== 'patrocinio' && (p.ativo || pode()));
     const blocos = SECOES.map(([k, n, sub]) => { const l = ps.filter(p => (SECOES.some(s => s[0] === p.secao) ? p.secao : 'programa') === k);
-      return l.length ? `<section class="pd-sec"><div class="pd-sec-hd"><h2>${n}</h2><small class="muted">${sub}</small></div><div class="pd-grade">${l.map(cartaoRadio).join('')}</div></section>` : ''; }).join('');
+      return l.length ? `<section class="pdt-sec"><div class="pdt-sec-hd"><h2>${n}</h2><small class="muted">${sub}</small></div><div class="pdt-grade">${l.map(cartaoRadio).join('')}</div></section>` : ''; }).join('');
     const vazio = `<div class="card empty"><b>Nenhum produto cadastrado</b>${pode() ? 'Cadastre os programas, o rotativo e os testemunhais que a rádio vende, com o preço de cada duração.' : 'Quando o diretor cadastrar, os produtos aparecem aqui.'}</div>`;
     return { title:titulo('Produtos'), actions:pode() ? `<button class="btn" data-act="pdVariacoes">Durações e variações</button><button class="btn pri" data-act="pdNovo">${S.svg('mais')}Novo produto</button>` : '',
-      body:S.produtosAbas('produtos') + (blocos || vazio) + (blocos ? `<p class="muted small pd-nota">Mudar um preço vale na hora para as propostas novas. Propostas e PIs já feitos guardam o preço do dia.</p>` : '') };
+      body:S.produtosAbas('produtos') + (blocos || vazio) + (blocos ? `<p class="muted small pdt-nota">Mudar um preço vale na hora para as propostas novas. Propostas e PIs já feitos guardam o preço do dia.</p>` : '') };
   };
 
   // Formulário do produto de rádio
@@ -96,12 +96,12 @@
     S.dialog(`<h2>${p.id ? esc(p.nome) : 'Novo produto'}</h2>
       <fieldset class="cat-escolha"><legend class="form-sec">Tipo</legend><div class="cat-ops">${SECOES.map(([k, n]) => `<label class="cat-op"><input type="radio" name="secao" value="${k}"${k === (p.secao || 'programa') ? ' checked' : ''}><span>${n}</span></label>`).join('')}</div></fieldset>
       <div class="g2"><label class="f" style="grid-column:1/-1">Nome do produto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Jornal da Manhã, Rotativo 24h, Testemunhal"></label></div>
-      <div class="form-sec pd-fsec">Dias e horários</div>
-      <div class="pd-faixas" id="pdFaixas">${faixas.map(linhaFaixa).join('')}</div>
-      <div class="row pd-linha-acoes"><button type="button" class="btn sm" data-act="pdFaixaMais">${S.svg('mais')}Outra faixa</button><span class="grow"></span><label class="chk"><input type="checkbox" name="local"${fx.local || d.local ? ' checked' : ''}>Programação local</label></div>
+      <div class="form-sec pdt-fsec">Dias e horários</div>
+      <div class="pdt-faixas" id="pdFaixas">${faixas.map(linhaFaixa).join('')}</div>
+      <div class="row pdt-linha-acoes"><button type="button" class="btn sm" data-act="pdFaixaMais">${S.svg('mais')}Outra faixa</button><span class="grow"></span><label class="chk"><input type="checkbox" name="local"${fx.local || d.local ? ' checked' : ''}>Programação local</label></div>
       ${fx.obs.length || d.obs ? `<label class="f">Observação<input name="obs" value="${esc([d.obs, ...fx.obs].filter(Boolean).join(' · '))}"></label>` : '<input type="hidden" name="obs" value="">'}
-      <div class="form-sec pd-fsec">Preços por inserção</div>
-      ${fs.length ? `<div class="pd-precos">${fs.map(f => `<label class="f">${esc(f.nome)}<input name="pr_${f.id}" data-mask="dec" inputmode="decimal" value="${precoDe(p, f) ? S.nfmt(precoDe(p, f)) : ''}" placeholder="não vende"></label>`).join('')}</div>` : '<p class="muted small">Cadastre antes as durações em "Durações e variações".</p>'}
+      <div class="form-sec pdt-fsec">Preços por inserção</div>
+      ${fs.length ? `<div class="pdt-precos">${fs.map(f => `<label class="f">${esc(f.nome)}<input name="pr_${f.id}" data-mask="dec" inputmode="decimal" value="${precoDe(p, f) ? S.nfmt(precoDe(p, f)) : ''}" placeholder="não vende"></label>`).join('')}</div>` : '<p class="muted small">Cadastre antes as durações em "Durações e variações".</p>'}
       <small class="muted">Vazio = não vende essa variação. Para criar outra (ex.: Citação 5"), use "Durações e variações".</small>
       <label class="chk"><input type="checkbox" name="ativo"${p.ativo ? ' checked' : ''}>Aparece nas novas propostas</label>
       <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar produto</button></div>`,
@@ -115,12 +115,12 @@
   };
 
   // Durações e variações (formatos de rádio): nome, como cobra, ativo
-  const linhaVariacao = (f, i) => `<div class="pd-row pd-row-var" data-linha="${i}"><input name="vn_${i}" value="${esc(f.nome)}" placeholder='Ex.: Spot 30" ou Citação 5"' aria-label="Nome da variação"${f.id ? '' : ' data-nova="1"'}>
+  const linhaVariacao = (f, i) => `<div class="pdt-row pdt-row-var" data-linha="${i}"><input name="vn_${i}" value="${esc(f.nome)}" placeholder='Ex.: Spot 30" ou Citação 5"' aria-label="Nome da variação"${f.id ? '' : ' data-nova="1"'}>
       <select name="vc_${i}" aria-label="Como é cobrada"><option value="duracao"${f.cobranca !== 'unico' ? ' selected' : ''}>Duração</option><option value="unico"${f.cobranca === 'unico' ? ' selected' : ''}>Preço único</option></select>
       <label class="chk"><input type="checkbox" name="va_${i}"${f.ativo !== false ? ' checked' : ''}>Ativa</label><input type="hidden" name="vi_${i}" value="${f.id || ''}"></div>`;
   const formVariacoes = () => { const fs = formatos(true), linha = linhaVariacao;
     S.dialog(`<h2>Durações e variações</h2><p class="muted small" style="margin-top:-6px">São as colunas de preço dos produtos da rádio. "Preço único" aparece em laranja (testemunhal, flash).</p>
-      <div id="pdVars" class="pd-rows">${fs.map(linha).join('')}</div>
+      <div id="pdVars" class="pdt-rows">${fs.map(linha).join('')}</div>
       <button type="button" class="btn sm" data-act="pdVarMais" data-pd-add="1">${S.svg('mais')}Nova variação</button>
       <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar</button></div>`,
       f => S.run(async () => { const idx = Object.keys(f).filter(k => k.startsWith('vn_')).map(k => k.slice(3));
@@ -137,17 +137,17 @@
   const vistaCotas = () => {
     const cs = radioProds().filter(p => p.secao === 'patrocinio' && (p.ativo || pode()));
     const linhas = cs.map(p => `<tr class="${p.ativo ? '' : 'inativo'}"><td><b>${esc(p.nome)}</b>${ehLocal(p) ? ' ' + S.tag('Local', 'green') : ''}${p.ativo ? '' : ' ' + S.tag('Inativo', 'gray')}</td>
-      <td class="pd-hor-td">${horario(p)}</td><td class="pd-inclui">${incluiTxt(p) || '<span class="muted">—</span>'}</td><td class="r nw"><b>${brl(dadosDe(p).valor)}</b></td>
+      <td class="pdt-hor-td">${horario(p)}</td><td class="pdt-inclui">${incluiTxt(p) || '<span class="muted">—</span>'}</td><td class="r nw"><b>${brl(dadosDe(p).valor)}</b></td>
       <td class="r">${pode() ? `<span class="lin-acoes">${tres('pdMenu', p.id, p.nome)}</span>` : ''}</td></tr>`).join('');
-    const cards = cs.map(p => `<article class="card pd-card${p.ativo ? '' : ' inativo'}"><div class="pd-cab"><h3>${esc(p.nome)}</h3>${ehLocal(p) ? S.tag('Local', 'green') : ''}${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
-      <small class="muted pd-hor">${horario(p)}</small><small>${incluiTxt(p)}</small><b class="pd-valor">${brl(dadosDe(p).valor)}<small class="muted">/mês</small></b></article>`).join('');
+    const cards = cs.map(p => `<article class="card pdt-card${p.ativo ? '' : ' inativo'}"><div class="pdt-cab"><h3>${esc(p.nome)}</h3>${ehLocal(p) ? S.tag('Local', 'green') : ''}${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
+      <small class="muted pdt-hor">${horario(p)}</small><small>${incluiTxt(p)}</small><b class="pdt-valor">${brl(dadosDe(p).valor)}<small class="muted">/mês</small></b></article>`).join('');
     const corpo = !cs.length ? `<div class="card empty"><b>Nenhuma cota de patrocínio</b>${pode() ? 'A cota é o programa vendido por mês, com um pacote fixo dentro (citações, spots e testemunhais).' : 'Quando o diretor cadastrar, as cotas aparecem aqui.'}</div>`
-      : S.celular ? `<div class="pd-grade">${cards}</div>` : `<section class="card"><div class="scroll"><table class="pd-cotas"><thead><tr><th>Programa</th><th>Exibição e horário</th><th>O que inclui por mês</th><th class="r">Valor/mês</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div></section>`;
+      : S.celular ? `<div class="pdt-grade">${cards}</div>` : `<section class="card"><div class="scroll"><table class="pdt-cotas"><thead><tr><th>Programa</th><th>Exibição e horário</th><th>O que inclui por mês</th><th class="r">Valor/mês</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div></section>`;
     return { title:titulo('Produtos'), actions:pode() ? `<button class="btn" data-act="pdVariacoes">Durações e variações</button><button class="btn pri" data-act="pdNovaCota">${S.svg('mais')}Nova cota de patrocínio</button>` : '',
-      body:S.produtosAbas('patrocinios') + corpo + (cs.length ? '<p class="muted small pd-nota">Na proposta a cota entra pelo botão "Patrocínio" e o SONVI coloca as inserções do pacote; no PI elas são distribuídas pelos dias, como sempre.</p>' : '') };
+      body:S.produtosAbas('patrocinios') + corpo + (cs.length ? '<p class="muted small pdt-nota">Na proposta a cota entra pelo botão "Patrocínio" e o SONVI coloca as inserções do pacote; no PI elas são distribuídas pelos dias, como sempre.</p>' : '') };
   };
   const opRoda = (faixas, sel) => `<option value="todas"${sel === 'todas' || sel === undefined || sel === '' ? ' selected' : ''}>Todas as faixas</option>${faixas.map((f, i) => `<option value="${i}"${String(sel) === String(i) ? ' selected' : ''}>${esc(S.faixaTexto(f))}</option>`).join('')}`;
-  const linhaInc = (x, i, faixas) => `<div class="pd-row pd-row-inc" data-linha="${i}"><select name="in_f_${i}" aria-label="Inserção" required><option value="">Escolha</option>${formatos().map(f => `<option value="${f.id}"${f.id === x.formato_id ? ' selected' : ''}>${esc(f.nome)}</option>`).join('')}</select>
+  const linhaInc = (x, i, faixas) => `<div class="pdt-row pdt-row-inc" data-linha="${i}"><select name="in_f_${i}" aria-label="Inserção" required><option value="">Escolha</option>${formatos().map(f => `<option value="${f.id}"${f.id === x.formato_id ? ' selected' : ''}>${esc(f.nome)}</option>`).join('')}</select>
     <input name="in_q_${i}" data-mask="int" inputmode="numeric" value="${x.qtd || ''}" placeholder="Qtd." aria-label="Quantidade por mês" required>
     <select name="in_r_${i}" aria-label="Roda em" data-roda="1">${opRoda(faixas, x.faixa)}</select>
     <button type="button" class="btn tres" data-act="pdTirarLinha" aria-label="Tirar">×</button></div>`;
@@ -156,15 +156,15 @@
     const fx = S.faixasDoTexto(p.detalhe), d = dadosDe(p), faixas = fx.faixas.length ? fx.faixas : [{ dias:'1,2,3,4,5', ini:'', fim:'' }];
     const inc = (d.incluido || []).length ? d.incluido : [{ formato_id:'', qtd:'', faixa:'todas' }];
     S.dialog(`<h2>${p.id ? esc(p.nome) : 'Nova cota de patrocínio'}</h2>
-      <div class="g2"><label class="f">Programa<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Tarde na Verde"></label><label class="chk pd-chk-alto"><input type="checkbox" name="local"${fx.local || d.local ? ' checked' : ''}>Programação local</label></div>
-      <div class="form-sec pd-fsec">Dias e horários</div>
-      <div class="pd-faixas" id="pdFaixas">${faixas.map(linhaFaixa).join('')}</div>
+      <div class="g2"><label class="f">Programa<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Tarde na Verde"></label><label class="chk pdt-chk-alto"><input type="checkbox" name="local"${fx.local || d.local ? ' checked' : ''}>Programação local</label></div>
+      <div class="form-sec pdt-fsec">Dias e horários</div>
+      <div class="pdt-faixas" id="pdFaixas">${faixas.map(linhaFaixa).join('')}</div>
       <button type="button" class="btn sm" data-act="pdFaixaMais" data-pd-add="1">${S.svg('mais')}Outra faixa</button>
-      <div class="form-sec pd-fsec">O que está incluído · por mês</div>
-      <div class="pd-rows" id="pdInc">${inc.map((x, i) => linhaInc(x, i, faixas)).join('')}</div>
+      <div class="form-sec pdt-fsec">O que está incluído · por mês</div>
+      <div class="pdt-rows" id="pdInc">${inc.map((x, i) => linhaInc(x, i, faixas)).join('')}</div>
       <button type="button" class="btn sm" data-act="pdIncMais" data-pd-add="1">${S.svg('mais')}Incluir</button>
       <div class="g2"><label class="f">Valor da cota por mês (R$)<input name="valor" data-mask="dec" inputmode="decimal" required value="${d.valor ? S.nfmt(d.valor) : ''}"></label>
-        <label class="chk pd-chk-alto"><input type="checkbox" name="ativo"${p.ativo ? ' checked' : ''}>Aparece nas novas propostas</label></div>
+        <label class="chk pdt-chk-alto"><input type="checkbox" name="ativo"${p.ativo ? ' checked' : ''}>Aparece nas novas propostas</label></div>
       <p class="muted small">Na proposta: uma cota com o valor do mês. No PI: as inserções do pacote distribuídas nos dias de cada faixa.</p>
       <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar cota</button></div>`,
       f => { const faixas_ = lerFaixas(f);
@@ -178,51 +178,51 @@
   };
   // As opções de "Roda em" acompanham as faixas digitadas
   const atualizaRoda = () => { const d = document.getElementById('dlg'); if (!d || !d.open || !d.querySelector('#pdInc')) return;
-    const fs = [...d.querySelectorAll('#pdFaixas .pd-faixa')].map(r => ({ dias:r.querySelector('select').value, ini:r.querySelectorAll('input')[0].value.trim(), fim:r.querySelectorAll('input')[1].value.trim() }));
+    const fs = [...d.querySelectorAll('#pdFaixas .pdt-faixa')].map(r => ({ dias:r.querySelector('select').value, ini:r.querySelectorAll('input')[0].value.trim(), fim:r.querySelectorAll('input')[1].value.trim() }));
     d.querySelectorAll('[data-roda]').forEach(s => { const v = s.value; s.innerHTML = opRoda(fs, v === 'todas' || +v < fs.length ? v : 'todas'); }); };
   ['input', 'change'].forEach(ev => document.addEventListener(ev, e => { if (e.target.closest && e.target.closest('#pdFaixas')) atualizaRoda(); }));
 
   // ---------- mídia exterior ----------
   const ehInsercao = p => (dadosDe(p).cobranca || COBRA[p.categoria]) === 'insercao';
-  const foto = (src, w = 64, h = 44, alt = '') => src ? `<img class="pd-foto" src="${src}" width="${w}" height="${h}" alt="${esc(alt)}">` : `<span class="pd-foto vazia" style="width:${w}px;height:${h}px" aria-hidden="true">${S.svg('imagem', 18)}</span>`;
+  const foto = (src, w = 64, h = 44, alt = '') => src ? `<img class="pdt-foto" src="${src}" width="${w}" height="${h}" alt="${esc(alt)}">` : `<span class="pdt-foto vazia" style="width:${w}px;height:${h}px" aria-hidden="true">${S.svg('imagem', 18)}</span>`;
   const cartaoOoh = p => { const d = dadosDe(p), vs = (d.variacoes || []).filter(x => Number(x.valor) > 0);
     if (ehInsercao(p)) { const pts = d.pontos || [];
-      return `<article class="card pd-card pd-ooh${p.ativo ? '' : ' inativo'}"><div class="pd-cab"><h3><a data-go="/produtos/${p.id}">${esc(p.nome)}</a></h3>${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pd-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
+      return `<article class="card pdt-card pdt-ooh${p.ativo ? '' : ' inativo'}"><div class="pdt-cab"><h3><a data-go="/produtos/${p.id}">${esc(p.nome)}</a></h3>${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pdt-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
         <small class="muted">por inserção · por dia · por ${unidade(d, 1)}${d.funcionamento ? ' · ' + esc(d.funcionamento) : ''}</small>${d.obs ? `<small class="muted">${esc(d.obs)}</small>` : ''}
-        <div class="pd-vars">${vs.length ? vs.map(x => chip(x.nome, x.valor)).join('') : '<span class="muted small">Sem preço ainda</span>'}</div>
-        <button type="button" class="pd-pontos" data-go="/produtos/${p.id}"><span class="pd-fotos">${pts.slice(0, 4).map(x => foto(x.foto, 40, 28)).join('')}</span><span>${pts.length ? `${pts.length} ${unidade(d, pts.length)}` : d.frota ? `${d.frota} ${unidade(d, d.frota)} na frota` : 'Cadastrar pontos'}</span><span class="grow"></span>${S.svg('seta', 16)}</button></article>`; }
+        <div class="pdt-vars">${vs.length ? vs.map(x => chip(x.nome, x.valor)).join('') : '<span class="muted small">Sem preço ainda</span>'}</div>
+        <button type="button" class="pdt-pontos" data-go="/produtos/${p.id}"><span class="pdt-fotos">${pts.slice(0, 4).map(x => foto(x.foto, 40, 28)).join('')}</span><span>${pts.length ? `${pts.length} ${unidade(d, pts.length)}` : d.frota ? `${d.frota} ${unidade(d, d.frota)} na frota` : 'Cadastrar pontos'}</span><span class="grow"></span>${S.svg('seta', 16)}</button></article>`; }
     const pt = d.ponto || {}, pr = d.producao || {};
-    return `<article class="card pd-card pd-ooh${p.ativo ? '' : ' inativo'}"><div class="pd-ooh-mes">${foto(pt.foto, 96, 72, p.nome)}<div><div class="pd-cab"><h3>${esc(p.nome)}</h3>${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pd-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
+    return `<article class="card pdt-card pdt-ooh${p.ativo ? '' : ' inativo'}"><div class="pdt-ooh-mes">${foto(pt.foto, 96, 72, p.nome)}<div><div class="pdt-cab"><h3>${esc(p.nome)}</h3>${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pdt-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
       <small class="muted">${[pt.endereco, pt.cidade].filter(Boolean).map(esc).join(' · ') || 'Endereço não informado'}</small>
       <small class="muted">${[pt.formato, pt.impacto ? `${esc(pt.impacto)}/dia` : '', pt.impacto_mes ? `${esc(pt.impacto_mes)}/mês` : ''].filter(Boolean).join(' · ')}</small></div></div>
-      <div class="pd-vars">${vs.map(x => chip(x.nome + (x.obs ? ' · ' + x.obs : ''), x.valor)).join('')}${Number(pr.valor) > 0 ? chip(`${pr.nome || 'Produção'} (uma vez)`, pr.valor, 't') : ''}${vs.length ? '' : '<span class="muted small">Sem preço ainda</span>'}</div>
+      <div class="pdt-vars">${vs.map(x => chip(x.nome + (x.obs ? ' · ' + x.obs : ''), x.valor)).join('')}${Number(pr.valor) > 0 ? chip(`${pr.nome || 'Produção'} (uma vez)`, pr.valor, 't') : ''}${vs.length ? '' : '<span class="muted small">Sem preço ainda</span>'}</div>
       <small class="muted">${vs.length ? 'preço por mês' : ''}</small></article>`; };
   const vistaOoh = () => {
     const cats = catsOoh(), ps = oohProds().filter(p => p.ativo || pode());
     const blocos = cats.map(k => { const l = ps.filter(p => p.categoria === k);
-      return `<section class="pd-sec"><div class="pd-sec-hd"><h2>${esc(S.nomeCategoria(k))}</h2><small class="muted">${COBRA[k] === 'insercao' ? 'por inserção, por dia e por ponto' : 'por mês, por face'}</small></div>
-        ${l.length ? `<div class="pd-grade">${l.map(cartaoOoh).join('')}</div>` : `<p class="muted small">Nenhum produto de ${esc(S.nomeCategoria(k).toLowerCase())} ainda.</p>`}</section>`; }).join('');
+      return `<section class="pdt-sec"><div class="pdt-sec-hd"><h2>${esc(S.nomeCategoria(k))}</h2><small class="muted">${COBRA[k] === 'insercao' ? 'por inserção, por dia e por ponto' : 'por mês, por face'}</small></div>
+        ${l.length ? `<div class="pdt-grade">${l.map(cartaoOoh).join('')}</div>` : `<p class="muted small">Nenhum produto de ${esc(S.nomeCategoria(k).toLowerCase())} ainda.</p>`}</section>`; }).join('');
     return { title:titulo('Produtos'), actions:pode() ? `<button class="btn pri" data-act="pdNovoOoh">${S.svg('mais')}Novo produto</button>` : '',
       body:S.produtosAbas('ooh') + (ps.length ? blocos : `<div class="card empty"><b>Nenhum produto cadastrado</b>${pode() ? `Cadastre o que ${esc(S.veh().nome)} vende: ${cats.map(k => S.nomeCategoria(k).toLowerCase()).join(', ')}.` : 'Quando o diretor cadastrar, os produtos aparecem aqui.'}</div>`)
-        + (ps.length ? '<p class="muted small pd-nota">Mudar um preço vale na hora para as propostas novas. Na proposta, estes produtos entram pelo botão "Produto".</p>' : '') };
+        + (ps.length ? '<p class="muted small pdt-nota">Mudar um preço vale na hora para as propostas novas. Na proposta, estes produtos entram pelo botão "Produto".</p>' : '') };
   };
   // Página de um produto por inserção: os pontos onde ele roda e o preço
   const vistaPontos = p => {
     const d = dadosDe(p), pts = d.pontos || [], vs = (d.variacoes || []).filter(x => Number(x.valor) > 0), n = pts.length;
-    const linha = (x, i) => `<div class="pd-pt">${foto(x.foto, 64, 44, x.codigo)}<span class="pd-pt-n"><b>${esc(cap(unidade(d, 1)))} ${esc(x.codigo)}</b><small class="muted">${esc(x.endereco || '')}</small></span>
+    const linha = (x, i) => `<div class="pdt-pt">${foto(x.foto, 64, 44, x.codigo)}<span class="pdt-pt-n"><b>${esc(cap(unidade(d, 1)))} ${esc(x.codigo)}</b><small class="muted">${esc(x.endereco || '')}</small></span>
       <span class="nw">${esc(x.cidade || '')}</span><span class="r nw">${x.impacto ? esc(x.impacto) + '/dia' : '—'}</span><span class="r nw">${esc(x.formato || '')}</span>${pode() ? tres('pdMenuPonto', p.id + ':' + i, 'ponto ' + x.codigo) : '<span></span>'}</div>`;
     const ex = vs[0], exQ = 30, exD = 30, exN = n || Number(d.frota) || 1, exTot = ex ? Number(ex.valor) * exQ * exN * exD : 0;
     return { title:`<span class="sub"><a data-go="${ehRadio() ? '/produtos/ooh' : '/produtos'}">← Produtos</a> · ${esc(S.veh().nome)}</span>${esc(p.nome)}`,
       actions:pode() ? `<button class="btn" data-act="pdEditarOoh" data-id="${p.id}">${S.svg('editar')}Editar produto</button><button class="btn pri" data-act="pdNovoPonto" data-id="${p.id}">${S.svg('mais')}Novo ponto</button>` : '',
-      body:`<div class="pd-pontos-tela"><section class="card"><div class="hd"><h2>Pontos <span class="pill">${n}</span></h2><small class="muted">onde o produto roda</small></div>
-        ${n ? `<div class="pd-pt pd-pt-h"><span></span><span>Ponto</span><span>Cidade</span><span class="r">Impacto</span><span class="r">Formato</span><span></span></div>${pts.map(linha).join('')}` : `<p class="muted">Nenhum ponto ainda.${pode() ? ' Clique em "Novo ponto" para cadastrar o primeiro.' : ''}</p>`}</section>
-        <section class="card pd-preco"><h2>Preço</h2><small class="muted">por inserção · por dia · por ${unidade(d, 1)}</small>
-          <div class="pd-vars">${vs.length ? vs.map(x => chip(x.nome, x.valor)).join('') : '<span class="muted small">Sem preço ainda</span>'}</div>
+      body:`<div class="pdt-pontos-tela"><section class="card"><div class="hd"><h2>Pontos <span class="pill">${n}</span></h2><small class="muted">onde o produto roda</small></div>
+        ${n ? `<div class="pdt-pt pdt-pt-h"><span></span><span>Ponto</span><span>Cidade</span><span class="r">Impacto</span><span class="r">Formato</span><span></span></div>${pts.map(linha).join('')}` : `<p class="muted">Nenhum ponto ainda.${pode() ? ' Clique em "Novo ponto" para cadastrar o primeiro.' : ''}</p>`}</section>
+        <section class="card pdt-preco"><h2>Preço</h2><small class="muted">por inserção · por dia · por ${unidade(d, 1)}</small>
+          <div class="pdt-vars">${vs.length ? vs.map(x => chip(x.nome, x.valor)).join('') : '<span class="muted small">Sem preço ainda</span>'}</div>
           ${d.obs ? `<small class="muted">${esc(d.obs)}</small>` : ''}${d.funcionamento ? `<small class="muted">Funcionamento: ${esc(d.funcionamento)}</small>` : ''}${d.arquivo ? `<small class="muted">Arquivo: ${esc(d.arquivo)}</small>` : ''}
-          ${ex ? `<div class="caixa pd-calc"><b>Exemplo na proposta</b><span>${esc(ex.nome)} × ${exQ} inserções/dia × ${exN} ${unidade(d, exN)} × ${exD} dias</span><b>= ${brl(exTot)}</b></div>` : ''}</section></div>` };
+          ${ex ? `<div class="caixa pdt-calc"><b>Exemplo na proposta</b><span>${esc(ex.nome)} × ${exQ} inserções/dia × ${exN} ${unidade(d, exN)} × ${exD} dias</span><b>= ${brl(exTot)}</b></div>` : ''}</section></div>` };
   };
   // Formulário do produto de mídia exterior
-  const linhaVar = (x, i, face) => `<div class="pd-row ${face ? 'pd-row-face' : 'pd-row-v'}" data-linha="${i}"><input name="ov_n_${i}" value="${esc(x.nome || '')}" placeholder="${face ? 'Face A' : 'VT15"'}" aria-label="${face ? 'Face' : 'Variação'}">
+  const linhaVar = (x, i, face) => `<div class="pdt-row ${face ? 'pdt-row-face' : 'pdt-row-v'}" data-linha="${i}"><input name="ov_n_${i}" value="${esc(x.nome || '')}" placeholder="${face ? 'Face A' : 'VT15"'}" aria-label="${face ? 'Face' : 'Variação'}">
     ${face ? `<input name="ov_o_${i}" value="${esc(x.obs || '')}" placeholder="Sentido (ex.: Centro → Chapada)" aria-label="Sentido">` : ''}
     <input name="ov_v_${i}" data-mask="dec" inputmode="decimal" value="${Number(x.valor) ? S.nfmt(x.valor) : ''}" placeholder="0,00" aria-label="Preço">
     <button type="button" class="btn tres" data-act="pdTirarLinha" aria-label="Tirar">×</button></div>`;
@@ -236,23 +236,23 @@
     S.dialog(`<h2>${p.id ? esc(p.nome) : 'Novo produto · ' + esc(S.veh().nome)}</h2>
       ${cats.length > 1 ? `<fieldset class="cat-escolha"><legend class="form-sec">Categoria</legend><div class="cat-ops">${cats.map(k => `<label class="cat-op"><input type="radio" name="categoria" value="${k}"${k === cat ? ' checked' : ''}><span>${esc(S.nomeCategoria(k))}</span></label>`).join('')}</div></fieldset>` : `<input type="hidden" name="categoria" value="${cat}">`}
       <div class="g2"><label class="f" style="grid-column:1/-1">Nome do produto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Painéis de LED, Front light 1001, Empena 001"></label></div>
-      <div class="pd-bloco" data-cobra="insercao">
+      <div class="pdt-bloco" data-cobra="insercao">
         <div class="g2"><label class="f">Vendido por<select name="unidade">${Object.entries(UNIDADE).map(([k, [um]]) => `<option value="${k}"${(d.unidade || 'painel') === k ? ' selected' : ''}>${um}</option>`).join('')}</select></label>
           ${campo('funcionamento', 'Funcionamento', d.funcionamento, 'Todos os dias · 6h às 0h')}${campo('arquivo', 'Arquivo padrão', d.arquivo, 'Vídeo MP4 · 1024 × 768 px', true)}</div>
-        <div class="form-sec pd-fsec">Preço por inserção · por dia · por ponto</div>
-        <div class="pd-rows" id="pdVarIns">${vIns.map((x, i) => linhaVar(x, i, false)).join('')}</div>
+        <div class="form-sec pdt-fsec">Preço por inserção · por dia · por ponto</div>
+        <div class="pdt-rows" id="pdVarIns">${vIns.map((x, i) => linhaVar(x, i, false)).join('')}</div>
         <button type="button" class="btn sm" data-act="pdVarOohMais" data-face="" data-pd-add="1">${S.svg('mais')}Variação</button>
         <p class="muted small">Os pontos (painéis, ônibus, telas) você cadastra depois, na página do produto.</p></div>
-      <div class="pd-bloco" data-cobra="mes">
+      <div class="pdt-bloco" data-cobra="mes">
         <div class="g2">${campo('pt_codigo', 'Código do ponto', pt.codigo, '1001')}${campo('pt_formato', 'Formato', pt.formato, '9,00 × 3,00 m')}
           ${campo('pt_endereco', 'Endereço / referência', pt.endereco, 'Av. República do Líbano · Clube Monte Líbano', true)}${campo('pt_cidade', 'Cidade', pt.cidade, 'Cuiabá')}
           ${campo('pt_impacto', 'Fluxo diário', pt.impacto, '16 mil veículos')}${campo('pt_impacto_mes', 'Fluxo mensal', pt.impacto_mes, '480 mil veículos')}
           ${campo('pt_coords', 'Coordenadas', pt.coords, '-15.5702, -56.0861')}${campo('pt_maps', 'Link do Google Maps', pt.maps, 'https://goo.gl/maps/…', true)}</div>
         ${campoFoto(pt.foto)}
-        <div class="form-sec pd-fsec">Faces · preço por mês</div>
-        <div class="pd-rows" id="pdVarMes">${vMes.map((x, i) => linhaVar(x, i, true)).join('')}</div>
+        <div class="form-sec pdt-fsec">Faces · preço por mês</div>
+        <div class="pdt-rows" id="pdVarMes">${vMes.map((x, i) => linhaVar(x, i, true)).join('')}</div>
         <button type="button" class="btn sm" data-act="pdVarOohMais" data-face="1" data-pd-add="1">${S.svg('mais')}Face</button>
-        <div class="form-sec pd-fsec">Produção (cobrada uma vez)</div>
+        <div class="form-sec pdt-fsec">Produção (cobrada uma vez)</div>
         <div class="g2">${campo('pr_nome', 'O que é produzido', pr.nome, 'Lona alta resolução')}<label class="f">Valor por face (R$)<input name="pr_valor" data-mask="dec" inputmode="decimal" value="${Number(pr.valor) ? S.nfmt(pr.valor) : ''}"></label></div></div>
       <label class="chk"><input type="checkbox" name="ativo"${p.ativo ? ' checked' : ''}>Aparece nas novas propostas</label>
       <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar produto</button></div>`,
@@ -269,13 +269,13 @@
     alternarBloco();
   };
   // Mostra só os campos do jeito de cobrar da categoria escolhida; os escondidos não contam no envio
-  const alternarBloco = () => { const d = document.getElementById('dlg'), f = d && d.querySelector('form'); if (!f || !f.querySelector('.pd-bloco')) return;
+  const alternarBloco = () => { const d = document.getElementById('dlg'), f = d && d.querySelector('form'); if (!f || !f.querySelector('.pdt-bloco')) return;
     const k = (f.querySelector('[name="categoria"]:checked') || f.querySelector('[name="categoria"]')).value, c = COBRA[k] || 'mes';
-    f.querySelectorAll('.pd-bloco').forEach(b => { const on = b.dataset.cobra === c; b.hidden = !on; b.querySelectorAll('input, select, textarea, button').forEach(el => { el.disabled = !on; }); }); };
+    f.querySelectorAll('.pdt-bloco').forEach(b => { const on = b.dataset.cobra === c; b.hidden = !on; b.querySelectorAll('input, select, textarea, button').forEach(el => { el.disabled = !on; }); }); };
   document.addEventListener('change', e => { if (e.target.name === 'categoria' && e.target.closest('#dlg')) alternarBloco(); });
 
   // Foto do ponto: reduzida no navegador (até 1000 px, JPEG) e guardada junto do produto
-  const campoFoto = src => `<div class="pd-foto-campo">${foto(src, 120, 84, 'Foto do ponto')}<div><b>Foto do ponto</b><small class="muted">JPG ou PNG. Sai no mídia kit.</small>
+  const campoFoto = src => `<div class="pdt-foto-campo">${foto(src, 120, 84, 'Foto do ponto')}<div><b>Foto do ponto</b><small class="muted">JPG ou PNG. Sai no mídia kit.</small>
     <div class="row"><button type="button" class="btn sm" data-act="pdFotoEscolher">${S.svg('baixar')}${src ? 'Trocar foto' : 'Enviar foto'}</button>${src ? '<button type="button" class="btn sm" data-act="pdFotoTirar">Remover</button>' : ''}</div></div>
     <input type="file" accept="image/png,image/jpeg,image/webp" id="pdFotoArq" hidden><input type="hidden" name="foto" value="${esc(src || '')}"></div>`;
   const lerFoto = arq => new Promise((ok, erro) => { if (!/^image\/(png|jpe?g|webp)$/.test(arq.type)) return erro(new Error('Use uma foto JPG, PNG ou WebP.'));
@@ -283,7 +283,7 @@
     img.onload = () => { const e = Math.min(1, 1000 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
       c.width = Math.round(img.naturalWidth * e); c.height = Math.round(img.naturalHeight * e); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', .78)); }; img.src = url; });
-  const trocarFoto = src => { const el = document.querySelector('#dlg .pd-foto-campo'); if (!el) return; el.outerHTML = campoFoto(src); const d = document.getElementById('dlg'); if (d) d.dataset.sujo = '1'; };
+  const trocarFoto = src => { const el = document.querySelector('#dlg .pdt-foto-campo'); if (!el) return; el.outerHTML = campoFoto(src); const d = document.getElementById('dlg'); if (d) d.dataset.sujo = '1'; };
   document.addEventListener('change', async e => { if (e.target.id !== 'pdFotoArq' || !e.target.files[0]) return;
     try { trocarFoto(await lerFoto(e.target.files[0])); } catch (er) { S.toast(er.message); } });
 
@@ -324,10 +324,10 @@
     pdVariacoes: () => formVariacoes(),
     pdVarMais: () => novaLinha('pdVars', linhaVariacao({ nome:'', cobranca:'duracao', ativo:true }, nLinha++)),
     pdFaixaMais: () => { novaLinha('pdFaixas', linhaFaixa({ dias:'1,2,3,4,5', ini:'', fim:'' }, nLinha++)); atualizaRoda(); },
-    pdIncMais: () => { const fs = [...document.querySelectorAll('#pdFaixas .pd-faixa')].map(r => ({ dias:r.querySelector('select').value, ini:r.querySelectorAll('input')[0].value, fim:r.querySelectorAll('input')[1].value }));
+    pdIncMais: () => { const fs = [...document.querySelectorAll('#pdFaixas .pdt-faixa')].map(r => ({ dias:r.querySelector('select').value, ini:r.querySelectorAll('input')[0].value, fim:r.querySelectorAll('input')[1].value }));
       novaLinha('pdInc', linhaInc({ formato_id:'', qtd:'', faixa:'todas' }, nLinha++, fs)); },
     pdVarOohMais: d => novaLinha(d.face ? 'pdVarMes' : 'pdVarIns', linhaVar({ nome:'' }, nLinha++, !!d.face)),
-    pdTirarLinha: (d, b) => { const l = b.closest('.pd-faixa, .pd-row'), c = l && l.parentElement; if (!l) return;
+    pdTirarLinha: (d, b) => { const l = b.closest('.pdt-faixa, .pdt-row'), c = l && l.parentElement; if (!l) return;
       if (c.children.length === 1 && c.id === 'pdFaixas') return S.toast('O produto precisa de ao menos uma faixa (deixe os horários vazios para "a combinar").');
       l.remove(); atualizaRoda(); const dd = document.getElementById('dlg'); if (dd) dd.dataset.sujo = '1'; },
     pdFotoEscolher: () => document.getElementById('pdFotoArq').click(),
@@ -398,7 +398,7 @@
     S.dialog(`<h2>${esc(titulo)}</h2><div class="g2">
         ${comItens.length > 1 ? `<label class="f" style="grid-column:1/-1">Veículo<select name="veiculo">${comItens.map(v => `<option value="${v.id}">${esc(v.nome)}</option>`).join('')}</select></label>` : `<input type="hidden" name="veiculo" value="${comItens[0].id}">`}
         <label class="f" style="grid-column:1/-1">Produto<select name="produto" required>${opsProd(comItens[0].id)}</select></label></div>
-      <div id="pdEsc" class="pd-esc"></div><div id="pdEscTot" class="caixa" hidden></div>
+      <div id="pdEsc" class="pdt-esc"></div><div id="pdEscTot" class="caixa" hidden></div>
       <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar</button></div>`,
       f => { const vid = f.veiculo, fo = fonte(vid), p = (fo.produtos || []).find(x => x.id === f.produto), v = vs.find(x => x.id === vid); if (!p) return;
         const its = S.itensDoProduto(p, lerOpcoes(f), fo, v); if (!its.length) return S.toast('Escolha a variação e a quantidade.');
