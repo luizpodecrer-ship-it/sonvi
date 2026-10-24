@@ -5,6 +5,7 @@
   const MUSIC = S.APP === 'music';
   // [tela, nome, perfis, endereço externo]. O Sonvi Music abre em outra aba, com login próprio.
   const NAV = MUSIC ? S.MUSIC_NAV : [
+    ['geral', 'Dashboard geral', ['diretor']],   // só o diretor: todos os veículos (24/10/2026)
     ['dashboard', 'Dashboard', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['followup', 'Follow-up', ['diretor', 'gerente', 'consultor']],
     ['clientes', 'Clientes', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
@@ -45,15 +46,21 @@
     faixaSuporte(!acesso && S.ctx && S.ctx.suporte);
     if (acesso) { S.temaRadio(null); document.getElementById('side').innerHTML = ''; ultimoSide = ''; bar.innerHTML = ''; content.innerHTML = acesso; document.title = MUSIC ? 'Sonvi Music' : 'SONVI'; ultima = ''; return; }
 
-    const semVeiculo = !S.ui.vehicleId, itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || n[0] === 'admin')), telas = itens.filter(n => !n[3]);
+    // Diretor: entra pelo Dashboard geral (todos os veículos); lá o menu fica enxuto e não há veículo aberto
+    const DIR = !MUSIC && !!(S.me && S.me.diretor), bruto = location.hash.replace(/^#\/?/, '').split('/')[0];
     let { view, id } = S.route();
+    if (DIR && !bruto) view = 'geral';
+    if (view === 'geral') S.ui.emGeral = DIR; else if (view !== 'admin') S.ui.emGeral = false;
+    const geral = DIR && S.ui.emGeral, semVeiculo = !S.ui.vehicleId;
+    const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral'].includes(n[0])) && (!geral || ['geral', 'music', 'admin'].includes(n[0])) && !(n[0] === 'geral' && !geral && S.celular && !semVeiculo)), telas = itens.filter(n => !n[3]);
     if (!telas.some(n => n[0] === view) && view !== 'pi') view = telas.length ? telas[0][0] : 'soMusic';
-    if (semVeiculo) view = MUSIC ? (telas[0] || ['hoje'])[0] : 'admin';
-    S.temaRadio(semVeiculo ? null : S.veh());
+    if (semVeiculo && !(DIR && ['geral', 'admin'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
+    S.temaRadio(semVeiculo || geral ? null : S.veh());
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, atrasos = !MUSIC && S.fuAtrasados && !semVeiculo ? S.fuAtrasados() : 0, veh = semVeiculo ? null : S.veh();
-    const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${MUSIC ? 'hoje' : 'dashboard'}" data-go="/${MUSIC ? 'hoje' : 'dashboard'}" aria-label="${MUSIC ? 'Sonvi Music' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
+    const inicio = MUSIC ? 'hoje' : DIR ? 'geral' : 'dashboard';
+    const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${inicio}" data-go="/${inicio}" aria-label="${MUSIC ? 'Sonvi Music' : DIR ? 'SONVI · Dashboard geral' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
       <button type="button" class="recolher" data-act="menuRecolher" aria-controls="side">${S.svg('recolher')}${S.svg('expandir')}<span class="sr">Recolher menu</span></button>
-      ${semVeiculo ? '' : `<label class="veh" title="Trocar de rádio">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc([veh.frequencia, veh.cidade].filter(Boolean).join(' · ') || 'Rádio selecionada')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Rádio">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}
+      ${semVeiculo || geral ? '' : DIR ? `<a class="veh veh-volta" href="#/geral" data-go="/geral" title="Voltar ao Dashboard geral">${S.vav(veh)}<span class="vt"><small>${S.svg('voltar', 12)}Dashboard geral</small><b>${esc(veh.nome)}</b></span></a>` : `<label class="veh" title="Trocar de rádio">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc([veh.frequencia, veh.cidade].filter(Boolean).join(' · ') || 'Rádio selecionada')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Rádio">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}
       <nav aria-label="Menu principal">${itens.map(([k, n, , href], i) => { const ex = itens.length > 5 && i >= 4 ? ' extra' : ''; return href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo${ex}" data-ico="${k}">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
         : `<a href="#/${k}" data-go="/${k}" title="${n}" data-ico="${k}" class="${(active === k ? 'on' : '') + ex}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}${k === 'followup' && atrasos ? `<span class="badge alerta" title="Retornos atrasados">${atrasos}</span>` : ''}</a>`; }).join('')}
       ${itens.length > 5 ? `<button type="button" class="nav-mais" data-act="navMais" aria-haspopup="menu">${S.svg('mais3')}Mais</button>` : ''}
@@ -78,12 +85,12 @@
     bar.innerHTML = `<h1>${v.title}</h1>${v.actions}`;
     content.innerHTML = v.body;
     requestAnimationFrame(() => content.querySelectorAll('.scroll').forEach(sc => { if (sc.scrollWidth > sc.clientWidth + 2 && !sc.querySelector('a[href], button, input, select, textarea, [tabindex]')) { const t = sc.closest('.card') && sc.closest('.card').querySelector('h2'); sc.tabIndex = 0; sc.setAttribute('role', 'region'); sc.setAttribute('aria-label', (t ? t.textContent.trim() + ': ' : '') + 'tabela, role para o lado para ver tudo'); } }));
-    document.title = (MUSIC ? 'Sonvi Music' : 'SONVI') + (semVeiculo ? '' : ' · ' + veh.nome);
+    document.title = (MUSIC ? 'Sonvi Music' : 'SONVI') + (view === 'geral' ? ' · Dashboard geral' : semVeiculo || geral ? '' : ' · ' + veh.nome);
   };
 
   // Carrega tudo da nuvem e desenha
   S.iniciar = async () => {
-    S.carregando = true; S.render();
+    S.carregando = true; if (S.geralLimpar) S.geralLimpar(); S.render();
     try { await S.recarregar(); } catch (e) { console.error(e); S.toast(S.erro(e)); }
     S.carregando = false; S.render();
   };
@@ -128,12 +135,26 @@
     const ctl = e.target.closest('input, select, button'); // um botão dentro de uma linha clicável não abre a linha; o próprio botão com data-go abre
     if (go && (!ctl || ctl === go)) { if (go.tagName === 'A') e.preventDefault(); if (go.dataset.go.startsWith('/pi/')) S.ui.tab = 'detalhes'; if (!go.dataset.go.startsWith('/pi')) S.ui.q = ''; S.go(go.dataset.go); }
   });
+  // Alterações que ainda não foram salvas impedem trocar de veículo (seletor ou Dashboard geral)
+  const pendente = () => S.piEd && S.piEd.sujo ? 'Salve ou cancele as alterações do PI antes de trocar de veículo.'
+    : S.propSujo && S.propSujo() ? 'Salve ou descarte as alterações da proposta antes de trocar de veículo.'
+    : S.tpSujo && S.tpSujo() ? 'Salve ou descarte as alterações da tabela de preços antes de trocar de veículo.' : '';
+  // Dashboard geral → abre um veículo (carrega só os dados dele) e vai para o Dashboard dele
+  S.abrirVeiculo = async (vid, destino = '/dashboard') => {
+    if (vid !== S.ui.vehicleId) { const msg = pendente(); if (msg) return S.toast(msg); }
+    S.ui.emGeral = false; S.ui.q = '';
+    if (vid !== S.ui.vehicleId) {
+      S.ui.vehicleId = vid; S.guardarRadio(vid);
+      S.carregando = true; S.render();
+      try { await S.carregarVeiculo(); } catch (err) { S.toast(S.erro(err)); }
+      S.carregando = false;
+    }
+    S.go(destino);
+  };
   document.addEventListener('change', async e => {
     const el = e.target, d = el.dataset;
     if (el.closest('dialog')) return;
-    if (d.ui === 'vehicleId' && S.piEd && S.piEd.sujo) { el.value = S.ui.vehicleId; return S.toast('Salve ou cancele as alterações do PI antes de trocar de rádio.'); }
-    if (d.ui === 'vehicleId' && S.propSujo && S.propSujo()) { el.value = S.ui.vehicleId; return S.toast('Salve ou descarte as alterações da proposta antes de trocar de rádio.'); }
-    if (d.ui === 'vehicleId' && S.tpSujo && S.tpSujo()) { el.value = S.ui.vehicleId; return S.toast('Salve ou descarte as alterações da tabela de preços antes de trocar de rádio.'); }
+    if (d.ui === 'vehicleId' && pendente()) { el.value = S.ui.vehicleId; return S.toast(pendente()); }
     if (d.ui === 'vehicleId') { // troca de rádio: busca na nuvem só os dados dela
       S.ui.vehicleId = el.value; S.ui.q = ''; S.guardarRadio(el.value);
       if (S.route().view === 'pi') location.hash = '/pis';

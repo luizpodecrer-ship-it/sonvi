@@ -1629,3 +1629,73 @@ button.ad-chip { cursor:pointer; min-height:32px; } button.ad-chip:hover { backg
 @keyframes acc-abre { from { opacity:0; transform:translateY(-4px); } }
 @media (max-width:640px) { .acc-corpo { padding:4px 16px 16px; grid-template-columns:1fr 1fr; } }
 @media (prefers-reduced-motion:reduce) { .acc-corpo { animation:none; } .acc-seta { transition:none; } }
+
+/* ---------- Dashboard geral do diretor (24/10/2026) ---------- */
+.veh-volta { text-decoration:none; color:inherit; }
+.veh-volta .vt small { display:inline-flex; align-items:center; gap:4px; color:var(--accent-text); font-weight:600; }
+.veh-volta .vt small svg { width:12px; height:12px; stroke:currentColor; }
+@media (max-width:820px) { #side .veh.veh-volta .vt small { display:inline-flex; font-size:11px; } }
+.geral-intro { margin:-8px 0 20px; color:var(--ink-2); }
+.gk-grade { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px; margin-bottom:16px; }
+.gk { gap:14px; min-width:0; }
+.gk-top { display:flex; align-items:center; gap:12px; }
+.gk-top h2 { font:500 14px/1.2 var(--font); color:var(--ink-2); letter-spacing:0; }
+.gk-ic { width:38px; height:38px; flex:none; border-radius:var(--radius-s); background:var(--accent-soft); color:var(--accent-text); display:flex; align-items:center; justify-content:center; }
+.gk-ic svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.gk-meio { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; }
+.gk-num { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.gk-val { display:block; font:600 clamp(24px, 2.2vw, 30px)/1.1 var(--display); letter-spacing:-.03em; white-space:nowrap; }
+.gk-rod { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; }
+.gk-rod small { color:var(--ink-3); font-size:12px; }
+.gk-var { display:inline-flex; align-items:center; gap:3px; padding:3px 8px; border-radius:6px; font-size:12px; font-weight:600; background:var(--fill); color:var(--ink-2); white-space:nowrap; }
+.gk-var svg { fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+.gk-var.bom { background:color-mix(in srgb, var(--green) 13%, transparent); color:var(--green); }
+.gk-var.ruim { background:color-mix(in srgb, var(--red) 12%, transparent); color:var(--red); }
+.gk-spark { width:132px; height:44px; flex:none; color:var(--accent); overflow:visible; }
+.gk-spark .area { fill:currentColor; opacity:.13; stroke:none; }
+.gk-spark .linha { fill:none; stroke:currentColor; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
+.gk-spark circle { fill:var(--surface); stroke:currentColor; stroke-width:2; vector-effect:non-scaling-stroke; }
+.gv-hd { flex-wrap:wrap; }
+.gv-hd h2 { flex:0 1 auto; }
+.gv-at { flex:1; } .gv-at a { color:var(--accent-text); font-weight:600; cursor:pointer; }
+.gv-busca { width:min(280px, 100%); }
+.gv-cab, .gv-lin { display:grid; grid-template-columns:minmax(200px, 2fr) minmax(170px, 1.5fr) minmax(140px, 1.1fr) 120px minmax(130px, 1.1fr) 20px; gap:18px; align-items:center; }
+.gv-cab { padding:4px 12px 10px; font-size:12px; color:var(--ink-3); font-weight:500; border-bottom:1px solid var(--line); }
+.gv-lin { padding:16px 12px; border-bottom:1px solid var(--line); border-radius:var(--radius-s); cursor:pointer; transition:background .2s var(--ease); }
+.gv-lin:last-child { border-bottom:0; }
+.gv-lin:hover, .gv-lin:focus-visible { background:var(--fill); }
+.gv-lin:focus-visible, .gv-cartao:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.gv-v { display:flex; align-items:center; gap:12px; min-width:0; }
+.gv-v .vav { width:40px; height:40px; font-size:12px; }
+.gv-tx { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.gv-tx b { font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gv-tx small { font-size:12px; color:var(--ink-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gv-num { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.gv-num b { font-weight:600; white-space:nowrap; } .gv-num small { font-size:12px; white-space:nowrap; }
+.gv-barra { display:block; height:6px; border-radius:999px; background:var(--fill-2); overflow:hidden; }
+.gv-barra i { display:block; height:100%; border-radius:inherit; background:var(--accent); }
+.gv-pills { display:flex; flex-wrap:wrap; gap:6px; }
+.gv-avs { display:flex; align-items:center; }
+.gv-avs > span[aria-hidden] { width:30px; height:30px; border-radius:999px; margin-left:-8px; border:2px solid var(--surface); background:var(--accent-soft); color:var(--accent-text); font:700 11px/1 var(--display); display:inline-flex; align-items:center; justify-content:center; }
+.gv-avs > span[aria-hidden]:nth-of-type(2) { margin-left:0; }
+.gv-avs > span.mais { background:var(--fill-2); color:var(--ink-2); }
+.gv-seta { display:flex; color:var(--ink-3); }
+.gv-seta svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.gv-cartoes { display:flex; flex-direction:column; gap:12px; }
+.gv-cartao { border:1px solid var(--line); border-radius:var(--radius-m); padding:16px; display:flex; flex-direction:column; gap:12px; cursor:pointer; }
+.gv-c-topo { display:flex; align-items:center; gap:10px; } .gv-c-topo .gv-v { flex:1; }
+.gv-c-num { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.gv-c-num > div { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.gv-c-num small.muted:first-child { font-size:12px; }
+.gv-c-rod { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+@media (max-width:1180px) { .gk-grade { grid-template-columns:1fr; } .gk-meio { align-items:center; } .gk-spark { width:180px; } }
+@media (max-width:1240px) { .gv-cab, .gv-lin { grid-template-columns:minmax(180px, 2fr) minmax(150px, 1.4fr) minmax(130px, 1.1fr) minmax(120px, 1.1fr) 20px; } .gv-cab > span:nth-child(4), .gv-lin > .gv-avs, .gv-lin > .muted { display:none; } }
+@media (max-width:820px) { .gk-spark { width:110px; } .gv-busca { width:100%; } .gv-at { flex:1 1 100%; order:3; } }
+.gk-var.bom { color:color-mix(in srgb, var(--green) 78%, #000); } .gk-var.ruim { color:color-mix(in srgb, var(--red) 84%, #000); }
+@media (prefers-color-scheme: dark) { .gk-var.bom { color:var(--green); } .gk-var.ruim { color:var(--red); } }
+/* Aviso em laranja (falta algo, mas não impede) e e-mail de cobrança nas parcelas (24/10/2026) */
+.note.aviso { background:color-mix(in srgb, var(--orange) 12%, transparent); color:color-mix(in srgb, var(--orange) 66%, #000); }
+@media (prefers-color-scheme: dark) { .note.aviso { color:var(--orange); } }
+.fin-quem .fin-email { display:flex; align-items:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fin-quem .fin-email svg { width:12px; height:12px; flex:none; fill:none; stroke:currentColor; stroke-width:2; }
+.fin-quem small.fin-laranja { color:var(--orange); }

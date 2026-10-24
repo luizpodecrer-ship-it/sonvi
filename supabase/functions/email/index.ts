@@ -3,6 +3,7 @@
 // Só envia sobre um PI ou uma proposta que a pessoa logada consegue ver (as regras do banco valem: RLS).
 //   { tipo: "pi_opec", id, para, assunto, texto }     → remetente "<rádio> · SONVI" <pi@sonvi.com.br>; se quem envia é consultor, os gerentes da rádio vão em cópia
 //   { tipo: "proposta", id, para, assunto, texto }    → remetente "<empresa comercial>" <propostas@sonvi.com.br>
+//   { tipo: "cobranca", id, para, assunto, texto }    → parcela a receber (só diretor e financeiro a enxergam); remetente "<rádio> · Financeiro" <financeiro@sonvi.com.br>
 // A resposta do destinatário vai para o e-mail de quem enviou (reply_to).
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -54,6 +55,10 @@ Deno.serve(async (req) => {
       if (!p) return resposta({ erro: 'Proposta não encontrada ou sem permissão.' }, 404);
       const { data: e } = await quem.from('empresa_comercial').select('nome').limit(1).maybeSingle();
       remetente = `${nomeLimpo(String(e?.nome || 'Propostas').split('·')[0]) || 'Propostas'} <propostas@sonvi.com.br>`;
+    } else if (b.tipo === 'cobranca') {
+      const { data: l } = await quem.from('lancamentos').select('id, sentido, veiculos(nome)').eq('id', String(b.id ?? '')).maybeSingle();
+      if (!l || (l as any).sentido !== 'receber') return resposta({ erro: 'Parcela não encontrada ou sem permissão.' }, 404);
+      remetente = `${nomeLimpo((l as any).veiculos?.nome || 'Rádio')} · Financeiro <financeiro@sonvi.com.br>`;
     } else return resposta({ erro: 'Tipo de envio desconhecido.' }, 400);
 
     const { data: eu } = await quem.from('usuarios').select('nome, email').eq('id', user.id).maybeSingle();

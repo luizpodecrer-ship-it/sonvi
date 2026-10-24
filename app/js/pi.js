@@ -285,6 +285,14 @@
       ${em ? `<button class="btn" data-act="piAddItem" data-id="${g.id}">+ Adicionar item</button>` : ''}</section>`;
   }
 
+  // Para onde vão as notas e os boletos: quem paga a rádio (muda com a instrução de faturamento)
+  const notasBoletos = pi => { const pg = S.pagadorPi(pi), quem = pg.tipo === 'agencia' ? 'agência' : 'cliente';
+    return `<div class="card"><div class="hd"><h2>Notas e boletos</h2><span>vão para quem paga a rádio</span></div>
+      <div class="list"><div><span class="ic" aria-hidden="true">${S.svg('email')}</span><span class="tx"><b>${esc(pg.nome) || '—'} <span class="muted small">(${quem})</span></b>
+        <small>${pg.email ? `${esc(pg.email)} · ${pg.doFaturamento ? 'e-mail de faturamento' : 'e-mail comum do cadastro'}` : 'sem e-mail no cadastro'}</small></span>
+        ${!pg.doFaturamento && pg.pessoa ? `<button class="btn sm" data-act="pesEditar" data-id="${pg.id}">${S.svg('editar')}Completar o cadastro</button>` : ''}</div></div>
+      ${pg.doFaturamento ? '' : `<p class="note aviso" style="margin:12px 0 0">Falta o e-mail de faturamento ${pg.tipo === 'agencia' ? 'da agência' : 'do cliente'}.${pg.email ? ' Enquanto isso, as notas e os boletos vão para o e-mail comum do cadastro.' : ' Sem ele, o financeiro não tem para onde mandar notas e boletos.'}</p>`}</div>`; };
+
   function tabBilling(pi, c, ro) {
     const b = pi.dados.billing, tile = (t, v) => `<div class="tile"><small>${t}</small><b style="font-size:20px">${brl(v)}</b></div>`;
     const blocks = S.billingEntries(pi, c).map(e => `<div class="card"><h2>${esc(e.from)} paga ${e.what.toLowerCase()} para ${esc(e.to)}</h2><div class="scroll"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Lançamento</th><th class="r">Valor</th><th class="r">Forma</th></tr></thead><tbody>${S.parcels(pi, e.value).map(p => `<tr><td>${p.n}</td><td>${dfmt(p.due)}</td><td>${esc(e.what)}</td><td class="r">${brl(p.value)}</td><td class="r">${esc(b.method)}</td></tr>`).join('')}</tbody></table></div></div>`).join('');
@@ -295,7 +303,7 @@
       <label class="f">1º vencimento<input type="date" value="${b.firstDue || ''}" data-f="dados.billing.firstDue" data-rerender="1"${ro}></label>
       <label class="f">Parcelas<input type="number" min="1" max="24" style="width:84px" value="${b.installments}" data-f="dados.billing.installments" data-k="int" data-rerender="1"${ro}></label>
       <label class="f">Forma de pagamento<select data-f="dados.billing.method" data-rerender="1"${ro}>${S.opts(['Boleto', 'Pix', 'Transferência', 'Cartão'], b.method)}</select></label></div></div>
-      ${blocks}
+      ${notasBoletos(pi)}${blocks}
       <div class="card"><div class="hd"><h2>Observações internas da rádio</h2><span>não saem no PI exportado</span></div><textarea data-f="dados.billing.obsVehicle" placeholder="Anotações só para a equipe da rádio"${ro}>${esc(b.obsVehicle)}</textarea></div>`;
   }
 
@@ -604,7 +612,7 @@
     const periodos = [...new Set([...pi.dados.grids.map(g => g.period), ...dps])].sort(), periodo = !periodos.length ? '—' : periodos.length === 1 ? mesCurto(periodos[0]) : `${mesCurto(periodos[0])} a ${mesCurto(periodos[periodos.length - 1])}`;
     const descLinhas = tabela - c.media;
     // Quem paga a rádio recebe a fatura: o e-mail de faturamento é o dele
-    const entradas = S.billingEntries(pi, c), pagador = (entradas.find(e => e.para === 'V') || {}).de, emailFat = pagador === 'A' && ag ? ag.email : cli.email;
+    const entradas = S.billingEntries(pi, c), emailFat = S.pagadorPi(pi).email;
     // A agência aparece uma única vez no PI (no quadro do cliente). No pagamento entram só as parcelas que a rádio
     // recebe, sem repetir quem paga; o que a rádio paga à agência vira uma linha só, quando houver.
     const nParc = Math.max(1, parseInt(b.installments) || 1);

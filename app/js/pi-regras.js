@@ -28,6 +28,20 @@
   S.digCalc = it => { if (Array.isArray(it.entregas)) return { qtd:it.entregas.reduce((s, e) => s + Math.max(0, parseInt(e.qtd) || 0), 0), sub:Math.round(num(it.valor) * 100) / 100 };
     const qtd = Math.max(0, parseInt(it.qtd) || 0); return { qtd, sub:Math.round(qtd * num(it.unit) * 100) / 100 }; };
 
+  // Notas e boletos vão para quem paga a rádio (cliente ou agência, pela instrução de faturamento do PI): o e-mail de
+  // faturamento do cadastro e, se estiver vazio, o e-mail comum (24/10/2026)
+  S.pagadorPi = pi => {
+    const de = (S.billingEntries(pi, S.calc(pi)).find(e => e.para === 'V') || {}).de || 'C', id = de === 'A' && pi.agencia_id ? pi.agencia_id : pi.cliente_id;
+    const p = (S.db.pessoas || []).find(x => x.id === id) || null, fat = String((p && p.email_faturamento) || '').trim();
+    return { tipo:id === pi.agencia_id && id !== pi.cliente_id ? 'agencia' : 'cliente', id, pessoa:p, nome:p ? p.nome : S.nome(id), email:fat || String((p && p.email) || '').trim(), doFaturamento:!!fat };
+  };
+  // E-mail de cobrança de uma parcela: o informado na parcela; nas de PI, vazio = o de quem paga
+  S.emailCobrancaDe = l => {
+    const proprio = String(l.email_cobranca || '').trim(); if (proprio) return { email:proprio, origem:'parcela' };
+    const pi = l.pi_id && (S.db.pis || []).find(p => p.id === l.pi_id);
+    if (!pi) return { email:'', origem:'' };
+    const pg = S.pagadorPi(pi); return { email:pg.email, origem:pg.email ? 'cadastro' : '', pagador:pg };
+  };
   S.calc = pi => {
     const d = pi.dados; let media = 0, bonus = 0, ins = 0, pub = 0, radio = 0, digital = 0;
     d.grids.forEach(g => g.items.forEach(it => { const c = S.itemCalc(it); ins += c.ins; if (it.bonus) bonus += c.gross; else { media += c.sub; radio += c.sub; } }));

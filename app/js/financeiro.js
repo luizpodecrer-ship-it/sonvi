@@ -63,7 +63,7 @@
 
     // Filtros
     const q = f.q.trim().toLowerCase();
-    const base2 = doPeriodo.filter(l => (f.tipo === 'ambos' || l.sentido === f.tipo) && (!q || [l.contraparte, l.descricao, l.nota_fiscal, l.forma].join(' ').toLowerCase().includes(q)) && (!f.faixa || faixaDe(l, hoje) === f.faixa));
+    const base2 = doPeriodo.filter(l => (f.tipo === 'ambos' || l.sentido === f.tipo) && (!q || [l.contraparte, l.descricao, l.nota_fiscal, l.forma, l.sentido === 'receber' ? S.emailCobrancaDe(l).email : ''].join(' ').toLowerCase().includes(q)) && (!f.faixa || faixaDe(l, hoje) === f.faixa));
     const cont = { aberto:base2.filter(l => !l.pago_em).length, vencido:base2.filter(l => atraso(l, hoje)).length, pago:base2.filter(l => l.pago_em).length, todos:base2.length };
     const lista = base2.filter(l => f.sit === 'todos' || (f.sit === 'aberto' ? !l.pago_em : f.sit === 'vencido' ? atraso(l, hoje) : l.pago_em))
       .sort((a, b) => (a.vencimento || '9').localeCompare(b.vencimento || '9') || (a.contraparte || '').localeCompare(b.contraparte || ''));
@@ -82,7 +82,9 @@
     const nomeMes = m => m ? `${MESES[+m.slice(5) - 1][0].toUpperCase()}${MESES[+m.slice(5) - 1].slice(1)} ${m.slice(0, 4)}` : 'Sem vencimento';
     const pill = l => { const s = situacao(l, hoje); return s === 'pago' ? S.tag(`${l.sentido === 'pagar' ? 'Pago' : 'Recebido'} ${dfmt(l.pago_em).slice(0, 5)}`, 'green') : s === 'vencido' ? S.tag(`Vencido ${atraso(l, hoje)} dia${atraso(l, hoje) === 1 ? '' : 's'}`, 'orange') : S.tag('Em aberto', 'sky'); };
     const valorTxt = l => l.pago_em && Math.abs(recebidoDe(l) - Number(l.valor)) > 0.004 ? `<b>${brl(recebidoDe(l))}</b><small class="muted">parcela ${brl(l.valor)}</small>` : `<b>${brl(l.valor)}</b>`;
-    const quem = l => `<span class="fin-quem"><b>${esc(l.contraparte) || '—'}</b><small>${esc(l.descricao)}${l.categoria ? ` · ${esc(l.categoria)}` : ''}${l.pi_id ? '' : ' · avulso'}${l.parcela ? ` · parcela ${l.parcela}` : ''}${l.sentido === 'pagar' && f.tipo === 'ambos' ? ' · a pagar' : ''}</small></span>`;
+    const emailTxt = l => { if (l.sentido !== 'receber' || l.pago_em) return ''; const e = S.emailCobrancaDe(l).email;
+      return e ? `<small class="fin-email" title="E-mail de cobrança">${S.svg('email')}${esc(e)}</small>` : '<small class="fin-email fin-laranja">sem e-mail de cobrança</small>'; };
+    const quem = l => `<span class="fin-quem"><b>${esc(l.contraparte) || '—'}</b><small>${esc(l.descricao)}${l.categoria ? ` · ${esc(l.categoria)}` : ''}${l.pi_id ? '' : ' · avulso'}${l.parcela ? ` · parcela ${l.parcela}` : ''}${l.sentido === 'pagar' && f.tipo === 'ambos' ? ' · a pagar' : ''}</small>${emailTxt(l)}</span>`;
     const acoes = l => `<span class="fin-acoes">${l.pago_em ? '' : `<button class="btn sm" data-act="finBaixa" data-id="${l.id}">${l.sentido === 'pagar' ? 'Pagar' : 'Dar baixa'}</button>`}<button class="btn tres" data-act="finMenu" data-id="${l.id}" aria-label="Opções da parcela">${S.svg('mais3')}</button></span>`;
     const marca = l => l.pago_em ? '<span></span>' : `<input type="checkbox" data-fin-sel="${l.id}"${sel.has(l.id) ? ' checked' : ''} aria-label="Selecionar parcela de ${esc(l.contraparte)}">`;
     const selVal = soma(lista.filter(l => sel.has(l.id)));
@@ -140,8 +142,30 @@
     finMenu: (d, botao) => { const l = S.db.lancamentos.find(x => x.id === d.id);
       S.menu(botao, [...(l.pi_id ? [{ label:'Abrir o PI', icon:'pis', act:'finVerPi', data:{ id:l.pi_id } }] : []),
         ...(l.pago_em ? [{ label:'Ver detalhes da baixa', icon:'check', act:'finDetalhe', data:{ id:l.id } }, '-', { label:'Estornar baixa', icon:'voltar', act:'finEstornar', data:{ id:l.id }, perigo:true }]
-          : [{ label:'Mudar vencimento', icon:'relogio', act:'finVenc', data:{ id:l.id } }, { label:'Informar nota fiscal', icon:'editar', act:'finNf', data:{ id:l.id } }, ...(l.pi_id ? [] : ['-', { label:'Excluir lançamento', icon:'lixo', act:'finExcluir', data:{ id:l.id }, perigo:true }])])]); },
+          : [...(l.sentido === 'receber' ? [{ label:'Enviar cobrança por e-mail', icon:'email', act:'finCobrar', data:{ id:l.id } }, { label:'E-mail de cobrança', icon:'editar', act:'finEmail', data:{ id:l.id } }, '-'] : []),
+            { label:'Mudar vencimento', icon:'relogio', act:'finVenc', data:{ id:l.id } }, { label:'Informar nota fiscal', icon:'editar', act:'finNf', data:{ id:l.id } }, ...(l.pi_id ? [] : ['-', { label:'Excluir lançamento', icon:'lixo', act:'finExcluir', data:{ id:l.id }, perigo:true }])])]); },
     finVerPi: d => S.go(`/pi/${d.id}`),
+    // Cobrança por e-mail, pelo próprio SONVI (remetente "<rádio> · Financeiro" financeiro@sonvi.com.br; a resposta vem para quem enviou)
+    finCobrar: d => { const l = S.db.lancamentos.find(x => x.id === d.id), v = S.veh(), hoje = S.today(), at = atraso(l, hoje), ec = S.emailCobrancaDe(l);
+      const ola = `Olá${l.contraparte ? ', ' + l.contraparte : ''}!`, parc = `a parcela ${l.parcela || 1} de ${l.descricao}, no valor de ${brl(l.valor)}`;
+      const assunto = at ? `Parcela vencida · ${v.nome} · ${l.descricao}` : `Lembrete de vencimento · ${v.nome} · ${l.descricao}`;
+      const texto = at ? `${ola}\n\nConsta em aberto ${parc}, vencida em ${dfmt(l.vencimento)} (${at} dia${at === 1 ? '' : 's'} de atraso).\n\nSe o pagamento já foi feito, por favor desconsidere esta mensagem e, se puder, responda este e-mail com o comprovante.\n\nObrigado,\nFinanceiro · ${v.nome}`
+        : `${ola}\n\nLembramos que ${parc} vence em ${l.vencimento ? dfmt(l.vencimento) : 'data a combinar'}${l.forma ? ` (${l.forma})` : ''}.\n\nQualquer dúvida, é só responder este e-mail.\n\nObrigado,\nFinanceiro · ${v.nome}`;
+      S.dialog(`<h2>Enviar cobrança por e-mail</h2><p class="muted small">${esc(l.contraparte)} · ${esc(l.descricao)} · parcela ${l.parcela || 1} · ${at ? `vencida há ${at} dia${at === 1 ? '' : 's'}` : `vence ${dfmt(l.vencimento)}`}</p>
+        <label class="f">Para<input name="cb_para" type="email" multiple required value="${esc(ec.email)}" placeholder="financeiro@cliente.com.br" autocomplete="off"></label>
+        ${ec.email ? '' : '<p class="note aviso" style="margin:0">Esta parcela não tem e-mail de cobrança. Digite um aqui ou complete o e-mail de faturamento no cadastro.</p>'}
+        <label class="f">Assunto<input name="cb_assunto" required value="${esc(assunto)}"></label>
+        <label class="f">Mensagem<textarea name="cb_texto" rows="9" required>${esc(texto)}</textarea></label>
+        <p class="muted small" style="margin:0">Sai de "${esc(v.nome)} · Financeiro" (financeiro@sonvi.com.br). A resposta vem para o seu e-mail.</p>
+        <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${S.svg('email')}Enviar cobrança</button></div>`,
+        async x => { const para = x.cb_para.trim();
+          try { await S.enviarEmail({ tipo:'cobranca', id:l.id, para, assunto:x.cb_assunto, texto:x.cb_texto }); S.toast(`Cobrança enviada para ${para}`); }
+          catch (e) { S.emailManual(para, x.cb_assunto, x.cb_texto, S.erro(e)); } }); },
+    // E-mail só desta parcela; vazio volta a usar o do cadastro de quem paga
+    finEmail: d => { const l = S.db.lancamentos.find(x => x.id === d.id), pi = l.pi_id && S.db.pis.find(p => p.id === l.pi_id), cad = pi ? S.pagadorPi(pi) : null;
+      S.form('E-mail de cobrança', [{ k:'email_cobranca', label:'E-mail desta parcela', type:'email', full:true, ph:cad && cad.email ? cad.email : 'financeiro@cliente.com.br' },
+        { html:`<p class="muted small" style="grid-column:1/-1;margin:0">${cad ? (cad.email ? `Vazio = usa o do cadastro de ${esc(cad.nome)}: <b>${esc(cad.email)}</b>.` : `Vazio = usa o do cadastro de ${esc(cad.nome)}, que ainda não tem e-mail.`) : 'Lançamento avulso: este é o único e-mail de cobrança dele.'}</p>` }],
+        { email_cobranca:l.email_cobranca || '' }, v => S.run(() => S.salvar('lancamentos', { id:l.id, email_cobranca:(v.email_cobranca || '').trim() }), 'E-mail de cobrança salvo'), 'Salvar', { editar:true }); },
     finDetalhe: d => { const l = S.db.lancamentos.find(x => x.id === d.id), lin = (a, b) => b ? `<tr><td class="muted">${a}</td><td class="r"><b>${b}</b></td></tr>` : '';
       S.dialog(`<h2>Baixa da parcela</h2><p class="muted small">${esc(l.contraparte)} · ${esc(l.descricao)} · parcela ${l.parcela}</p>
         <table>${lin('Vencimento', dfmt(l.vencimento))}${lin(l.sentido === 'pagar' ? 'Pago em' : 'Recebido em', dfmt(l.pago_em))}${lin('Forma', esc(l.forma))}${lin('Parcela', brl(l.valor))}${lin('Juros e multa', Number(l.juros) ? brl(l.juros) : '')}${lin('Desconto', Number(l.desconto) ? brl(l.desconto) : '')}${lin(l.sentido === 'pagar' ? 'Valor pago' : 'Valor recebido', brl(recebidoDe(l)))}${lin('Nota fiscal', esc(l.nota_fiscal))}${lin('Observação', esc(l.observacao))}</table>
@@ -157,6 +181,8 @@
     finFaturar: d => { const pi = S.db.pis.find(p => p.id === d.id), ls = S.lancamentosDoPi(pi);
       S.dialog(`<h2>Faturar ${S.piNo(pi)}</h2><p class="muted">${esc(pi.titulo)} · ${esc(S.nome(pi.cliente_id))}</p>
         <table><thead><tr><th>Tipo</th><th>De / para</th><th>Parc.</th><th>Vencimento</th><th class="r">Valor</th></tr></thead><tbody>${ls.map(l => `<tr><td>${l.sentido === 'receber' ? 'Receber' : 'Pagar'}</td><td>${esc(l.contraparte)}</td><td>${l.parcela}</td><td>${dfmt(l.vencimento)}</td><td class="r">${brl(l.valor)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Este PI não gera valores para a rádio.</td></tr>'}</tbody></table>
+        ${(() => { const pg = S.pagadorPi(pi); return ls.some(l => l.sentido === 'receber') ? (pg.doFaturamento ? `<p class="note info">Notas e boletos vão para <b>${esc(pg.nome)}</b> (${pg.tipo === 'agencia' ? 'agência' : 'cliente'}): ${esc(pg.email)}.</p>`
+          : `<p class="note aviso">Falta o e-mail de faturamento ${pg.tipo === 'agencia' ? 'da agência' : 'do cliente'} <b>${esc(pg.nome)}</b>. ${pg.email ? `As notas e os boletos vão para o e-mail comum: ${esc(pg.email)}.` : 'Sem e-mail, as parcelas ficam sem e-mail de cobrança.'} Dá para faturar assim e completar o cadastro depois.</p>`) : ''; })()}
         ${ls.some(l => !l.vencimento) ? '<p class="note">Há parcelas sem vencimento. Defina o 1º vencimento na aba Faturamento do PI, se quiser.</p>' : ''}
         <div class="row"><span class="grow"></span><button class="btn" value="cancel">Cancelar</button><button class="btn pri" value="ok">Confirmar faturamento</button></div>`,
         () => S.run(async () => { const r = await S.q(S.sb.rpc('faturar_pi', { p_pi:pi.id, p_lancamentos:ls })); Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id]; await recarregar(); }, `${S.piNo(pi)} faturado`)); }
@@ -180,6 +206,7 @@
     { k:'categoria', label:'Categoria', ph:'Ex.: Aluguel, Salários, Permuta, Serviços' },
     { k:'descricao', label:'Descrição', req:true, full:true, ph:'Ex.: Aluguel da torre de transmissão' },
     { k:'contraparte', label:'De quem / para quem', ph:'Ex.: Imobiliária Centro' },
+    { k:'email_cobranca', label:'E-mail de cobrança (a receber)', type:'email', ph:'financeiro@cliente.com.br' },
     { k:'forma', label:'Forma', type:'select', options:FORMAS.map(x => [x, x]) },
     { k:'valor', label:'Valor de cada parcela (R$)', req:true, mask:'dec', ph:'Ex.: 2.500,00' },
     { k:'vencimento', label:'1º vencimento', type:'date', req:true },
@@ -188,7 +215,8 @@
     { sentido:'pagar', forma:'Boleto', vencimento:S.today(), vezes:'1' },
     v => { const n = Math.min(60, Math.max(1, parseInt(v.vezes) || 1)), valor = num(v.valor);
       if (!(valor > 0)) return S.toast('Informe o valor.');
-      const rows = Array.from({ length:n }, (_, k) => ({ veiculo_id:S.ui.vehicleId, sentido:v.sentido, categoria:(v.categoria || '').trim(), descricao:v.descricao.trim(), contraparte:(v.contraparte || '').trim(), forma:v.forma, valor, vencimento:somaMeses(v.vencimento, k), parcela:k + 1, observacao:(v.observacao || '').trim() }));
+      const rows = Array.from({ length:n }, (_, k) => ({ veiculo_id:S.ui.vehicleId, sentido:v.sentido, categoria:(v.categoria || '').trim(), descricao:v.descricao.trim(), contraparte:(v.contraparte || '').trim(), forma:v.forma, valor, vencimento:somaMeses(v.vencimento, k), parcela:k + 1, observacao:(v.observacao || '').trim(),
+        email_cobranca:v.sentido === 'receber' ? (v.email_cobranca || '').trim() : '' }));
       S.run(async () => { const r = await S.q(S.sb.from('lancamentos').insert(rows).select()); S.db.lancamentos.push(...r); }, n > 1 ? `${n} lançamentos criados` : 'Lançamento criado'); }, 'Criar', { editar:true });
 
   // ---------- relatórios ----------
@@ -219,6 +247,7 @@
   const plural = (n, s, p) => `${n} ${n === 1 ? s : p || s + 's'}`;
   const K = (rot, val, sub, extra = {}) => Object.assign({ rot, val, sub }, extra);
   const situ = (l, hoje) => l.pago_em ? 'Pago' : atraso(l, hoje) ? `Vencida há ${plural(atraso(l, hoje), 'dia')}` : 'A vencer';
+  const mailRel = l => S.emailCobrancaDe(l).email || 'sem e-mail';
   const partDe = (pares, total) => pares.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([nome, v]) => ({ nome, v, p:total ? v / total : 0 }));
 
   const montar = () => {
@@ -233,8 +262,8 @@
         return { resumo:[K('Total a receber', brl(soma(ls)), `${plural(ls.length, 'parcela')} · ${plural(new Set(ls.map(l => l.contraparte)).size, 'cliente')}`, { dest:true }),
             K('Vence nos próximos 30 dias', brl(soma(em30)), plural(em30.length, 'parcela')),
             K('Vencido', brl(soma(venc)), venc.length ? `${plural(venc.length, 'parcela')} em atraso` : 'nenhuma parcela em atraso', { tom:venc.length ? 'ruim' : 'bom' })],
-          cols:[C('Vencimento', 'data'), C('Cliente'), C('Descrição'), C('Forma'), C('Situação', 'sit'), C('Valor', 'brl')],
-          rows:ls.map(l => linhaParc(l, [l.forma, situ(l, hoje), Number(l.valor)])), grupos:true, total:['Total', '', plural(ls.length, 'parcela'), '', '', soma(ls)],
+          cols:[C('Vencimento', 'data'), C('Cliente'), C('Descrição'), C('E-mail de cobrança'), C('Forma'), C('Situação', 'sit'), C('Valor', 'brl')],
+          rows:ls.map(l => linhaParc(l, [mailRel(l), l.forma, situ(l, hoje), Number(l.valor)])), grupos:true, total:['Total', '', plural(ls.length, 'parcela'), '', '', '', soma(ls)],
           ler:['Mostra só parcelas ainda não pagas, pelo vencimento.', '"Vencida há N dias" conta a partir do vencimento até hoje.'] }; }
       case 'pagar': { const ls = L.filter(l => l.sentido === 'pagar' && !l.pago_em && (rel.per === 'tudo' || entre(l.vencimento, I))).sort(porVenc);
         const com = ls.filter(l => l.pi_id), desp = ls.filter(l => !l.pi_id), venc = ls.filter(l => atraso(l, hoje));
@@ -250,12 +279,13 @@
           rows:ls.map(l => ({ grupo:l.pago_em.slice(0, 7), c:[l.pago_em, l.contraparte, `${l.descricao}${l.parcela ? ` · parcela ${l.parcela}` : ''}`, l.forma, l.nota_fiscal, recebidoDe(l)] })), grupos:true,
           total:['Total', '', plural(ls.length, 'recebimento'), '', '', tot], ler:['Pela data em que o dinheiro entrou, já com juros e descontos da baixa.'] }; }
       case 'inadimplencia': { const ls = L.filter(l => l.sentido === 'receber' && atraso(l, hoje) && doConsultor(l)), tot = soma(ls);
-        const g = agrupa(ls, l => l.contraparte || '—').map(([k, xs]) => { const fx = id => soma(xs.filter(l => faixaDe(l, hoje) === id)); return { c:[k, xs.length, Math.max(...xs.map(l => atraso(l, hoje))), fx('1-30'), fx('31-60'), fx('60+'), soma(xs)] }; }).sort((a, b) => b.c[6] - a.c[6]);
+        const g = agrupa(ls, l => l.contraparte || '—').map(([k, xs]) => { const fx = id => soma(xs.filter(l => faixaDe(l, hoje) === id)), em = [...new Set(xs.map(l => S.emailCobrancaDe(l).email).filter(Boolean))].join(', ') || 'sem e-mail';
+          return { c:[k, em, xs.length, Math.max(...xs.map(l => atraso(l, hoje))), fx('1-30'), fx('31-60'), fx('60+'), soma(xs)] }; }).sort((a, b) => b.c[7] - a.c[7]);
         const venceram = soma(L.filter(l => l.sentido === 'receber' && l.vencimento && l.vencimento < hoje && doConsultor(l)));
         return { resumo:[K('Total vencido', brl(tot), plural(ls.length, 'parcela'), { dest:true, tom:tot ? 'ruim' : '' }), K('Clientes em atraso', String(g.length), g.length ? `maior atraso: ${plural(Math.max(...ls.map(l => atraso(l, hoje))), 'dia')}` : 'ninguém em atraso'), K('Inadimplência', pct(tot, venceram), 'do que já venceu')],
-          partTit:'Quem mais deve', part:partDe(g.map(r => [r.c[0], r.c[6]]), tot),
-          cols:[C('Cliente'), C('Parcelas', 'num'), C('Maior atraso (dias)', 'num'), C('1 a 30 dias', 'brl'), C('31 a 60 dias', 'brl'), C('Mais de 60', 'brl'), C('Total vencido', 'brl')],
-          rows:g, total:['Total', ls.length, '', soma(g, r => r.c[3]), soma(g, r => r.c[4]), soma(g, r => r.c[5]), tot],
+          partTit:'Quem mais deve', part:partDe(g.map(r => [r.c[0], r.c[7]]), tot),
+          cols:[C('Cliente'), C('E-mail de cobrança'), C('Parcelas', 'num'), C('Maior atraso (dias)', 'num'), C('1 a 30 dias', 'brl'), C('31 a 60 dias', 'brl'), C('Mais de 60', 'brl'), C('Total vencido', 'brl')],
+          rows:g, total:['Total', '', ls.length, '', soma(g, r => r.c[4]), soma(g, r => r.c[5]), soma(g, r => r.c[6]), tot],
           ler:['Considera tudo o que está vencido hoje, de qualquer período.', 'Inadimplência = vencido em aberto ÷ tudo o que já venceu.'] }; }
       case 'cliente': case 'agencia': {
         const porCli = rel.id === 'cliente', chave = porCli ? p => S.nome(p.cliente_id) || '—' : p => p.agencia_id ? S.nome(p.agencia_id) : 'Venda direta';
@@ -284,8 +314,8 @@
       case 'nf': { const ls = L.filter(l => l.sentido === 'receber' && l.pi_id && !l.nota_fiscal && (rel.per === 'tudo' || entre(l.vencimento, I)) && doConsultor(l)).sort(porVenc);
         const pagas = ls.filter(l => l.pago_em);
         return { resumo:[K('Parcelas sem nota', String(ls.length), plural(new Set(ls.map(l => l.contraparte)).size, 'cliente'), { dest:true }), K('Valor sem nota', brl(soma(ls)), 'a emitir'), K('Já pagas sem nota', String(pagas.length), brl(soma(pagas)), { tom:pagas.length ? 'ruim' : '' })],
-          cols:[C('Vencimento', 'data'), C('Cliente'), C('Descrição'), C('Forma'), C('Situação', 'sit'), C('Valor', 'brl')],
-          rows:ls.map(l => linhaParc(l, [l.forma, situ(l, hoje), Number(l.valor)])), grupos:true, total:['Total', '', plural(ls.length, 'parcela'), '', '', soma(ls)],
+          cols:[C('Vencimento', 'data'), C('Cliente'), C('Descrição'), C('E-mail de cobrança'), C('Forma'), C('Situação', 'sit'), C('Valor', 'brl')],
+          rows:ls.map(l => linhaParc(l, [mailRel(l), l.forma, situ(l, hoje), Number(l.valor)])), grupos:true, total:['Total', '', plural(ls.length, 'parcela'), '', '', '', soma(ls)],
           ler:['Para informar a nota: Financeiro › três pontinhos da parcela › Informar nota fiscal.'] }; }
     }
   };

@@ -51,8 +51,8 @@
     const trava = eu && !!u.diretor && !S.db.usuarios.some(x => x.id !== u.id && x.diretor && x.ativo);
     const atual = v => valores ? valores['v_' + v.id] || '' : (S.db.vinculos.find(x => x.usuario_id === u.id && x.veiculo_id === v.id) || {}).perfil || '';
     const dir = valores ? valores.funcao === 'diretor' : !!u.diretor;
-    // Gerente: só as rádios dele e sem a opção de gerente; o acesso da pessoa em outras rádios aparece só como informação
-    const ger = ehGer(), lista = ger ? minhas() : S.db.veiculos, perfis = ger ? PERFIS_VINCULO.filter(([k]) => k !== 'gerente') : PERFIS_VINCULO;
+    // Gerente: só as rádios dele; o acesso da pessoa em outras rádios aparece só como informação
+    const ger = ehGer(), lista = ger ? minhas() : S.db.veiculos, perfis = PERFIS_VINCULO.filter(([k]) => k !== 'gerente');   // Head 14 não tem gerente (24/10/2026): a opção só aparece para quem já é gerente
     const fora = ger && u.id ? vinculosDe(u).filter(x => !ehMinha(x.veiculo_id)) : [];
     const radios = `<div class="acessos" style="grid-column:1/-1"${dir ? ' hidden' : ''}><b>Rádios e perfis</b><small class="muted">${ger ? 'Você dá acesso nas rádios em que é gerente.' : 'Escolha o que a pessoa faz em cada rádio.'} "Sem acesso" esconde a rádio dela.</small>
       ${lista.map(v => `<label class="ac-l">${S.vav(v)}<span class="grow">${esc(v.nome)}</span><select name="v_${v.id}"${t} aria-label="Perfil em ${esc(v.nome)}">${(perfis.some(([k]) => k === atual(v)) ? perfis : PERFIS_VINCULO).map(([k, n]) => `<option value="${k}"${k === atual(v) ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`).join('')}
@@ -61,7 +61,7 @@
       { k:'nome', label:'Nome', req:true, ph:'Nome completo' },
       { k:'email', label:'E-mail (é com ele que a pessoa entra)', type:'email', req:true, ph:'nome@empresa.com.br' },
       { k:'celular', label:'Celular (WhatsApp)' },
-      ger ? { html:'<input type="hidden" name="funcao" value="radios">' } : { html:`<label class="f">Função<select name="funcao" data-funcao="1"${t}${trava ? ' disabled' : ''}><option value="radios"${dir ? '' : ' selected'}>Por rádio (gerente, consultor…)</option><option value="diretor"${dir ? ' selected' : ''}>Diretor · todas as rádios</option></select>${trava ? '<input type="hidden" name="funcao" value="diretor"><small class="muted">Você é o único diretor ativo. Para mudar a sua função, cadastre outro diretor antes.</small>' : eu && dir ? '<small class="muted">Se deixar de ser diretor, você perde o acesso a Administração.</small>' : ''}</label>` },
+      ger ? { html:'<input type="hidden" name="funcao" value="radios">' } : { html:`<label class="f">Função<select name="funcao" data-funcao="1"${t}${trava ? ' disabled' : ''}><option value="radios"${dir ? '' : ' selected'}>Por veículo (consultor, OPEC…)</option><option value="diretor"${dir ? ' selected' : ''}>Diretor · todas as rádios</option></select>${trava ? '<input type="hidden" name="funcao" value="diretor"><small class="muted">Você é o único diretor ativo. Para mudar a sua função, cadastre outro diretor antes.</small>' : eu && dir ? '<small class="muted">Se deixar de ser diretor, você perde o acesso a Administração.</small>' : ''}</label>` },
       { html:radios }],
       valores || u, f => salvarUsuario(u, f), novo ? 'Cadastrar e gerar link' : 'Salvar', { editar });
     // Quem o gerente não pode cuidar (diretor, outro gerente, ele mesmo) abre só para consulta
