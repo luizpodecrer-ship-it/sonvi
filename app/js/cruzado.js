@@ -336,6 +336,8 @@
       const dl = document.getElementById('dlg'); if (e.key === 'Escape' && temFiltro() && !(dl && dl.open)) { e.preventDefault(); limpa(); } };
     document.addEventListener('keydown', esc_);
 
+    // Animação que já terminou sai da classe: quando a tela é redesenhada e o painel volta ao lugar, nada repete
+    raiz.addEventListener('animationend', e => e.target.classList.remove('cz-muda', 'cz-rod-entra'));
     mede();
     if (window.ResizeObserver) new ResizeObserver(() => mede()).observe(plot);
     atualiza({ onda:true }, true); sincronizaChips();
