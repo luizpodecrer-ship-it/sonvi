@@ -204,7 +204,7 @@
         ${l.length ? `<div class="pd-grade">${l.map(cartaoOoh).join('')}</div>` : `<p class="muted small">Nenhum produto de ${esc(S.nomeCategoria(k).toLowerCase())} ainda.</p>`}</section>`; }).join('');
     return { title:titulo('Produtos'), actions:pode() ? `<button class="btn pri" data-act="pdNovoOoh">${S.svg('mais')}Novo produto</button>` : '',
       body:S.produtosAbas('ooh') + (ps.length ? blocos : `<div class="card empty"><b>Nenhum produto cadastrado</b>${pode() ? `Cadastre o que ${esc(S.veh().nome)} vende: ${cats.map(k => S.nomeCategoria(k).toLowerCase()).join(', ')}.` : 'Quando o diretor cadastrar, os produtos aparecem aqui.'}</div>`)
-        + (ps.length ? '<p class="muted small pd-nota">Mudar um preço vale na hora. A grade de cada mídia na proposta e no PI vem na próxima etapa.</p>' : '') };
+        + (ps.length ? '<p class="muted small pd-nota">Mudar um preço vale na hora para as propostas novas. Na proposta, estes produtos entram pelo botão "Produto".</p>' : '') };
   };
   // Página de um produto por inserção: os pontos onde ele roda e o preço
   const vistaPontos = p => {
