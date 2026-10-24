@@ -164,7 +164,7 @@
         ${chip('Prazo', em ? `<input type="date" value="${pi.prazo || ''}" data-f="prazo">` : `<b>${dfmt(pi.prazo)}</b>`)}</div></section>`;
     const pecas = `<section class="pecas" aria-label="Peças">${d.pieces.map(p => `<span class="peca">${selo(pi, p.id)}${em ? `<input value="${esc(p.name)}" placeholder="Nome da peça" data-f="name" data-piece="${p.id}" data-rerender="1" aria-label="Nome da peça ${letter(pi, p.id)}"><button class="x" data-act="piRmPiece" data-id="${p.id}" aria-label="Remover peça">×</button>` : `<span>${esc(p.name) || 'Peça sem nome'}</span>`}</span>`).join('')}
       ${em ? '<button class="btn sm tracej" data-act="piAddPiece">+ Adicionar peça</button>' : d.pieces.length ? '' : '<span class="muted small">Nenhuma peça cadastrada.</span>'}</section>`;
-    const avisoTab = em && (semCadastro('programa') || semCadastro('formato')) ? `<div class="note info">Para escolher programa e formato na grade, cadastre-os antes em <a data-go="/cadastros">Tabelas</a>.</div>` : '';
+    const avisoTab = em && (semCadastro('programa') || semCadastro('formato')) ? `<div class="note info">Para escolher programa e formato na grade, cadastre-os antes em <a data-go="/produtos">Produtos</a>.</div>` : '';
     const grades = d.grids.map((g, i) => (S.celular ? gradeCelular : gradeTela)(pi, g, i, em)).join('') + digitalHtml(pi, em)
       + (em ? `<p class="row" style="gap:10px;flex-wrap:wrap"><button class="btn pri" data-act="piAddGrid">+ Adicionar grade</button>${temDigTabela() || temDig ? '<button class="btn" data-act="piAcao" data-op="nova">+ Ação digital</button>' : ''}</p>` : '')
       + entregasHtml(pi);

@@ -179,11 +179,10 @@
   };
 
   // ---------- abas: Rádio e Digital, cada uma com as suas subabas ----------
-  const ROTAS = { radio:[['tabelas', '/cadastros', 'Tabelas'], ['catalogo', '/cadastros/catalogo', 'Programas e formatos']], digital:[['tabelas', '/cadastros/digital', 'Tabelas'], ['canais', '/cadastros/canais', 'Canais e entregas']] };
-  const abas = (area, subaba) => {
-    const n = tt => tabelas(tt).length, it = [['radio', '/cadastros', 'Rádio', n('radio')], ['digital', '/cadastros/digital', 'Digital', n('digital')]];
-    return `<nav class="seg tp-abas" aria-label="Tabela de preços">${it.map(([k, rota, nome, q]) => `<button class="${k === area ? 'on' : ''}" data-go="${rota}"${k === area ? ' aria-current="page"' : ''}>${nome} <small>${q} ${q === 1 ? 'tabela' : 'tabelas'}</small></button>`).join('')}</nav>`
-      + (pode() ? `<nav class="tp-sub" aria-label="${area === 'digital' ? 'Digital' : 'Rádio'}">${ROTAS[area].map(([k, rota, nome]) => `<a href="#${rota}" data-go="${rota}" class="${k === subaba ? 'on' : ''}"${k === subaba ? ' aria-current="page"' : ''}>${nome}</a>`).join('')}</nav>` : ''); };
+  const ROTAS = { radio:[['tabelas', '/produtos', 'Tabelas'], ['catalogo', '/produtos/catalogo', 'Programas e formatos']], digital:[['tabelas', '/produtos/digital', 'Tabelas'], ['canais', '/produtos/canais', 'Canais e entregas']] };
+  // Abas do topo: as de Produtos (produtos.js); dentro de Digital, as subabas Tabelas · Canais e entregas
+  const abas = (area, subaba) => S.produtosAbas('digital')
+      + (pode() && area === 'digital' ? `<nav class="tp-sub" aria-label="Digital">${ROTAS.digital.map(([k, rota, nome]) => `<a href="#${rota}" data-go="${rota}" class="${k === subaba ? 'on' : ''}"${k === subaba ? ' aria-current="page"' : ''}>${nome}</a>`).join('')}</nav>` : '');
 
   // ---------- lista de tabelas de um tipo ----------
   const periodo = t => { const s = sit(t), fim = s === 'encerrada' ? fimDe(t) : null;
@@ -198,7 +197,7 @@
     return `<article class="card tp-tabela ${s}"><div class="tp-tabela-cab"><div><h2>${esc(t.nome)}</h2><small class="muted">${periodo(t)}</small></div>${S.tag(rot, tom)}</div>
       <div class="tp-tabela-num"><div><small>Preços</small><b>${Object.keys(cel).length}</b></div><div><small>${info[0]}</small><b>${info[1]}</b></div></div>
       <small class="muted">${esc(obs)}</small>
-      <div class="row mid"><button class="btn${s === 'rascunho' && pode() ? ' pri' : ''}" data-go="/cadastros/${t.id}">${acao}</button><button class="btn tres" data-act="tpMenuTabela" data-id="${t.id}" aria-label="Opções de ${esc(t.nome)}">${S.svg('mais3')}</button></div></article>`;
+      <div class="row mid"><button class="btn${s === 'rascunho' && pode() ? ' pri' : ''}" data-go="/produtos/${t.id}">${acao}</button><button class="btn tres" data-act="tpMenuTabela" data-id="${t.id}" aria-label="Opções de ${esc(t.nome)}">${S.svg('mais3')}</button></div></article>`;
   };
   const vistaLista = tt => {
     const ts = tabelas(tt), vig = vigenteDe(tt), d = tt === 'digital', rot = d ? 'Nova tabela digital' : 'Nova tabela de rádio';
@@ -206,8 +205,8 @@
       <span class="muted small">${d ? 'Tabelas digitais: entregas × canais e pacotes, com vigência própria (não mexem na de rádio).' : 'Tabelas de rádio: programas × formatos. Nada do digital aparece aqui.'} ${diretor() ? 'Ao publicar, você escolhe' : 'O diretor publica e escolhe'} a data de início. PIs já feitos nunca mudam.</span></div>`;
     const cartoesT = ts.length ? `<div class="tp-tabelas">${ts.map(cartaoTabela).join('')}${pode() ? `<button class="card tp-tabela tp-nova" data-act="tpNova" data-tipo="${tt}">${S.svg('mais')}<b>${rot}</b><small class="muted">${d ? 'vigência própria, não mexe na de rádio' : 'só programas e formatos da rádio'}</small></button>` : ''}</div>`
       : `<div class="card empty"><b>Nenhuma tabela ${NOME[tt]} ainda</b>${d ? 'Crie a tabela digital com o preço de cada entrega (Reels, Stories, Feed, Live…) por canal e os pacotes de preço fechado.' : 'Crie a primeira tabela, adicione os programas e formatos e defina os preços.'}${pode() ? `<div class="row mid" style="justify-content:center;margin-top:18px"><button class="btn pri" data-act="tpNova" data-tipo="${tt}">${S.svg('mais')}${rot}</button></div>` : ''}</div>`;
-    const previa = vig ? `<div class="hd tp-previa-cab"><h2>${esc(vig.nome)} · vigente</h2><a data-go="/cadastros/${vig.id}">Abrir</a></div>${corpoGrade(visaoVigente(tt))}<p class="muted small" style="margin-top:12px">Valores em R$ por ${d ? 'publicação' : 'inserção'}; "—" = não é vendido.</p>` : '';
-    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Tabela de preços`,
+    const previa = vig ? `<div class="hd tp-previa-cab"><h2>${esc(vig.nome)} · vigente</h2><a data-go="/produtos/${vig.id}">Abrir</a></div>${corpoGrade(visaoVigente(tt))}<p class="muted small" style="margin-top:12px">Valores em R$ por ${d ? 'publicação' : 'inserção'}; "—" = não é vendido.</p>` : '';
+    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Produtos`,
       actions:`${vig ? `<button class="btn" data-act="tpPdf" data-id="${vig.id}">${S.svg('baixar')}PDF da vigente</button>` : ''}${pode() ? `<button class="btn pri" data-act="tpNova" data-tipo="${tt}">${S.svg('mais')}${rot}</button>` : ''}`,
       body:abas(tt, 'tabelas') + (ts.length ? passos : '') + cartoesT + previa };
   };
@@ -221,8 +220,8 @@
     const emTab = (id, campo) => { const n = nTab(id, campo); return n ? `em ${n} ${n === 1 ? 'tabela' : 'tabelas'}` : 'em nenhuma tabela'; };
     const cartao = c => `<article class="card tp-canal${c.ativo ? '' : ' inativo'}"><div class="tp-canal-cab"><span class="tp-canal-ic${rede(c)}" aria-hidden="true">${esc((c.nome || '?').trim()[0] || '?')}</span><div><h2>${esc(c.nome)}</h2><small class="muted">${esc(c.detalhe) || 'perfil não informado'} · ${emTab(c.id, 'progs')}</small></div>${S.tag(c.ativo ? 'Ativo' : 'Inativo', c.ativo ? 'green' : 'gray')}</div>
       ${pode() ? `<div class="row mid"><button class="btn sm" data-act="tpEditarProd" data-id="${c.id}">${S.svg('editar')}Editar</button>${tres('tpMenuCanal', c.id, c.nome)}</div>` : ''}</article>`;
-    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Tabela de preços`, actions:pode() ? `<button class="btn pri" data-act="tpCanal">${S.svg('mais')}Canal</button>` : '',
-      body:abas('digital', 'canais') + `<p class="muted tp-intro">O cadastro digital: os canais da rádio nas redes e as entregas que ela vende. Os preços ficam nas tabelas digitais. Programas e formatos de rádio ficam só na área Rádio.</p>
+    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Produtos`, actions:pode() ? `<button class="btn pri" data-act="tpCanal">${S.svg('mais')}Canal</button>` : '',
+      body:abas('digital', 'canais') + `<p class="muted tp-intro">O cadastro digital: os canais da rádio nas redes e as entregas que ela vende. Os preços ficam nas tabelas digitais. Os produtos de rádio ficam na aba Produtos.</p>
         <div class="tp-cats"><section class="card"><div class="hd"><h2>Canais da rádio</h2>${pode() ? `<button class="btn sm" data-act="tpCanal">${S.svg('mais')}Canal</button>` : ''}</div>
           <div class="tp-canais">${canais.map(cartao).join('') || '<p class="muted small" style="margin:0">Nenhum canal cadastrado.</p>'}</div></section>
         <section class="card"><div class="hd"><h2>Entregas</h2>${pode() ? `<button class="btn sm" data-act="tpEntrega">${S.svg('mais')}Entrega</button>` : ''}</div>
@@ -242,7 +241,7 @@
         ${l.length ? l.map(p => linha(p, 'progs', horario(p))).join('') : `<p class="muted small" style="margin:0">Nenhum ${n.toLowerCase()} cadastrado.</p>`}</section>`; }).join('');
     const fs = `<section class="card"><div class="hd"><h2>Formatos</h2>${pode() ? `<button class="btn sm" data-act="tpProduto" data-tipo="formato">${S.svg('mais')}Formato</button>` : ''}</div>
       ${forms.length ? forms.map(f => linha(f, 'forms', esc(unico(f) ? `Preço único${f.detalhe ? ' · ' + f.detalhe : ''}` : `Por duração${f.detalhe ? ' · ' + f.detalhe : ''}`))).join('') : '<p class="muted small" style="margin:0">Nenhum formato cadastrado.</p>'}</section>`;
-    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Tabela de preços`, actions:'',
+    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Produtos`, actions:'',
       body:abas('radio', 'catalogo') + `<p class="muted tp-intro">O cadastro da rádio. Cada tabela usa só os programas e formatos que você adicionar a ela; mudar o nome ou o horário aqui vale para todas.</p><div class="tp-cats">${blocos}${fs}</div>` };
   };
 
@@ -276,14 +275,14 @@
       <div class="tile"><small>Comparando com</small><b class="tp-comp">${esc(ed.baseNome)}</b><small>embaixo de cada preço: o valor de antes</small></div></div>` : '';
     const legenda = c && c.comBase ? `<div class="tp-legenda"><span><i class="tp-q mudou"></i>Reajustado</span><span><i class="tp-q mao"></i>Mudado à mão</span><span><i class="tp-q igual"></i>Igual à anterior</span><span><i class="tp-q novo"></i>Novo</span></div>` : '';
     const barraCel = editar ? `<div class="tp-barra">${sujo}<div class="row"><button class="btn" data-act="tpDescartar">Descartar</button><button class="btn pri" data-act="tpSalvarTabela">Salvar</button></div></div>` : '';
-    return { title:`<span class="sub">${pode() ? `<a data-go="/cadastros${d ? '/digital' : ''}">← Tabela de preços · ${d ? 'Digital' : 'Rádio'}</a> · ` : 'Tabela de preços vigente · '}${esc(S.veh().nome)}</span>${esc(ed.nome || t.nome)}`,
+    return { title:`<span class="sub">${pode() ? `<a data-go="/produtos${d ? '/digital' : ''}">← Produtos · ${d ? 'Digital' : 'Rádio'}</a> · ` : 'Produtos · '}${esc(S.veh().nome)}</span>${esc(ed.nome || t.nome)}`,
       actions:editar ? `<span class="tp-topo">${acoes}</span>` : acoes, body:(pode() ? '' : abas(tt, '')) + faixa + massa + resumo + legenda + corpoGrade(v) + (editar && !S.celular && (progs.length || forms.length) ? `<p class="muted small" style="margin-top:12px">Clique num valor para digitar outro (Enter confirma, Esc desiste). Nada vale até ${s === 'rascunho' ? 'publicar' : 'salvar'}.</p>` : '') + barraCel };
   };
 
   S.views.cadastros = id => {
     // Consultor e outros perfis só consultam a vigente de cada tipo (o banco nem entrega as em preparação para eles)
     if (!pode()) { const tt = id === 'digital' ? 'digital' : 'radio', vig = vigenteDe(tt);
-      if (!vig) return { title:`<span class="sub">${esc(S.veh().nome)}</span>Tabela de preços`, actions:'', body:abas(tt, '') + `<div class="card empty"><b>Nenhuma tabela ${NOME[tt]} vigente</b>Quando a tabela for publicada, ela aparece aqui para consulta.</div>` };
+      if (!vig) return { title:`<span class="sub">${esc(S.veh().nome)}</span>Produtos`, actions:'', body:abas(tt, '') + `<div class="card empty"><b>Nenhuma tabela ${NOME[tt]} vigente</b>Quando a tabela for publicada, ela aparece aqui para consulta.</div>` };
       if (!ed || ed.id !== vig.id) abrir(vig);
       return vistaTabela(vig); }
     if (id === 'digital') return vistaLista('digital');
@@ -465,7 +464,7 @@
         <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Nova tabela</button></div>`,
         v => S.run(async () => {
           const id = await S.q(S.sb.rpc('nova_tabela', { p_veiculo:S.ui.vehicleId, p_nome:v.tp_nome, p_base:v.tp_base || null, p_inicio:v.tp_prev || null, p_tipo:v.tp_tipo === 'digital' ? 'digital' : 'radio' }));
-          await S.recarregarTabelas(); ed = null; pedirEdit = id; location.hash = '/cadastros/' + id;
+          await S.recarregarTabelas(); ed = null; pedirEdit = id; location.hash = '/produtos/' + id;
         }, 'Tabela criada'));
       // Trocar o tipo troca as tabelas de origem (e o nome sugerido, se ainda não foi mexido)
       const f = document.querySelector('#dlg form'); let sug = nomeSugerido(tt0);
@@ -479,10 +478,10 @@
         ...(dentro ? [] : [{ label:'Baixar PDF', icon:'baixar', act:'tpPdf', data:{ id:t.id } }]),
         ...(s === 'agendada' && diretor() ? ['-', { label:'Voltar para preparação', icon:'voltar', act:'tpDespublicar', data:{ id:t.id } }] : []),
         ...(podeEx ? ['-', { label:'Excluir tabela', icon:'lixo', act:'tpExcluirTabela', data:{ id:t.id }, perigo:true }] : [])]); },
-    tpAbrir: d => { location.hash = '/cadastros/' + d.id; },
+    tpAbrir: d => { location.hash = '/produtos/' + d.id; },
     tpEditarTabela: d => { if (ed && ed.id === d.id && S.route().id === d.id) { ed.edit = true; return S.render(); }
-      pedirEdit = d.id; if (ed && ed.id === d.id && !ed.sujo) ed = null; location.hash = '/cadastros/' + d.id; },
-    tpExcluirTabela: async d => { const t = tab(d.id), s = sit(t), tt = tipoDe(t), volta = tt === 'digital' ? '/cadastros/digital' : '/cadastros';
+      pedirEdit = d.id; if (ed && ed.id === d.id && !ed.sujo) ed = null; location.hash = '/produtos/' + d.id; },
+    tpExcluirTabela: async d => { const t = tab(d.id), s = sit(t), tt = tipoDe(t), volta = tt === 'digital' ? '/produtos/digital' : '/produtos';
       const fim = () => S.run(async () => { await S.q(S.sb.rpc('excluir_tabela', { p_tabela:t.id })); if (ed && ed.id === t.id) ed = null;
         await S.recarregarTabelas(); if (S.route().id === t.id) location.hash = volta; }, 'Tabela excluída');
       if (s === 'vigente') {
@@ -596,7 +595,7 @@
   let voltando = false, hashAnterior = location.hash;
   window.addEventListener('hashchange', () => {
     if (voltando) { voltando = false; hashAnterior = location.hash; return; }
-    const sai = ed && ed.sujo && location.hash !== '#/cadastros/' + ed.id;
+    const sai = ed && ed.sujo && location.hash !== '#/produtos/' + ed.id;
     if (sai) { // volta para a tabela e pergunta; se a pessoa confirmar, segue para onde ia
       const destino = location.hash; voltando = true; location.hash = hashAnterior;
       S.confirmar('Sair sem salvar a tabela de preços?\n\nAs alterações que ainda não foram salvas serão perdidas.', { ok:'Sair sem salvar', voltar:'Continuar editando', perigo:true })

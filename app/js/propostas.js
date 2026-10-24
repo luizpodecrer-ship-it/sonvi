@@ -143,11 +143,11 @@
         <span class="pr-x">${em ? `<button type="button" class="x" data-act="prRmItem" data-i="${i}" aria-label="Remover ${esc(it.formato)} · ${esc(it.programa)}" title="Remover item">×</button>` : ''}</span></div>`;
     const comI = p.itens.map((it, i) => ({ it, i })), rad = comI.filter(x => !ehDig(x.it)), dgs = comI.filter(x => ehDig(x.it));
     const temDigital = S.db.produtos.some(x => x.tipo === 'programa' && S.ehDigital(x) && x.ativo) || dgs.length;
-    const avisoCanal = S.pode('diretor', 'gerente') ? 'Cadastre o canal da rádio em <b>Tabela de preços → Digital</b>.' : '';
-    const itensCard = `<section class="card"><div class="hd"><h2>${temDigital ? 'Rádio' : 'Itens da tabela'}${tab ? ` <span class="muted small" style="font:500 13px var(--font)">· ${esc(tab.nome)}</span>` : ''}</h2>${em ? `<button class="btn" data-act="prAddItem">${S.svg('mais')}${temDigital ? 'Item de rádio' : 'Adicionar da tabela'}</button>` : ''}</div>
+    const avisoCanal = S.pode('diretor', 'gerente') ? 'Cadastre o canal da rádio em <b>Produtos → Digital</b>.' : '';
+    const itensCard = `<section class="card"><div class="hd"><h2>${temDigital ? 'Rádio' : 'Itens'}</h2>${em ? `<span class="row mid pr-add">${S.cotasAtivas && S.cotasAtivas().length ? `<button class="btn" data-act="prAddCota">${S.svg('mais')}Patrocínio</button>` : ''}<button class="btn" data-act="prAddItem">${S.svg('mais')}Produto</button></span>` : ''}</div>
       ${rad.length ? `<div class="pr-its"><div class="pr-it pr-cab" aria-hidden="true"><span>Formato · programação</span><span>Dias</span><span class="r">Inserções/mês</span><span class="r">Tabela</span><span class="r">Negociado</span><span class="r">Total mensal</span><span></span></div>${rad.map(x => linhaRadio(x.it, x.i)).join('')}</div>`
-        : `<p class="muted" style="margin:4px 0 0">${em ? `Nenhum item de rádio${dgs.length ? '' : ' ainda'}. Clique em <b>${temDigital ? 'Item de rádio' : 'Adicionar da tabela'}</b> para escolher programa e formato.` : 'Nenhum item de rádio.'}</p>`}
-      ${em && rad.length ? '<p class="muted small" style="margin-top:14px">O preço vem da tabela vigente e fica guardado na proposta. Dá para negociar pelo valor unitário ou pelo total do mês: um ajusta o outro.</p>' : ''}</section>
+        : `<p class="muted" style="margin:4px 0 0">${em ? `Nenhum item de rádio${dgs.length ? '' : ' ainda'}. Clique em <b>Produto</b> para escolher o produto e a duração${S.cotasAtivas && S.cotasAtivas().length ? ', ou em <b>Patrocínio</b> para uma cota' : ''}.` : 'Nenhum item de rádio.'}</p>`}
+      ${em && rad.length ? '<p class="muted small" style="margin-top:14px">O preço vem de Produtos e fica guardado na proposta. Dá para negociar pelo valor unitário ou pelo total do mês: um ajusta o outro.</p>' : ''}</section>
       <section class="card pr-digital"><div class="hd"><h2>Digital <span class="muted small" style="font:500 13px var(--font)">· ações nas redes da rádio</span></h2>${em && temDigital ? `<button class="btn" data-act="prAcao" data-op="nova">${S.svg('mais')}Ação digital</button>` : ''}</div>
         ${dgs.length ? `<div class="ad-ls">${dgs.map(x => S.acaoHtml(x.it, em ? { act:'prAcao', data:`data-i="${x.i}"` } : null)).join('')}</div>`
           : `<p class="muted" style="margin:4px 0 0">${!temDigital ? (em ? `Nenhum canal digital cadastrado. ${avisoCanal}` : 'Sem ação digital.') : em ? 'Reels, Stories, Feed, Live… nos canais da rádio, por um valor só. Clique em <b>Ação digital</b>.' : 'Sem ação digital.'}</p>`}</section>`;
@@ -209,7 +209,7 @@
   const limpo = it => it.secao === 'digital' && it.entregas ? { id:it.id, secao:'digital', tipo:'acao', canal_id:it.canal_id, perfil:it.perfil, detalhe:it.detalhe || '', nome:it.nome || '',
     entregas:it.entregas.map(e => ({ nome:e.nome, qtd:parseInt(e.qtd) || 0 })), inicio:it.inicio, fim:it.fim, period:it.period, valor:r2(it.valor), total:r2(it.valor), valor_tabela:r2(it.valor_tabela), pacote:it.pacote || '', pacote_id:it.pacote_id || null, programa:it.perfil, formato:'Ação digital', insercoes:S.acaoQtd(it), dias:[], faixa:'' } : ({ id:it.id, programa_id:it.programa_id, formato_id:it.formato_id, programa:it.programa, formato:it.formato, secao:it.secao, detalhe:it.detalhe,
     dias:S.SEMANA.filter(d => (it.dias || []).includes(d)).sort((a, b) => a - b), faixa:String(it.faixa || '').trim(), insercoes:parseInt(it.insercoes) || 0,
-    preco_tabela:Number(it.preco_tabela) || 0, preco:Number(it.preco) || 0, total:r2(it.total) });
+    preco_tabela:Number(it.preco_tabela) || 0, preco:Number(it.preco) || 0, total:r2(it.total), ...(it.cota ? { cota:it.cota } : {}) });
   const gravar = async () => { const p = ed.p, t = S.propTotais(p);
     const r = await S.salvar('propostas', { id:p.id, cliente_id:p.cliente_id, agencia_id:p.agencia_id || null, data:p.data || today(), validade:parseInt(p.validade) || 15,
       texto:String(p.texto || '').trim(), condicoes:String(p.condicoes || '').trim(), itens:p.itens.map(limpo), insercoes:t.ins, publicacoes:t.pub, valor_tabela:t.tabela, valor_total:t.total, tabela_id:p.tabela_id || null });
@@ -514,15 +514,15 @@
     // Escolher da tabela vigente: programa (por seção) × formato, com o preço dela
     prAddItem: (d = {}) => { const p = atualEd(); if (!p) return; const vig = S.tabelaVigente(), v = S.veh(), digital = !!d.digital;
       if (!vig) { const prox = (S.db.tabelas || []).filter(t => t.situacao === 'publicada' && S.tipoTabela(t) === 'radio' && t.inicio > S.today()).sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
-        return S.toast(prox ? `A ${prox.nome} só começa a valer em ${S.dfmt(prox.inicio)}. Para usar agora, abra a tabela em Tabela de preços, clique em Editar e mude a data de início para hoje.` : 'Não há tabela de preços de rádio vigente nesta rádio. Publique uma em Tabela de preços.'); }
+        return S.toast(digital ? (prox ? `A ${prox.nome} só começa a valer em ${S.dfmt(prox.inicio)}.` : 'Não há tabela digital vigente nesta rádio. Publique uma em Produtos → Digital.') : 'Esta rádio ainda não tem produtos com preço. Cadastre em Produtos.'); }
       const prods = tipo => S.db.produtos.filter(x => x.tipo === tipo && x.ativo && S.ehDigital(x) === digital).sort((a, b) => (a.ordem || 0) - (b.ordem || 0) || a.nome.localeCompare(b.nome));
-      const secoes = digital ? [['digital', 'Perfis da rádio']] : [['rotativo', 'Rotativo'], ['programa', 'Programas'], ['quadro', 'Quadros']];
+      const secoes = digital ? [['digital', 'Perfis da rádio']] : [['rotativo', 'Rotativo'], ['programa', 'Horário determinado'], ['quadro', 'Quadros'], ['aovivo', 'Ao vivo']];
       const progs = prods('programa').filter(x => prods('formato').some(f => S.precoNaTabela(vig.id, x.id, f.id)));
-      if (digital && !progs.length) return S.toast('A tabela vigente não tem preços de digital. Cadastre os perfis e formatos em Tabela de preços.');
+      if (digital && !progs.length) return S.toast('A tabela digital vigente não tem preços. Cadastre em Produtos → Digital.');
       const ops = secoes.map(([k, n]) => { const l = progs.filter(x => (x.secao || 'programa') === k); return l.length ? `<optgroup label="${n}">${l.map(x => `<option value="${x.id}">${esc(x.nome)}${x.detalhe ? ' · ' + esc(x.detalhe.split('\n')[0]) : ''}</option>`).join('')}</optgroup>` : ''; }).join('');
-      S.dialog(`<h2>${digital ? 'Item digital' : 'Adicionar da tabela'}</h2><p class="muted small" style="margin-top:-6px">${esc(vig.nome)} · vigente desde ${dfmt(vig.inicio)}</p>
-        <div class="g2"><label class="f" style="grid-column:1/-1">${digital ? 'Perfil' : 'Programação'}<select name="prog" required><option value="">Escolha</option>${ops}</select></label>
-          <label class="f" style="grid-column:1/-1">Formato<select name="fmt" required disabled><option value="">Escolha a programação antes</option></select></label>
+      S.dialog(`<h2>${digital ? 'Item digital' : 'Adicionar produto'}</h2>${digital ? `<p class="muted small" style="margin-top:-6px">${esc(vig.nome)} · vigente desde ${dfmt(vig.inicio)}</p>` : ''}
+        <div class="g2"><label class="f" style="grid-column:1/-1">${digital ? 'Perfil' : 'Produto'}<select name="prog" required><option value="">Escolha</option>${ops}</select></label>
+          <label class="f" style="grid-column:1/-1">${digital ? 'Formato' : 'Duração ou variação'}<select name="fmt" required disabled><option value="">Escolha o produto antes</option></select></label>
           <div id="prPrecoIt" class="caixa" style="grid-column:1/-1" hidden></div></div>
         <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar</button></div>`,
         f => { const pr = S.db.produtos.find(x => x.id === f.prog), fm = S.db.produtos.find(x => x.id === f.fmt), pc = pr && fm && S.precoNaTabela(vig.id, pr.id, fm.id); if (!pc) return;
@@ -538,5 +538,16 @@
         ff.innerHTML = fs.length ? (digital && fs.length > 1 ? '<option value="">Escolha o formato</option>' : '') + fs.map(f => `<option value="${f.id}">${esc(f.nome)} · ${brl(S.precoNaTabela(vig.id, fp.value, f.id).preco)}</option>`).join('') : `<option value="">Sem preço para ${digital ? 'este perfil' : 'esta programação'}</option>`;
         ff.disabled = !fs.length; mostrarPreco(); });
       ff.addEventListener('change', mostrarPreco); },
+    // Cota de patrocínio (Produtos → Patrocínios): entra com as inserções do pacote e o valor do mês dividido entre elas
+    prAddCota: () => { const p = atualEd(); if (!p) return; const cs = S.cotasAtivas();
+      if (!cs.length) return S.toast('Esta rádio ainda não tem cotas de patrocínio. Cadastre em Produtos → Patrocínios.');
+      const info = c => { const its = S.itensDaCota(c); return `<b>${brl((c.dados || {}).valor)}</b> por mês · ${esc(c.detalhe.split('\n').join(' · ') || 'horário a combinar')}<br><small class="muted">${its.map(x => `${x.insercoes} ${esc(x.formato)}`).join(' · ')}</small>`; };
+      S.dialog(`<h2>Adicionar patrocínio</h2><div class="g2"><label class="f" style="grid-column:1/-1">Cota<select name="cota" required><option value="">Escolha</option>${cs.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select></label>
+          <div id="prCotaInfo" class="caixa" style="grid-column:1/-1" hidden></div></div>
+        <p class="muted small">As inserções do pacote entram como itens da proposta, com o valor do mês dividido entre elas. Dá para ajustar depois, como qualquer item.</p>
+        <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar</button></div>`,
+        f => { const c = cs.find(x => x.id === f.cota); if (!c) return; const its = S.itensDaCota(c); if (!its.length) return S.toast('Esta cota não tem inserções incluídas.'); comItem(pp => { pp.itens.push(...its); }); });
+      const sel = document.querySelector('#dlg [name="cota"]'), box = document.getElementById('prCotaInfo');
+      sel.addEventListener('change', () => { const c = cs.find(x => x.id === sel.value); box.hidden = !c; if (c) box.innerHTML = info(c); }); },
   });
 })();

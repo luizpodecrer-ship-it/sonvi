@@ -1,5 +1,5 @@
 // SONVI · Ação digital (database/034): o que a rádio vende nas redes sociais dela, na proposta e no PI.
-// Uma ação = canal (cadastrado em Tabela de preços → Digital), nome opcional, entregas em texto livre com quantidade
+// Uma ação = canal (cadastrado em Produtos → Digital), nome opcional, entregas em texto livre com quantidade
 // (ex.: Reels 2, Stories 8, Live com o cliente 1), período (ação única: de/até) e um valor só, digitado por quem vende.
 // Depois de aprovado, cada entrega vira uma linha no acompanhamento do PI (marcar_entrega): data, publicado e link.
 (() => {
@@ -36,7 +36,7 @@
   // Janela da ação digital (nova ou editando). onSalvar recebe a ação pronta.
   S.acaoDigitalDlg = (atual, onSalvar) => {
     const cs = canais().filter(c => c.ativo || (atual && c.id === atual.canal_id));
-    if (!cs.length) return S.toast(S.pode('diretor', 'gerente') ? 'Cadastre o canal da rádio antes, em Tabela de preços → Digital.' : 'Peça ao diretor para cadastrar o canal da rádio em Tabela de preços → Digital.');
+    if (!cs.length) return S.toast(S.pode('diretor', 'gerente') ? 'Cadastre o canal da rádio antes, em Produtos → Digital.' : 'Peça ao diretor para cadastrar o canal da rádio em Produtos → Digital.');
     const a = Object.assign({ canal_id:cs[0].id, nome:'', entregas:[{ nome:'', qtd:'' }], inicio:'', fim:'', valor:0 }, JSON.parse(JSON.stringify(atual || {})));
     if (!a.entregas.length) a.entregas = [{ nome:'', qtd:'' }];
     const sug = [...new Set([...sugestoes(), ...(sugestoes().length ? [] : PADRAO)])];

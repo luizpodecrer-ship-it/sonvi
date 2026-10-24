@@ -13,7 +13,7 @@
     ['pis', 'PIs', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['opec', 'OPEC', ['diretor', 'opec']],
     ['financeiro', 'Financeiro', ['diretor', 'financeiro']],
-    ['cadastros', 'Tabela de preços', ['diretor', 'gerente', 'consultor']],
+    ['produtos', 'Produtos', ['diretor', 'gerente', 'consultor']],
     ['music', 'Sonvi Music', S.MUSIC_PERFIS, 'music/'],
     ['admin', 'Administração', ['diretor']],
     ['admin', 'Usuários', ['gerente']]]; // o gerente cadastra a equipe das rádios dele
