@@ -30,7 +30,7 @@
   const ehDig = it => it.secao === 'digital';
   const resumoItem = it => ehDig(it) ? (it.entregas ? `${S.acaoTitulo(it)} (${S.acaoEntregasTxt(it)})` : `${it.formato} · ${it.programa}`) : `${it.formato} · ${it.programa}${(it.dias || []).length < 7 ? ' ' + S.diasTexto(it.dias) : ''}`;
   // Quantidade por mês na lista: inserções da rádio e, se houver, as publicações digitais
-  const qtdMes = p => Number(p.publicacoes) ? `${p.insercoes ? p.insercoes + ' + ' : ''}${p.publicacoes} pub.` : p.insercoes;
+  const qtdMes = p => Number(p.publicacoes) ? `${p.insercoes ? p.insercoes + ' + ' : ''}${p.publicacoes} pub.` : (p.insercoes || 0);
   const resumo = p => { const its = (p.itens || []).filter(it => it.insercoes); if (!its.length) return (p.itens || []).length ? resumoItem(p.itens[0]) : 'Sem itens';
     return resumoItem(its[0]) + (its.length > 1 ? ` + ${its.length - 1} ${its.length > 2 ? 'itens' : 'item'}` : ''); };
 

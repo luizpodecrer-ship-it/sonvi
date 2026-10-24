@@ -1176,7 +1176,7 @@ dialog.conf form { gap:12px; } dialog.conf p { margin:0; }
 .prl-v b { font:600 15px/1.2 var(--display); }
 .prl-s { align-items:flex-start; gap:4px !important; } .prl-s small { line-height:1.3; }
 .prl-a { flex-direction:row !important; align-items:center; justify-content:flex-end; gap:6px !important; }
-@media (max-width:1320px) { .prl-l { grid-template-columns:78px minmax(0, 1.6fr) 84px 124px minmax(0, 1fr) 196px; gap:16px; } .prl-l > .prl-i { display:none !important; } }
+@media (max-width:1500px) { .prl-l { grid-template-columns:78px minmax(0, 1.6fr) 84px 124px minmax(0, 1fr) 196px; gap:16px; } .prl-l > .prl-i { display:none !important; } }
 .pr-tiles { grid-template-columns:repeat(4, minmax(0, 1fr)); } @media (max-width:1100px) { .pr-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 @media (max-width:1100px) {
   .prl-l > .prl-i { display:block !important; }
@@ -1716,3 +1716,21 @@ button.ad-chip { cursor:pointer; min-height:32px; } button.ad-chip:hover { backg
 @media (max-width:1240px) { .gv-cab, .gv-lin { grid-template-columns:minmax(180px, 2fr) 120px minmax(150px, 1.4fr) minmax(130px, 1.1fr) minmax(120px, 1.1fr) 20px; } .gv-cab > span:nth-child(5) { display:none; } .gv-cab > span:nth-child(4) { display:block; } }
 .cat-dica { font:500 12px/1 var(--font); letter-spacing:0; text-transform:none; color:var(--ink-3); margin-left:6px; }
 .adm-cats, .gv-catc { display:flex; flex-wrap:wrap; gap:4px; }
+
+/* Tabelas da plataforma (24/10/2026): dados curtos (números, datas, CNPJ, sigla, frequência, cidade) não quebram linha;
+   as ações da linha ficam juntas, à direita, compactas: no máximo um ou dois botões e o resto no ⋯ */
+td.r, td.nw, th.nw { white-space:nowrap; }
+.lin-acoes { display:inline-flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:nowrap; }
+.lin-acoes .btn.sm { height:32px; padding:0 10px; font-size:11px; }
+.lin-acoes .btn.tres { width:32px; height:32px; }
+.adm-veic { display:flex; align-items:center; gap:12px; min-width:0; }
+.adm-veic-tx { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.adm-veic-tx b { white-space:nowrap; }
+.adm-veic-tx small { max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.adm-veics { table-layout:fixed; min-width:860px; }
+.adm-veics .c-v { width:auto; } .adm-veics .c-s { width:100px; } .adm-veics .c-d { width:170px; } .adm-veics .c-f { width:100px; } .adm-veics .c-c { width:170px; } .adm-veics .c-n { width:56px; } .adm-veics .c-a { width:150px; }
+.adm-veics td.nw { overflow:hidden; text-overflow:ellipsis; }
+/* Lista de propostas: cliente e "Salva em" numa linha só (com reticências), sem quebras feias */
+@media (min-width:1501px) { .prl-l { grid-template-columns:84px minmax(180px, 1.5fr) minmax(0, 1.1fr) 96px 132px minmax(160px, 1fr) 196px; } }
+.prl-c b { display:block !important; -webkit-line-clamp:unset; line-clamp:unset; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.prl-s small { display:block !important; -webkit-line-clamp:unset; line-clamp:unset; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
