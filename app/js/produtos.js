@@ -188,9 +188,9 @@
   const cartaoOoh = p => { const d = dadosDe(p), vs = (d.variacoes || []).filter(x => Number(x.valor) > 0);
     if (ehInsercao(p)) { const pts = d.pontos || [];
       return `<article class="card pd-card pd-ooh${p.ativo ? '' : ' inativo'}"><div class="pd-cab"><h3><a data-go="/produtos/${p.id}">${esc(p.nome)}</a></h3>${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pd-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
-        <small class="muted">por inserção · por dia · por ${unidade(d, 1)}${d.funcionamento ? ' · ' + esc(d.funcionamento) : ''}</small>
+        <small class="muted">por inserção · por dia · por ${unidade(d, 1)}${d.funcionamento ? ' · ' + esc(d.funcionamento) : ''}</small>${d.obs ? `<small class="muted">${esc(d.obs)}</small>` : ''}
         <div class="pd-vars">${vs.length ? vs.map(x => chip(x.nome, x.valor)).join('') : '<span class="muted small">Sem preço ainda</span>'}</div>
-        <button type="button" class="pd-pontos" data-go="/produtos/${p.id}"><span class="pd-fotos">${pts.slice(0, 4).map(x => foto(x.foto, 40, 28)).join('')}</span><span>${pts.length} ${unidade(d, pts.length)}</span><span class="grow"></span>${S.svg('seta', 16)}</button></article>`; }
+        <button type="button" class="pd-pontos" data-go="/produtos/${p.id}"><span class="pd-fotos">${pts.slice(0, 4).map(x => foto(x.foto, 40, 28)).join('')}</span><span>${pts.length ? `${pts.length} ${unidade(d, pts.length)}` : d.frota ? `${d.frota} ${unidade(d, d.frota)} na frota` : 'Cadastrar pontos'}</span><span class="grow"></span>${S.svg('seta', 16)}</button></article>`; }
     const pt = d.ponto || {}, pr = d.producao || {};
     return `<article class="card pd-card pd-ooh${p.ativo ? '' : ' inativo'}"><div class="pd-ooh-mes">${foto(pt.foto, 96, 72, p.nome)}<div><div class="pd-cab"><h3>${esc(p.nome)}</h3>${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pd-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
       <small class="muted">${[pt.endereco, pt.cidade].filter(Boolean).map(esc).join(' · ') || 'Endereço não informado'}</small>
@@ -211,15 +211,15 @@
     const d = dadosDe(p), pts = d.pontos || [], vs = (d.variacoes || []).filter(x => Number(x.valor) > 0), n = pts.length;
     const linha = (x, i) => `<div class="pd-pt">${foto(x.foto, 64, 44, x.codigo)}<span class="pd-pt-n"><b>${esc(cap(unidade(d, 1)))} ${esc(x.codigo)}</b><small class="muted">${esc(x.endereco || '')}</small></span>
       <span class="nw">${esc(x.cidade || '')}</span><span class="r nw">${x.impacto ? esc(x.impacto) + '/dia' : '—'}</span><span class="r nw">${esc(x.formato || '')}</span>${pode() ? tres('pdMenuPonto', p.id + ':' + i, 'ponto ' + x.codigo) : '<span></span>'}</div>`;
-    const ex = vs[0], exQ = 30, exD = 30, exTot = ex ? Number(ex.valor) * exQ * Math.max(1, n) * exD : 0;
+    const ex = vs[0], exQ = 30, exD = 30, exN = n || Number(d.frota) || 1, exTot = ex ? Number(ex.valor) * exQ * exN * exD : 0;
     return { title:`<span class="sub"><a data-go="${ehRadio() ? '/produtos/ooh' : '/produtos'}">← Produtos</a> · ${esc(S.veh().nome)}</span>${esc(p.nome)}`,
       actions:pode() ? `<button class="btn" data-act="pdEditarOoh" data-id="${p.id}">${S.svg('editar')}Editar produto</button><button class="btn pri" data-act="pdNovoPonto" data-id="${p.id}">${S.svg('mais')}Novo ponto</button>` : '',
       body:`<div class="pd-pontos-tela"><section class="card"><div class="hd"><h2>Pontos <span class="pill">${n}</span></h2><small class="muted">onde o produto roda</small></div>
         ${n ? `<div class="pd-pt pd-pt-h"><span></span><span>Ponto</span><span>Cidade</span><span class="r">Impacto</span><span class="r">Formato</span><span></span></div>${pts.map(linha).join('')}` : `<p class="muted">Nenhum ponto ainda.${pode() ? ' Clique em "Novo ponto" para cadastrar o primeiro.' : ''}</p>`}</section>
         <section class="card pd-preco"><h2>Preço</h2><small class="muted">por inserção · por dia · por ${unidade(d, 1)}</small>
           <div class="pd-vars">${vs.length ? vs.map(x => chip(x.nome, x.valor)).join('') : '<span class="muted small">Sem preço ainda</span>'}</div>
-          ${d.funcionamento ? `<small class="muted">Funcionamento: ${esc(d.funcionamento)}</small>` : ''}${d.arquivo ? `<small class="muted">Arquivo: ${esc(d.arquivo)}</small>` : ''}
-          ${ex ? `<div class="caixa pd-calc"><b>Exemplo na proposta</b><span>${esc(ex.nome)} × ${exQ} inserções/dia × ${Math.max(1, n)} ${unidade(d, Math.max(1, n))} × ${exD} dias</span><b>= ${brl(exTot)}</b></div>` : ''}</section></div>` };
+          ${d.obs ? `<small class="muted">${esc(d.obs)}</small>` : ''}${d.funcionamento ? `<small class="muted">Funcionamento: ${esc(d.funcionamento)}</small>` : ''}${d.arquivo ? `<small class="muted">Arquivo: ${esc(d.arquivo)}</small>` : ''}
+          ${ex ? `<div class="caixa pd-calc"><b>Exemplo na proposta</b><span>${esc(ex.nome)} × ${exQ} inserções/dia × ${exN} ${unidade(d, exN)} × ${exD} dias</span><b>= ${brl(exTot)}</b></div>` : ''}</section></div>` };
   };
   // Formulário do produto de mídia exterior
   const linhaVar = (x, i, face) => `<div class="pd-row ${face ? 'pd-row-face' : 'pd-row-v'}" data-linha="${i}"><input name="ov_n_${i}" value="${esc(x.nome || '')}" placeholder="${face ? 'Face A' : 'VT15"'}" aria-label="${face ? 'Face' : 'Variação'}">
