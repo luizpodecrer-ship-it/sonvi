@@ -55,7 +55,7 @@
       cache = { em:Date.now(), pis, lanc };
     } catch (e) { console.error(e); S.toast(S.erro(e)); if (!cache) cache = { em:Date.now(), pis:[], lanc:[] }; }
     buscando = false;
-    if (S.route().view === 'geral' && !S.carregando) S.render();
+    if (!S.carregando && (S.ui.view === 'geral' || S.route().view === 'geral')) S.render();
   };
   S.geralUsar = dados => { cache = Object.assign({ em:Date.now() }, dados); };   // testes: números em memória
   S.geralLimpar = () => { cache = null; };                                       // ao sair ou trocar de conta
