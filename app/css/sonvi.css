@@ -2030,7 +2030,7 @@ td.r, td.nw, th.nw { white-space:nowrap; }
 /* pessoas */
 .cx-cuenta { right:18px; top:17px; color:var(--ink-2); font:600 13px/1.2 var(--font); --cx-ancla:dir cima; }
 .cx-pessoas { display:block; left:20px; right:20px; top:46px; -webkit-mask-image:linear-gradient(#000 60%, transparent 98%); mask-image:linear-gradient(#000 60%, transparent 98%); }
-.cx-pessoas li { gap:10px; min-height:34px; border-top:0; font:600 13.5px/1.2 var(--font); white-space:nowrap; }
+.cx-pessoas li { break-inside:avoid; gap:10px; min-height:34px; border-top:0; font:600 13.5px/1.2 var(--font); white-space:nowrap; }
 .cx-pessoas li small { display:none; color:var(--ink-3); font-weight:500; }
 .cx-pessoas li b { margin-left:auto; font-variant-numeric:tabular-nums; }
 .cx-p-n { min-width:0; overflow:hidden; text-overflow:ellipsis; }
@@ -2046,7 +2046,8 @@ td.r, td.nw, th.nw { white-space:nowrap; }
 @container (min-width: 420px) {
   .cx-barras { display:flex; right:20px; bottom:18px; width:46%; height:62%; --cx-ancla:dir baixo; }
   .cx-pessoas { columns:2; column-gap:28px; -webkit-mask-image:none; mask-image:none; }
-  .cx-colunas { left:auto; right:20px; bottom:18px; width:50%; height:62%; --cx-ancla:dir baixo; }
+  .cx-colunas { left:auto; right:20px; bottom:18px; width:46%; height:62%; --cx-ancla:dir baixo; }
+  .cx-nota-c { max-width:calc(54% - 44px); white-space:normal; }
 }
 /* o bloco grande: a peça principal cresce e aparece o detalhe */
 @container (min-height: 300px) {
@@ -2072,7 +2073,7 @@ td.r, td.nw, th.nw { white-space:nowrap; }
   .cx-pessoas { left:24px; right:24px; top:62px; columns:auto; -webkit-mask-image:none; mask-image:none; }
   .cx-pessoas li { min-height:52px; border-top:1px solid var(--line-2); font-size:15px; }
   .cx-pessoas li small { display:inline; }
-  .cx-nota-c { left:24px; top:128px; bottom:auto; --cx-ancla:esq cima; }
+  .cx-nota-c { left:24px; top:128px; bottom:auto; max-width:none; --cx-ancla:esq cima; }
   .cx-colunas { left:24px; right:24px; bottom:46px; width:auto; height:46%; gap:10px; --cx-ancla:estica baixo; }
 }
 /* grande mas estreito (o escolhido, no celular) */
@@ -2110,3 +2111,5 @@ td.r, td.nw, th.nw { white-space:nowrap; }
   .cx-celda.grande { grid-column:span 2; grid-row:span 3; order:-1; }
 }
 @media (prefers-reduced-motion: reduce) { .cx-celda *, .cx-celda *::before, .cx-celda *::after { transition-duration:.01s !important; animation:none !important; } }
+.cx-dica { margin:0 0 14px; color:var(--ink-2); font:500 13px/1.4 var(--font); }
+.cx-apoio, .cx-nota:not(.cx-nota-c) { max-width:calc(100% - 40px); overflow:hidden; text-overflow:ellipsis; }

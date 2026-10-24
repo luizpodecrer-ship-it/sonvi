@@ -27,7 +27,7 @@
   S.fuAtrasados = () => { const hoje = S.today(); return (gestor() ? S.db.agenda : S.db.agenda.filter(a => a.consultor_id === S.me.id)).filter(a => aberto(a) && S.dia(a.quando) < hoje).length; };
   const ultimoContato = (cliId, antesDe) => S.db.agenda.filter(a => a.cliente_id === cliId && a.id !== antesDe && !aberto(a) && a.registrado_em).sort((a, b) => b.registrado_em.localeCompare(a.registrado_em))[0];
   const origem = a => a.origem_id && S.db.agenda.find(x => x.id === a.origem_id);
-  // Carteira esquecida: clientes do consultor sem contato registrado há 30 dias e sem nada marcado
+  // Carteira esquecida: clientes do consultor sem contato registrado há 30 dias e sem nada marcado (também no Dashboard: S.fuEsquecidos)
   const esquecidos = consultorId => { const hoje = S.today(), limite = somaDias(hoje, -30);
     return S.pessoas('cliente').filter(p => p.situacao !== 'inativo' && (!consultorId || p.consultor_id === consultorId)).map(p => {
       const dele = S.db.agenda.filter(a => a.cliente_id === p.id);
@@ -36,6 +36,7 @@
       if (ult && ult >= limite) return null;
       return { p, ult, dias:ult ? entre(ult, hoje) : null };
     }).filter(Boolean).sort((a, b) => (a.ult || '0').localeCompare(b.ult || '0')); };
+  S.fuEsquecidos = c => esquecidos(c);
   // Propostas enviadas há 3 dias ou mais, sem resposta
   const semResposta = consultorId => { const hoje = S.today();
     return (S.db.propostas || []).filter(p => p.situacao === 'enviada' && (!consultorId || p.consultor_id === consultorId) && p.enviada_em && entre(S.dia(p.enviada_em), hoje) >= 3 && S.propVence(p) >= hoje)
