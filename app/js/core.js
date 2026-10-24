@@ -127,7 +127,7 @@ S.lerLogo = arquivo => new Promise((ok, erro) => {
 });
 // Campo do formulário da rádio: prévia do logo, botões e as cores encontradas nele
 // Categoria do veículo (24/10/2026, database/039): cada uma terá a sua grade no PI e na tabela de preços
-S.CATEGORIAS = [['radio', 'Rádio'], ['led', 'Painel de LED'], ['outdoor', 'Outdoor'], ['frontlight', 'Front light'], ['busdoor', 'Bus door'], ['dooh', 'Mídia DOOH']];
+S.CATEGORIAS = [['radio', 'Rádio'], ['led', 'Painel de LED'], ['outdoor', 'Outdoor'], ['frontlight', 'Front light'], ['empena', 'Empena'], ['dooh', 'Mídia DOOH']];
 // Um veículo pode ter várias categorias (database/040): a empresa que fatura é uma só, as categorias dizem o que ela vende
 S.categorias = v => v && Array.isArray(v.categorias) && v.categorias.length ? v.categorias : [(v && v.categoria) || 'radio'];
 S.categoria = v => S.categorias(v)[0];

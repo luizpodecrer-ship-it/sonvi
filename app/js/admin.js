@@ -95,7 +95,7 @@
       const grupos = [...S.CATEGORIAS.map(([k, n]) => ({ k, n, vs:S.db.veiculos.filter(v => S.categorias(v).length === 1 && S.categoria(v) === k) })),
         { k:'varias', n:'Várias categorias', vs:S.db.veiculos.filter(v => S.categorias(v).length > 1) }].filter(g => g.vs.length);
       body = grupos.length ? grupos.map(g => `<section class="card adm-cat"><div class="hd"><h2>${esc(g.n)}</h2><span>${g.vs.length} veículo${g.vs.length === 1 ? '' : 's'}</span></div><div class="scroll"><table class="adm-veics"><colgroup><col class="c-v"><col class="c-s"><col class="c-d">${g.k === 'radio' ? '<col class="c-f">' : ''}<col class="c-c"><col class="c-n"><col class="c-a"></colgroup><thead><tr><th>Veículo</th><th>Sigla do PI</th><th>CNPJ</th>${g.k === 'radio' ? '<th>Frequência</th>' : ''}<th>${g.k === 'radio' ? 'Cidade' : 'Praça'}</th><th class="r">PIs</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${g.vs.map(v => linha(v, g.k === 'radio')).join('')}</tbody></table></div></section>`).join('')
-        : '<div class="card"><div class="empty"><b>Cadastre o primeiro veículo</b>Rádio, painel de LED, outdoor, front light, bus door ou mídia DOOH. Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div></div>';
+        : '<div class="card"><div class="empty"><b>Cadastre o primeiro veículo</b>Rádio, painel de LED, outdoor, front light, empena ou mídia DOOH. Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div></div>';
     } else if (aba === 'empresa') {
       const e = S.db.empresa || {}, curto = String(e.nome || 'Empresa comercial').split('·')[0].trim(), n = S.db.veiculos.length;
       const kv = (k, val) => `<div><small>${k}</small><span>${val ? esc(val) : '<span class="muted">—</span>'}</span></div>`;
@@ -137,8 +137,8 @@
   };
 
   // Categoria do veículo no formulário: Frequência e Rede afiliada só aparecem para rádio
-  const ICONE_CAT = { radio:'music', led:'paineis', outdoor:'imagem', frontlight:'imagem', busdoor:'rota', dooh:'paineis' };
-  // Marque tudo o que o veículo vende (ex.: Media On = painel de LED, bus door e mídia DOOH); a lista vai num campo escondido
+  const ICONE_CAT = { radio:'music', led:'paineis', outdoor:'imagem', frontlight:'imagem', empena:'imagem', dooh:'paineis' };
+  // Marque tudo o que o veículo vende (ex.: Media On = painel de LED e mídia DOOH); a lista vai num campo escondido
   const campoCategoria = (v, travado) => `<fieldset class="cat-escolha" style="grid-column:1/-1"><legend class="form-sec">Categorias <span class="cat-dica">marque tudo o que o veículo vende</span></legend><div class="cat-ops">${S.CATEGORIAS.map(([k, n]) =>
     `<label class="cat-op"><input type="checkbox" data-cat="${k}"${S.temCategoria(v, k) ? ' checked' : ''}${travado ? ' disabled data-trava="1"' : ''}><span>${S.svg(ICONE_CAT[k] || 'imagem')}${n}</span></label>`).join('')}</div>
     <input type="hidden" name="categorias" value="${S.categorias(v).join(',')}"><small class="aviso" id="catAviso"></small></fieldset>`;
@@ -147,8 +147,8 @@
     const cat = marcadas[0] || 'radio', radio = marcadas.includes('radio');
     ['frequencia', 'rede_afiliada'].forEach(k => { const el = f.elements[k]; if (el) el.closest('label').hidden = !radio; });
     const cid = f.elements.cidade; if (cid) { const lb = cid.closest('label'); lb.firstChild.textContent = radio ? 'Cidade / praça' : 'Praça / cidade de atuação'; cid.placeholder = radio ? 'Ex.: Cuiabá / MT' : 'Ex.: Cuiabá e Várzea Grande / MT'; }
-    const sg = f.elements.sigla; if (sg) sg.placeholder = { radio:'Ex.: VERDE', led:'Ex.: LEDCPA', outdoor:'Ex.: OUTH14', frontlight:'Ex.: FLCENTRO', busdoor:'Ex.: BUSCBA', dooh:'Ex.: MEDIAON' }[cat];
-    const nm = f.elements.nome; if (nm) nm.placeholder = { radio:'Ex.: Rádio Verde', led:'Ex.: LED Av. do CPA', outdoor:'Ex.: Outdoor Head 14', frontlight:'Ex.: Front light Centro', busdoor:'Ex.: Media On', dooh:'Ex.: Media On' }[cat];
+    const sg = f.elements.sigla; if (sg) sg.placeholder = { radio:'Ex.: VERDE', led:'Ex.: LEDCPA', outdoor:'Ex.: OUTH14', frontlight:'Ex.: FLCENTRO', empena:'Ex.: EMPCPA', dooh:'Ex.: MEDIAON' }[cat];
+    const nm = f.elements.nome; if (nm) nm.placeholder = { radio:'Ex.: Rádio Verde', led:'Ex.: LED Av. do CPA', outdoor:'Ex.: Outdoor Head 14', frontlight:'Ex.: Front light Centro', empena:'Ex.: Impacto', dooh:'Ex.: Media On' }[cat];
     const av = document.getElementById('catAviso'); if (av) av.textContent = marcadas.length ? '' : 'Marque ao menos uma categoria.';
     f.onchange = e => { if (e.target.dataset && e.target.dataset.cat) ajustarCategoria(); }; };
 
