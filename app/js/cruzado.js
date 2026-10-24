@@ -65,7 +65,7 @@
       el.className = 'cz-rod-sep'; el.dataset.c = ch; el.textContent = ch === ' ' ? ' ' : ch;
       return { el, tipo:'s', nova };
     }
-    function pinta(c) { const p = ((c.x % 10) + 10) % 10; c.tira.style.transform = 'translate3d(0,' + (-p * alto).toFixed(2) + 'px,0)';
+    function pinta(c) { const p = ((c.x % 10) + 10) % 10; c.tira.style.transform = 'translate3d(0,' + (-p * 100 / 11).toFixed(4) + '%,0)';   // em % da fita: vale em qualquer tamanho de letra
       const b = Math.min(2.4, Math.abs(c.v) * alto / 800); c.tira.style.filter = b > .3 ? 'blur(' + b.toFixed(2) + 'px)' : ''; }
     function passo(dt) { let mexe = false;
       for (const c of cols) { if (c.tipo !== 'd') continue;
@@ -99,6 +99,8 @@
     }
     return { poe };
   }
+
+  S.rolo = Rolo;   // também usado pelo Dashboard do veículo (casillero.js)
 
   // ---------- o HTML do painel (os gráficos são desenhados pelo script) ----------
   S.cruzadoHtml = ({ unidadeT = 'dia' } = {}) => `<section class="cz-painel" aria-label="Vendas de todos os veículos, com filtro cruzado" data-cruzado>
