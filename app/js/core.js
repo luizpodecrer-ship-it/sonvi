@@ -127,11 +127,14 @@ S.lerLogo = arquivo => new Promise((ok, erro) => {
 });
 // Campo do formulário da rádio: prévia do logo, botões e as cores encontradas nele
 // Categoria do veículo (24/10/2026, database/039): cada uma terá a sua grade no PI e na tabela de preços
-S.CATEGORIAS = [['radio', 'Rádio'], ['led', 'Painel de LED'], ['outdoor', 'Outdoor'], ['frontlight', 'Front light'], ['busdoor', 'Bus door']];
-S.categoria = v => (v && v.categoria) || 'radio';
+S.CATEGORIAS = [['radio', 'Rádio'], ['led', 'Painel de LED'], ['outdoor', 'Outdoor'], ['frontlight', 'Front light'], ['busdoor', 'Bus door'], ['dooh', 'Mídia DOOH']];
+// Um veículo pode ter várias categorias (database/040): a empresa que fatura é uma só, as categorias dizem o que ela vende
+S.categorias = v => v && Array.isArray(v.categorias) && v.categorias.length ? v.categorias : [(v && v.categoria) || 'radio'];
+S.categoria = v => S.categorias(v)[0];
+S.temCategoria = (v, k) => S.categorias(v).includes(k);
 S.nomeCategoria = k => (S.CATEGORIAS.find(c => c[0] === k) || S.CATEGORIAS[0])[1];
 // Linha de apoio do veículo: rádio = frequência e cidade; mídia OOH = categoria e praça
-S.vehSub = v => (S.categoria(v) === 'radio' ? [v.frequencia, v.cidade] : [S.nomeCategoria(S.categoria(v)), v.cidade]).filter(Boolean).join(' · ');
+S.vehSub = v => (S.categorias(v).length === 1 && S.categoria(v) === 'radio' ? [v.frequencia, v.cidade] : [S.categorias(v).map(S.nomeCategoria).join(', '), v.cidade]).filter(Boolean).join(' · ');
 S.campoLogo = (v, travado) => {
   const t = travado ? ' disabled data-trava="1"' : '', cor = v.cor || S.COR_PADRAO;
   return `<div class="logo-campo" style="grid-column:1/-1">

@@ -89,10 +89,12 @@
     let body;
     if (aba === 'veiculos') {
       // Agrupados por categoria (rádio, painel de LED, outdoor…); cada cartão só aparece se tiver veículo
-      const linha = (v, radio) => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td>${radio ? `<td>${esc(v.frequencia)}</td>` : ''}<td>${esc(v.cidade)}</td><td class="r">${v.pi_seq || 0}</td><td class="r"><span class="row mid" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-act="admPropostas" data-id="${v.id}">${S.svg('propostas')}Propostas e PI</button><button class="btn sm" data-act="admTextosPI" data-id="${v.id}">${S.svg('pis')}Textos do PI</button><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button></span></td></tr>`;
-      const grupos = S.CATEGORIAS.map(([k, n]) => ({ k, n, vs:S.db.veiculos.filter(v => S.categoria(v) === k) })).filter(g => g.vs.length);
+      const linha = (v, radio) => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${S.categorias(v).length > 1 ? `<span class="adm-cats">${S.categorias(v).map(k => `<span class="pill" style="--tone:var(--gray)">${esc(S.nomeCategoria(k))}</span>`).join('')}</span>` : esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td>${radio ? `<td>${esc(v.frequencia)}</td>` : ''}<td>${esc(v.cidade)}</td><td class="r">${v.pi_seq || 0}</td><td class="r"><span class="row mid" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-act="admPropostas" data-id="${v.id}">${S.svg('propostas')}Propostas e PI</button><button class="btn sm" data-act="admTextosPI" data-id="${v.id}">${S.svg('pis')}Textos do PI</button><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button></span></td></tr>`;
+      // Quem vende mais de uma categoria (ex.: Media On) fica no grupo "Várias categorias", com as etiquetas de cada uma
+      const grupos = [...S.CATEGORIAS.map(([k, n]) => ({ k, n, vs:S.db.veiculos.filter(v => S.categorias(v).length === 1 && S.categoria(v) === k) })),
+        { k:'varias', n:'Várias categorias', vs:S.db.veiculos.filter(v => S.categorias(v).length > 1) }].filter(g => g.vs.length);
       body = grupos.length ? grupos.map(g => `<section class="card adm-cat"><div class="hd"><h2>${esc(g.n)}</h2><span>${g.vs.length} veículo${g.vs.length === 1 ? '' : 's'}</span></div><div class="scroll"><table><thead><tr><th>Veículo</th><th>Sigla do PI</th><th>CNPJ</th>${g.k === 'radio' ? '<th>Frequência</th>' : ''}<th>${g.k === 'radio' ? 'Cidade' : 'Praça'}</th><th class="r">PIs emitidos</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${g.vs.map(v => linha(v, g.k === 'radio')).join('')}</tbody></table></div></section>`).join('')
-        : '<div class="card"><div class="empty"><b>Cadastre o primeiro veículo</b>Rádio, painel de LED, outdoor, front light ou bus door. Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div></div>';
+        : '<div class="card"><div class="empty"><b>Cadastre o primeiro veículo</b>Rádio, painel de LED, outdoor, front light, bus door ou mídia DOOH. Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div></div>';
     } else if (aba === 'empresa') {
       const e = S.db.empresa || {}, curto = String(e.nome || 'Empresa comercial').split('·')[0].trim(), n = S.db.veiculos.length;
       const kv = (k, val) => `<div><small>${k}</small><span>${val ? esc(val) : '<span class="muted">—</span>'}</span></div>`;
@@ -134,16 +136,20 @@
   };
 
   // Categoria do veículo no formulário: Frequência e Rede afiliada só aparecem para rádio
-  const ICONE_CAT = { radio:'music', led:'paineis', outdoor:'imagem', frontlight:'imagem', busdoor:'rota' };
-  const campoCategoria = (v, travado) => `<fieldset class="cat-escolha" style="grid-column:1/-1"><legend class="form-sec">Categoria</legend><div class="cat-ops">${S.CATEGORIAS.map(([k, n]) =>
-    `<label class="cat-op"><input type="radio" name="categoria" value="${k}"${S.categoria(v) === k ? ' checked' : ''}${travado ? ' disabled data-trava="1"' : ''}><span>${S.svg(ICONE_CAT[k] || 'imagem')}${n}</span></label>`).join('')}</div></fieldset>`;
-  const ajustarCategoria = () => { const f = document.querySelector('#dlg form'); if (!f || !f.querySelector('[name=categoria]')) return;
-    const cat = (f.querySelector('[name=categoria]:checked') || {}).value || 'radio', radio = cat === 'radio';
+  const ICONE_CAT = { radio:'music', led:'paineis', outdoor:'imagem', frontlight:'imagem', busdoor:'rota', dooh:'paineis' };
+  // Marque tudo o que o veículo vende (ex.: Media On = painel de LED, bus door e mídia DOOH); a lista vai num campo escondido
+  const campoCategoria = (v, travado) => `<fieldset class="cat-escolha" style="grid-column:1/-1"><legend class="form-sec">Categorias <span class="cat-dica">marque tudo o que o veículo vende</span></legend><div class="cat-ops">${S.CATEGORIAS.map(([k, n]) =>
+    `<label class="cat-op"><input type="checkbox" data-cat="${k}"${S.temCategoria(v, k) ? ' checked' : ''}${travado ? ' disabled data-trava="1"' : ''}><span>${S.svg(ICONE_CAT[k] || 'imagem')}${n}</span></label>`).join('')}</div>
+    <input type="hidden" name="categorias" value="${S.categorias(v).join(',')}"><small class="aviso" id="catAviso"></small></fieldset>`;
+  const ajustarCategoria = () => { const f = document.querySelector('#dlg form'); if (!f || !f.querySelector('[data-cat]')) return;
+    const marcadas = [...f.querySelectorAll('[data-cat]:checked')].map(x => x.dataset.cat); f.elements.categorias.value = marcadas.join(',');
+    const cat = marcadas[0] || 'radio', radio = marcadas.includes('radio');
     ['frequencia', 'rede_afiliada'].forEach(k => { const el = f.elements[k]; if (el) el.closest('label').hidden = !radio; });
     const cid = f.elements.cidade; if (cid) { const lb = cid.closest('label'); lb.firstChild.textContent = radio ? 'Cidade / praça' : 'Praça / cidade de atuação'; cid.placeholder = radio ? 'Ex.: Cuiabá / MT' : 'Ex.: Cuiabá e Várzea Grande / MT'; }
-    const sg = f.elements.sigla; if (sg) sg.placeholder = { radio:'Ex.: VERDE', led:'Ex.: LEDCPA', outdoor:'Ex.: OUTH14', frontlight:'Ex.: FLCENTRO', busdoor:'Ex.: BUSCBA' }[cat];
-    const nm = f.elements.nome; if (nm) nm.placeholder = { radio:'Ex.: Rádio Verde', led:'Ex.: LED Av. do CPA', outdoor:'Ex.: Outdoor Head 14', frontlight:'Ex.: Front light Centro', busdoor:'Ex.: Bus door Cuiabá' }[cat];
-    f.onchange = e => { if (e.target.name === 'categoria') ajustarCategoria(); }; };
+    const sg = f.elements.sigla; if (sg) sg.placeholder = { radio:'Ex.: VERDE', led:'Ex.: LEDCPA', outdoor:'Ex.: OUTH14', frontlight:'Ex.: FLCENTRO', busdoor:'Ex.: BUSCBA', dooh:'Ex.: MEDIAON' }[cat];
+    const nm = f.elements.nome; if (nm) nm.placeholder = { radio:'Ex.: Rádio Verde', led:'Ex.: LED Av. do CPA', outdoor:'Ex.: Outdoor Head 14', frontlight:'Ex.: Front light Centro', busdoor:'Ex.: Media On', dooh:'Ex.: Media On' }[cat];
+    const av = document.getElementById('catAviso'); if (av) av.textContent = marcadas.length ? '' : 'Marque ao menos uma categoria.';
+    f.onchange = e => { if (e.target.dataset && e.target.dataset.cat) ajustarCategoria(); }; };
 
   Object.assign(S.actions, {
     admAba: d => { aba = d.tab; S.render(); },
@@ -159,9 +165,11 @@
         { k:'razao_social', label:'Razão social', ph:'Como consta no CNPJ' }, { k:'cnpj', label:'CNPJ' }, { k:'inscricao_estadual', label:'Inscrição estadual' }, { k:'cep', label:'CEP' },
         { k:'endereco', label:'Endereço', full:true }, { k:'telefone', label:'Telefone' }, { k:'email', label:'E-mail', type:'email' },
         { k:'opec_email', label:'E-mail da OPEC (recebe os PIs)', type:'email', full:true, ph:'opec@empresa.com.br' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
-        f => S.run(async () => { const cat = f.categoria || S.categoria(v), row = Object.assign({}, f, { categoria:cat, sigla:f.sigla.toUpperCase().trim(), logo:f.logo || null, cor:(f.cor || S.COR_PADRAO).toLowerCase() });
-          if (cat !== 'radio') { row.frequencia = ''; row.rede_afiliada = ''; } if (v.id) row.id = v.id;
-          const novo = await S.salvar('veiculos', row); if (!v.id) { S.ui.vehicleId = novo.id; S.guardarRadio(novo.id); await S.carregarVeiculo(); } }, 'Veículo salvo'), 'Salvar', { editar:!!d.editar }); ajustarCategoria(); },
+        f => { const cats = String(f.categorias || '').split(',').filter(k => S.CATEGORIAS.some(c => c[0] === k));
+          if (!cats.length) throw new Error('Marque ao menos uma categoria do veículo.');
+          return S.run(async () => { const row = Object.assign({}, f, { categorias:cats, sigla:f.sigla.toUpperCase().trim(), logo:f.logo || null, cor:(f.cor || S.COR_PADRAO).toLowerCase() });
+          delete row.categoria; if (!cats.includes('radio')) { row.frequencia = ''; row.rede_afiliada = ''; } if (v.id) row.id = v.id;
+          const novo = await S.salvar('veiculos', row); if (!v.id) { S.ui.vehicleId = novo.id; S.guardarRadio(novo.id); await S.carregarVeiculo(); } }, 'Veículo salvo'); }, 'Salvar', { editar:!!d.editar }); ajustarCategoria(); },
     // Textos que saem no PI impresso desta rádio: papel, cidade, condição de pagamento e condições gerais
     admTextosPI: d => { const v = S.veh(d.id);
       S.form(`Textos do PI · ${esc(v.nome)}`, [

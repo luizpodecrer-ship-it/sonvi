@@ -1714,3 +1714,5 @@ button.ad-chip { cursor:pointer; min-height:32px; } button.ad-chip:hover { backg
 .gv-cats { margin:0 0 12px; align-self:flex-start; flex-wrap:wrap; }
 .gv-cab, .gv-lin { grid-template-columns:minmax(200px, 2fr) 130px minmax(160px, 1.4fr) minmax(140px, 1.1fr) 120px minmax(130px, 1.1fr) 20px; }
 @media (max-width:1240px) { .gv-cab, .gv-lin { grid-template-columns:minmax(180px, 2fr) 120px minmax(150px, 1.4fr) minmax(130px, 1.1fr) minmax(120px, 1.1fr) 20px; } .gv-cab > span:nth-child(5) { display:none; } .gv-cab > span:nth-child(4) { display:block; } }
+.cat-dica { font:500 12px/1 var(--font); letter-spacing:0; text-transform:none; color:var(--ink-3); margin-left:6px; }
+.adm-cats, .gv-catc { display:flex; flex-wrap:wrap; gap:4px; }
