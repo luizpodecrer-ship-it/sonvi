@@ -187,13 +187,19 @@
   const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
   // Totais da proposta (por mês): valor de tabela, investimento e o desconto negociado
   // Ação digital (secao 'digital', tipo 'acao'): entregas e um valor só (total), sem preço de tabela
-  S.propTotais = p => { let ins = 0, pub = 0, tabela = 0, total = 0, radio = 0, digital = 0;
+  // Produção (unica: lona, adesivo) é cobrada uma vez: entra no total separada (producao) e o investimento vira "do 1º mês"
+  S.propTotais = p => { let ins = 0, pub = 0, tabela = 0, total = 0, radio = 0, digital = 0, producao = 0;
     (p.itens || []).forEach(it => { const t = Number(it.total) || 0;
       if (it.secao === 'digital') { pub += it.entregas ? S.acaoQtd(it) : parseInt(it.insercoes) || 0; digital += t; tabela += Number(it.valor_tabela) > 0 ? Number(it.valor_tabela) : t; }
-      else { const n = parseInt(it.insercoes) || 0; ins += n; radio += t; tabela += n * (Number(it.preco_tabela) || 0); }
+      else { const n = parseInt(it.insercoes) || 0; if (it.unica) producao += t; else { ins += n; radio += t; } tabela += n * (Number(it.preco_tabela) || 0); }
       total += t; });
     tabela = r2(tabela); total = r2(total); const desconto = r2(tabela - total);
-    return { ins, pub, radio:r2(radio), digital:r2(digital), tabela, total, desconto, pct:tabela ? desconto / tabela * 100 : 0 }; };
+    return { ins, pub, radio:r2(radio), digital:r2(digital), producao:r2(producao), tabela, total, desconto, pct:tabela ? desconto / tabela * 100 : 0 }; };
+  // Quantidade de um item em palavras: "30 por dia", "por mês", "uma vez", "120"
+  S.qtdItem = it => it.unica ? `${parseInt(it.insercoes) || 0} × uma vez` : parseInt(it.por_dia) > 0 ? `${it.por_dia} por dia` : it.mensal ? `${parseInt(it.insercoes) || 0} por mês` : String(parseInt(it.insercoes) || 0);
+  // Veículos de uma proposta (o dela e os dos itens de combo) e se todos já têm PI
+  S.veiculosDaProposta = p => [...new Set([p.veiculo_id, ...(p.itens || []).map(it => it.veiculo_id).filter(Boolean)])].filter(v => v === p.veiculo_id ? (p.itens || []).some(it => !it.veiculo_id || it.veiculo_id === v) : true);
+  S.propostaComPi = p => { const vs = S.veiculosDaProposta(p), feitos = p.pis_veiculos || {}; return vs.length > 1 || Object.keys(feitos).length ? vs.every(v => feitos[v]) : !!p.pi_id; };
   S.propNo = p => `${p.ano}/${String(p.numero).padStart(3, '0')}`;
   S.somaDias = (iso, n) => { const [y, m, d] = iso.split('-').map(Number), dt = new Date(y, m - 1, d + n, 12); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; };
   S.propVence = p => S.somaDias(p.data, Number(p.validade) || 0);
@@ -210,14 +216,19 @@
       const ini = dia(y, m - 1 + k, d), prox = dia(y, m + k, d), datas = [];
       for (const t = new Date(ini); t < prox; t.setDate(t.getDate() + 1)) datas.push(new Date(t));
       itens.forEach((it, i) => {
-        const total = parseInt(it.insercoes) || 0; esperado += total; if (!total) return;
+        if (it.unica && k > 0) return; // produção (lona, adesivo): cobrada uma vez, no primeiro mês
         const ok = datas.filter(t => (it.dias || []).includes(t.getDay())), n = ok.length;
+        const por = (t, q) => { if (!q) return; const per = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`, g = porMes[per] || (porMes[per] = {}), ds = g[i] || (g[i] = {});
+          ds[t.getDate()] = (ds[t.getDate()] || 0) + q; soma += q; };
+        // Mídia exterior por inserção (LED, DOOH): a mesma quantidade em todos os dias permitidos
+        if (parseInt(it.por_dia) > 0) { const q = parseInt(it.por_dia); esperado += q * n; if (!n) { semDias.add(i); return; } ok.forEach(t => por(t, q)); return; }
+        const total = parseInt(it.insercoes) || 0; esperado += total; if (!total) return;
         if (!n) { semDias.add(i); return; }
+        // Por mês (face de front light, empena) e produção: tudo no primeiro dia do mês de veiculação
+        if (it.mensal || it.unica) { por(ok[0], total); return; }
         const base = Math.floor(total / n), sobra = total - base * n, extra = new Set();
         for (let j = 0; j < sobra; j++) extra.add(Math.floor((j + 0.5) * n / sobra));
-        ok.forEach((t, j) => { const q = base + (extra.has(j) ? 1 : 0); if (!q) return;
-          const per = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`, g = porMes[per] || (porMes[per] = {}), ds = g[i] || (g[i] = {});
-          ds[t.getDate()] = (ds[t.getDate()] || 0) + q; soma += q; });
+        ok.forEach((t, j) => por(t, base + (extra.has(j) ? 1 : 0)));
       });
     }
     const fim = new Date(dia(y, m - 1 + nMeses, d)); fim.setDate(fim.getDate() - 1);

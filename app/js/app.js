@@ -6,6 +6,7 @@
   // [tela, nome, perfis, endereço externo]. O Sonvi Music abre em outra aba, com login próprio.
   const NAV = MUSIC ? S.MUSIC_NAV : [
     ['geral', 'Dashboard geral', ['diretor']],   // só o diretor: todos os veículos (24/10/2026)
+    ['combos', 'Combos', ['diretor']],           // combos do grupo (itens de vários veículos), só no Dashboard geral
     ['dashboard', 'Dashboard', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['followup', 'Follow-up', ['diretor', 'gerente', 'consultor']],
     ['clientes', 'Clientes', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
@@ -50,11 +51,11 @@
     const DIR = !MUSIC && !!(S.me && S.me.diretor), bruto = location.hash.replace(/^#\/?/, '').split('/')[0];
     let { view, id } = S.route();
     if (DIR && !bruto) view = 'geral';
-    if (view === 'geral') S.ui.emGeral = DIR; else if (view !== 'admin') S.ui.emGeral = false;
+    if (view === 'geral') S.ui.emGeral = DIR; else if (!['admin', 'combos'].includes(view)) S.ui.emGeral = false;
     const geral = DIR && S.ui.emGeral, semVeiculo = !S.ui.vehicleId;
-    const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral'].includes(n[0])) && (!geral || ['geral', 'music', 'admin'].includes(n[0])) && !(n[0] === 'geral' && !geral && S.celular && !semVeiculo)), telas = itens.filter(n => !n[3]);
+    const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral', 'combos'].includes(n[0])) && (!geral || ['geral', 'combos', 'music', 'admin'].includes(n[0])) && !(n[0] === 'combos' && !geral) && !(n[0] === 'geral' && !geral && S.celular && !semVeiculo)), telas = itens.filter(n => !n[3]);
     if (!telas.some(n => n[0] === view) && view !== 'pi') view = telas.length ? telas[0][0] : 'soMusic';
-    if (semVeiculo && !(DIR && ['geral', 'admin'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
+    if (semVeiculo && !(DIR && ['geral', 'admin', 'combos'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
     S.ui.view = view;   // tela realmente desenhada (com o hash vazio, o diretor vê o Dashboard geral)
     S.temaRadio(semVeiculo || geral ? null : S.veh());
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, atrasos = !MUSIC && S.fuAtrasados && !semVeiculo ? S.fuAtrasados() : 0, veh = semVeiculo ? null : S.veh();

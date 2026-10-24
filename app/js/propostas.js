@@ -11,7 +11,7 @@
   const lista = () => S.db.propostas || [];
   const achar = id => lista().find(p => p.id === id);
   const vencida = p => p.situacao === 'enviada' && S.propVence(p) < today();
-  const sitDe = p => p.situacao === 'aprovada' && p.pi_id ? 'pi' : vencida(p) ? 'vencida' : p.situacao;
+  const sitDe = p => p.situacao === 'aprovada' && S.propostaComPi(p) ? 'pi' : vencida(p) ? 'vencida' : p.situacao;
   const pill = p => { const [l, t] = SIT[sitDe(p)]; return `<span class="pill${sitDe(p) === 'enviada' ? ' live' : ''}" style="--tone:var(--${t})">${l}</span>`; };
   // Diretor e gerente mexem em todas; o consultor, só nas dele (o banco confere de novo)
   const pode = p => S.pode('diretor', 'gerente') || (S.pode('consultor') && p.consultor_id === S.me.id);
@@ -105,7 +105,7 @@
   const linhasCond = txt => String(txt || '').split('\n').map(l => l.replace(/^[•\-–*]\s*/, '').trim()).filter(Boolean);
 
   // Só rádio: investimento mensal; com ação digital (única), o total do 1º mês; só digital: investimento
-  const invRot = t => t.digital ? (t.ins ? 'Investimento (1º mês)' : 'Investimento') : 'Investimento mensal';
+  const invRot = t => t.digital || t.producao ? (t.ins ? 'Investimento (1º mês)' : 'Investimento') : 'Investimento mensal';
   const qtdTxt = t => [t.ins && `${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'}`, t.pub && `${t.pub} ${t.pub === 1 ? 'entrega digital' : 'entregas digitais'}`].filter(Boolean).join(' + ') || '0 inserções';
   const resumoHtml = (p, v) => { const t = S.propTotais(p), its = (p.itens || []).filter(it => it.insercoes), um = its.length === 1 ? its[0] : null, as = assinante(p);
     const partes = t.digital && t.ins ? `<div class="pr-lin"><span>Rádio<small>${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'} por mês</small></span><b>${brl(t.radio)}</b></div><div class="pr-lin"><span>Ação digital<small>única · ${t.pub} ${t.pub === 1 ? 'entrega' : 'entregas'}</small></span><b>${brl(t.digital)}</b></div>` : '';
@@ -113,6 +113,7 @@
       <div class="pr-lin"><span>Valor de tabela${um ? `<small>${um.insercoes} × ${brl(um.preco_tabela)}</small>` : `<small>${qtdTxt(t)}</small>`}</span><b>${brl(t.tabela)}</b></div>
       <div class="pr-lin"><span>Desconto negociado<small>${t.tabela ? nfmt(t.pct).replace(/,?0+$/, '') || '0' : '0'}% sobre a tabela</small></span><b>${t.desconto > 0.004 ? '− ' : ''}${brl(Math.abs(t.desconto))}</b></div>
       <div class="pr-lin pr-inv"><span>${invRot(t)}</span><b>${brl(t.total)}</b></div>
+      ${t.producao ? `<div class="pr-lin"><span>Produção<small>cobrada uma vez, no 1º mês</small></span><b>${brl(t.producao)}</b></div><div class="pr-lin"><span>Nos meses seguintes</span><b>${brl(t.total - t.producao)}</b></div>` : ''}
       <div class="pr-marca"><small>Sai com a marca da</small><span class="pr-logo">${empImg()}</span><small>${as.nome ? `Assina: ${esc(as.nome)}${as.cargo ? ' · ' + esc(as.cargo.split(' · ')[0]) : ''}` : ''}</small></div>
       <p class="muted small">${p.situacao === 'rascunho' ? 'Clique em "Enviar ao cliente": ele recebe o link da proposta pelo WhatsApp ou e-mail e ela fica marcada como enviada.' : p.situacao === 'enviada' ? 'Quando o cliente responder, marque como aprovada ou recusada.' : p.situacao === 'aprovada' ? (p.pi_id ? 'O PI desta proposta já foi gerado.' : 'Aprovada: o PI é gerado na tela de PIs, em "Propostas aprovadas".') : 'Para negociar de novo, volte a proposta para rascunho.'}</p>`; };
 
@@ -136,15 +137,22 @@
     const linhaRadio = (it, i) => `<div class="pr-it">
         <span class="pr-id"><b>${esc(it.formato)} · ${esc(it.programa)}</b><small class="muted">${em ? `<label>Faixa <input class="pr-faixa" data-pf="faixa" data-i="${i}" value="${esc(it.faixa)}" placeholder="07h às 19h" aria-label="Faixa horária de ${esc(it.programa)}"></label>` : `Faixa: <b>${esc(it.faixa) || '—'}</b>`}</small></span>
         <span class="pr-dd"><small class="pr-k">Dias</small>${dias(it, i)}</span>
-        <label class="pr-q"><small class="pr-k">Inserções/mês</small>${em ? `<input data-pf="insercoes" data-i="${i}" data-mask="int" inputmode="numeric" value="${it.insercoes || ''}" placeholder="0" aria-label="Inserções por mês de ${esc(it.programa)}">` : `<b>${it.insercoes}</b>`}</label>
+        ${parseInt(it.por_dia) > 0 ? `<label class="pr-q"><small class="pr-k">Por dia</small>${em && !(it.ooh || {}).unidades ? `<input data-pf="por_dia" data-i="${i}" data-mask="int" inputmode="numeric" value="${it.por_dia || ''}" placeholder="0" aria-label="Inserções por dia de ${esc(it.programa)}">` : `<b>${it.por_dia}</b>`}</label>`
+          : it.mensal || it.unica ? `<span class="pr-q"><small class="pr-k">${it.unica ? 'Uma vez' : 'Por mês'}</small><b>${it.insercoes}</b></span>` : `<label class="pr-q"><small class="pr-k">Inserções/mês</small>${em ? `<input data-pf="insercoes" data-i="${i}" data-mask="int" inputmode="numeric" value="${it.insercoes || ''}" placeholder="0" aria-label="Inserções por mês de ${esc(it.programa)}">` : `<b>${it.insercoes}</b>`}</label>`}
         <span class="pr-tb"><small class="pr-k">Tabela</small><span class="muted">${it.preco_tabela ? brl(it.preco_tabela) : 'sem preço'}</span></span>
         <label class="pr-ng"><small class="pr-k">Negociado</small>${em ? `<input data-pf="preco" data-i="${i}" data-mask="dec" inputmode="decimal" value="${nfmt(r2(it.preco))}" placeholder="0,00" aria-label="Valor unitário negociado de ${esc(it.programa)}">` : `<span>${brl(it.preco)}</span>`}</label>
         <label class="pr-tt"><small class="pr-k">Total mensal</small>${em ? `<input data-pf="total" data-i="${i}" data-mask="dec" inputmode="decimal" value="${nfmt(it.total)}" placeholder="0,00" aria-label="Total mensal de ${esc(it.programa)}">` : `<b>${brl(it.total)}</b>`}</label>
         <span class="pr-x">${em ? `<button type="button" class="x" data-act="prRmItem" data-i="${i}" aria-label="Remover ${esc(it.formato)} · ${esc(it.programa)}" title="Remover item">×</button>` : ''}</span></div>`;
-    const comI = p.itens.map((it, i) => ({ it, i })), rad = comI.filter(x => !ehDig(x.it)), dgs = comI.filter(x => ehDig(x.it));
+    const comI = p.itens.map((it, i) => ({ it, i })), rad = comI.filter(x => !ehDig(x.it) && !x.it.combo), dgs = comI.filter(x => ehDig(x.it));
+    const grupos = [...new Set(comI.filter(x => x.it.combo).map(x => x.it.combo.grupo))].map(g => comI.filter(x => x.it.combo && x.it.combo.grupo === g).map(x => x.it));
+    const nomeVeic = it => (S.veh(it.veiculo_id || p.veiculo_id) || {}).nome || '';
+    const comboCard = its => { const c = its[0].combo, tab = r2(its.reduce((a, x) => a + (parseInt(x.insercoes) || 0) * (Number(x.preco_tabela) || 0), 0));
+      return `<section class="card pr-combo"><div class="hd"><h2>${esc(c.nome)} ${S.tag('Combo', 'blue')}</h2>${em ? `<button class="btn sm" data-act="prRmCombo" data-g="${esc(c.grupo)}">Tirar combo</button>` : ''}</div>
+        <div class="scroll"><table><thead><tr><th>Veículo</th><th>Produto</th><th>Variação</th><th class="r">Quantidade</th><th class="r">Tabela</th></tr></thead><tbody>${its.map(x => `<tr><td class="nw">${esc(nomeVeic(x))}</td><td>${esc(x.programa)}</td><td>${esc(x.formato)}</td><td class="r nw">${esc(S.qtdItem(x))}</td><td class="r nw">${brl((parseInt(x.insercoes) || 0) * (Number(x.preco_tabela) || 0))}</td></tr>`).join('')}</tbody></table></div>
+        <div class="row mid pr-combo-tot"><span class="muted small grow">tabela ${brl(tab)}${tab > c.preco ? ` · desconto ${nfmt((1 - c.preco / tab) * 100).replace(/,?0+$/, '')}%` : ''} · ao aprovar, um PI por veículo</span><b>${brl(c.preco)}</b></div></section>`; };
     const temDigital = S.db.produtos.some(x => x.tipo === 'programa' && S.ehDigital(x) && x.ativo) || dgs.length;
     const avisoCanal = S.pode('diretor', 'gerente') ? 'Cadastre o canal da rádio em <b>Produtos → Digital</b>.' : '';
-    const itensCard = `<section class="card"><div class="hd"><h2>${temDigital ? 'Rádio' : 'Itens'}</h2>${em ? `<span class="row mid pr-add">${S.cotasAtivas && S.cotasAtivas().length ? `<button class="btn" data-act="prAddCota">${S.svg('mais')}Patrocínio</button>` : ''}<button class="btn" data-act="prAddItem">${S.svg('mais')}Produto</button></span>` : ''}</div>
+    const itensCard = `<section class="card"><div class="hd"><h2>${temDigital ? 'Rádio' : 'Itens'}</h2>${em ? `<span class="row mid pr-add">${S.cotasAtivas && S.cotasAtivas().length ? `<button class="btn" data-act="prAddCota">${S.svg('mais')}Patrocínio</button>` : ''}${S.db.combos && S.combosAtivos().length ? `<button class="btn" data-act="prAddCombo">${S.svg('mais')}Combo</button>` : ''}<button class="btn" data-act="prAddProd">${S.svg('mais')}Produto</button></span>` : ''}</div>
       ${rad.length ? `<div class="pr-its"><div class="pr-it pr-cab" aria-hidden="true"><span>Formato · programação</span><span>Dias</span><span class="r">Inserções/mês</span><span class="r">Tabela</span><span class="r">Negociado</span><span class="r">Total mensal</span><span></span></div>${rad.map(x => linhaRadio(x.it, x.i)).join('')}</div>`
         : `<p class="muted" style="margin:4px 0 0">${em ? `Nenhum item de rádio${dgs.length ? '' : ' ainda'}. Clique em <b>Produto</b> para escolher o produto e a duração${S.cotasAtivas && S.cotasAtivas().length ? ', ou em <b>Patrocínio</b> para uma cota' : ''}.` : 'Nenhum item de rádio.'}</p>`}
       ${em && rad.length ? '<p class="muted small" style="margin-top:14px">O preço vem de Produtos e fica guardado na proposta. Dá para negociar pelo valor unitário ou pelo total do mês: um ajusta o outro.</p>' : ''}</section>
@@ -164,7 +172,7 @@
     const acoes = `${em ? `<span class="sujo pr-sujo"${ed.sujo ? '' : ' hidden'}><i></i>Alterações não salvas</span><button class="btn pr-sujo" data-act="prDescartar"${ed.sujo ? '' : ' hidden'}>Descartar</button>` : ''}
       <button class="btn tres" data-act="prOpcoes" data-id="${orig.id}" aria-label="Mais opções">${S.svg('mais3')}</button>${b('prVer', 'Visualizar', '', 'olho')}${b('prPdf', 'Baixar PDF', '', 'baixar')}${em ? b('prSalvar', 'Salvar', '', 'check') : ''}${fluxo}`;
     return { title:`<span class="sub"><a data-go="/propostas">Propostas</a>${S.svg('seta', 14)}${pill(orig)}<span>· ${esc(S.usuario(orig.consultor_id))}</span></span>Proposta ${S.propNo(orig)}`, actions:acoes,
-      body:`${aviso}<div class="pr-corpo"><div class="pr-main">${cliente}${itensCard}${cond}</div><aside class="card pr-res" id="prResumo" aria-label="Resumo mensal">${resumoHtml(p, v)}</aside></div>` };
+      body:`${aviso}<div class="pr-corpo"><div class="pr-main">${cliente}${grupos.map(comboCard).join("")}${itensCard}${cond}</div><aside class="card pr-res" id="prResumo" aria-label="Resumo mensal">${resumoHtml(p, v)}</aside></div>` };
   };
   S.views.propostas = id => id ? editor(id) : listaView();
 
@@ -173,7 +181,8 @@
   const aplicar = (el, fim) => {
     const d = el.dataset, p = ed.p, i = d.i !== undefined ? +d.i : null, it = i !== null ? p.itens[i] : null;
     if (it) {
-      if (d.pf === 'insercoes') { it.insercoes = parseInt(String(el.value).replace(/\D/g, '')) || 0; it.total = r2(it.insercoes * it.preco); mostra('total', i, nfmt(it.total)); }
+      if (d.pf === 'por_dia') { it.por_dia = parseInt(String(el.value).replace(/\D/g, '')) || 0; it.insercoes = it.por_dia * 30; it.total = r2(it.insercoes * it.preco); mostra('total', i, nfmt(it.total)); }
+      else if (d.pf === 'insercoes') { it.insercoes = parseInt(String(el.value).replace(/\D/g, '')) || 0; it.total = r2(it.insercoes * it.preco); mostra('total', i, nfmt(it.total)); }
       else if (d.pf === 'preco') { it.preco = num(el.value); it.total = r2(it.insercoes * it.preco); mostra('total', i, nfmt(it.total)); if (fim) el.value = nfmt(it.preco); }
       else if (d.pf === 'total') { it.total = r2(num(el.value)); if (it.insercoes) it.preco = it.total / it.insercoes; mostra('preco', i, nfmt(r2(it.preco))); if (fim) el.value = nfmt(it.total); }
       else if (d.pf === 'faixa') it.faixa = el.value;
@@ -209,7 +218,7 @@
   const limpo = it => it.secao === 'digital' && it.entregas ? { id:it.id, secao:'digital', tipo:'acao', canal_id:it.canal_id, perfil:it.perfil, detalhe:it.detalhe || '', nome:it.nome || '',
     entregas:it.entregas.map(e => ({ nome:e.nome, qtd:parseInt(e.qtd) || 0 })), inicio:it.inicio, fim:it.fim, period:it.period, valor:r2(it.valor), total:r2(it.valor), valor_tabela:r2(it.valor_tabela), pacote:it.pacote || '', pacote_id:it.pacote_id || null, programa:it.perfil, formato:'Ação digital', insercoes:S.acaoQtd(it), dias:[], faixa:'' } : ({ id:it.id, programa_id:it.programa_id, formato_id:it.formato_id, programa:it.programa, formato:it.formato, secao:it.secao, detalhe:it.detalhe,
     dias:S.SEMANA.filter(d => (it.dias || []).includes(d)).sort((a, b) => a - b), faixa:String(it.faixa || '').trim(), insercoes:parseInt(it.insercoes) || 0,
-    preco_tabela:Number(it.preco_tabela) || 0, preco:Number(it.preco) || 0, total:r2(it.total), ...(it.cota ? { cota:it.cota } : {}) });
+    preco_tabela:Number(it.preco_tabela) || 0, preco:Number(it.preco) || 0, total:r2(it.total), ...Object.fromEntries(['cota', 'combo', 'ooh', 'veiculo_id', 'por_dia', 'mensal', 'unica'].filter(k => it[k]).map(k => [k, it[k]])) });
   const gravar = async () => { const p = ed.p, t = S.propTotais(p);
     const r = await S.salvar('propostas', { id:p.id, cliente_id:p.cliente_id, agencia_id:p.agencia_id || null, data:p.data || today(), validade:parseInt(p.validade) || 15,
       texto:String(p.texto || '').trim(), condicoes:String(p.condicoes || '').trim(), itens:p.itens.map(limpo), insercoes:t.ins, publicacoes:t.pub, valor_tabela:t.tabela, valor_total:t.total, tabela_id:p.tabela_id || null });
@@ -233,6 +242,7 @@
     const v = S.veh(), itens = (p.itens || []).filter(it => !ehDig(it) && parseInt(it.insercoes) > 0), digs = (p.itens || []).filter(it => ehDig(it) && it.entregas && S.acaoQtd(it)), todos = [...itens, ...digs], t = S.propTotais(p);
     if (!todos.length) return S.toast('Esta proposta não tem itens com inserções ou publicações.');
     const proxNo = `PI ${v.sigla} ${String((v.pi_seq || 0) + 1).padStart(4, '0')}`, marca = v.pi_marca === 'comercial' ? 'comercial' : 'radio';
+    const vsP = S.veiculosDaProposta(p), multi = vsP.length > 1, falta = vsP.filter(x => !(p.pis_veiculos || {})[x]);
     const faixas = [...new Set(itens.map(it => it.faixa).filter(Boolean))];
     S.dialog(`<h2>Gerar PI da proposta ${S.propNo(p)}</h2>
       <p class="muted small" style="margin-top:-6px">${esc(S.nome(p.cliente_id))} · ${esc(resumo(p))} · ${qtdTxt(t)} por mês</p>
@@ -242,10 +252,11 @@
         <fieldset class="f pr-marca-esc"><legend>PI sai com a marca de</legend><div class="seg radios">
           <label><input type="radio" name="marca" value="comercial"${marca === 'comercial' ? ' checked' : ''}>${esc(empCurto())}</label>
           <label><input type="radio" name="marca" value="radio"${marca === 'radio' ? ' checked' : ''}>${esc(v.nome)}</label></div></fieldset></div>
+      ${multi ? `<div class="note info" style="margin:14px 0 0"><b>Um PI por veículo:</b> ${falta.map(x => { const vx = S.veh(x) || {}; return `${esc(vx.nome || '')} (${(p.itens || []).filter(it => (it.veiculo_id || p.veiculo_id) === x && !ehDig(it)).length} itens)`; }).join(' · ')}. Cada um com a sua numeração e a sua OPEC; o cliente é levado para o cadastro do veículo se ainda não estiver lá.</div>` : ''}
       <div id="prDist" aria-live="polite"></div>
       ${digs.length ? `<div class="note info" style="margin:14px 0 0"><b>Digital:</b> ${digs.map(it => `${esc(S.acaoTitulo(it))} (${esc(S.acaoEntregasTxt(it))}, ${S.acaoPeriodo(it)})`).join('; ')} ${digs.length === 1 ? 'entra' : 'entram'} no PI uma vez só, com o período e o valor da proposta. Depois da aprovação, a rádio marca a data de cada publicação.</div>` : ''}
       ${itens.length ? `<div class="note info" style="margin:14px 0 0">No PI, cada dia leva só a <b>quantidade</b>. ${faixas.length ? `A faixa <b>${faixas.map(esc).join('</b>, <b>')}</b> sai escrita no PI, para a OPEC lançar no Pulsar.` : 'Sem faixa horária nos itens: a OPEC lança conforme o programa.'} Depois de gerado, o PI fica em Rascunho e ainda dá para ajustar algum dia antes de mandar para a OPEC.</div>` : ''}
-      <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok" id="prGerarOk">${S.svg('pis')}Gerar ${proxNo}</button></div>`,
+      <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok" id="prGerarOk">${S.svg('pis')}${multi ? `Gerar ${falta.length} ${falta.length === 1 ? 'PI' : 'PIs'}` : 'Gerar ' + proxNo}</button></div>`,
       f => gerar(p, itens, digs, f));
     const dl = document.getElementById('dlg'), antes = dl.onclose; dl.classList.add('medio');
     dl.onclose = e => { dl.classList.remove('medio'); if (antes) antes(e); };
@@ -281,22 +292,44 @@
   };
   // Mês de veiculação k (0, 1, …) a partir do início: o digital entra no mês do calendário em que esse período começa
   const mesDe = (inicio, k) => { const [y, m] = inicio.split('-').map(Number), d = new Date(y, m - 1 + k, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-  const gerar = (p, itens, digs, f) => S.run(async () => {
-    const v = S.veh(), ag = S.pessoa(p.agencia_id), n = parseInt(f.meses) || 1, r = itens.length ? S.distribuir(itens, f.inicio, n) : { meses:[], soma:0 };
-    if (itens.length && !r.soma) throw new Error('A distribuição ficou sem inserções: confira os dias dos itens.');
+  // Monta os dados do PI de um veículo: grade com a distribuição automática e as ações digitais
+  const montarPi = (p, itens, digs, f, veic) => {
+    const ag = S.pessoa(p.agencia_id), n = parseInt(f.meses) || 1, r = itens.length ? S.distribuir(itens, f.inicio, n) : { meses:[], soma:0 };
+    if (itens.length && !r.soma) throw new Error(`A distribuição ficou sem inserções${veic ? ' em ' + veic.nome : ''}: confira os dias dos itens.`);
     const digital = [];
     digs.forEach(it => { const a = limpo(it); digital.push({ id:uid(), tipo:'acao', canal_id:a.canal_id, perfil:a.perfil, detalhe:a.detalhe, nome:a.nome, entregas:a.entregas, inicio:a.inicio, fim:a.fim, period:a.period, valor:a.valor, valor_tabela:a.valor_tabela, pacote:a.pacote, pacote_id:a.pacote_id }); });
-    const grids = r.meses.map(m => ({ id:uid(), period:m.period, praca:v.cidade || '', items:Object.entries(m.itens).map(([i, days]) => { const it = itens[+i];
+    const grids = r.meses.map(m => ({ id:uid(), period:m.period, praca:veic.cidade || '', items:Object.entries(m.itens).map(([i, days]) => { const it = itens[+i];
       return { id:uid(), piece:'', f1:it.programa, f2:it.formato, faixa:it.faixa || '', days, unit:Number(it.preco) || 0, disc:{ type:'pct', value:0 }, bonus:false }; }) }));
     const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:ag ? num(ag.comissao) : 0 }, grids, digital, marca:f.marca === 'comercial' ? 'comercial' : 'radio',
       proposta:{ id:p.id, numero:S.propNo(p) }, billing:{ obsClient:`Conforme proposta comercial nº ${S.propNo(p)}.` } } }).dados;
-    const c = S.calc({ agencia_id:p.agencia_id, dados });
-    const pi = S.piNorm(await S.q(S.sb.rpc('gerar_pi_da_proposta', { p_proposta:p.id, p_titulo:`Proposta ${S.propNo(p)} · ${resumo(p)}`, p_dados:dados,
-      p_insercoes:c.ins, p_total:r2(c.total), p_comissao:r2(c.commission), p_liquido:r2(c.net) })));
+    return { dados, c:S.calc({ agencia_id:p.agencia_id, dados }) };
+  };
+  const gerar = (p, itens, digs, f) => S.run(async () => {
+    const v = S.veh(), vs = S.veiculosDaProposta(p), feitos = Object.assign({}, p.pis_veiculos || {});
+    // Combo com vários veículos: um PI por veículo, cada um com a sua numeração e a sua OPEC (gerar_pi_veiculo)
+    if (vs.length > 1 || Object.keys(feitos).length) {
+      let meu = null, n = 0;
+      for (const vid of vs) { if (feitos[vid]) continue; const veic = S.veh(vid) || {}, proprio = vid === p.veiculo_id;
+        const its = itens.filter(it => (it.veiculo_id || p.veiculo_id) === vid), ds = proprio ? digs : [];
+        if (!its.length && !ds.length) continue;
+        const m = montarPi(p, its, ds, f, veic);
+        const pi = S.piNorm(await S.q(S.sb.rpc('gerar_pi_veiculo', { p_proposta:p.id, p_veiculo:vid, p_titulo:`Proposta ${S.propNo(p)} · ${resumo(p)}`, p_dados:m.dados,
+          p_insercoes:m.c.ins, p_total:r2(m.c.total), p_comissao:r2(m.c.commission), p_liquido:r2(m.c.net) })));
+        feitos[vid] = pi.id; n++;
+        if (proprio) { S.db.pis.push(pi); v.pi_seq = Math.max(Number(v.pi_seq) || 0, pi.numero); meu = pi; } }
+      const atual = achar(p.id); if (atual) { atual.pis_veiculos = feitos; atual.pi_id = atual.pi_id || meu && meu.id || Object.values(feitos)[0]; if (ed.id === atual.id) abrir(atual); }
+      S.toast(`${n} ${n === 1 ? 'PI gerado' : 'PIs gerados'}: ${vs.map(x => (S.veh(x) || {}).sigla).filter(Boolean).join(', ')}. Cada veículo vê o seu na tela de PIs.`);
+      if (meu) { S.ui.tab = 'detalhes'; location.hash = '/pi/' + meu.id; }
+      return;
+    }
+    const m = montarPi(p, itens, digs, f, v);
+    const pi = S.piNorm(await S.q(S.sb.rpc('gerar_pi_da_proposta', { p_proposta:p.id, p_titulo:`Proposta ${S.propNo(p)} · ${resumo(p)}`, p_dados:m.dados,
+      p_insercoes:m.c.ins, p_total:r2(m.c.total), p_comissao:r2(m.c.commission), p_liquido:r2(m.c.net) })));
     S.db.pis.push(pi); v.pi_seq = Math.max(Number(v.pi_seq) || 0, pi.numero);
     const atual = achar(p.id); if (atual) { atual.pi_id = pi.id; if (ed.id === atual.id) abrir(atual); }
     S.ui.tab = 'detalhes'; location.hash = '/pi/' + pi.id;
-  }, 'PI gerado com as inserções distribuídas');
+    S.toast('PI gerado com as inserções distribuídas');
+  });
 
   // ---------- enviar ao cliente: link da proposta pelo WhatsApp ou e-mail ----------
   const novoToken = () => { if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -360,7 +393,7 @@
   S.propostasParaPi = () => {
     if (!S.pode('diretor', 'gerente', 'consultor')) return '';
     const q = (S.ui.q || '').toLowerCase();
-    const l = lista().filter(p => p.situacao === 'aprovada' && !p.pi_id && (!q || [S.propNo(p), S.nome(p.cliente_id), S.nome(p.agencia_id), resumo(p)].join(' ').toLowerCase().includes(q)))
+    const l = lista().filter(p => p.situacao === 'aprovada' && !S.propostaComPi(p) && (!q || [S.propNo(p), S.nome(p.cliente_id), S.nome(p.agencia_id), resumo(p)].join(' ').toLowerCase().includes(q)))
       .sort((a, b) => String(a.aprovada_em).localeCompare(String(b.aprovada_em)));
     if (!l.length) return '';
     const linhas = l.map(p => { const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id);
@@ -381,7 +414,10 @@
     const v = S.veh(p.veiculo_id), e = emp(), cli = S.pessoa(p.cliente_id) || {}, ag = S.pessoa(p.agencia_id), t = S.propTotais(p), as = assinante(p);
     const cor = /^#[0-9a-f]{6}$/i.test(e.cor || '') ? e.cor : '#2b5fb5', cor2 = /^#[0-9a-f]{6}$/i.test(e.cor2 || '') ? e.cor2 : '#f1853d';
     const its = (p.itens || []).filter(it => it.insercoes), um = its.length === 1 ? its[0] : null, cidade = cidadeDe(e.cidade || v.cidade);
-    const rad = its.filter(it => !ehDig(it)), dgs = its.filter(ehDig), ambos = rad.length && dgs.length;
+    const rad = its.filter(it => !ehDig(it) && !it.combo), dgs = its.filter(ehDig), ambos = (rad.length || its.some(it => it.combo)) && dgs.length;
+    const grupos = [...new Set(its.filter(it => it.combo).map(it => it.combo.grupo))].map(g => its.filter(it => it.combo && it.combo.grupo === g));
+    const nomes = [...new Set([p.veiculo_id, ...its.map(it => it.veiculo_id).filter(Boolean)])].map(x => (S.veh(x) || {}).nome).filter(Boolean);
+    const qtdCab = rad.some(it => it.por_dia || it.mensal || it.unica) ? 'Quantidade' : 'Inserções/mês';
     const prog = it => `${esc(it.programa)}, ${S.diasTexto(it.dias)}${it.faixa ? ' · ' + esc(it.faixa) : ''}`;
     return `<div class="prdoc" style="--pc:${cor};--pc2:${cor2}">
       <div class="prd-faixa"><i></i><i></i></div>
@@ -389,16 +425,20 @@
       <div class="prd-corpo">
         <div class="prd-partes"><div><small>Cliente</small><b>${esc(cli.nome)}</b>${docCli(cli) ? `<span>${esc(docCli(cli))}</span>` : ''}${cli.endereco || cli.cidade ? `<span>${esc([cli.endereco, cli.cidade].filter(Boolean).join(' · '))}</span>` : ''}</div>
           <div><small>Negociação</small><b>${ag ? esc(ag.nome) : 'DIRETO'}</b>${ag ? '<span>Por agência</span>' : ''}</div></div>
-        <h1 class="prd-radio">${esc(v.nome)}</h1>
+        <h1 class="prd-radio">${esc(nomes.join(' + ') || v.nome)}</h1>
         ${p.texto ? `<p class="prd-texto">${esc(p.texto).replace(/\n/g, '<br>')}</p>` : ''}
-        ${rad.length ? `${ambos ? '<div class="prd-sec">Rádio</div>' : ''}<table class="prd-tab"><thead><tr><th>Formato</th><th>Programação</th><th class="r">Inserções/mês</th><th class="r">Valor unitário</th><th class="r">Total mensal</th></tr></thead>
-          <tbody>${rad.map(it => `<tr><td>${esc(it.formato)}</td><td>${prog(it)}</td><td class="r">${it.insercoes}</td><td class="r">${brl(it.preco)}</td><td class="r"><b>${brl(it.total)}</b></td></tr>`).join('')}</tbody></table>` : ''}
+        ${rad.length ? `${ambos ? '<div class="prd-sec">Rádio</div>' : ''}<table class="prd-tab"><thead><tr><th>Formato</th><th>Programação</th><th class="r">${qtdCab}</th><th class="r">Valor unitário</th><th class="r">Total mensal</th></tr></thead>
+          <tbody>${rad.map(it => `<tr><td>${esc(it.formato)}</td><td>${prog(it)}</td><td class="r">${esc(S.qtdItem(it))}</td><td class="r">${brl(it.preco)}</td><td class="r"><b>${brl(it.total)}</b></td></tr>`).join('')}</tbody></table>` : ''}
+        ${grupos.map(g => { const c = g[0].combo, tb = g.reduce((a, it) => a + (parseInt(it.insercoes) || 0) * (Number(it.preco_tabela) || 0), 0);
+          return `<div class="prd-sec">${esc(c.nome)}</div><table class="prd-tab"><thead><tr><th>Veículo</th><th>Produto</th><th>Variação</th><th class="r">Quantidade</th></tr></thead>
+          <tbody>${g.map(it => `<tr><td>${esc((S.veh(it.veiculo_id || p.veiculo_id) || {}).nome || '')}</td><td>${prog(it)}</td><td>${esc(it.formato)}</td><td class="r">${esc(S.qtdItem(it))}</td></tr>`).join('')}</tbody></table>
+          <p class="prd-nota">Combo: ${brl(c.preco)}${tb > c.preco + .004 ? ` (tabela ${brl(tb)})` : ''}.</p>`; }).join('')}
         ${dgs.length ? `<div class="prd-sec">Ação digital · redes sociais da ${esc(v.nome)}</div><table class="prd-tab"><thead><tr><th>Ação</th><th>Entregas</th><th>Período</th><th class="r">Valor</th></tr></thead>
           <tbody>${dgs.map(it => `<tr><td><b>${esc(S.acaoTitulo(it))}</b><br>${esc(S.acaoCanal(it))}</td><td>${esc(S.acaoEntregasTxt(it))}</td><td>${S.acaoPeriodo(it)}</td><td class="r"><b>${brl(it.total)}</b></td></tr>`).join('')}</tbody></table>
           <p class="prd-nota">Ação única. Datas das publicações definidas pela rádio dentro do período. A produção do conteúdo está incluída.</p>` : ''}
         <div class="prd-tot">${ambos ? `<span>Rádio · ${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'} por mês</span><span class="r">${brl(t.radio)}</span><span>Ação digital · única</span><span class="r">${brl(t.digital)}</span>` : ''}<span>Valor de tabela${um ? ` (${um.insercoes} × ${brl(um.preco_tabela)})` : ''}</span><span class="r">${brl(t.tabela)}</span>
           ${t.desconto > 0.004 ? `<span>Desconto negociado</span><span class="r">− ${brl(t.desconto)}</span>` : ''}
-          <b class="prd-inv">${invRot(t)}</b><b class="prd-inv r">${brl(t.total)}</b></div>
+          <b class="prd-inv">${invRot(t)}</b><b class="prd-inv r">${brl(t.total)}</b>${t.producao ? `<span>Produção (cobrada uma vez)</span><span class="r">${brl(t.producao)}</span><span>Nos meses seguintes</span><span class="r">${brl(t.total - t.producao)}</span>` : ''}</div>
         ${linhasCond(p.condicoes).length ? `<div class="prd-cond"><small>Condições comerciais</small><ul>${linhasCond(p.condicoes).map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>` : ''}
         <div class="prd-ass"><div><b>${esc(as.nome)}</b><span>${esc(as.cargo)}</span></div><div><b>De acordo</b><span>${esc(cli.nome)}</span></div></div>
       </div>
@@ -483,7 +523,7 @@
         abrir(r); location.hash = '/propostas/' + r.id; }, 'Proposta duplicada'); },
     prVer: d => { const p = ed.id === d.id && ed.p ? ed.p : achar(d.id); if (!p.cliente_id) return S.toast('Escolha o cliente antes.'); visualizar(p, d.id); },
     prPdf: d => { const p = ed.id === d.id && ed.p ? ed.p : achar(d.id); if (!p.cliente_id) return S.toast('Escolha o cliente antes.'); baixarPdf(p); },
-    prGerar: d => { const p = daLista(d); if (p.pi_id) return S.go('/pi/' + p.pi_id); gerarDlg(p); },
+    prGerar: d => { const p = daLista(d); if (S.propostaComPi(p)) return p.pi_id && piDe(p) ? S.go('/pi/' + p.pi_id) : S.toast('Os PIs desta proposta já foram gerados.'); gerarDlg(p); },
     prAbrirPi: d => { const p = daLista(d); if (!p.pi_id || !piDe(p)) return S.toast('O PI desta proposta não está nesta lista.'); S.ui.tab = 'detalhes'; S.go('/pi/' + p.pi_id); },
     prOpcoes: (d, botao) => { const p = achar(d.id), s = sitDe(p), dentro = S.route().id === p.id, id = { id:p.id }, it = [];
       if (!dentro) it.push({ label:'Abrir', icon:'abrir', act:'prAbrir', data:id });
@@ -538,6 +578,21 @@
         ff.innerHTML = fs.length ? (digital && fs.length > 1 ? '<option value="">Escolha o formato</option>' : '') + fs.map(f => `<option value="${f.id}">${esc(f.nome)} · ${brl(S.precoNaTabela(vig.id, fp.value, f.id).preco)}</option>`).join('') : `<option value="">Sem preço para ${digital ? 'este perfil' : 'esta programação'}</option>`;
         ff.disabled = !fs.length; mostrarPreco(); });
       ff.addEventListener('change', mostrarPreco); },
+    // Produto do veículo (rádio ou mídia exterior), pela janela de Produtos
+    prAddProd: () => { const p = atualEd(); if (!p) return;
+      S.escolherProduto({ tipos:['radio', 'ooh'], onItens:its => comItem(pp => { its.forEach(it => { delete it.veiculo_id; }); pp.itens.push(...its); const t = S.tabelaVigente(); if (t && !pp.tabela_id) pp.tabela_id = t.id; }) }); },
+    // Combo do grupo: entra fechado, com o preço dividido entre os itens na proporção da tabela
+    prAddCombo: () => { const p = atualEd(); if (!p) return; const cs = S.combosAtivos(); if (!cs.length) return S.toast('Não há combos ativos. O diretor cria em Dashboard geral → Combos.');
+      const info = c => `<b>${brl(c.preco)}</b>${Number(c.valor_tabela) > c.preco ? ` · tabela ${brl(c.valor_tabela)} (−${nfmt((1 - c.preco / c.valor_tabela) * 100).replace(/,?0+$/, '')}%)` : ''}${c.vale_ate ? ` · vale até ${dfmt(c.vale_ate)}` : ''}<br><small class="muted">${(c.itens || []).map(x => `${esc((S.veh(x.veiculo_id) || {}).sigla || '')} ${esc(x.programa)} · ${esc(x.formato)} (${esc(S.qtdItem(x))})`).join('<br>')}</small>`;
+      S.dialog(`<h2>Adicionar combo</h2><label class="f">Combo<select name="combo" required><option value="">Escolha</option>${cs.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select></label>
+        <div id="prComboInfo" class="caixa" hidden></div><p class="muted small">O combo entra fechado: as quantidades não mudam. Aprovada a proposta, o SONVI gera um PI para cada veículo.</p>
+        <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar</button></div>`,
+        f => { const c = cs.find(x => x.id === f.combo); if (!c) return; const its = S.itensDoCombo(c, p.veiculo_id); if (!its.length) return S.toast('Este combo está sem itens.'); comItem(pp => { pp.itens.push(...its); }); });
+      const sel = document.querySelector('#dlg [name="combo"]'), box = document.getElementById('prComboInfo');
+      sel.addEventListener('change', () => { const c = cs.find(x => x.id === sel.value); box.hidden = !c; if (c) box.innerHTML = info(c); }); },
+    prRmCombo: async d => { const p = atualEd(); if (!p) return; const it = p.itens.find(x => x.combo && x.combo.grupo === d.g);
+      if (!it || !await S.confirmar(`Tirar o combo "${it.combo.nome}" da proposta?`, { ok:'Tirar combo', perigo:true })) return;
+      comItem(pp => { pp.itens = pp.itens.filter(x => !(x.combo && x.combo.grupo === d.g)); }); },
     // Cota de patrocínio (Produtos → Patrocínios): entra com as inserções do pacote e o valor do mês dividido entre elas
     prAddCota: () => { const p = atualEd(); if (!p) return; const cs = S.cotasAtivas();
       if (!cs.length) return S.toast('Esta rádio ainda não tem cotas de patrocínio. Cadastre em Produtos → Patrocínios.');

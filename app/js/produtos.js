@@ -351,14 +351,82 @@
   });
 
   // Para a proposta (propostas.js): itens de uma cota de patrocínio, com o valor do mês dividido pelas inserções
-  S.itensDaCota = cota => { const d = dadosDe(cota), inc = (d.incluido || []).filter(x => Number(x.qtd) > 0 && prod(x.formato_id)), valor = Number(d.valor) || 0;
+  S.itensDaCota = (cota, achar = prod) => { const d = dadosDe(cota), inc = (d.incluido || []).filter(x => Number(x.qtd) > 0 && achar(x.formato_id)), valor = Number(d.valor) || 0;
     const totalQ = inc.reduce((a, x) => a + Number(x.qtd), 0), unit = totalQ ? valor / totalQ : 0, fx = S.faixasDoTexto(cota.detalhe).faixas, grupo = S.uid();
     let resto = Math.round(valor * 100) / 100;
-    return inc.map((x, k) => { const fm = prod(x.formato_id), usadas = x.faixa === 'todas' || x.faixa === undefined || x.faixa === '' ? fx : [fx[+x.faixa]].filter(Boolean);
+    return inc.map((x, k) => { const fm = achar(x.formato_id), usadas = x.faixa === 'todas' || x.faixa === undefined || x.faixa === '' ? fx : [fx[+x.faixa]].filter(Boolean);
       const dias = [...new Set(usadas.flatMap(f => f.dias.split(',').map(Number)))], q = Number(x.qtd);
       const total = k === inc.length - 1 ? resto : Math.round(q * unit * 100) / 100; resto = Math.round((resto - total) * 100) / 100;
       return { id:S.uid(), programa_id:cota.id, formato_id:fm.id, programa:cota.nome.trim(), formato:fm.nome.trim(), secao:'patrocinio', detalhe:cota.detalhe || '',
         dias:dias.length ? dias : [0, 1, 2, 3, 4, 5, 6], faixa:usadas.map(S.faixaHoras).filter(Boolean).join(' / '), insercoes:q, preco_tabela:unit, preco:unit, total,
         cota:{ id:cota.id, nome:cota.nome.trim(), valor, grupo } }; }); };
+
+  // ---------- escolher um produto (proposta e combos) ----------
+  // fonte(veiculoId) = { produtos, precos, tabela } do veículo: na proposta é o veículo aberto (S.db); nos combos, todos.
+  const fonteAtual = () => ({ produtos:S.db.produtos, precos:S.db.precos, tabela:tabProd() });
+  const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
+  const precoNa = (fo, p, f) => { const x = fo.tabela && (fo.precos || []).find(y => y.tabela_id === fo.tabela.id && y.programa_id === p.id && y.formato_id === f.id); return x ? Number(x.preco) : 0; };
+  const DIAS7 = [0, 1, 2, 3, 4, 5, 6];
+  const comTotal = it => Object.assign(it, { total:r2((parseInt(it.insercoes) || 0) * (Number(it.preco) || 0)) });
+  // Itens de proposta de um produto, conforme o que foi escolhido (o = { formato_id, qtd, variacao, por_dia, pontos, unidades, faces, producao })
+  S.itensDoProduto = (p, o, fo, v) => { const d = dadosDe(p), achar = id => (fo.produtos || []).find(x => x.id === id);
+    if (p.secao === 'patrocinio') return S.itensDaCota(p, achar);
+    if (p.secao !== 'ooh') { const f = achar(o.formato_id), pr = f ? precoNa(fo, p, f) : 0; if (!f || !pr) return [];
+      const it = S.itemDaTabela(p, f, pr, v); it.insercoes = parseInt(o.qtd) || 0; return [comTotal(it)]; }
+    const dias = S.diasDoTexto(d.funcionamento) || DIAS7, faixa = S.faixaDoTexto(d.funcionamento || '');
+    if (ehInsercao(p)) { const vr = (d.variacoes || []).find(x => x.nome === o.variacao), pd = parseInt(o.por_dia) || 0; if (!vr || !pd) return [];
+      const base = { programa_id:p.id, formato:vr.nome, secao:'ooh', dias, faixa, preco_tabela:Number(vr.valor), preco:Number(vr.valor) };
+      const pts = (d.pontos || []).filter(x => (o.pontos || []).includes(x.codigo));
+      if (pts.length) return pts.map(x => comTotal(Object.assign({ id:S.uid(), programa:`${cap(unidade(d, 1))} ${x.codigo}`, detalhe:[x.endereco, x.cidade].filter(Boolean).join(' · '), por_dia:pd, insercoes:pd * 30, ooh:{ tipo:'insercao', produto_id:p.id, ponto:x.codigo } }, base)));
+      const n = parseInt(o.unidades) || 0; if (!n) return [];
+      return [comTotal(Object.assign({ id:S.uid(), programa:`${p.nome} · ${n} ${unidade(d, n)}`, detalhe:d.funcionamento || '', por_dia:pd * n, insercoes:pd * n * 30, ooh:{ tipo:'insercao', produto_id:p.id, unidades:n } }, base))]; }
+    const faces = (d.variacoes || []).filter(x => (o.faces || []).includes(x.nome)), pr = d.producao || {}, pt = d.ponto || {};
+    const its = faces.map(x => comTotal({ id:S.uid(), programa_id:p.id, programa:p.nome, formato:x.nome + (x.obs ? ` (${x.obs})` : ''), secao:'ooh', detalhe:pt.endereco || '',
+      dias:DIAS7, faixa:'', insercoes:1, mensal:true, preco_tabela:Number(x.valor), preco:Number(x.valor), ooh:{ tipo:'mes', produto_id:p.id, face:x.nome } }));
+    if (o.producao && Number(pr.valor) > 0 && faces.length) its.push(comTotal({ id:S.uid(), programa_id:p.id, programa:p.nome, formato:pr.nome || 'Produção', secao:'ooh', detalhe:'',
+      dias:DIAS7, faixa:'', insercoes:faces.length, unica:true, preco_tabela:Number(pr.valor), preco:Number(pr.valor), ooh:{ tipo:'producao', produto_id:p.id } }));
+    return its; };
+  // Janela de escolha: veículo (se houver mais de um), produto e o que muda conforme o tipo; devolve os itens prontos
+  S.escolherProduto = ({ titulo = 'Adicionar produto', veiculos, fonte = fonteAtual, tipos = ['radio', 'patrocinio', 'ooh'], onItens }) => {
+    const vs = veiculos || [S.veh()];
+    const lista_ = vid => (fonte(vid).produtos || []).filter(p => p.tipo === 'programa' && p.ativo && p.secao !== 'digital' && (p.secao === 'ooh' ? tipos.includes('ooh') : p.secao === 'patrocinio' ? tipos.includes('patrocinio') && (dadosDe(p).incluido || []).length : tipos.includes('radio') && (fonte(vid).produtos || []).some(f => f.tipo === 'formato' && precoNa(fonte(vid), p, f) > 0))).sort(ordem);
+    const opsProd = vid => { const l = lista_(vid), g = (rot, xs) => xs.length ? `<optgroup label="${esc(rot)}">${xs.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}</optgroup>` : '';
+      return '<option value="">Escolha</option>' + SECOES.map(([k, n]) => g(n, l.filter(p => (SECOES.some(s => s[0] === p.secao) ? p.secao : 'programa') === k && !['ooh', 'patrocinio'].includes(p.secao)))).join('')
+        + g('Patrocínios', l.filter(p => p.secao === 'patrocinio')) + Object.keys(COBRA).map(k => g(S.nomeCategoria(k), l.filter(p => p.secao === 'ooh' && p.categoria === k))).join(''); };
+    const comItens = vs.filter(v => lista_(v.id).length);
+    if (!comItens.length) return S.toast('Nenhum produto com preço para adicionar. Cadastre em Produtos.');
+    S.dialog(`<h2>${esc(titulo)}</h2><div class="g2">
+        ${comItens.length > 1 ? `<label class="f" style="grid-column:1/-1">Veículo<select name="veiculo">${comItens.map(v => `<option value="${v.id}">${esc(v.nome)}</option>`).join('')}</select></label>` : `<input type="hidden" name="veiculo" value="${comItens[0].id}">`}
+        <label class="f" style="grid-column:1/-1">Produto<select name="produto" required>${opsProd(comItens[0].id)}</select></label></div>
+      <div id="pdEsc" class="pd-esc"></div><div id="pdEscTot" class="caixa" hidden></div>
+      <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar</button></div>`,
+      f => { const vid = f.veiculo, fo = fonte(vid), p = (fo.produtos || []).find(x => x.id === f.produto), v = vs.find(x => x.id === vid); if (!p) return;
+        const its = S.itensDoProduto(p, lerOpcoes(f), fo, v); if (!its.length) return S.toast('Escolha a variação e a quantidade.');
+        its.forEach(it => { it.veiculo_id = vid; }); onItens(its, v); });
+    const dl = document.getElementById('dlg'), form = dl.querySelector('form'); dl.classList.add('medio'); const antes = dl.onclose; dl.onclose = e => { dl.classList.remove('medio'); if (antes) antes(e); };
+    const lerOpcoes = f => ({ formato_id:f.formato, qtd:f.qtd, variacao:f.variacao, por_dia:f.por_dia, unidades:f.unidades, producao:f.producao === 'on',
+      pontos:[...form.querySelectorAll('[name="ponto"]:checked')].map(x => x.value), faces:[...form.querySelectorAll('[name="face"]:checked')].map(x => x.value) });
+    const detalhe = () => { const vid = form.veiculo.value, fo = fonte(vid), p = (fo.produtos || []).find(x => x.id === form.produto.value), box = document.getElementById('pdEsc'), d = dadosDe(p);
+      if (!p) { box.innerHTML = ''; return; }
+      if (p.secao === 'patrocinio') { box.innerHTML = `<div class="caixa"><b>${brl(d.valor)}</b> por mês · ${horario(p)}<br><small class="muted">${(d.incluido || []).map(x => { const f = (fo.produtos || []).find(y => y.id === x.formato_id); return `${x.qtd} ${esc(f ? f.nome : '')}`; }).join(' · ')}</small></div>`; return; }
+      if (p.secao !== 'ooh') { const fs = (fo.produtos || []).filter(f => f.tipo === 'formato' && precoNa(fo, p, f) > 0).sort(ordem);
+        box.innerHTML = `<div class="g2"><label class="f">Duração ou variação<select name="formato">${fs.map(f => `<option value="${f.id}">${esc(f.nome)} · ${brl(precoNa(fo, p, f))}</option>`).join('')}</select></label>
+          <label class="f">Inserções por mês<input name="qtd" data-mask="int" inputmode="numeric" value="30" required></label></div><small class="muted">${horario(p)}</small>`; return; }
+      const vars = (d.variacoes || []).filter(x => Number(x.valor) > 0);
+      if (ehInsercao(p)) { const pts = d.pontos || [];
+        box.innerHTML = `<div class="g2"><label class="f">Duração<select name="variacao">${vars.map(x => `<option value="${esc(x.nome)}">${esc(x.nome)} · ${brl(x.valor)} por inserção</option>`).join('')}</select></label>
+          <label class="f">Inserções por dia (em cada ${unidade(d, 1)})<input name="por_dia" data-mask="int" inputmode="numeric" value="30" required></label></div>
+          ${pts.length ? `<fieldset class="cat-escolha"><legend class="form-sec">Onde roda</legend><div class="cat-ops">${pts.map(x => `<label class="cat-op"><input type="checkbox" name="ponto" value="${esc(x.codigo)}" checked><span>${esc(cap(unidade(d, 1)))} ${esc(x.codigo)}${x.cidade ? ` · ${esc(x.cidade)}` : ''}</span></label>`).join('')}</div></fieldset>`
+            : `<label class="f">Quantos ${unidade(d, 2)}<input name="unidades" data-mask="int" inputmode="numeric" value="${d.frota || 1}" required></label>`}
+          <small class="muted">${esc(d.funcionamento || '')}. Na proposta a conta é por mês de 30 dias; no PI, a mesma quantidade todos os dias.</small>`; return; }
+      box.innerHTML = `<fieldset class="cat-escolha"><legend class="form-sec">Faces</legend><div class="cat-ops">${vars.map(x => `<label class="cat-op"><input type="checkbox" name="face" value="${esc(x.nome)}" checked><span>${esc(x.nome)}${x.obs ? ` · ${esc(x.obs)}` : ''} · ${brl(x.valor)}/mês</span></label>`).join('')}</div></fieldset>
+        ${Number((d.producao || {}).valor) > 0 ? `<label class="chk"><input type="checkbox" name="producao" checked>${esc(d.producao.nome || 'Produção')} · ${brl(d.producao.valor)} por face, cobrada uma vez</label>` : ''}`; };
+    const total = () => { const vid = form.veiculo.value, fo = fonte(vid), p = (fo.produtos || []).find(x => x.id === form.produto.value), box = document.getElementById('pdEscTot');
+      const its = p ? S.itensDoProduto(p, lerOpcoes(Object.fromEntries(new FormData(form))), fo, vs.find(x => x.id === vid)) : [];
+      box.hidden = !its.length; if (!its.length) return; const mes = its.filter(x => !x.unica).reduce((a, x) => a + x.total, 0), uma = its.filter(x => x.unica).reduce((a, x) => a + x.total, 0);
+      box.innerHTML = `Valor de tabela: <b>${brl(mes)}</b> por mês${uma ? ` + <b>${brl(uma)}</b> uma vez` : ''}`; };
+    form.addEventListener('change', e => { if (e.target.name === 'veiculo') { form.produto.innerHTML = opsProd(form.veiculo.value); detalhe(); } else if (e.target.name === 'produto') detalhe(); S.mascarar(dl); total(); });
+    form.addEventListener('input', total);
+  };
   S.cotasAtivas = () => radioProds().filter(p => p.secao === 'patrocinio' && p.ativo && (dadosDe(p).incluido || []).length);
 })();
