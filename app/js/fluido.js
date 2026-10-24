@@ -12,7 +12,7 @@
 
   // Conteúdo de cada opção. Rádios aparecem com o selo e a frequência/cidade.
   S.fluidoItem = S.fluidoItem || ((sel, op) => {
-    if (sel.dataset.ui === 'vehicleId' && S.veh) { const v = S.veh(op.value); if (v) return `${S.vav(v)}<span class="fl-tx"><b>${esc(v.nome)}</b><small>${esc([v.frequencia, v.cidade].filter(Boolean).join(' · '))}</small></span>`; }
+    if (sel.dataset.ui === 'vehicleId' && S.veh) { const v = S.veh(op.value); if (v) return `${S.vav(v)}<span class="fl-tx"><b>${esc(v.nome)}</b><small>${esc(S.vehSub(v))}</small></span>`; }
     return `<span class="fl-tx"><b>${esc(op.textContent)}</b></span>`;
   });
 

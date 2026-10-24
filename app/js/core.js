@@ -126,13 +126,19 @@ S.lerLogo = arquivo => new Promise((ok, erro) => {
   img.src = url;
 });
 // Campo do formulário da rádio: prévia do logo, botões e as cores encontradas nele
+// Categoria do veículo (24/10/2026, database/039): cada uma terá a sua grade no PI e na tabela de preços
+S.CATEGORIAS = [['radio', 'Rádio'], ['led', 'Painel de LED'], ['outdoor', 'Outdoor'], ['frontlight', 'Front light'], ['busdoor', 'Bus door']];
+S.categoria = v => (v && v.categoria) || 'radio';
+S.nomeCategoria = k => (S.CATEGORIAS.find(c => c[0] === k) || S.CATEGORIAS[0])[1];
+// Linha de apoio do veículo: rádio = frequência e cidade; mídia OOH = categoria e praça
+S.vehSub = v => (S.categoria(v) === 'radio' ? [v.frequencia, v.cidade] : [S.nomeCategoria(S.categoria(v)), v.cidade]).filter(Boolean).join(' · ');
 S.campoLogo = (v, travado) => {
   const t = travado ? ' disabled data-trava="1"' : '', cor = v.cor || S.COR_PADRAO;
   return `<div class="logo-campo" style="grid-column:1/-1">
-    <div class="logo-prev">${v.logo ? `<img src="${v.logo}" width="500" height="500" alt="Logo da rádio">` : `<span>${S.svg('imagem', 26)}</span>`}</div>
-    <div class="logo-info"><b>Logo da rádio</b><small class="muted">Quadrado, 500 × 500 px (PNG, JPG ou WebP). Sai no PI e a cor dele personaliza o sistema.</small>
+    <div class="logo-prev">${v.logo ? `<img src="${v.logo}" width="500" height="500" alt="Logo do veículo">` : `<span>${S.svg('imagem', 26)}</span>`}</div>
+    <div class="logo-info"><b>Logo</b><small class="muted">Quadrado, 500 × 500 px (PNG, JPG ou WebP). Sai no PI e a cor dele personaliza o sistema.</small>
       <div class="row"><button type="button" class="btn sm" data-act="logoEscolher"${t}>${S.svg('baixar')}${v.logo ? 'Trocar logo' : 'Enviar logo'}</button>${v.logo ? `<button type="button" class="btn sm" data-act="logoRemover"${t}>Remover</button>` : ''}</div>
-      <div class="cores" role="radiogroup" aria-label="Cor da rádio"><span class="muted small">Cor</span>${[...new Set([cor, ...(v._cores || [])])].slice(0, 6).map(c => `<button type="button" class="cor${c === cor ? ' on' : ''}" style="background:${c}" data-act="logoCor" data-cor="${c}" role="radio" aria-checked="${c === cor}" aria-label="Cor ${c}" title="${c}"${t}></button>`).join('')}</div>
+      <div class="cores" role="radiogroup" aria-label="Cor do veículo"><span class="muted small">Cor</span>${[...new Set([cor, ...(v._cores || [])])].slice(0, 6).map(c => `<button type="button" class="cor${c === cor ? ' on' : ''}" style="background:${c}" data-act="logoCor" data-cor="${c}" role="radio" aria-checked="${c === cor}" aria-label="Cor ${c}" title="${c}"${t}></button>`).join('')}</div>
       <small class="aviso" id="logoAviso"></small></div>
     <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" id="logoArquivo" hidden>
     <input type="hidden" name="logo" value="${S.esc(v.logo || '')}"><input type="hidden" name="cor" value="${S.esc(cor)}"></div>`;

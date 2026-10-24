@@ -6,7 +6,7 @@
   const { esc, brl } = S;
   const VENDIDO = ['opec', 'aprovado', 'programado', 'faturado'];   // PI que saiu do comercial conta como venda
   const TTL = 120000;
-  const f = { per:'mes', q:'' };
+  const f = { per:'mes', q:'', cat:'' };
   let cache = null, buscando = false;
   const MES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -85,7 +85,7 @@
     const nomes = us.map(u => u.nome || u.email).join(', ');
     return `<span class="gv-avs" title="${esc(nomes)}"><span class="sr">Consultores: ${esc(nomes)}</span>${us.slice(0, 4).map(u => `<span aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span>`).join('')}${us.length > 4 ? `<span class="mais" aria-hidden="true">+${us.length - 4}</span>` : ''}</span>`;
   };
-  const tipo = v => ['Rádio', v.frequencia, v.cidade].filter(Boolean).map(esc).join(' · ');
+  const tipo = v => [S.categoria(v) === 'radio' ? v.frequencia : '', v.cidade].filter(Boolean).map(esc).join(' · ') || esc(S.nomeCategoria(S.categoria(v)));
   const barra = (v, tot) => `<span class="gv-barra" aria-hidden="true"><i style="width:${tot ? Math.max(v ? 2 : 0, v / tot * 100) : 0}%"></i></span>`;
   const pctTxt = (v, tot) => tot ? `${Math.round(v / tot * 100)}% do grupo` : '';
 
@@ -103,7 +103,11 @@
     const k3 = kpi('relatorio', 'A receber', curto(c.receber.v), `<div class="gk-rod">${c.receber.vencido ? `<span class="gk-var ruim">${curto(c.receber.vencido)} vencido</span>` : `<span class="gk-var bom">nada vencido</span>`}<small>${c.receber.parcelas} parcela${c.receber.parcelas === 1 ? '' : 's'} em aberto</small></div>`, spark(c.receber.serie, `A receber nos próximos 6 meses: ${serieTxt(c.receber.meses, c.receber.serie, curto)}`));
 
     const q = f.q.trim().toLowerCase();
-    const linhas = c.linhas.filter(l => !q || [l.v.nome, l.v.sigla, l.v.cidade, l.v.frequencia].join(' ').toLowerCase().includes(q))
+    // Abas por categoria: só as que têm veículo cadastrado (e só quando há mais de uma)
+    const cats = S.CATEGORIAS.map(([k, n]) => ({ k, n, qt:veiculos.filter(v => S.categoria(v) === k).length })).filter(x => x.qt);
+    if (f.cat && !cats.some(x => x.k === f.cat)) f.cat = '';
+    const abasCat = cats.length > 1 ? `<div class="seg gv-cats" role="group" aria-label="Categoria">${[{ k:'', n:'Todos', qt:veiculos.length }, ...cats].map(x => `<button class="${f.cat === x.k ? 'on' : ''}" data-act="geralCat" data-v="${x.k}" aria-pressed="${f.cat === x.k}">${esc(x.n)} <span class="muted">${x.qt}</span></button>`).join('')}</div>` : '';
+    const linhas = c.linhas.filter(l => (!f.cat || S.categoria(l.v) === f.cat) && (!q || [l.v.nome, l.v.sigla, l.v.cidade, l.v.frequencia, S.nomeCategoria(S.categoria(l.v))].join(' ').toLowerCase().includes(q)))
       .sort((a, b) => b.vendido - a.vendido || a.v.nome.localeCompare(b.v.nome));
     const abrir = l => `data-act="geralAbrir" data-id="${l.v.id}" aria-label="Abrir o Dashboard da ${esc(l.v.nome)}"`;
     const receberTxt = l => `<b>${brl(l.receber)}</b>${l.vencido ? `<small class="fin-laranja">${brl(l.vencido)} vencido</small>` : `<small class="muted">${l.receber ? 'nada vencido' : 'nada em aberto'}</small>`}`;
@@ -111,21 +115,22 @@
     const veic = l => `<span class="gv-v">${S.vav(l.v)}<span class="gv-tx"><b>${esc(l.v.nome)}</b><small>${tipo(l.v)}</small></span></span>`;
     let corpo;
     if (!veiculos.length) corpo = '<div class="empty"><b>Nenhum veículo cadastrado</b>Cadastre os veículos em Administração.</div>';
-    else if (!linhas.length) corpo = '<div class="empty"><b>Nenhum veículo encontrado</b>Nada com esse nome. Experimente outra busca.</div>';
+    else if (!linhas.length) corpo = '<div class="empty"><b>Nenhum veículo encontrado</b>Nada com esse filtro. Experimente outra busca ou categoria.</div>';
     else if (S.celular) corpo = `<div class="gv-cartoes">${linhas.map(l => `<div class="gv-cartao" ${abrir(l)}>
         <div class="gv-c-topo">${veic(l)}<span class="gv-seta" aria-hidden="true">${S.svg('seta')}</span></div>
-        <div class="gv-pills">${pills(l)}</div>
+        <div class="gv-pills"><span class="pill" style="--tone:var(--gray)">${esc(S.nomeCategoria(S.categoria(l.v)))}</span>${pills(l)}</div>
         <div class="gv-c-num"><div><small class="muted">Vendido no período</small>${vendidoTxt(l)}</div><div><small class="muted">A receber</small>${receberTxt(l)}</div></div>
         <div class="gv-c-rod"><small class="muted">Consultores</small>${consultores(l.v)}</div></div>`).join('')}</div>`;
-    else corpo = `<div class="gv-tab"><div class="gv-cab"><span>Veículo</span><span>Vendido no período</span><span>Situação</span><span>Consultores</span><span>A receber</span><span><span class="sr">Abrir</span></span></div>
-      ${linhas.map(l => `<div class="gv-lin" ${abrir(l)}>${veic(l)}<span class="gv-num">${vendidoTxt(l)}</span><span class="gv-pills">${pills(l)}</span>${consultores(l.v)}<span class="gv-num">${receberTxt(l)}</span><span class="gv-seta" aria-hidden="true">${S.svg('seta')}</span></div>`).join('')}</div>`;
+    else corpo = `<div class="gv-tab"><div class="gv-cab"><span>Veículo</span><span>Categoria</span><span>Vendido no período</span><span>Situação</span><span>Consultores</span><span>A receber</span><span><span class="sr">Abrir</span></span></div>
+      ${linhas.map(l => `<div class="gv-lin" ${abrir(l)}>${veic(l)}<span class="gv-catc"><span class="pill" style="--tone:var(--gray)">${esc(S.nomeCategoria(S.categoria(l.v)))}</span></span><span class="gv-num">${vendidoTxt(l)}</span><span class="gv-pills">${pills(l)}</span>${consultores(l.v)}<span class="gv-num">${receberTxt(l)}</span><span class="gv-seta" aria-hidden="true">${S.svg('seta')}</span></div>`).join('')}</div>`;
     const lista = `<section class="card gv"><div class="hd gv-hd"><h2>Veículos</h2><span class="muted small gv-at">atualizado às ${S.hora(cache.em)} · <a data-act="geralAtualizar">Atualizar</a></span>
-        <label class="fin-busca gv-busca">${S.svg('busca')}<input data-geral="q" value="${esc(f.q)}" placeholder="Buscar veículo" aria-label="Buscar veículo"></label></div>${corpo}</section>`;
+        <label class="fin-busca gv-busca">${S.svg('busca')}<input data-geral="q" value="${esc(f.q)}" placeholder="Buscar veículo" aria-label="Buscar veículo"></label></div>${abasCat}${corpo}</section>`;
     return Object.assign(topo, { body:`${intro}<div class="gk-grade">${k1}${k2}${k3}</div>${lista}` });
   };
 
   Object.assign(S.actions, {
     geralPer: d => { f.per = d.v; S.render(); },
+    geralCat: d => { f.cat = d.v; S.render(); },
     geralAtualizar: () => { S.carregarGeral(true).then(() => S.toast('Números atualizados')); },
     geralAbrir: d => S.abrirVeiculo(d.id)
   });

@@ -1699,3 +1699,18 @@ button.ad-chip { cursor:pointer; min-height:32px; } button.ad-chip:hover { backg
 .fin-quem .fin-email { display:flex; align-items:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fin-quem .fin-email svg { width:12px; height:12px; flex:none; fill:none; stroke:currentColor; stroke-width:2; }
 .fin-quem small.fin-laranja { color:var(--orange); }
+/* Categoria do veículo (24/10/2026) */
+.form-sec { grid-column:1/-1; font:600 12px/1 var(--font); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-2); margin:6px 0 -4px; }
+.cat-escolha { border:0; margin:0; padding:0; min-width:0; } .cat-escolha legend { padding:0; margin-bottom:10px; }
+.cat-ops { display:flex; flex-wrap:wrap; gap:8px; }
+.cat-op { position:relative; cursor:pointer; }
+.cat-op input { position:absolute; opacity:0; inset:0; margin:0; cursor:pointer; }
+.cat-op span { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:0 14px; border-radius:var(--radius-s); border:1px solid var(--line-2); background:var(--surface); font-size:14px; font-weight:600; color:var(--ink-2); transition:background .2s, border-color .2s, color .2s; }
+.cat-op span svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.cat-op input:checked + span { border-color:var(--accent); background:var(--accent-soft); color:var(--accent-text); box-shadow:inset 0 0 0 1px var(--accent); }
+.cat-op input:focus-visible + span { outline:2px solid var(--accent); outline-offset:2px; }
+.cat-op input:disabled + span { cursor:default; opacity:.85; } .cat-op input:disabled:not(:checked) + span { opacity:.5; }
+.adm-cat + .adm-cat { margin-top:16px; }
+.gv-cats { margin:0 0 12px; align-self:flex-start; flex-wrap:wrap; }
+.gv-cab, .gv-lin { grid-template-columns:minmax(200px, 2fr) 130px minmax(160px, 1.4fr) minmax(140px, 1.1fr) 120px minmax(130px, 1.1fr) 20px; }
+@media (max-width:1240px) { .gv-cab, .gv-lin { grid-template-columns:minmax(180px, 2fr) 120px minmax(150px, 1.4fr) minmax(130px, 1.1fr) minmax(120px, 1.1fr) 20px; } .gv-cab > span:nth-child(5) { display:none; } .gv-cab > span:nth-child(4) { display:block; } }

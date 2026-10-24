@@ -14,7 +14,7 @@
   const podeCuidar = u => !ehGer() || (u.id !== S.me.id && !u.diretor && !vinculosDe(u).some(x => x.perfil === 'gerente') && vinculosDe(u).some(x => ehMinha(x.veiculo_id)));
   const soNasMinhas = u => !ehGer() || (podeCuidar(u) && S.db.vinculos.filter(x => x.usuario_id === u.id).every(x => ehMinha(x.veiculo_id)));
   S.gerenteCadastra = () => !S.me.diretor && minhas().length > 0;
-  const acessoTexto = (u, sep = ' · ') => u.diretor ? 'Diretor · todas as rádios' : vinculosDe(u).map(x => `${esc(S.veh(x.veiculo_id).nome)}: ${S.PERFIS[x.perfil]}`).join(sep) || '<span class="muted">Nenhuma rádio</span>';
+  const acessoTexto = (u, sep = ' · ') => u.diretor ? 'Diretor · todos os veículos' : vinculosDe(u).map(x => `${esc(S.veh(x.veiculo_id).nome)}: ${S.PERFIS[x.perfil]}`).join(sep) || '<span class="muted">Nenhuma rádio</span>';
   // Último acesso em palavras (hoje às 14:05, ontem, há 3 dias, 12/09/2026)
   const ultimo = u => { if (!u.ultimo_acesso) return '<span class="muted">nunca</span>'; const d = new Date(u.ultimo_acesso), h = new Date(), dia = x => new Date(x.getFullYear(), x.getMonth(), x.getDate());
     const n = Math.round((dia(h) - dia(d)) / 864e5), hm = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
@@ -61,7 +61,7 @@
       { k:'nome', label:'Nome', req:true, ph:'Nome completo' },
       { k:'email', label:'E-mail (é com ele que a pessoa entra)', type:'email', req:true, ph:'nome@empresa.com.br' },
       { k:'celular', label:'Celular (WhatsApp)' },
-      ger ? { html:'<input type="hidden" name="funcao" value="radios">' } : { html:`<label class="f">Função<select name="funcao" data-funcao="1"${t}${trava ? ' disabled' : ''}><option value="radios"${dir ? '' : ' selected'}>Por veículo (consultor, OPEC…)</option><option value="diretor"${dir ? ' selected' : ''}>Diretor · todas as rádios</option></select>${trava ? '<input type="hidden" name="funcao" value="diretor"><small class="muted">Você é o único diretor ativo. Para mudar a sua função, cadastre outro diretor antes.</small>' : eu && dir ? '<small class="muted">Se deixar de ser diretor, você perde o acesso a Administração.</small>' : ''}</label>` },
+      ger ? { html:'<input type="hidden" name="funcao" value="radios">' } : { html:`<label class="f">Função<select name="funcao" data-funcao="1"${t}${trava ? ' disabled' : ''}><option value="radios"${dir ? '' : ' selected'}>Por veículo (consultor, OPEC…)</option><option value="diretor"${dir ? ' selected' : ''}>Diretor · todos os veículos</option></select>${trava ? '<input type="hidden" name="funcao" value="diretor"><small class="muted">Você é o único diretor ativo. Para mudar a sua função, cadastre outro diretor antes.</small>' : eu && dir ? '<small class="muted">Se deixar de ser diretor, você perde o acesso a Administração.</small>' : ''}</label>` },
       { html:radios }],
       valores || u, f => salvarUsuario(u, f), novo ? 'Cadastrar e gerar link' : 'Salvar', { editar });
     // Quem o gerente não pode cuidar (diretor, outro gerente, ele mesmo) abre só para consulta
@@ -88,7 +88,11 @@
     const seg = ehGer() ? '' : `<div class="seg">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
     let body;
     if (aba === 'veiculos') {
-      body = `<div class="card">${S.db.veiculos.length ? `<div class="scroll"><table><thead><tr><th>Rádio</th><th>Sigla do PI</th><th>CNPJ</th><th>Frequência</th><th>Cidade</th><th class="r">PIs emitidos</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${S.db.veiculos.map(v => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td><td>${esc(v.frequencia)}</td><td>${esc(v.cidade)}</td><td class="r">${v.pi_seq}</td><td class="r"><span class="row mid" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-act="admPropostas" data-id="${v.id}">${S.svg('propostas')}Propostas e PI</button><button class="btn sm" data-act="admTextosPI" data-id="${v.id}">${S.svg('pis')}Textos do PI</button><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button></span></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty"><b>Cadastre a primeira rádio</b>Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div>'}</div>`;
+      // Agrupados por categoria (rádio, painel de LED, outdoor…); cada cartão só aparece se tiver veículo
+      const linha = (v, radio) => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div style="display:flex;align-items:center;gap:12px">${S.vav(v)}<div><b>${esc(v.nome)}</b><div class="muted small">${esc(v.razao_social)}</div></div></div></td><td>${esc(v.sigla)}</td><td>${esc(v.cnpj)}</td>${radio ? `<td>${esc(v.frequencia)}</td>` : ''}<td>${esc(v.cidade)}</td><td class="r">${v.pi_seq || 0}</td><td class="r"><span class="row mid" style="gap:6px;justify-content:flex-end;flex-wrap:nowrap"><button class="btn sm" data-act="admPropostas" data-id="${v.id}">${S.svg('propostas')}Propostas e PI</button><button class="btn sm" data-act="admTextosPI" data-id="${v.id}">${S.svg('pis')}Textos do PI</button><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button></span></td></tr>`;
+      const grupos = S.CATEGORIAS.map(([k, n]) => ({ k, n, vs:S.db.veiculos.filter(v => S.categoria(v) === k) })).filter(g => g.vs.length);
+      body = grupos.length ? grupos.map(g => `<section class="card adm-cat"><div class="hd"><h2>${esc(g.n)}</h2><span>${g.vs.length} veículo${g.vs.length === 1 ? '' : 's'}</span></div><div class="scroll"><table><thead><tr><th>Veículo</th><th>Sigla do PI</th><th>CNPJ</th>${g.k === 'radio' ? '<th>Frequência</th>' : ''}<th>${g.k === 'radio' ? 'Cidade' : 'Praça'}</th><th class="r">PIs emitidos</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${g.vs.map(v => linha(v, g.k === 'radio')).join('')}</tbody></table></div></section>`).join('')
+        : '<div class="card"><div class="empty"><b>Cadastre o primeiro veículo</b>Rádio, painel de LED, outdoor, front light ou bus door. Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div></div>';
     } else if (aba === 'empresa') {
       const e = S.db.empresa || {}, curto = String(e.nome || 'Empresa comercial').split('·')[0].trim(), n = S.db.veiculos.length;
       const kv = (k, val) => `<div><small>${k}</small><span>${val ? esc(val) : '<span class="muted">—</span>'}</span></div>`;
@@ -129,17 +133,35 @@
     return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'empresa' ? '' : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:seg + body };
   };
 
+  // Categoria do veículo no formulário: Frequência e Rede afiliada só aparecem para rádio
+  const ICONE_CAT = { radio:'music', led:'paineis', outdoor:'imagem', frontlight:'imagem', busdoor:'rota' };
+  const campoCategoria = (v, travado) => `<fieldset class="cat-escolha" style="grid-column:1/-1"><legend class="form-sec">Categoria</legend><div class="cat-ops">${S.CATEGORIAS.map(([k, n]) =>
+    `<label class="cat-op"><input type="radio" name="categoria" value="${k}"${S.categoria(v) === k ? ' checked' : ''}${travado ? ' disabled data-trava="1"' : ''}><span>${S.svg(ICONE_CAT[k] || 'imagem')}${n}</span></label>`).join('')}</div></fieldset>`;
+  const ajustarCategoria = () => { const f = document.querySelector('#dlg form'); if (!f || !f.querySelector('[name=categoria]')) return;
+    const cat = (f.querySelector('[name=categoria]:checked') || {}).value || 'radio', radio = cat === 'radio';
+    ['frequencia', 'rede_afiliada'].forEach(k => { const el = f.elements[k]; if (el) el.closest('label').hidden = !radio; });
+    const cid = f.elements.cidade; if (cid) { const lb = cid.closest('label'); lb.firstChild.textContent = radio ? 'Cidade / praça' : 'Praça / cidade de atuação'; cid.placeholder = radio ? 'Ex.: Cuiabá / MT' : 'Ex.: Cuiabá e Várzea Grande / MT'; }
+    const sg = f.elements.sigla; if (sg) sg.placeholder = { radio:'Ex.: VERDE', led:'Ex.: LEDCPA', outdoor:'Ex.: OUTH14', frontlight:'Ex.: FLCENTRO', busdoor:'Ex.: BUSCBA' }[cat];
+    const nm = f.elements.nome; if (nm) nm.placeholder = { radio:'Ex.: Rádio Verde', led:'Ex.: LED Av. do CPA', outdoor:'Ex.: Outdoor Head 14', frontlight:'Ex.: Front light Centro', busdoor:'Ex.: Bus door Cuiabá' }[cat];
+    f.onchange = e => { if (e.target.name === 'categoria') ajustarCategoria(); }; };
+
   Object.assign(S.actions, {
     admAba: d => { aba = d.tab; S.render(); },
     admVeiculo: d => { const v = d.id ? S.veh(d.id) : {};
       S.form(v.id ? esc(v.nome) : 'Novo veículo', [
+        { html:campoCategoria(v, !!v.id && !d.editar) },
+        { html:'<b class="form-sec">Veículo</b>' },
         { html:S.campoLogo(v, !!v.id && !d.editar) },
-        { k:'nome', label:'Nome da rádio', req:true, ph:'Ex.: Rádio Verde' }, { k:'sigla', label:'Sigla do PI', req:true, ph:'Ex.: VERDE' },
-        { k:'razao_social', label:'Razão social' }, { k:'cnpj', label:'CNPJ' }, { k:'inscricao_estadual', label:'Inscrição estadual' }, { k:'frequencia', label:'Frequência' },
-        { k:'rede_afiliada', label:'Rede afiliada' }, { k:'cep', label:'CEP' }, { k:'endereco', label:'Endereço', full:true },
-        { k:'cidade', label:'Cidade / UF' }, { k:'telefone', label:'Telefone' }, { k:'email', label:'E-mail', type:'email' }, { k:'opec_email', label:'E-mail da OPEC (recebe os PIs)', type:'email', ph:'opec@suaradio.com.br' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
-        f => S.run(async () => { const row = Object.assign({}, f, { sigla:f.sigla.toUpperCase().trim(), logo:f.logo || null, cor:(f.cor || S.COR_PADRAO).toLowerCase() }); if (v.id) row.id = v.id;
-          const novo = await S.salvar('veiculos', row); if (!v.id) { S.ui.vehicleId = novo.id; S.guardarRadio(novo.id); await S.carregarVeiculo(); } }, 'Veículo salvo'), 'Salvar', { editar:!!d.editar }); },
+        { k:'nome', label:'Nome do veículo', req:true, ph:'Ex.: Rádio Verde' }, { k:'sigla', label:'Sigla do PI', req:true, ph:'Ex.: VERDE' },
+        { k:'frequencia', label:'Frequência', ph:'Ex.: 101,9 FM' }, { k:'rede_afiliada', label:'Rede afiliada', ph:'Ex.: CBN, Jovem Pan' },
+        { k:'cidade', label:'Cidade / praça', full:true, ph:'Ex.: Cuiabá / MT' },
+        { html:'<b class="form-sec">Quem fatura</b>' },
+        { k:'razao_social', label:'Razão social', ph:'Como consta no CNPJ' }, { k:'cnpj', label:'CNPJ' }, { k:'inscricao_estadual', label:'Inscrição estadual' }, { k:'cep', label:'CEP' },
+        { k:'endereco', label:'Endereço', full:true }, { k:'telefone', label:'Telefone' }, { k:'email', label:'E-mail', type:'email' },
+        { k:'opec_email', label:'E-mail da OPEC (recebe os PIs)', type:'email', full:true, ph:'opec@empresa.com.br' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
+        f => S.run(async () => { const cat = f.categoria || S.categoria(v), row = Object.assign({}, f, { categoria:cat, sigla:f.sigla.toUpperCase().trim(), logo:f.logo || null, cor:(f.cor || S.COR_PADRAO).toLowerCase() });
+          if (cat !== 'radio') { row.frequencia = ''; row.rede_afiliada = ''; } if (v.id) row.id = v.id;
+          const novo = await S.salvar('veiculos', row); if (!v.id) { S.ui.vehicleId = novo.id; S.guardarRadio(novo.id); await S.carregarVeiculo(); } }, 'Veículo salvo'), 'Salvar', { editar:!!d.editar }); ajustarCategoria(); },
     // Textos que saem no PI impresso desta rádio: papel, cidade, condição de pagamento e condições gerais
     admTextosPI: d => { const v = S.veh(d.id);
       S.form(`Textos do PI · ${esc(v.nome)}`, [
