@@ -1,7 +1,9 @@
 // SONVI · função de borda "email": o próprio sistema envia e-mails pelo Resend (domínio sonvi.com.br verificado).
 // A chave do Resend fica só no servidor (segredo RESEND_API_KEY no Supabase); nunca vai para o navegador.
 // Só envia sobre um PI ou uma proposta que a pessoa logada consegue ver (as regras do banco valem: RLS).
-//   { tipo: "pi_opec", id, para, assunto, texto }     → remetente "<rádio> · SONVI" <pi@sonvi.com.br>; se quem envia é consultor, os gerentes da rádio vão em cópia
+//   { tipo: "pi_opec", id, para, assunto, texto }     → remetente "<rádio> · SONVI" <pi@sonvi.com.br>; se quem envia é consultor, os gerentes da rádio vão em cópia.
+//                                                        Leva junto as mídias do PI (versão 5, 25/10/2026): os arquivos do armazenamento "midias" como
+//                                                        link para baixar (válido por 30 dias) e os links cadastrados (pi_links: WeTransfer, Google Drive…).
 //   { tipo: "proposta", id, para, assunto, texto }    → remetente "<empresa comercial>" <propostas@sonvi.com.br>
 //   { tipo: "cobranca", id, para, assunto, texto }    → parcela a receber (só diretor e financeiro a enxergam); remetente "<rádio> · Financeiro" <financeiro@sonvi.com.br>
 // A resposta do destinatário vai para o e-mail de quem enviou (reply_to).
@@ -38,10 +40,25 @@ Deno.serve(async (req) => {
 
     // O registro precisa existir e estar visível para quem envia (as regras do banco decidem)
     let remetente = '', link = '', copia: string[] = [];
+    let midias: { nome: string; url: string; info: string; arquivo: boolean }[] = [];
     if (b.tipo === 'pi_opec') {
       const { data: pi } = await quem.from('pis').select('id, link_token, veiculo_id, veiculos(nome)').eq('id', String(b.id ?? '')).maybeSingle();
       if (!pi) return resposta({ erro: 'PI não encontrado ou sem permissão.' }, 404);
       remetente = `${nomeLimpo((pi as any).veiculos?.nome || 'Rádio')} · SONVI <pi@sonvi.com.br>`;
+      // Mídias do PI: arquivos (link assinado de 30 dias, gerado com a chave do servidor) e links cadastrados (lidos com as regras de quem envia)
+      const admM = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
+      const pasta = `${(pi as any).veiculo_id}/${(pi as any).id}`;
+      const { data: arqs } = await admM.storage.from('midias').list(pasta, { sortBy: { column: 'created_at', order: 'asc' } });
+      const validos = (arqs || []).filter((f: any) => f.id && f.name);
+      if (validos.length) {
+        const { data: ass } = await admM.storage.from('midias').createSignedUrls(validos.map((f: any) => `${pasta}/${f.name}`), 60 * 60 * 24 * 30);
+        validos.forEach((f: any, i: number) => { const u = (ass || [])[i]?.signedUrl; if (!u) return;
+          const t = Number(f.metadata?.size || 0), tam = t > 1048576 ? `${(t / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(t / 1024))} KB`;
+          midias.push({ nome: String(f.name).replace(/^\d+_/, ''), url: u.startsWith('http') ? u : `${url}/storage/v1${u}`, info: tam, arquivo: true }); });
+      }
+      const { data: links } = await quem.from('pi_links').select('url, titulo').eq('pi_id', (pi as any).id).order('criado_em');
+      (links || []).forEach((l: any) => { let host = ''; try { host = new URL(l.url).hostname.replace(/^www\./, ''); } catch { /* link estranho */ }
+        midias.push({ nome: String(l.titulo || host || 'Link'), url: String(l.url), info: host, arquivo: false }); });
       // Consultor que manda o PI para a OPEC: os gerentes da rádio recebem cópia (precisam saber que foi enviado)
       const adm = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
       const { data: vs } = await adm.from('usuario_veiculos').select('usuario_id, perfil').eq('veiculo_id', (pi as any).veiculo_id);
@@ -65,18 +82,24 @@ Deno.serve(async (req) => {
     const responder = eu?.email || user.email || '';
     // Corpo em HTML simples: o texto como foi escrito, com os links clicáveis
     link = (texto.match(/https?:\/\/\S+/) || [''])[0];
+    const textoFinal = midias.length ? `${texto}\n\nMídias do PI (${midias.length}):\n${midias.map(m => `- ${m.nome}${m.info ? ` (${m.info})` : ''}: ${m.url}`).join('\n')}${midias.some(m => m.arquivo) ? '\nOs links dos arquivos valem por 30 dias.' : ''}` : texto;
+    const blocoMidias = midias.length ? `<div style="margin:24px 0 0;border:1px solid #e3e6ec;border-radius:12px;padding:14px 16px">
+      <div style="font-weight:600;margin-bottom:8px">Mídias do PI (${midias.length})</div>
+      ${midias.map(m => `<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid #eef0f4"><span>${esc(m.nome)}<br><span style="color:#6b6b74;font-size:13px">${m.arquivo ? 'Arquivo' : 'Link'}${m.info ? ` · ${esc(m.info)}` : ''}</span></span><a href="${esc(m.url)}" style="color:#0047d6;font-weight:600;white-space:nowrap;align-self:center">${m.arquivo ? 'Baixar' : 'Abrir'}</a></div>`).join('')}
+      ${midias.some(m => m.arquivo) ? '<div style="color:#6b6b74;font-size:12px;margin-top:6px">Os links dos arquivos valem por 30 dias.</div>' : ''}</div>` : '';
     const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:560px">
       ${esc(texto).replace(/https?:\/\/\S+/g, u => `<a href="${u}" style="color:#0047d6">${u}</a>`).replace(/\n/g, '<br>')}
+      ${blocoMidias}
       ${link ? `<p style="margin:28px 0"><a href="${esc(link)}" style="display:inline-block;background:#0055ff;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px">${b.tipo === 'pi_opec' ? 'Abrir o PI' : 'Ver a proposta'}</a></p>` : ''}
       <p style="color:#6b6b74;font-size:12px;margin-top:28px">Enviado pelo SONVI${eu?.nome ? ` por ${esc(eu.nome)}` : ''}. Para responder, é só responder este e-mail.</p></div>`;
 
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: remetente, to: para, ...(copia.length ? { cc: copia } : {}), subject: assunto, text: texto, html, ...(emailOk(responder) ? { reply_to: responder } : {}) }),
+      body: JSON.stringify({ from: remetente, to: para, ...(copia.length ? { cc: copia } : {}), subject: assunto, text: textoFinal, html, ...(emailOk(responder) ? { reply_to: responder } : {}) }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return resposta({ erro: `O serviço de e-mail recusou: ${j?.message || r.status}` }, 502);
-    return resposta({ ok: true, id: j.id, gerentes: copia.length });
+    return resposta({ ok: true, id: j.id, gerentes: copia.length, midias: midias.length });
   } catch (e) {
     console.error(e);
     return resposta({ erro: (e as Error).message ?? String(e) }, 500);

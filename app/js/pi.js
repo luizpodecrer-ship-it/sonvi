@@ -183,7 +183,7 @@
     const notas = `${devol && devol.nota ? `<div class="note"><b>Devolvido pela OPEC:</b> ${esc(devol.nota)}</div>` : ''}
       ${!editavel(pi) && S.EDITABLE.includes(pi.status) ? '<div class="note info">Este PI é de outro consultor ou o seu perfil só pode consultar.</div>' : ''}
       ${!S.EDITABLE.includes(pi.status) && pi.status !== 'cancelado' ? '<div class="note info">Este PI já saiu do rascunho: está somente para consulta.</div>' : ''}`;
-    const nMid = (S.db.midias[pi.id] || []).length;
+    const nMid = nMidias(pi);
     const abas = `<nav class="abas" aria-label="Abas do PI">${[['detalhes', 'Detalhes'], ['faturamento', 'Faturamento'], ['midias', `Mídias${nMid ? ` <span class="cont">${nMid}</span>` : ''}`], ['historico', 'Histórico']].map(([t, n]) => `<button class="${S.ui.tab === t ? 'on' : ''}" data-act="piTab" data-tab="${t}">${n}</button>`).join('')}</nav>`;
     const body = S.ui.tab === 'faturamento' ? tabBilling(pi, c, em ? '' : ' disabled') : S.ui.tab === 'historico' ? tabHistory(pi) : S.ui.tab === 'midias' ? tabMidias(pi, em) : tabDetails(pi, c, em);
     const titulo = em ? `<input class="titulo-in" value="${esc(pi.titulo)}" placeholder="Título do PI" data-f="titulo" aria-label="Título do PI">` : (esc(pi.titulo) || 'Novo pedido');
@@ -375,25 +375,57 @@
   // ---------- aba Mídias: arquivos do PI (áudios, textos, autorizações) ----------
   const BUCKET = 'midias';
   const pasta = pi => `${pi.veiculo_id}/${pi.id}`;
+  const LINKS = {};   // links das mídias por PI
+  const nMidias = pi => (S.db.midias[pi.id] || []).length + (LINKS[pi.id] || []).length;
   async function carregarMidias(pi) {
     S.db.midias[pi.id] = [];
     try {
       const { data, error } = await S.sb.storage.from(BUCKET).list(pasta(pi), { sortBy:{ column:'created_at', order:'desc' } });
       if (error) throw error;
       S.db.midias[pi.id] = (data || []).filter(f => f.name && f.id);
+      // Links (arquivos maiores, WeTransfer, Google Drive…; database/047)
+      const { data:ls } = await S.sb.from('pi_links').select('*').eq('pi_id', pi.id).order('criado_em', { ascending:false });
+      LINKS[pi.id] = ls || [];
       if (cur() === pi && !ed.sujo) S.render();
     } catch (e) { console.error(e); }
   }
   const tamanho = b => b > 1048576 ? (b / 1048576).toLocaleString('pt-BR', { maximumFractionDigits:1 }) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
   const nomeArq = n => n.replace(/^\d+_/, '');
+  // Mídias do PI (25/10/2026): arquivo direto (até 50 MB) ou link (WeTransfer, Google Drive… para os maiores).
+  // Tudo vai no e-mail para a OPEC: arquivos como link para baixar (30 dias) e os links como estão.
+  const hostDe = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
   function tabMidias(pi, em) {
-    const lista = S.db.midias[pi.id] || [], pode = comercial(pi) || S.pode('opec');
-    return `<section class="card"><div class="hd"><h2>Mídias do PI</h2><span>áudios dos spots, textos de testemunhal, autorizações</span></div>
-      ${pode ? `<label class="drop"><input type="file" multiple data-act-file="piUpload" hidden><b>Clique para enviar arquivos</b><span>ou arraste aqui · até 50 MB por arquivo</span></label>` : ''}
-      ${lista.length ? `<div class="list">${lista.map(f => `<div><span class="ic">${S.svg('doc')}</span><span class="tx"><b>${esc(nomeArq(f.name))}</b><small>${tamanho((f.metadata || {}).size || 0)} · ${dfmt(S.dia(f.created_at))}</small></span>
-        <span class="row mid" style="gap:6px"><button class="btn sm" data-act="piBaixar" data-nome="${esc(f.name)}">${S.svg('baixar')}Baixar</button>${pode ? `<button class="x" data-act="piRmMidia" data-nome="${esc(f.name)}" aria-label="Excluir arquivo">×</button>` : ''}</span></div>`).join('')}</div>`
-        : '<p class="muted" style="margin-top:14px">Nenhum arquivo enviado ainda.</p>'}</section>`;
+    const arqs = S.db.midias[pi.id] || [], links = LINKS[pi.id] || [], pode = comercial(pi) || S.pode('opec'), v = S.veh(pi.veiculo_id) || {};
+    const itens = [...arqs.map(f => ({ t:new Date(f.created_at).getTime(), html:`<div class="md-i"><span class="md-ic">${S.svg('doc')}</span><span class="tx"><b title="${esc(nomeArq(f.name))}">${esc(nomeArq(f.name))}</b><small>Arquivo · ${tamanho((f.metadata || {}).size || 0)} · ${dfmt(S.dia(f.created_at))}</small></span>
+        <span class="md-ac"><button class="btn sm" data-act="piBaixar" data-nome="${esc(f.name)}">${S.svg('baixar')}Baixar</button>${pode ? `<button class="btn tres" data-act="piRmMidia" data-nome="${esc(f.name)}" aria-label="Excluir ${esc(nomeArq(f.name))}">${S.svg('lixo')}</button>` : ''}</span></div>` })),
+      ...links.map(l => ({ t:new Date(l.criado_em).getTime(), html:`<div class="md-i"><span class="md-ic link">${S.svg('link')}</span><span class="tx"><b title="${esc(l.titulo || l.url)}">${esc(l.titulo || hostDe(l.url) || 'Link')}</b><small>Link · ${esc(hostDe(l.url))} · ${dfmt(S.dia(l.criado_em))}</small></span>
+        <span class="md-ac"><a class="btn sm" href="${esc(l.url)}" target="_blank" rel="noopener">${S.svg('abrir')}Abrir<span class="sr"> (em outra aba)</span></a>${pode ? `<button class="btn tres" data-act="piRmLink" data-id="${l.id}" aria-label="Excluir o link ${esc(l.titulo || hostDe(l.url))}">${S.svg('lixo')}</button>` : ''}</span></div>` }))].sort((a, b) => b.t - a.t);
+    const add = pode ? `<div class="md-add">
+        <label class="drop md-drop"><input type="file" multiple data-act-file="piUpload" hidden>${S.svg('subir')}<b>Enviar arquivo</b><span>Clique ou arraste aqui · até 50 MB por arquivo</span></label>
+        <form class="md-link" data-md-link novalidate><b>${S.svg('link')}Adicionar link</b><span class="muted small">Para arquivos maiores: WeTransfer, Google Drive, Dropbox…</span>
+          <label class="f"><span class="sr">Endereço do link</span><input name="url" type="url" inputmode="url" placeholder="https://…" autocomplete="off" required></label>
+          <div class="md-link-l"><label class="f"><span class="sr">Descrição</span><input name="titulo" placeholder="Descrição (ex.: VT 30&quot; em alta)" maxlength="200" autocomplete="off"></label><button class="btn pri" type="submit">Adicionar</button></div></form></div>` : '';
+    return `<section class="card md-card"><div class="hd"><h2>Mídias do PI</h2><span>áudios dos spots, textos de testemunhal, autorizações</span></div>
+      ${add}
+      ${itens.length ? `<div class="md-lista">${itens.map(x => x.html).join('')}</div>` : '<p class="muted" style="margin:14px 0 0">Nenhuma mídia ainda.</p>'}
+      <p class="md-nota">${S.svg('email')}<span>Os arquivos e links vão junto no e-mail para a OPEC${v.opec_email ? ` (${esc(v.opec_email)})` : ''}: os arquivos como link para baixar, válido por 30 dias.</span></p></section>`;
   }
+  // Mídia nova num PI que já está com a OPEC: oferece avisar a OPEC por e-mail (o SONVI manda a lista de todas as mídias)
+  const ofereceAvisar = pi => { const v = S.veh(pi.veiculo_id) || {};
+    if (['rascunho', 'devolvido'].includes(pi.status) || !v.opec_email) return;
+    S.toast('Mídia adicionada. A OPEC já tem este PI.', { acao:'Avisar a OPEC', fn:() => avisarOpec(pi) }); };
+  const avisarOpec = pi => { const v = S.veh(pi.veiculo_id) || {}, assunto = `${S.piNo(pi)} · mídias para a OPEC`;
+    const texto = [`Olá, OPEC!`, '', `Foram adicionadas mídias ao ${S.piNo(pi)} · ${pi.titulo}.`, pi.link_token ? '' : null, pi.link_token ? 'Ver o PI:' : null, pi.link_token ? linkPi(pi.link_token) : null, '', S.me.nome || S.me.email, v.nome].filter(l => l !== null).join('\n');
+    S.toast('Enviando as mídias para a OPEC…');
+    S.enviarEmail({ tipo:'pi_opec', id:pi.id, para:v.opec_email, assunto, texto }).then(r => S.toast(`Mídias enviadas para a OPEC (${v.opec_email})${r && r.midias ? ` · ${r.midias} ${r.midias === 1 ? 'item' : 'itens'}` : ''}`))
+      .catch(err => S.emailManual(v.opec_email, assunto, texto, `O e-mail não foi: ${err.message}`)); };
+  document.addEventListener('submit', e => { if (!e.target.matches('[data-md-link]')) return; e.preventDefault();
+    const f = e.target, pi = cur(); if (!pi) return; let url = f.url.value.trim();
+    if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+    if (!/^https?:\/\/[^\s.]+\.[^\s]+$/i.test(url)) { f.url.setCustomValidity('Cole o endereço completo do link (ex.: https://we.tl/…).'); f.url.reportValidity(); f.url.addEventListener('input', () => f.url.setCustomValidity(''), { once:true }); return; }
+    const bt = f.querySelector('button'); bt.disabled = true;
+    S.run(async () => { await S.q(S.sb.from('pi_links').insert({ pi_id:pi.id, veiculo_id:pi.veiculo_id, url, titulo:f.titulo.value.trim() })); await carregarMidias(pi); ofereceAvisar(pi); }, null)
+      .finally(() => { bt.disabled = false; }); });
   async function enviarArquivos(pi, files) {
     if (!files || !files.length) return;
     S.toast(`Enviando ${files.length} ${files.length === 1 ? 'arquivo' : 'arquivos'}…`);
@@ -404,7 +436,7 @@
         const { error } = await S.sb.storage.from(BUCKET).upload(`${pasta(pi)}/${Date.now()}_${limpo}`, f, { upsert:false, contentType:f.type || undefined });
         if (error) throw error;
       }
-      await carregarMidias(pi); S.toast('Arquivos enviados'); S.render();
+      await carregarMidias(pi); S.toast('Arquivos enviados'); S.render(); ofereceAvisar(pi);
     } catch (e) { console.error(e); S.toast(S.erro(e)); }
   }
   document.addEventListener('change', e => { if (e.target.dataset && e.target.dataset.actFile === 'piUpload') { const pi = cur(); if (pi) enviarArquivos(pi, [...e.target.files]); } });
@@ -435,6 +467,9 @@
     piAbrirItem: d => { S.ui.piItem = Object.assign({}, S.ui.piItem, { [d.g]:d.id }); S.render(); },
     piVerResumo: () => { const s = document.getElementById('sum'); if (s) s.scrollIntoView({ behavior:'smooth', block:'start' }); },
     piBaixar: async d => { const pi = cur(); try { const { data, error } = await S.sb.storage.from(BUCKET).createSignedUrl(`${pasta(pi)}/${d.nome}`, 120, { download:nomeArq(d.nome) }); if (error) throw error; window.open(data.signedUrl, '_blank', 'noopener'); } catch (e) { S.toast(S.erro(e)); } },
+    piRmLink: async d => { const pi = cur(), l = (LINKS[pi.id] || []).find(x => x.id === d.id); if (!l) return;
+      if (!await S.confirmar(`Excluir o link "${l.titulo || hostDe(l.url)}"?`, { ok:'Excluir link', perigo:true })) return;
+      S.run(async () => { await S.q(S.sb.from('pi_links').delete().eq('id', l.id)); await carregarMidias(pi); }, 'Link excluído'); },
     piRmMidia: async d => { const pi = cur(); if (!await S.confirmar(`Excluir o arquivo "${nomeArq(d.nome)}"?`, { ok:'Excluir arquivo', perigo:true })) return;
       S.run(async () => { const { error } = await S.sb.storage.from(BUCKET).remove([`${pasta(pi)}/${d.nome}`]); if (error) throw error; await carregarMidias(pi); }, 'Arquivo excluído'); },
     // Novo PI: o cliente pode ser escolhido da lista ou cadastrado ali mesmo, sem sair da tela
@@ -565,6 +600,7 @@
       <label class="f">E-mail da OPEC<input name="email" type="email" autocomplete="off" value="${esc(v.opec_email || '')}" placeholder="opec@suaradio.com.br"></label>
       ${!v.opec_email ? (S.pode('diretor') ? `<label class="row mid" style="gap:10px;margin-top:-6px;font-size:14px;color:var(--ink-2);flex-wrap:nowrap"><input type="checkbox" name="guardar" checked>Guardar como o e-mail da OPEC da ${esc(v.nome)}</label>` : '<p class="muted small" style="margin-top:-8px">Peça ao diretor para cadastrar o e-mail da OPEC em Administração → Veículos; aí ele já vem preenchido.</p>') : ''}
       <label class="f">Mensagem<textarea name="msg" class="pr-msg">${esc(msg)}</textarea></label>
+      ${nMidias(pi) ? `<p class="muted small" style="margin:-4px 0 0">${S.svg('doc', 14)} Vão junto no e-mail: ${[(S.db.midias[pi.id] || []).length ? `${(S.db.midias[pi.id] || []).length} arquivo${(S.db.midias[pi.id] || []).length === 1 ? '' : 's'} (link para baixar, 30 dias)` : '', (LINKS[pi.id] || []).length ? `${(LINKS[pi.id] || []).length} link${(LINKS[pi.id] || []).length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' e ')} da aba Mídias.</p>` : ''}
       <div class="row mid" style="flex-wrap:wrap"><button type="button" class="btn" data-opec="pdf">${S.svg('baixar')}Baixar PDF</button><span class="grow"></span>
         <button class="btn" value="cancel" formnovalidate>Cancelar</button><button type="button" class="btn pri" data-opec="enviar">${S.svg('seta')}Enviar por e-mail</button></div>`);
     const dl = document.getElementById('dlg'), f = dl.querySelector('form'); dl.dataset.guarda = '1';

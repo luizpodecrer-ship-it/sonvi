@@ -3018,3 +3018,23 @@ dialog.em-dlg [hidden] { display:none !important; }
 /* OPEC: a coluna de ações cabe nos botões (sem sair do cartão); textos das colunas cortam com reticências */
 .oe-l > span { min-width:0; } .oe-l .oe-c-cons, .oe-l .oe-c-per { overflow:hidden; text-overflow:ellipsis; }
 .oe-l .lin-acoes { display:flex; gap:6px; flex-wrap:nowrap; }
+/* Mídias do PI (25/10/2026): arquivo direto ou link, lista única e aviso do e-mail para a OPEC */
+.md-add { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; margin-top:4px; }
+.md-drop { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; text-align:center; min-height:150px; margin:0; }
+.md-drop svg { width:22px; height:22px; color:var(--accent); }
+.md-link { border:1px solid var(--line); border-radius:var(--radius-m); padding:16px; display:flex; flex-direction:column; gap:8px; justify-content:center; }
+.md-link > b { display:flex; align-items:center; gap:8px; font-weight:600; } .md-link > b svg { width:18px; height:18px; color:var(--accent); }
+.md-link .f { margin:0; } .md-link input { width:100%; }
+.md-link-l { display:flex; gap:8px; } .md-link-l .f { flex:1; min-width:0; } .md-link-l .btn { flex:none; height:auto; }
+.md-lista { display:grid; margin-top:16px; }
+.md-i { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; padding:12px 2px; border-top:1px solid var(--line); }
+.md-ic { width:36px; height:36px; border-radius:var(--radius-s); background:var(--fill); display:grid; place-items:center; color:var(--ink-2); }
+.md-ic svg { width:18px; height:18px; } .md-ic.link { background:var(--accent-soft); color:var(--accent-text); }
+.md-i .tx { display:flex; flex-direction:column; min-width:0; } .md-i .tx b { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .md-i .tx small { color:var(--ink-3); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.md-ac { display:flex; gap:6px; align-items:center; }
+.md-nota { display:flex; gap:8px; align-items:flex-start; margin:16px 0 0; padding-top:14px; border-top:1px solid var(--line); color:var(--ink-2); font-size:13px; }
+.md-nota svg { width:16px; height:16px; flex:none; margin-top:2px; }
+@media (max-width:760px) { .md-add { grid-template-columns:1fr; } .md-drop { min-height:110px; } .md-i { grid-template-columns:auto minmax(0,1fr); } .md-ac { grid-column:1 / -1; justify-content:flex-end; } }
+.md-card svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.md-ac .btn.tres svg { width:16px; height:16px; }
+.md-card .md-ac .btn.tres svg { fill:none; stroke:currentColor; }
