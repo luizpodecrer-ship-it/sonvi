@@ -48,21 +48,31 @@
   const diasAte = d => Math.round((new Date(d) - new Date(S.today())) / 864e5);
   const comparar = (tab, preco, id) => `<span class="cb-cmp"><span class="cb-cmp-l"><span>Tabela</span><span class="cb-tr"><i style="width:100%"></i></span><b>${brl(tab)}</b></span>
     <span class="cb-cmp-l preco"><span>Combo</span><span class="cb-tr"><i${id ? ` id="${id}"` : ''} style="width:${tab ? Math.min(100, preco / tab * 100) : 0}%"></i></span><b${id ? ` id="${id}P"` : ''}>${brl(preco)}</b></span></span>`;
-  const cartao = c => { const tab = tabelaDe(c.itens), on = ce && ce.id === c.id, pv = porVeic(c.itens), d = pct(c.preco, tab), venc = c.vale_ate && c.vale_ate < S.today();
-    const ini = S.dia(c.criado_em || c.atualizado_em || S.today()), total = c.vale_ate ? Math.max(1, Math.round((new Date(c.vale_ate) - new Date(ini)) / 864e5)) : 0, falta = c.vale_ate ? diasAte(c.vale_ate) : 0;
-    return `<button type="button" class="card cb-card${on ? ' on' : ''}${c.ativo ? '' : ' inativo'}" data-act="cbAbrir" data-id="${c.id}" aria-pressed="${on}">
-      <span class="cb-cab"><b>${esc(c.nome)}</b><span class="cb-selos">${selos(c.itens)}</span></span>
-      ${pv.length ? `<span class="cb-mix" aria-hidden="true">${pv.map(([id, v], k) => `<i style="flex:${v || 1};background:${corV(id)};--i:${k}"></i>`).join('')}</span>` : ''}
-      ${comparar(tab, Number(c.preco) || 0)}
-      <span class="cb-linha">${d ? `<span class="pill fn-forte">${d} de desconto</span>` : ''}<small class="muted">${pv.length} veículo${pv.length === 1 ? '' : 's'} · ${(c.itens || []).length} ${(c.itens || []).length === 1 ? 'item' : 'itens'}</small>${c.ativo ? '' : '<span class="pill fn-neutra">Inativo</span>'}</span>
-      <span class="cb-val">${!c.vale_ate ? 'sem data para acabar' : venc ? `<b>venceu em ${dfmt(c.vale_ate)}</b>` : `vale até ${dfmt(c.vale_ate).slice(0, 5)}<span aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, (1 - falta / total) * 100))}%"></i></span>faltam ${falta} dia${falta === 1 ? '' : 's'}`}</span></button>`; };
+  // Lista (aprovada em 25/10/2026, adaptada do recurso "Aparición" da Moxen, licença permite uso dentro do produto): só os blocos,
+  // um por combo (número, selos dos veículos, nome e a validade numa linha), que sobem e se endireitam como cartas, em ordem de
+  // leitura. Clicar abre o editor; "Novo combo" é o último bloco. Estilos .cb-bloco / [data-ap] em sonvi.css.
+  const linhaVal = c => { const venc = c.vale_ate && c.vale_ate < S.today();
+    if (!c.ativo) return ['desligado · fora das propostas', true];
+    if (venc) return [`venceu em ${dfmt(c.vale_ate)}`, true];
+    if (!c.vale_ate) return ['sem data para acabar', false];
+    const f = diasAte(c.vale_ate); return [f <= 60 ? `vale até ${dfmt(c.vale_ate).slice(0, 5)} · ${f ? `faltam ${f} dia${f === 1 ? '' : 's'}` : 'acaba hoje'}` : `vale até ${dfmt(c.vale_ate)}`, false]; };
+  const bloco = (c, i) => { const [t, off] = linhaVal(c);
+    return `<button type="button" class="cb-bloco${off ? ' off' : ''}" data-ap data-act="cbAbrir" data-id="${c.id}" aria-label="Abrir o combo ${esc(c.nome)}">
+      <span class="cb-b-num" data-peca>${String(i + 1).padStart(2, '0')}</span><span class="cb-selos cb-b-selos" data-peca aria-hidden="true">${selos(c.itens)}</span>
+      <b class="cb-b-nome" data-peca>${esc(c.nome)}</b><span class="cb-b-linha" data-peca>${t}</span></button>`; };
+  let naLista = false;
+  const aparece = () => { const els = [...document.querySelectorAll('#content [data-ap]:not([data-vis])')]; if (!els.length) return;
+    const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => requestAnimationFrame(() => els.map(e => ({ e, r:e.getBoundingClientRect() }))
+      .sort((a, b) => Math.abs(a.r.top - b.r.top) > 8 ? a.r.top - b.r.top : a.r.left - b.r.left)
+      .forEach(({ e }, i) => { e.style.setProperty('--atraso', quieto ? '0s' : Math.min(i, 8) * .09 + 's'); e.setAttribute('data-vis', ''); }))); };
 
   const editor = () => { const tab = tabelaDe(ce.itens), pv = porVeic(ce.itens), d = pct(ce.preco, tab);
     const grupos = pv.map(([id, v]) => { const its = ce.itens.map((it, i) => [it, i]).filter(([it]) => it.veiculo_id === id), ve = veic(id);
       return `<div class="cb-gv" style="--v:${corV(id)}"><div class="cb-gv-hd">${S.vav(ve)}<b>${esc(ve.nome || 'Veículo')}</b><small>${its.length} ${its.length === 1 ? 'item' : 'itens'} · ${curto(v)}</small></div>
         ${its.map(([it, i]) => `<div class="cb-it"><span class="cb-it-n"><b>${esc(it.programa)}</b>${it.detalhe ? `<small>${esc(it.detalhe)}</small>` : ''}</span><span class="cb-it-f">${esc(it.formato)}</span><span class="cb-it-q">${esc(S.qtdItem(it))}</span>
           <span class="cb-it-v">${brl(valorIt(it))}${it.unica ? '<small>uma vez</small>' : ''}</span><button type="button" class="btn tres" data-act="cbTirar" data-i="${i}" aria-label="Tirar ${esc(it.programa)}">${S.svg('fechar', 16)}</button></div>`).join('')}</div>`; }).join('');
-    return `<div class="cb-ed2"><section class="card cb-ed" aria-label="Combo"><div class="hd"><h2>${ce.id ? esc(ce.nome || 'Combo') : 'Novo combo'}</h2><span class="sujo cb-sujo"${ce.sujo ? '' : ' hidden'}><i></i>Alterações não salvas</span></div>
+    return `<div class="cb-ed2"><section class="card cb-ed" aria-label="Combo"><div class="hd"><h2>Dados do combo</h2><span class="sujo cb-sujo"${ce.sujo ? '' : ' hidden'}><i></i>Alterações não salvas</span></div>
       <div class="g2"><label class="f">Nome do combo<input data-cb="nome" value="${esc(ce.nome)}" placeholder="Ex.: Combo Verão Rádio + LED"></label>
         <label class="f">Vale até (opcional)<input type="date" data-cb="vale_ate" value="${esc(ce.vale_ate)}"></label></div>
       <div class="form-sec">Itens · de qualquer veículo do grupo</div>
@@ -85,18 +95,17 @@
   S.views.combos = () => {
     if (!fonte) { carregar(); return { title:'<span class="sub">Grupo · valem em todos os veículos</span>Combos', actions:'', body:'<div class="card empty"><b>Carregando os produtos de todos os veículos…</b></div>' }; }
     const cs = S.db.combos || [];
-    if (!ce && cs.length) abrir(cs[0]);
-    const ativos = S.combosAtivos(), descs = cs.filter(c => tabelaDe(c.itens) > 0).map(c => 1 - Number(c.preco) / tabelaDe(c.itens));
-    const media = descs.length ? Math.round(descs.reduce((a, b) => a + b, 0) / descs.length * 100) : 0, em60 = ativos.filter(c => c.vale_ate && diasAte(c.vale_ate) <= 60).length;
-    const nv = new Set(cs.flatMap(c => (c.itens || []).map(i => i.veiculo_id))).size;
-    const kpis = cs.length ? `<section class="card"><div class="ct-kpis"><div><small>Combos ativos</small><b>${S.roloFixo('cb1', String(ativos.length))}</b><span>${cs.length - ativos.length ? `${cs.length - ativos.length} fora das propostas` : 'todos nas propostas'}</span></div>
-      <div><small>Desconto médio</small><b>${S.roloFixo('cb2', media + '%')}</b><span>contra a tabela</span></div><div><small>Acabam em 60 dias</small><b>${S.roloFixo('cb3', String(em60))}</b><span>${em60 ? 'reveja antes que vençam' : 'nenhum perto de vencer'}</span></div>
-      <div><small>Veículos nos combos</small><b>${S.roloFixo('cb4', String(nv))}</b><span>de ${(S.db.veiculos || []).length} do grupo</span></div></div></section>` : '';
-    const lista = cs.length ? `<div class="cb-lista">${cs.map(cartao).join('')}</div>` : '<div class="card empty"><b>Nenhum combo ainda</b>Monte promoções com produtos de vários veículos (ex.: rádio + painel de LED + front light) e um preço fechado.</div>';
-    queueMicrotask(atualizaPreco);
+    if (ce) { naLista = false; queueMicrotask(atualizaPreco);
+      return { title:`<span class="sub"><a href="#/combos" data-act="cbVoltar" class="cb-volta">${S.svg('esq', 14)}Combos</a></span>${ce.id ? esc(ce.nome || 'Combo') : 'Novo combo'}`, actions:'',
+        body:`${editor()}<p class="muted small cb-nota">Só o diretor cria e edita combos. O consultor usa na proposta (botão "Combo"), sem mudar as quantidades. Aprovada a proposta, o SONVI gera um PI por veículo, e cada veículo fatura a sua parte (o preço do combo é dividido na proporção da tabela).</p>` }; }
+    // Os blocos entram como cartas só quando a lista aparece (não a cada redesenho)
+    const anima = !naLista; naLista = true;
+    if (anima) queueMicrotask(aparece);
+    const vis = anima ? '' : ' data-vis';
+    const lista = `<section class="cb-grade" aria-label="Combos">${cs.map(bloco).join('')}
+      <button type="button" class="cb-bloco cb-novo" data-ap data-act="cbNovo"><span class="cb-b-mais" data-peca aria-hidden="true">${S.svg('mais')}</span><b class="cb-b-nome" data-peca>Novo combo</b><span class="cb-b-linha" data-peca>${cs.length ? 'Junte produtos de qualquer veículo do grupo.' : 'Monte promoções com produtos de vários veículos (ex.: rádio + painel de LED + front light) e um preço fechado.'}</span></button></section>`;
     return { title:'<span class="sub">Grupo · valem em todos os veículos</span>Combos', actions:`<button class="btn pri" data-act="cbNovo">${S.svg('mais')}Novo combo</button>`,
-      body:`${kpis}${lista}${ce ? editor() : ''}
-        <p class="muted small cb-nota">Só o diretor cria e edita combos. O consultor usa na proposta (botão "Combo"), sem mudar as quantidades. Aprovada a proposta, o SONVI gera um PI por veículo, e cada veículo fatura a sua parte (o preço do combo é dividido na proporção da tabela).</p>` };
+      body:vis ? lista.replace(/ data-ap /g, ' data-ap data-vis ') : lista };
   };
 
   const sujar = () => { if (!ce.sujo) { ce.sujo = true; document.querySelectorAll('.cb-sujo').forEach(e => { e.hidden = false; }); } };
@@ -106,8 +115,9 @@
   const pergunta = async () => !ce || !ce.sujo || await S.confirmar('Sair sem salvar o combo?\n\nAs alterações que ainda não foram salvas serão perdidas.', { ok:'Sair sem salvar', voltar:'Continuar editando', perigo:true });
 
   Object.assign(S.actions, {
-    cbNovo: async () => { if (!await pergunta()) return; ce = novo(); S.render(); const el = document.querySelector('[data-cb="nome"]'); if (el) el.focus(); },
-    cbAbrir: async d => { if (ce && ce.id === d.id) return; if (!await pergunta()) return; abrir((S.db.combos || []).find(c => c.id === d.id)); S.render(); },
+    cbNovo: async () => { if (!await pergunta()) return; ce = novo(); S.render(); window.scrollTo(0, 0); const el = document.querySelector('[data-cb="nome"]'); if (el) el.focus(); },
+    cbAbrir: async d => { if (ce && ce.id === d.id) return; if (!await pergunta()) return; abrir((S.db.combos || []).find(c => c.id === d.id)); S.render(); window.scrollTo(0, 0); },
+    cbVoltar: async () => { if (!await pergunta()) return; ce = null; S.render(); },
     cbDescartar: () => { const c = ce && ce.id && (S.db.combos || []).find(x => x.id === ce.id); ce = null; if (c) abrir(c); S.render(); },
     cbTirar: d => { ce.itens.splice(+d.i, 1); sujar(); S.render(); },
     cbAdd: () => S.escolherProduto({ titulo:'Adicionar ao combo', veiculos:(S.db.veiculos || []).filter(v => fonte[v.id]), fonte:vid => fonte[vid] || {},
@@ -128,6 +138,6 @@
     if (antes.startsWith('#/combos') && !location.hash.startsWith('#/combos')) {
       if (ce && ce.sujo) { const destino = location.hash; volta = true; location.hash = antes;
         S.confirmar('Sair sem salvar o combo?\n\nAs alterações que ainda não foram salvas serão perdidas.', { ok:'Sair sem salvar', voltar:'Continuar editando', perigo:true }).then(ok => { if (ok) { ce = null; fonte = null; location.hash = destino; } }); return; }
-      ce = null; fonte = null; }
+      ce = null; fonte = null; naLista = false; }
     antes = location.hash; });
 })();
