@@ -62,7 +62,7 @@
     const inicio = MUSIC ? 'hoje' : DIR ? 'geral' : 'dashboard';
     const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${inicio}" data-go="/${inicio}" aria-label="${MUSIC ? 'Sonvi Music' : DIR ? 'SONVI · Dashboard geral' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
       <button type="button" class="recolher" data-act="menuRecolher" aria-controls="side">${S.svg('recolher')}${S.svg('expandir')}<span class="sr">Recolher menu</span></button>
-      ${semVeiculo || geral ? '' : `<label class="veh" title="Trocar de veículo">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc(S.vehSub(veh) || 'Veículo selecionado')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Veículo">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}${DIR ? '<option value="__geral">Dashboard geral</option>' : ''}</select></label>`}
+      ${semVeiculo || geral ? '' : S.seletorVeiculo(veh, DIR)}
       <nav aria-label="Menu principal">${itens.map(([k, n, , href], i) => { const ex = itens.length > 5 && i >= 4 ? ' extra' : ''; return href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo${ex}" data-ico="${k}">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
         : `<a href="#/${k}" data-go="/${k}" title="${n}" data-ico="${k}" class="${(active === k ? 'on' : '') + ex}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}${k === 'followup' && atrasos ? `<span class="badge alerta" title="Retornos atrasados">${atrasos}</span>` : ''}</a>`; }).join('')}
       ${itens.length > 5 ? `<button type="button" class="nav-mais" data-act="navMais" aria-haspopup="menu">${S.svg('mais3')}Mais</button>` : ''}
@@ -153,19 +153,25 @@
     }
     S.go(destino);
   };
+  // Troca de veículo (seletor do alto do menu, atalho Alt + número): busca na nuvem só os dados dele.
+  // '__geral' (só o diretor) volta ao Dashboard geral. Alterações não salvas impedem a troca.
+  S.trocarVeiculo = async vid => {
+    if (vid === '__geral') { const msg = pendente(); if (msg) return S.toast(msg); return S.go('/geral'); }
+    if (!vid || vid === S.ui.vehicleId) return;
+    const msg = pendente(); if (msg) return S.toast(msg);
+    S.ui.vehicleId = vid; S.ui.q = ''; S.guardarRadio(vid);
+    if (S.route().view === 'pi') location.hash = '/pis';
+    S.carregando = true; S.render();
+    try { await S.carregarVeiculo(); } catch (err) { S.toast(S.erro(err)); }
+    S.carregando = false; S.render();
+  };
   document.addEventListener('change', async e => {
     const el = e.target, d = el.dataset;
     if (el.closest('dialog')) return;
     // Diretor: a última opção do seletor volta ao Dashboard geral (24/10/2026)
     if (d.ui === 'vehicleId' && el.value === '__geral') { el.value = S.ui.vehicleId; const msg = pendente(); if (msg) return S.toast(msg); return S.go('/geral'); }
     if (d.ui === 'vehicleId' && pendente()) { el.value = S.ui.vehicleId; return S.toast(pendente()); }
-    if (d.ui === 'vehicleId') { // troca de rádio: busca na nuvem só os dados dela
-      S.ui.vehicleId = el.value; S.ui.q = ''; S.guardarRadio(el.value);
-      if (S.route().view === 'pi') location.hash = '/pis';
-      S.carregando = true; S.render();
-      try { await S.carregarVeiculo(); } catch (err) { S.toast(S.erro(err)); }
-      S.carregando = false; return S.render();
-    }
+    if (d.ui === 'vehicleId') return S.trocarVeiculo(el.value);
     if (d.ui) { S.ui[d.ui] = el.value; return S.render(); }
     S.changes.some(handler => handler(el, d));
   });
