@@ -2,14 +2,13 @@
 // Adaptado do recurso "Conmutador" da Moxen (moxen.cl/recursos), usado conforme a licença dele: dentro do produto,
 // sem redistribuir o código como modelo. Sem bibliotecas. Vale no SONVI e no Sonvi Music.
 //
-// O botão mostra o selo, o nome e a linha de apoio do veículo aberto. Ao clicar abre um painel com a busca (filtra
-// enquanto digita e marca o trecho encontrado), a lista dos veículos (selo + nome + atalho) e, só para o diretor,
+// O botão mostra o selo, o nome e a linha de apoio do veículo aberto. Ao clicar abre um painel (sem busca, decidido
+// em 24/10/2026) com a lista dos veículos (selo + nome + atalho) e, só para o diretor,
 // "Dashboard geral" por último. Setas andam, Enter escolhe, Esc fecha. Alt + 1 a 9 trocam direto, de qualquer tela.
 // Ao trocar, o nome rola como um tambor do veículo antigo para o novo. A troca em si é S.trocarVeiculo (app.js).
 (() => {
   const { esc } = S;
   const quieto = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const plano = t => Array.from(String(t)).map(c => c.normalize('NFD')[0].toLowerCase()).join('');
   let ultimo = null, ultimoNome = '', painel = null, aberto = false, ativo = 0, visiveis = [], dir = false;
   const veiculos = () => S.db.veiculos || [];
   const curva = 'cubic-bezier(.22,1,.36,1)';
@@ -40,14 +39,13 @@
   function cria() {
     painel = document.createElement('div');
     painel.className = 'sv-painel'; painel.id = 'sv-painel'; painel.setAttribute('role', 'dialog'); painel.setAttribute('aria-label', 'Trocar de veículo'); painel.hidden = true;
-    painel.innerHTML = `<label class="sv-busca">${S.svg('busca')}<input type="text" data-sv-busca placeholder="Buscar veículo" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="sv-lista" aria-label="Buscar veículo"><kbd>Esc</kbd></label>
-      <div class="sv-lista" id="sv-lista" role="listbox" aria-label="Veículos"></div><p class="sv-vazio" hidden>Nenhum veículo encontrado.</p>
+    painel.innerHTML = `<div class="sv-lista" id="sv-lista" role="listbox" aria-label="Veículos"></div>
       <p class="sv-pe"><kbd>Alt</kbd><kbd>1–9</kbd> trocam de veículo de qualquer tela</p>`;
     document.body.appendChild(painel);
-    const busca = painel.querySelector('[data-sv-busca]');
-    busca.addEventListener('input', () => { ativo = 0; pinta(); });
-    busca.addEventListener('keydown', e => {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (visiveis.length) { ativo = (ativo + (e.key === 'ArrowDown' ? 1 : -1) + visiveis.length) % visiveis.length; marca(); } }
+    // Teclado: o foco anda pelas opções (setas, Home/End), Enter escolhe, Esc fecha
+    painel.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (visiveis.length) { ativo = (ativo + (e.key === 'ArrowDown' ? 1 : -1) + visiveis.length) % visiveis.length; marca(true); } }
+      else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); ativo = e.key === 'Home' ? 0 : visiveis.length - 1; marca(true); }
       else if (e.key === 'Enter') { e.preventDefault(); if (visiveis[ativo]) escolhe(visiveis[ativo].id); }
       else if (e.key === 'Escape') { e.preventDefault(); fecha(); }
       else if (e.key === 'Tab') fecha(false);
@@ -56,19 +54,17 @@
     painel.addEventListener('pointerover', e => { const b = e.target.closest('[data-sv-op]'); if (!b || e.pointerType === 'touch') return; const i = visiveis.findIndex(o => o.id === b.dataset.svOp); if (i > -1 && i !== ativo) { ativo = i; marca(); } });
   }
   function pinta() {
-    const q = plano(painel.querySelector('[data-sv-busca]').value.trim()), lista = painel.querySelector('.sv-lista');
-    visiveis = opcoes().filter(o => !q || plano(o.nome).includes(q));
-    const nome = o => { if (!q) return esc(o.nome); const i = plano(o.nome).indexOf(q); return esc(o.nome.slice(0, i)) + '<mark>' + esc(o.nome.slice(i, i + q.length)) + '</mark>' + esc(o.nome.slice(i + q.length)); };
+    const lista = painel.querySelector('.sv-lista');
+    visiveis = opcoes();
+    const nome = o => esc(o.nome);
     lista.innerHTML = visiveis.map(o => `<button type="button" class="sv-op${o.geral ? ' sv-geral' : ''}${o.id === S.ui.vehicleId ? ' atual' : ''}" role="option" tabindex="-1" id="sv-op-${esc(o.id)}" data-sv-op="${esc(o.id)}" aria-selected="false">
       ${o.geral ? `<span class="sv-geral-i" aria-hidden="true">${S.svg('geral')}</span>` : S.vav(o.v)}<b>${nome(o)}</b>${o.id === S.ui.vehicleId ? `<span class="sv-ok" aria-label="aberto">${S.svg('check', 16)}</span>` : ''}${o.n && o.n <= 9 ? `<kbd aria-hidden="true">Alt ${o.n}</kbd>` : ''}</button>`).join('');
-    painel.querySelector('.sv-vazio').hidden = visiveis.length > 0;
     ativo = Math.max(0, Math.min(ativo, visiveis.length - 1)); marca();
   }
-  function marca() {
+  function marca(foca) {
     painel.querySelectorAll('[data-sv-op]').forEach((b, i) => b.setAttribute('aria-selected', String(i === ativo)));
-    const o = visiveis[ativo], busca = painel.querySelector('[data-sv-busca]');
-    busca.setAttribute('aria-activedescendant', o ? 'sv-op-' + o.id : '');
-    const b = o && document.getElementById('sv-op-' + o.id); if (b) b.scrollIntoView({ block:'nearest' });
+    const o = visiveis[ativo], b = o && document.getElementById('sv-op-' + o.id);
+    if (b) { b.scrollIntoView({ block:'nearest' }); if (foca) b.focus({ preventScroll:true }); }
   }
   const botao = () => document.querySelector('#side [data-sv]');
   function posiciona() {
@@ -82,16 +78,13 @@
   function abre() {
     if (aberto) return; if (!painel) cria();
     aberto = true; const b = botao(); if (b) b.setAttribute('aria-expanded', 'true');
-    painel.querySelector('[data-sv-busca]').value = '';
     ativo = Math.max(0, opcoes().findIndex(o => o.id === S.ui.vehicleId));
     painel.hidden = false; posiciona(); pinta();
     if (!quieto() && painel.animate) {
       painel.animate([{ opacity:0, transform:'scale(.92) translateY(-8px)' }, { opacity:1, transform:'none' }], { duration:420, easing:'cubic-bezier(.34,1.32,.5,1)' });
       painel.querySelectorAll('.sv-op').forEach((n, i) => n.animate([{ opacity:0, transform:'translateY(8px)' }, { opacity:1, transform:'none' }], { duration:380, easing:curva, delay:50 + i * 30, fill:'backwards' }));
     }
-    // No toque, a busca não abre o teclado sozinha (só quem tem teclado físico digita direto)
-    if (!matchMedia('(hover: none)').matches) painel.querySelector('[data-sv-busca]').focus({ preventScroll:true });
-    else painel.querySelector('.sv-op.atual, .sv-op') && painel.querySelector('.sv-op.atual, .sv-op').focus({ preventScroll:true });
+    marca(true);
   }
   function fecha(devolve = true) {
     if (!aberto) return; aberto = false;

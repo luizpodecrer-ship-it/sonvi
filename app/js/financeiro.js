@@ -1,106 +1,191 @@
 // SONVI · financeiro: fatura os PIs aprovados e acompanha o que a rádio tem a receber e a pagar.
-// Filtros (período, situação, tipo, busca), indicadores do período, fluxo por mês, idade dos recebíveis,
-// lista agrupada por mês, baixa completa (juros, desconto, valor parcial, NF), baixa em lote e estorno.
-// A baixa e o estorno passam pelas funções do banco baixar_lancamentos / estornar_baixa.
+// Tela por mês (aprovada em 24/10/2026, adaptada do recurso "Gastos" da Moxen, licença permite uso dentro do produto):
+// anel do mês dividido por situação (Recebido · A vencer · Vencido) com o total rolando no centro, setas de mês,
+// A receber / A pagar, as situações filtram a lista de parcelas do mês (FLIP). Tudo nos tons da cor do veículo
+// (--t-forte, --t-claro, --t-escuro em sonvi.css, estilos .fn-*). Embaixo: fluxo por mês, idade dos recebíveis e
+// pedidos a faturar. Baixa completa (juros, desconto, valor parcial, NF), baixa em lote e estorno pelas funções
+// do banco baixar_lancamentos / estornar_baixa; depois da baixa e do lançamento avulso, o aviso tem "Desfazer".
 (() => {
   const { esc, brl, dfmt, num, nfmt } = S;
-  const f = { per:'90d', de:'', ate:'', sit:'aberto', tipo:'receber', q:'', faixa:'' };
-  let sel = new Set(), modo = 'lista';
+  const f = { mes:'', tipo:'receber', sit:'', q:'' };   // mes '' = o mês de hoje
+  let sel = new Set(), modo = 'lista', virouMes = 0;
   const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const MES3 = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const PERIODOS = [['90d', 'Próximos 90 dias e atrasados'], ['mes', 'Este mês'], ['prox', 'Próximo mês'], ['passado', 'Mês passado'], ['ano', 'Este ano'], ['tudo', 'Tudo'], ['datas', 'Escolher datas…']];
-  const FAIXAS = [['avencer', 'A vencer', 'sky'], ['1-30', '1 a 30 dias', 'orange'], ['31-60', '31 a 60 dias', 'red'], ['60+', 'Mais de 60 dias', 'purple']];
+  const FAIXAS = [['avencer', 'A vencer', 't-claro'], ['1-30', '1 a 30 dias', 't-medio'], ['31-60', '31 a 60 dias', 't-forte'], ['60+', 'Mais de 60 dias', 't-escuro']];
 
   // ---------- regras puras ----------
   const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const dia = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
-  const somaDias = (s, n) => { const d = dia(s); d.setDate(d.getDate() + n); return iso(d); };
   const atraso = (l, hoje) => !l.pago_em && l.vencimento && l.vencimento < hoje ? Math.round((dia(hoje) - dia(l.vencimento)) / 864e5) : 0;
   const faixaDe = (l, hoje) => { const a = atraso(l, hoje); return l.pago_em ? '' : !a ? 'avencer' : a <= 30 ? '1-30' : a <= 60 ? '31-60' : '60+'; };
   const recebidoDe = l => l.valor_pago === null || l.valor_pago === undefined ? Number(l.valor) : Number(l.valor_pago);
   const soma = (ls, fn = l => Number(l.valor)) => ls.reduce((s, l) => s + fn(l), 0);
-  // Intervalo [de, ate] do período escolhido; '' = sem limite
-  const intervalo = hoje => {
-    const d = dia(hoje), y = d.getFullYear(), m = d.getMonth(), mes = (a, b) => [iso(new Date(a, b, 1)), iso(new Date(a, b + 1, 0))];
-    return { '90d':['', somaDias(hoje, 90)], mes:mes(y, m), prox:mes(y, m + 1), passado:mes(y, m - 1), ano:[`${y}-01-01`, `${y}-12-31`], tudo:['', ''], datas:[f.de, f.ate] }[f.per] || ['', ''];
+  const situacao = (l, hoje) => l.pago_em ? 'pago' : atraso(l, hoje) ? 'vencido' : 'avencer';
+  const valorDe = l => l.pago_em ? recebidoDe(l) : Number(l.valor);   // o que entrou (pago) ou o que falta (em aberto)
+  const mesDe = (l, hoje) => (l.vencimento || hoje).slice(0, 7);     // sem vencimento: aparece no mês de hoje
+  const somaMes = (ym, n) => { const [y, m] = ym.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return iso(d).slice(0, 7); };
+  const nomeMes = ym => { const n = MESES[+ym.slice(5) - 1]; return `${n[0].toUpperCase()}${n.slice(1)} ${ym.slice(0, 4)}`; };
+  const SITS = tipo => [['pago', tipo === 'pagar' ? 'Pago' : 'Recebido', 't-forte'], ['avencer', 'A vencer', 't-claro'], ['vencido', 'Vencido', 't-escuro']];
+  // Números do mês para um tipo (receber/pagar): as três situações, comparação e inadimplência
+  S.finMes = (L, ym, tipo, hoje) => {
+    const doMes = L.filter(l => l.sentido === tipo && mesDe(l, hoje) === ym);
+    const grupos = SITS(tipo).map(([k, nome, tom]) => { const itens = doMes.filter(l => situacao(l, hoje) === k); return { k, nome, tom, itens, v:soma(itens, valorDe) }; });
+    const total = soma(doMes, valorDe), ant = soma(L.filter(l => l.sentido === tipo && mesDe(l, hoje) === somaMes(ym, -1)), valorDe);
+    const venc = grupos[2].itens, jaVenceu = doMes.filter(l => l.vencimento && l.vencimento < hoje);
+    return { doMes, grupos, total, ant, variacao:ant ? Math.round((total - ant) / ant * 100) : null,
+      inad:soma(jaVenceu) ? Math.round(soma(venc) / soma(jaVenceu) * 100) : 0, maior:Math.max(0, ...venc.map(l => atraso(l, hoje))) };
   };
-  const noPeriodo = (l, [de, ate]) => !l.vencimento ? !de && (!ate || f.per === '90d') : (!de || l.vencimento >= de) && (!ate || l.vencimento <= ate);
-  const situacao = (l, hoje) => l.pago_em ? 'pago' : atraso(l, hoje) ? 'vencido' : 'aberto';
+
+  // ---------- o anel (um só, que fica montado entre um desenho e outro; as molas continuam de onde estavam) ----------
+  const quieto = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const RAIO = 128, GROSSO = 30, PONTA = (GROSSO / 2) / RAIO, VAO = 12 / RAIO;
+  const mola = x => ({ x, v:0, alvo:x });
+  let anel = null, hover = -1, raf = 0, antes = 0, alvosAtuais = { grupos:[], total:0 };
+  function criaAnel() {
+    const el = document.createElement('div'); el.className = 'fn-anel';
+    el.innerHTML = `<svg viewBox="0 0 340 340" aria-hidden="true"><circle cx="170" cy="170" r="${RAIO}" fill="none" stroke="var(--fill)" stroke-width="${GROSSO}"/><g transform="translate(170 170)"></g></svg>
+      <div class="fn-centro"><span class="fn-c-et"></span><span class="fn-c-total"></span><span class="fn-c-sub"></span></div>`;
+    const g = el.querySelector('g'), arcos = [0, 1, 2].map(i => {
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); g.appendChild(p);
+      p.addEventListener('click', () => S.actions.finSit({ v:alvosAtuais.grupos[i].k }));
+      p.addEventListener('pointerenter', () => { hover = i; alvos(); }); p.addEventListener('pointerleave', () => { hover = -1; alvos(); });
+      return { p, a0:mola(0), a1:mola(0), off:mola(0), w:mola(GROSSO), op:mola(1) }; });
+    anel = { el, arcos, rolo:S.rolo ? S.rolo(el.querySelector('.fn-c-total')) : null, novo:true };
+  }
+  const arco = (a0, a1, off) => { const r = RAIO + off, p = a => [Math.sin(a) * r, -Math.cos(a) * r];
+    if (a1 - a0 < .0005) { const [x, y] = p(a0); return `M${x.toFixed(2)} ${y.toFixed(2)}l0 0`; }
+    const [x0, y0] = p(a0), [x1, y1] = p(a1); return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`; };
+  function alvos() {
+    if (!anel) return;
+    const { grupos, total } = alvosAtuais, tot = total || 1, vivos = grupos.filter(g => g.v > 0).length, escolhido = grupos.findIndex(g => g.k === f.sit);
+    let a = 0;
+    anel.arcos.forEach((arc, i) => { const g = grupos[i]; if (!g) return;
+      const ang = total ? g.v / tot * Math.PI * 2 : 0, corte = vivos > 1 ? PONTA + VAO / 2 : 0;
+      arc.p.style.stroke = `var(--${g.tom})`;
+      arc.a0.alvo = g.v ? a + corte : a; arc.a1.alvo = g.v ? (vivos === 1 ? a + ang - .0001 : Math.max(a + corte, a + ang - corte)) : a;
+      arc.off.alvo = escolhido === i ? 7 : 0; arc.w.alvo = escolhido === i || hover === i ? GROSSO + 6 : GROSSO;
+      arc.op.alvo = !g.v ? 0 : escolhido > -1 && escolhido !== i ? .28 : 1; a += ang; });
+    if (quieto()) { anel.arcos.forEach(c => [c.a0, c.a1, c.off, c.w, c.op].forEach(r => { r.x = r.alvo; r.v = 0; })); desenha(); }
+    else if (!raf) raf = requestAnimationFrame(quadro);
+  }
+  const desenha = () => anel.arcos.forEach(c => { c.p.setAttribute('d', arco(c.a0.x, c.a1.x, c.off.x)); c.p.style.strokeWidth = c.w.x; c.p.style.opacity = c.op.x; });
+  function quadro(t) {
+    const h = antes ? Math.min(.05, (t - antes) / 1000) : 1 / 60, n = Math.ceil(h * 240); antes = t; let parado = true;
+    anel.arcos.forEach(c => [c.a0, c.a1, c.off, c.w, c.op].forEach(r => {
+      for (let k = 0; k < n; k++) { r.v += (170 * (r.alvo - r.x) - 22 * r.v) * h / n; r.x += r.v * h / n; }
+      if (Math.abs(r.v) > .001 || Math.abs(r.alvo - r.x) > .001) parado = false; }));
+    desenha(); if (parado || !document.contains(anel.el)) { raf = 0; antes = 0; } else raf = requestAnimationFrame(quadro);
+  }
+  // Põe o anel no lugar dele na tela recém-desenhada e manda as molas para os números novos
+  function poeAnel(M, ym) {
+    const lugar = document.getElementById('fn-anel-lugar'); if (!lugar) return;
+    if (!anel) criaAnel();
+    lugar.replaceWith(anel.el);
+    alvosAtuais = M; const g = M.grupos.find(x => x.k === f.sit), its = g ? g.itens : M.doMes, v = g ? g.v : M.total;
+    anel.el.querySelector('.fn-c-et').textContent = g ? g.nome : `Total de ${MESES[+ym.slice(5) - 1]}`;
+    anel.el.querySelector('.fn-c-sub').textContent = `${its.length} parcela${its.length === 1 ? '' : 's'}${g && M.total ? ` · ${Math.round(v / M.total * 100)}% do mês` : ''}`;
+    const txt = 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+    if (anel.rolo) anel.rolo.poe(txt, anel.novo); else anel.el.querySelector('.fn-c-total').textContent = txt;
+    anel.novo = false; alvos();
+  }
+  document.addEventListener('pointerover', e => { const b = e.target.closest && e.target.closest('[data-act="finSit"]'); if (!anel) return;
+    const i = b ? alvosAtuais.grupos.findIndex(g => g.k === b.dataset.v) : -1; if (i !== hover && (b || hover > -1)) { hover = i; alvos(); } });
+
+  // FLIP da lista: as linhas que ficam deslizam até o lugar novo, as que chegam sobem de leve
+  const posicoes = () => { const m = new Map(); document.querySelectorAll('[data-fn-id]').forEach(e => m.set(e.dataset.fnId, e.getBoundingClientRect().top)); return m; };
+  function flip(antesPos) { if (quieto()) return;
+    document.querySelectorAll('[data-fn-id]').forEach((e, k) => { if (!e.animate) return; const t0 = antesPos.get(e.dataset.fnId), t1 = e.getBoundingClientRect().top;
+      if (t0 !== undefined) { if (Math.abs(t0 - t1) > 1) e.animate([{ transform:`translateY(${t0 - t1}px)` }, { transform:'none' }], { duration:420, easing:'cubic-bezier(.2,.9,.2,1)' }); }
+      else e.animate([{ opacity:0, transform:'translateY(8px)' }, { opacity:1, transform:'none' }], { duration:320, delay:Math.min(k, 8) * 25, easing:'ease-out', fill:'backwards' }); }); }
+  const redesenha = () => { const p = posicoes(); S.render(); flip(p); };
 
   // ---------- tela ----------
   S.views.financeiro = () => {
     if (modo === 'relatorios') return telaRelatorios();
-    const hoje = S.today(), L = S.db.lancamentos, faixa = intervalo(hoje);
-    const doPeriodo = L.filter(l => noPeriodo(l, faixa));
-    const rec = doPeriodo.filter(l => l.sentido === 'receber'), pag = doPeriodo.filter(l => l.sentido === 'pagar');
-    const recAberto = rec.filter(l => !l.pago_em), recPago = rec.filter(l => l.pago_em), recVenc = rec.filter(l => atraso(l, hoje));
-    const jaVenceu = rec.filter(l => l.vencimento && l.vencimento < hoje);
-    const inad = soma(jaVenceu) ? Math.round(soma(recVenc) / soma(jaVenceu) * 100) : 0, maior = Math.max(0, ...recVenc.map(l => atraso(l, hoje)));
-    const pagAberto = pag.filter(l => !l.pago_em);
-    const tiles = `<div class="tiles">
-      <div class="tile hero"><small>A receber no período</small><b>${brl(soma(recAberto))}</b><span>${recAberto.length} parcela${recAberto.length === 1 ? '' : 's'} · ${new Set(recAberto.map(l => l.pi_id).filter(Boolean)).size} PI${new Set(recAberto.map(l => l.pi_id).filter(Boolean)).size === 1 ? '' : 's'}</span></div>
-      <div class="tile"><small>Recebido no período</small><b class="fin-verde">${brl(soma(recPago, recebidoDe))}</b><span class="${recPago.length ? 'bom' : ''}">${recPago.length} parcela${recPago.length === 1 ? '' : 's'} paga${recPago.length === 1 ? '' : 's'}</span></div>
-      <div class="tile"><small>Vencido</small><b class="${recVenc.length ? 'fin-laranja' : ''}">${brl(soma(recVenc))}</b><span class="${recVenc.length ? 'ruim' : ''}">${recVenc.length ? `inadimplência ${inad}% · maior atraso ${maior} dia${maior === 1 ? '' : 's'}` : 'nada vencido'}</span></div>
-      <div class="tile"><small>A pagar</small><b>${brl(soma(pagAberto))}</b><span>${pagAberto.length ? `${pagAberto.length} parcela${pagAberto.length === 1 ? '' : 's'}` : 'comissões de agência'}</span></div></div>`;
+    const hoje = S.today(), L = S.db.lancamentos, ym = f.mes || hoje.slice(0, 7), r = f.tipo === 'receber', M = S.finMes(L, ym, f.tipo, hoje);
+    const g = M.grupos.find(x => x.k === f.sit), mesNome = MESES[+ym.slice(5) - 1], mesAnt = MESES[+somaMes(ym, -1).slice(5) - 1];
 
-    // Fluxo de 6 meses (do mês passado a 4 meses à frente): previsto x recebido, só a receber
-    const base = dia(hoje), meses = Array.from({ length:6 }, (_, k) => { const d = new Date(base.getFullYear(), base.getMonth() - 1 + k, 1); return iso(d).slice(0, 7); });
+    // 1. o mês: anel + situações
+    const sits = M.grupos.map(x => { const pc = M.total ? Math.round(x.v / M.total * 100) : 0;
+      return `<button type="button" class="fn-sit" data-act="finSit" data-v="${x.k}" style="--c:var(--${x.tom})" aria-pressed="${f.sit === x.k}">
+        <span class="fn-sit-t"><i aria-hidden="true"></i>${x.nome}<small>${x.itens.length} parcela${x.itens.length === 1 ? '' : 's'}</small></span>
+        <b>${brl(x.v)}</b><span class="fn-sit-bar" aria-hidden="true"><span style="width:${pc}%"></span></span><span class="fn-sit-p">${pc}% do mês</span></button>`; }).join('');
+    const cmp = M.variacao === null ? '' : M.variacao === 0 ? `<span class="pill fn-neutra">Igual a ${mesAnt}</span>`
+      : `<span class="pill fn-neutra">${M.variacao > 0 ? '▲' : '▼'} ${Math.abs(M.variacao)}% em relação a ${mesAnt}</span>`;
+    const alerta = M.grupos[2].itens.length ? `<span class="pill fn-forte">${r ? 'Inadimplência' : 'Em atraso'} ${M.inad}% · maior atraso ${M.maior} dia${M.maior === 1 ? '' : 's'}</span>`
+      : M.doMes.length ? '<span class="pill fn-neutra">Nada vencido</span>' : '';
+    const seg = `<div class="seg fn-tipo" role="group" aria-label="Tipo">${[['receber', 'A receber'], ['pagar', 'A pagar']].map(([v, t]) => `<button class="${f.tipo === v ? 'on' : ''}" data-act="finTipo" data-v="${v}" aria-pressed="${f.tipo === v}">${t}</button>`).join('')}</div>`;
+    const mes = `<section class="card fn-mes-card" aria-labelledby="fn-t">
+      <div class="hd"><h2 id="fn-t">${r ? 'A receber' : 'A pagar'} no mês</h2>${seg}<span class="grow"></span>
+        <div class="fn-nav" role="group" aria-label="Mês"><button class="btn sm ic" data-act="finMes" data-d="-1" aria-label="Mês anterior" title="Mês anterior (←)">${S.svg("esq")}</button>
+          <span class="fn-mes-et" role="status" aria-live="polite"><span>${nomeMes(ym)}</span></span>
+          <button class="btn sm ic" data-act="finMes" data-d="1" aria-label="Próximo mês" title="Próximo mês (→)">${S.svg('seta')}</button>
+          ${ym !== hoje.slice(0, 7) ? `<button class="btn sm" data-act="finMes" data-d="0">Hoje</button>` : ''}</div></div>
+      <div class="fn-corpo"><div id="fn-anel-lugar" class="fn-anel"></div>
+        <div class="fn-dir"><div class="fn-sits" role="group" aria-label="Situação (escolha para filtrar as parcelas)">${sits}</div><div class="fn-resumo">${cmp}${alerta}</div></div></div></section>`;
+
+    // 2. parcelas do mês
+    const q = f.q.trim().toLowerCase();
+    const lista = (g ? g.itens : M.doMes).filter(l => !q || [l.contraparte, l.descricao, l.nota_fiscal, l.forma, l.sentido === 'receber' ? S.emailCobrancaDe(l).email : ''].join(' ').toLowerCase().includes(q))
+      .sort((a, b) => (a.vencimento || '9').localeCompare(b.vencimento || '9') || (a.contraparte || '').localeCompare(b.contraparte || ''));
+    sel = new Set([...sel].filter(id => lista.some(l => l.id === id && !l.pago_em)));
+    const pill = l => { const s = situacao(l, hoje), a = atraso(l, hoje);
+      return s === 'pago' ? `<span class="pill fn-ok">${S.svg('check', 12)}${l.sentido === 'pagar' ? 'Pago' : 'Recebido'} ${dfmt(l.pago_em).slice(0, 5)}</span>`
+        : s === 'vencido' ? `<span class="pill fn-forte">Vencido ${a} dia${a === 1 ? '' : 's'}</span>` : `<span class="pill fn-neutra">${l.vencimento ? 'Em aberto' : 'Sem vencimento'}</span>`; };
+    const valorTxt = l => l.pago_em && Math.abs(recebidoDe(l) - Number(l.valor)) > 0.004 ? `<b>${brl(recebidoDe(l))}</b><small class="muted">parcela ${brl(l.valor)}</small>` : `<b>${brl(l.valor)}</b>`;
+    const emailTxt = l => { if (l.sentido !== 'receber' || l.pago_em) return ''; const e = S.emailCobrancaDe(l).email;
+      return e ? `<small class="fin-email" title="E-mail de cobrança">${S.svg('email')}${esc(e)}</small>` : '<small class="fin-email fn-falta">sem e-mail de cobrança</small>'; };
+    const quem = l => `<span class="fin-quem"><b>${esc(l.contraparte) || '—'}</b><small>${esc(l.descricao)}${l.categoria ? ` · ${esc(l.categoria)}` : ''}${l.pi_id ? '' : ' · avulso'}${l.parcela ? ` · parcela ${l.parcela}` : ''}</small>${emailTxt(l)}</span>`;
+    const acoes = l => `<span class="fin-acoes">${l.pago_em ? '' : `<button class="btn sm" data-act="finBaixa" data-id="${l.id}">${l.sentido === 'pagar' ? 'Pagar' : 'Dar baixa'}</button>`}<button class="btn tres" data-act="finMenu" data-id="${l.id}" aria-label="Mais opções da parcela de ${esc(l.contraparte)}">${S.svg('mais3')}</button></span>`;
+    const marca = l => l.pago_em ? '<span class="fn-sem"></span>' : `<input type="checkbox" data-fin-sel="${l.id}"${sel.has(l.id) ? ' checked' : ''} aria-label="Selecionar parcela de ${esc(l.contraparte)}">`;
+    const selVal = soma(lista.filter(l => sel.has(l.id)));
+    const barraSel = sel.size ? `<div class="fin-selbar"><b>${sel.size} selecionada${sel.size === 1 ? '' : 's'} · ${brl(selVal)}</b><span class="grow"></span><button class="btn sm" data-act="finLimparSel">Limpar</button><button class="btn sm pri" data-act="finLote">Dar baixa ${sel.size === 1 ? 'na selecionada' : `nas ${sel.size}`}</button></div>` : '';
+    const abertas = lista.filter(l => !l.pago_em);
+    let corpo;
+    if (!lista.length) corpo = `<div class="empty"><b>Nenhuma parcela</b>${q ? `Nada com essa busca em ${mesNome}.` : g ? `Nada ${g.k === 'pago' ? (r ? 'recebido' : 'pago') : g.k === 'vencido' ? 'vencido' : 'a vencer'} em ${mesNome}.` : L.length ? `Nenhuma parcela ${r ? 'a receber' : 'a pagar'} vence em ${mesNome}.` : 'As parcelas aparecem aqui quando um PI é faturado.'}</div>`;
+    else if (S.celular) corpo = lista.map(l => `<div class="fin-cartao" data-fn-id="${l.id}">
+        <div class="row">${marca(l)}${quem(l)}<span class="fin-valor">${valorTxt(l)}</span></div>
+        <div class="row mid fin-info"><span class="muted small">${l.vencimento ? `vence ${dfmt(l.vencimento)}` : 'sem vencimento'}${l.forma ? ' · ' + esc(l.forma) : ''}${l.nota_fiscal ? ' · NF ' + esc(l.nota_fiscal) : ''}</span><span class="grow"></span>${pill(l)}${l.pago_em ? acoes(l) : ''}</div>${l.pago_em ? '' : acoes(l)}</div>`).join('');
+    else corpo = `<div class="fin-tab"><div class="fin-cab"><span>${abertas.length ? `<input type="checkbox" data-fin-todos="1"${abertas.every(l => sel.has(l.id)) ? ' checked' : ''} aria-label="Selecionar todas em aberto">` : ''}</span><span>Vencimento</span><span>${r ? 'Cliente' : 'Para quem'} / descrição</span><span class="fn-c-nf">Nota fiscal</span><span class="fn-c-forma">Forma</span><span class="r">Valor</span><span>Situação</span><span><span class="sr">Ações</span></span></div>
+      ${lista.map(l => `<div class="fin-lin${sel.has(l.id) ? ' sel' : ''}" data-fn-id="${l.id}">${marca(l)}<span class="fin-data">${l.vencimento ? dfmt(l.vencimento) : '—'}</span>${quem(l)}<span class="fn-c-nf${l.nota_fiscal ? '' : ' muted'}">${l.nota_fiscal ? esc(l.nota_fiscal) : '—'}</span><span class="fn-c-forma">${esc(l.forma)}</span><span class="fin-valor">${valorTxt(l)}</span><span>${pill(l)}</span>${acoes(l)}</div>`).join('')}</div>`;
+    const parcelas = `<section class="card fin-lista" aria-labelledby="fn-tp"><div class="hd fn-par-hd"><h2 id="fn-tp">Parcelas de ${mesNome}</h2><span>${lista.length} parcela${lista.length === 1 ? '' : 's'} · ${brl(soma(lista, valorDe))}</span></div>
+      <div class="fn-filtros">${g ? `<button class="fn-chip" data-act="finSit" data-v="${g.k}" style="--c:var(--${g.tom})" aria-label="Tirar o filtro ${g.nome}"><i aria-hidden="true"></i>${g.nome}${S.svg('fechar', 14)}</button>` : ''}
+        <label class="fin-busca">${S.svg('busca')}<input data-fin="q" value="${esc(f.q)}" placeholder="Buscar cliente, agência, PI ou nota fiscal" aria-label="Buscar"></label></div>
+      ${barraSel}${corpo}
+      <p class="fn-dica"><kbd>←</kbd> <kbd>→</kbd> trocam o mês · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> filtram pela situação · <kbd>Esc</kbd> tira o filtro</p></section>`;
+
+    // 3. fluxo de 6 meses (do mês passado a 4 meses à frente) e idade dos recebíveis
+    const base = hoje.slice(0, 7), meses = Array.from({ length:6 }, (_, k) => somaMes(base, k - 1));
     const fluxo = meses.map(m => { const ls = L.filter(l => l.sentido === 'receber' && (l.vencimento || '').startsWith(m)); return { m, prev:soma(ls), rec:soma(ls.filter(l => l.pago_em), recebidoDe) }; });
     const maxF = Math.max(1, ...fluxo.map(x => Math.max(x.prev, x.rec))), k = v => v >= 1000 ? `${nfmt(v / 1000).replace(/,\d+$/, '')} mil` : v ? nfmt(v) : '';
     const grafico = `<section class="card"><div class="hd"><h2>Fluxo previsto por mês</h2><span class="fin-leg"><i class="prev"></i>Previsto <i class="rec"></i>Recebido</span></div>
-      <div class="fin-bars" role="img" aria-label="A receber previsto e recebido nos últimos e próximos meses">${fluxo.map((x, i) => `<div class="${x.m === hoje.slice(0, 7) ? 'on' : ''}"><b>${k(x.prev)}</b><span><i class="prev" style="height:${x.prev ? Math.max(3, x.prev / maxF * 140) : 0}px;--i:${i}"></i><i class="rec" style="height:${x.rec ? Math.max(3, x.rec / maxF * 140) : 0}px;--i:${i}"></i></span></div>`).join('')}</div>
-      <div class="bars-x">${fluxo.map(x => `<span>${MES3[+x.m.slice(5) - 1]}</span>`).join('')}</div></section>`;
-    // Idade dos recebíveis em aberto (todos, independente do período)
-    const abertos = L.filter(l => l.sentido === 'receber' && !l.pago_em), porFaixa = FAIXAS.map(([id, nome, tom]) => ({ id, nome, tom, v:soma(abertos.filter(l => faixaDe(l, hoje) === id)), n:abertos.filter(l => faixaDe(l, hoje) === id).length }));
+      <div class="fin-bars" role="img" aria-label="A receber previsto e recebido nos últimos e próximos meses">${fluxo.map((x, i) => `<div class="${x.m === ym ? 'on' : ''}"><b>${k(x.prev)}</b><span><i class="prev" style="height:${x.prev ? Math.max(4, x.prev / maxF * 140) : 0}px;--i:${i}"></i><i class="rec" style="height:${x.rec ? Math.max(4, x.rec / maxF * 140) : 0}px;--i:${i}"></i></span></div>`).join('')}</div>
+      <div class="bars-x">${fluxo.map(x => `<a data-act="finIrMes" data-m="${x.m}" class="${x.m === ym ? 'on' : ''}" aria-label="Ver ${nomeMes(x.m)}">${MES3[+x.m.slice(5) - 1]}</a>`).join('')}</div></section>`;
+    const abertosTodos = L.filter(l => l.sentido === 'receber' && !l.pago_em), porFaixa = FAIXAS.map(([id, nome, tom]) => { const xs = abertosTodos.filter(l => faixaDe(l, hoje) === id); return { id, nome, tom, v:soma(xs), n:xs.length }; });
     const idade = `<section class="card"><div class="hd"><h2>Situação dos recebíveis</h2><span>tudo em aberto</span></div>
-      ${abertos.length ? `<div class="stack" role="img" aria-label="Recebíveis por atraso">${porFaixa.filter(x => x.v).map(x => `<i style="flex:${x.v};background:var(--${x.tom})"></i>`).join('')}</div>` : ''}
-      <div class="legend">${porFaixa.map(x => `<a data-act="finFaixa" data-faixa="${x.id}" class="${f.faixa === x.id ? 'on' : ''}"><span class="sq" style="background:var(--${x.tom})"></span><span class="grow">${x.nome}</span><span class="muted small">${x.n}</span><b>${brl(x.v)}</b></a>`).join('')}</div></section>`;
+      ${abertosTodos.length ? `<div class="stack" role="img" aria-label="Recebíveis por atraso">${porFaixa.filter(x => x.v).map(x => `<i style="flex:${x.v};background:var(--${x.tom})"></i>`).join('')}</div>` : ''}
+      <div class="legend">${porFaixa.map(x => `<div><span class="sq" style="background:var(--${x.tom})"></span><span class="grow">${x.nome}</span><span class="muted small">${x.n}</span><b>${brl(x.v)}</b></div>`).join('')}</div></section>`;
 
-    // Pedidos a faturar
+    // 4. pedidos a faturar
     const aFaturar = S.db.pis.filter(p => ['aprovado', 'programado'].includes(p.status));
-    const faturar = aFaturar.length ? `<div class="card"><div class="hd"><h2>Pedidos a faturar</h2><span>${aFaturar.length} aguardando</span></div><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Status</th><th class="r">Total</th><th class="r">Líquido da rádio</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${aFaturar.map(p => { const c = S.calc(p); return `<tr><td class="muted" style="white-space:nowrap">${S.piNo(p)}</td><td><a data-go="/pi/${p.id}" style="color:var(--ink)"><b>${esc(p.titulo) || 'Sem título'}</b></a></td><td>${esc(S.nome(p.cliente_id))}</td><td>${S.pill(p.status)}</td><td class="r">${brl(c.total)}</td><td class="r">${brl(c.net)}</td><td class="r"><button class="btn sm pri" data-act="finFaturar" data-id="${p.id}">Faturar</button></td></tr>`; }).join('')}</tbody></table></div></div>`
-      : `<div class="card fin-faturar"><b>Pedidos a faturar</b>${S.tag('nenhum aguardando', 'gray')}<span class="grow"></span><span class="muted small">Aparecem aqui quando a OPEC aprova ou programa um PI.</span></div>`;
+    const faturar = aFaturar.length ? `<div class="card"><div class="hd"><h2>Pedidos a faturar</h2><span>${aFaturar.length} aguardando</span></div><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Status</th><th class="r">Total</th><th class="r">Líquido da rádio</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${aFaturar.map(p => { const c = S.calc(p); return `<tr><td class="muted nw">${S.piNo(p)}</td><td><a data-go="/pi/${p.id}" style="color:var(--ink)"><b>${esc(p.titulo) || 'Sem título'}</b></a></td><td>${esc(S.nome(p.cliente_id))}</td><td><span class="pill fn-ok">${S.STATUS[p.status].label}</span></td><td class="r">${brl(c.total)}</td><td class="r">${brl(c.net)}</td><td class="r"><button class="btn sm pri" data-act="finFaturar" data-id="${p.id}">Faturar</button></td></tr>`; }).join('')}</tbody></table></div></div>`
+      : `<div class="card fin-faturar"><b>Pedidos a faturar</b><span class="pill fn-neutra">nenhum aguardando</span><span class="grow"></span><span class="muted small">Aparecem aqui quando a OPEC aprova ou programa um PI.</span></div>`;
 
-    // Filtros
-    const q = f.q.trim().toLowerCase();
-    const base2 = doPeriodo.filter(l => (f.tipo === 'ambos' || l.sentido === f.tipo) && (!q || [l.contraparte, l.descricao, l.nota_fiscal, l.forma, l.sentido === 'receber' ? S.emailCobrancaDe(l).email : ''].join(' ').toLowerCase().includes(q)) && (!f.faixa || faixaDe(l, hoje) === f.faixa));
-    const cont = { aberto:base2.filter(l => !l.pago_em).length, vencido:base2.filter(l => atraso(l, hoje)).length, pago:base2.filter(l => l.pago_em).length, todos:base2.length };
-    const lista = base2.filter(l => f.sit === 'todos' || (f.sit === 'aberto' ? !l.pago_em : f.sit === 'vencido' ? atraso(l, hoje) : l.pago_em))
-      .sort((a, b) => (a.vencimento || '9').localeCompare(b.vencimento || '9') || (a.contraparte || '').localeCompare(b.contraparte || ''));
-    sel = new Set([...sel].filter(id => lista.some(l => l.id === id && !l.pago_em)));
-    const seg = (nome, campo, ops) => `<div class="seg fin-seg" role="group" aria-label="${nome}">${ops.map(([v, t]) => `<button class="${f[campo] === v ? 'on' : ''}" data-act="finSet" data-campo="${campo}" data-v="${v}">${t}</button>`).join('')}</div>`;
-    const filtros = `<div class="card fin-filtros">
-      <label class="fin-per"><span class="muted small">Período</span><select data-fin="per" aria-label="Período">${PERIODOS.map(([v, t]) => `<option value="${v}"${f.per === v ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
-      ${f.per === 'datas' ? `<label class="fin-per"><span class="muted small">De</span><input type="date" data-fin="de" value="${f.de}" aria-label="De"></label><label class="fin-per"><span class="muted small">Até</span><input type="date" data-fin="ate" value="${f.ate}" aria-label="Até"></label>` : ''}
-      ${seg('Situação', 'sit', [['aberto', `Em aberto <span class="muted">${cont.aberto}</span>`], ['vencido', `Vencidos <span class="muted">${cont.vencido}</span>`], ['pago', `Pagos <span class="muted">${cont.pago}</span>`], ['todos', 'Todos']])}
-      ${seg('Tipo', 'tipo', [['receber', 'A receber'], ['pagar', 'A pagar'], ['ambos', 'Ambos']])}
-      <label class="fin-busca">${S.svg('busca')}<input data-fin="q" value="${esc(f.q)}" placeholder="Buscar cliente, agência, PI ou nota fiscal" aria-label="Buscar"></label>
-      ${f.faixa ? `<button class="btn sm" data-act="finFaixa" data-faixa="">${esc(FAIXAS.find(x => x[0] === f.faixa)[1])} ×</button>` : ''}</div>`;
-
-    // Lista agrupada por mês de vencimento
-    const grupos = []; lista.forEach(l => { const m = (l.vencimento || '').slice(0, 7); let g = grupos[grupos.length - 1]; if (!g || g.m !== m) grupos.push(g = { m, itens:[] }); g.itens.push(l); });
-    const nomeMes = m => m ? `${MESES[+m.slice(5) - 1][0].toUpperCase()}${MESES[+m.slice(5) - 1].slice(1)} ${m.slice(0, 4)}` : 'Sem vencimento';
-    const pill = l => { const s = situacao(l, hoje); return s === 'pago' ? S.tag(`${l.sentido === 'pagar' ? 'Pago' : 'Recebido'} ${dfmt(l.pago_em).slice(0, 5)}`, 'green') : s === 'vencido' ? S.tag(`Vencido ${atraso(l, hoje)} dia${atraso(l, hoje) === 1 ? '' : 's'}`, 'orange') : S.tag('Em aberto', 'sky'); };
-    const valorTxt = l => l.pago_em && Math.abs(recebidoDe(l) - Number(l.valor)) > 0.004 ? `<b>${brl(recebidoDe(l))}</b><small class="muted">parcela ${brl(l.valor)}</small>` : `<b>${brl(l.valor)}</b>`;
-    const emailTxt = l => { if (l.sentido !== 'receber' || l.pago_em) return ''; const e = S.emailCobrancaDe(l).email;
-      return e ? `<small class="fin-email" title="E-mail de cobrança">${S.svg('email')}${esc(e)}</small>` : '<small class="fin-email fin-laranja">sem e-mail de cobrança</small>'; };
-    const quem = l => `<span class="fin-quem"><b>${esc(l.contraparte) || '—'}</b><small>${esc(l.descricao)}${l.categoria ? ` · ${esc(l.categoria)}` : ''}${l.pi_id ? '' : ' · avulso'}${l.parcela ? ` · parcela ${l.parcela}` : ''}${l.sentido === 'pagar' && f.tipo === 'ambos' ? ' · a pagar' : ''}</small>${emailTxt(l)}</span>`;
-    const acoes = l => `<span class="fin-acoes">${l.pago_em ? '' : `<button class="btn sm" data-act="finBaixa" data-id="${l.id}">${l.sentido === 'pagar' ? 'Pagar' : 'Dar baixa'}</button>`}<button class="btn tres" data-act="finMenu" data-id="${l.id}" aria-label="Opções da parcela">${S.svg('mais3')}</button></span>`;
-    const marca = l => l.pago_em ? '<span></span>' : `<input type="checkbox" data-fin-sel="${l.id}"${sel.has(l.id) ? ' checked' : ''} aria-label="Selecionar parcela de ${esc(l.contraparte)}">`;
-    const selVal = soma(lista.filter(l => sel.has(l.id)));
-    const barraSel = sel.size ? `<div class="fin-selbar"><b>${sel.size} selecionada${sel.size === 1 ? '' : 's'} · ${brl(selVal)}</b><span class="grow"></span><button class="btn sm" data-act="finLimparSel">Limpar</button><button class="btn sm pri" data-act="finLote">Dar baixa ${sel.size === 1 ? 'na selecionada' : `nas ${sel.size}`}</button></div>` : '';
-    const abertasLista = lista.filter(l => !l.pago_em);
-    let corpo;
-    if (!lista.length) corpo = `<div class="empty"><b>Nenhum lançamento</b>${L.length ? 'Nada com esses filtros. Experimente outro período ou situação.' : 'As parcelas aparecem aqui quando um PI é faturado.'}</div>`;
-    else if (S.celular) corpo = grupos.map(g => `<div class="fin-mes"><b>${nomeMes(g.m)}</b><span>${g.itens.length} · ${brl(soma(g.itens))}</span></div>` + g.itens.map(l => `<div class="fin-cartao">
-        <div class="row">${marca(l)}${quem(l)}<span class="fin-valor">${valorTxt(l)}</span></div>
-        <div class="row mid fin-info"><span class="muted small">vence ${dfmt(l.vencimento)}${l.forma ? ' · ' + esc(l.forma) : ''}${l.nota_fiscal ? ' · NF ' + esc(l.nota_fiscal) : ''}</span><span class="grow"></span>${pill(l)}</div>${acoes(l)}</div>`).join('')).join('');
-    else corpo = `<div class="scroll"><div class="fin-tab"><div class="fin-cab"><span>${abertasLista.length ? `<input type="checkbox" data-fin-todos="1"${abertasLista.every(l => sel.has(l.id)) ? ' checked' : ''} aria-label="Selecionar todas em aberto">` : ''}</span><span>Vencimento</span><span>${f.tipo === 'pagar' ? 'Para quem' : 'Cliente'} / descrição</span><span>Nota fiscal</span><span>Forma</span><span class="r">Valor</span><span>Situação</span><span></span></div>
-      ${grupos.map(g => `<div class="fin-mes"><b>${nomeMes(g.m)}</b><span>${g.itens.length} parcela${g.itens.length === 1 ? '' : 's'} · ${brl(soma(g.itens))}</span></div>` + g.itens.map(l => `<div class="fin-lin${sel.has(l.id) ? ' sel' : ''}">${marca(l)}<span class="fin-data">${dfmt(l.vencimento)}</span>${quem(l)}<span class="${l.nota_fiscal ? '' : 'muted'}">${l.nota_fiscal ? esc(l.nota_fiscal) : '—'}</span><span>${esc(l.forma)}</span><span class="fin-valor">${valorTxt(l)}</span><span>${pill(l)}</span>${acoes(l)}</div>`).join('')).join('')}</div></div>`;
-
+    queueMicrotask(() => { poeAnel(M, ym); rolaMes(); });
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>Financeiro`, actions:`<button class="btn" data-act="finRelatorios">${S.svg('relatorio')}Relatórios</button><button class="btn pri" data-act="finAvulso">${S.svg('mais')}Lançamento avulso</button>`,
-      body:`${tiles}<div class="cols">${grafico}${idade}</div>${faturar}${filtros}<div class="card fin-lista">${barraSel}${corpo}</div>` };
+      body:`${mes}${parcelas}<div class="cols">${grafico}${idade}</div>${faturar}` };
   };
+  // O nome do mês desliza para o lado da seta
+  function rolaMes() { const d = virouMes; virouMes = 0; const caixa = document.querySelector('.fn-mes-et'); if (!d || !caixa || quieto()) return;
+    const novo = caixa.firstElementChild; novo.animate([{ transform:`translateX(${d * 36}px)`, opacity:0 }, { transform:'none', opacity:1 }], { duration:380, easing:'cubic-bezier(.2,.9,.2,1)' }); }
+  // Atalhos da tela: ← → mês, 1 2 3 situação, Esc tira o filtro
+  document.addEventListener('keydown', e => {
+    if (S.ui.view !== 'financeiro' || modo !== 'lista' || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open], .menu, .sv-painel:not([hidden]), :popover-open')) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); S.actions.finMes({ d:e.key === 'ArrowLeft' ? -1 : 1 }); }
+    else if (/^[1-3]$/.test(e.key)) { e.preventDefault(); S.actions.finSit({ v:SITS(f.tipo)[+e.key - 1][0] }); }
+    else if (e.key === 'Escape' && f.sit) { e.preventDefault(); S.actions.finSit({ v:f.sit }); }
+  });
 
   // ---------- baixa ----------
   const campoDec = (n, rot, v, ph) => `<label class="f">${rot}<input name="${n}" data-mask="dec" inputmode="decimal" value="${v ? nfmt(v) : ''}" placeholder="${ph}" autocomplete="off"></label>`;
@@ -114,11 +199,21 @@
   };
   document.addEventListener('input', e => { if (e.target.closest && e.target.closest('#dlg') && /^fb_/.test(e.target.name || '')) resumoBaixa(); });
   const recarregar = async () => { S.db.lancamentos = await S.q(S.sb.from('lancamentos').select('*').eq('veiculo_id', S.ui.vehicleId)); };
-  const baixar = itens => S.run(async () => { await S.q(S.sb.rpc('baixar_lancamentos', { p_itens:itens })); sel.clear(); await recarregar(); }, itens.length > 1 ? `Baixa feita em ${itens.length} parcelas` : 'Baixa registrada');
+  // Depois da baixa, o aviso oferece "Desfazer" (é o estorno de cada parcela, pela mesma função do menu)
+  const baixar = async itens => {
+    const ok = await S.run(async () => { await S.q(S.sb.rpc('baixar_lancamentos', { p_itens:itens })); sel.clear(); await recarregar(); });
+    if (!ok) return;
+    const pagar = itens.length && (S.db.lancamentos.find(l => l.id === itens[0].id) || {}).sentido === 'pagar';
+    S.toast(itens.length > 1 ? `Baixa feita em ${itens.length} parcelas` : pagar ? 'Pagamento registrado' : 'Baixa registrada', { fn:() => S.run(async () => {
+      for (const it of itens) await S.q(S.sb.rpc('estornar_baixa', { p_id:it.id })); await recarregar(); }, itens.length > 1 ? 'Baixas desfeitas' : 'Baixa desfeita') });
+  };
 
   Object.assign(S.actions, {
-    finSet: d => { f[d.campo] = d.v; S.render(); },
-    finFaixa: d => { f.faixa = f.faixa === d.faixa ? '' : d.faixa; if (f.faixa) { f.sit = f.faixa === 'avencer' ? 'aberto' : 'vencido'; f.tipo = 'receber'; f.per = 'tudo'; } S.render(); },
+    finSit: d => { f.sit = f.sit === d.v ? '' : d.v; sel.clear(); redesenha(); },
+    finTipo: d => { if (f.tipo === d.v) return; f.tipo = d.v; f.sit = ''; sel.clear(); redesenha(); },
+    finMes: d => { const hoje = S.today().slice(0, 7), atual = f.mes || hoje, alvo = d.m || (+d.d ? somaMes(atual, +d.d) : hoje);
+      if (alvo === atual) return; virouMes = alvo > atual ? 1 : -1; f.mes = alvo === hoje ? '' : alvo; f.sit = ''; sel.clear(); redesenha(); },
+    finIrMes: d => S.actions.finMes({ m:d.m }),
     finLimparSel: () => { sel.clear(); S.render(); },
     finBaixa: d => { const l = S.db.lancamentos.find(x => x.id === d.id), pagar = l.sentido === 'pagar';
       S.dialog(`<h2>${pagar ? 'Registrar pagamento' : 'Dar baixa'}</h2><p class="muted small">${esc(l.contraparte)} · ${esc(l.descricao)} · parcela ${l.parcela} · vence ${dfmt(l.vencimento)}</p>
@@ -188,12 +283,11 @@
         () => S.run(async () => { const r = await S.q(S.sb.rpc('faturar_pi', { p_pi:pi.id, p_lancamentos:ls })); Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id]; await recarregar(); }, `${S.piNo(pi)} faturado`)); }
   });
 
-  // Filtros de texto e data; seleção das parcelas
+  // Busca e seleção das parcelas
   let tBusca;
   document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.fin; if (k !== 'q') return;
     f.q = e.target.value; clearTimeout(tBusca); tBusca = setTimeout(() => { const pos = e.target.selectionStart; S.render(); const el = document.querySelector('[data-fin="q"]'); if (el) { el.focus(); el.setSelectionRange(pos, pos); } }, 250); });
   S.changes.push((el, d) => {
-    if (d.fin && d.fin !== 'q') { f[d.fin] = el.value; if (d.fin === 'per') f.faixa = ''; if (d.fin === 'per' && el.value === 'datas' && !f.de) { const h = S.today(); f.de = h.slice(0, 8) + '01'; f.ate = h; } S.render(); return true; }
     if (d.finSel) { if (el.checked) sel.add(d.finSel); else sel.delete(d.finSel); S.render(); return true; }
     if (d.finTodos) { const ids = [...document.querySelectorAll('[data-fin-sel]')].map(x => x.dataset.finSel); ids.forEach(id => el.checked ? sel.add(id) : sel.delete(id)); S.render(); return true; }
     return false;
@@ -212,12 +306,18 @@
     { k:'vencimento', label:'1º vencimento', type:'date', req:true },
     { k:'vezes', label:'Repetir por quantos meses', mask:'int', ph:'Ex.: 12' },
     { k:'observacao', label:'Observação', type:'textarea', ph:'Ex.: contrato até dezembro' }],
-    { sentido:'pagar', forma:'Boleto', vencimento:S.today(), vezes:'1' },
+    { sentido:f.tipo, forma:'Boleto', vencimento:S.today(), vezes:'1' },
     v => { const n = Math.min(60, Math.max(1, parseInt(v.vezes) || 1)), valor = num(v.valor);
       if (!(valor > 0)) return S.toast('Informe o valor.');
       const rows = Array.from({ length:n }, (_, k) => ({ veiculo_id:S.ui.vehicleId, sentido:v.sentido, categoria:(v.categoria || '').trim(), descricao:v.descricao.trim(), contraparte:(v.contraparte || '').trim(), forma:v.forma, valor, vencimento:somaMeses(v.vencimento, k), parcela:k + 1, observacao:(v.observacao || '').trim(),
         email_cobranca:v.sentido === 'receber' ? (v.email_cobranca || '').trim() : '' }));
-      S.run(async () => { const r = await S.q(S.sb.from('lancamentos').insert(rows).select()); S.db.lancamentos.push(...r); }, n > 1 ? `${n} lançamentos criados` : 'Lançamento criado'); }, 'Criar', { editar:true });
+      // Depois de criar, a tela vai para o mês e o tipo do 1º vencimento; o aviso oferece "Desfazer" (apaga o que foi criado)
+      let criados = [];
+      return S.run(async () => { criados = await S.q(S.sb.from('lancamentos').insert(rows).select()); S.db.lancamentos.push(...criados);
+        const m = rows[0].vencimento.slice(0, 7); f.tipo = v.sentido; f.sit = ''; f.mes = m === S.today().slice(0, 7) ? '' : m; }).then(ok => { if (!ok || !criados.length) return;
+        const ids = criados.map(l => l.id);
+        S.toast(n > 1 ? `${n} lançamentos criados` : 'Lançamento criado', { fn:() => S.run(async () => { await S.q(S.sb.from('lancamentos').delete().in('id', ids));
+          S.db.lancamentos = S.db.lancamentos.filter(l => !ids.includes(l.id)); }, n > 1 ? 'Lançamentos desfeitos' : 'Lançamento desfeito') }); }); }, 'Criar', { editar:true });
 
   // ---------- relatórios ----------
   // Cada relatório devolve: resumo (quadros), participação (barras, opcional), colunas, linhas (com grupo e subtítulo),
