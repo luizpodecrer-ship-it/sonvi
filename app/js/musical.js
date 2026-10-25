@@ -579,7 +579,7 @@
       S.toast(semComp ? `Arquivo gerado. Atenção: ${semComp} execução(ões) sem compositor na ficha.` : 'Arquivo para o ECAD gerado.');
     } else {
       const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tocou na ${esc(v.nome)}</title>
-<style>body{font:15px/1.5 system-ui,sans-serif;margin:0;padding:24px;color:#111}h1{font-size:22px}table{border-collapse:collapse;width:100%}td,th{padding:6px 8px;border-bottom:1px solid #ddd;text-align:left}th{font-size:12px;color:#555}</style></head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@600&display=swap"><style>body{font:15px/1.5 Manrope,system-ui,sans-serif;margin:0;padding:24px;color:#111}h1{font:600 22px/1.2 Sora,system-ui,sans-serif}table{border-collapse:collapse;width:100%}td,th{padding:6px 8px;border-bottom:1px solid #ddd;text-align:left}th{font-size:12px;color:#555}</style></head>
 <body><h1>Tocou na ${esc(v.nome)}</h1><table><thead><tr><th>Data</th><th>Hora</th><th>Música</th><th>Intérprete</th><th>Compositor</th></tr></thead><tbody>
 ${ex.map(e => `<tr><td>${M.dm(e.data)}</td><td>${M.relogio(e.inicio)}</td><td>${esc(e.musica.titulo)}</td><td>${esc(M.artistasTexto(e.musica))}</td><td>${esc(e.musica.compositor)}</td></tr>`).join('\n')}
 </tbody></table></body></html>`;
