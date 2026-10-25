@@ -12,7 +12,6 @@
   const achar = id => lista().find(p => p.id === id);
   const vencida = p => p.situacao === 'enviada' && S.propVence(p) < today();
   const sitDe = p => p.situacao === 'aprovada' && S.propostaComPi(p) ? 'pi' : vencida(p) ? 'vencida' : p.situacao;
-  const pill = p => { const [l, t] = SIT[sitDe(p)]; return `<span class="pill${sitDe(p) === 'enviada' ? ' live' : ''}" style="--tone:var(--${t})">${l}</span>`; };
   // Diretor e gerente mexem em todas; o consultor, só nas dele (o banco confere de novo)
   const pode = p => S.pode('diretor', 'gerente') || (S.pode('consultor') && p.consultor_id === S.me.id);
   const editavel = p => p.situacao === 'rascunho' && pode(p);
@@ -34,10 +33,27 @@
   const resumo = p => { const its = (p.itens || []).filter(it => it.insercoes); if (!its.length) return (p.itens || []).length ? resumoItem(p.itens[0]) : 'Sem itens';
     return resumoItem(its[0]) + (its.length > 1 ? ` + ${its.length - 1} ${its.length > 2 ? 'itens' : 'item'}` : ''); };
 
-  // ---------- lista ----------
-  const FILTROS = [['todas', 'Todas'], ['rascunho', 'Rascunho'], ['enviada', 'Enviadas'], ['aprovada', 'Aprovadas'], ['fora', 'Recusadas e vencidas']];
-  const noFiltro = (p, f) => f === 'todas' || (f === 'rascunho' && p.situacao === 'rascunho') || (f === 'enviada' && sitDe(p) === 'enviada')
-    || (f === 'aprovada' && p.situacao === 'aprovada') || (f === 'fora' && ['recusada', 'vencida'].includes(sitDe(p)));
+  // ---------- lista (aprovada em 24/10/2026): mês, funil, situações que filtram, lista com o caminho de cada proposta ----------
+  // Tudo nos tons da cor do veículo (--t-forte, --t-claro, --t-escuro), como o Financeiro. Estilos .pf-* e os .fn-* compartilhados.
+  const pf = { mes:'', sit:'' };   // mes '' = o mês de hoje; sit: rascunho, enviada, aprovada, perdida
+  let viraMes = 0, funilAntes = null;
+  const dataDe = p => p.data || S.dia(p.criado_em);
+  const somaMes = (ym, n) => { const [y, m] = ym.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const nomeMes = ym => { const n = MESES[+ym.slice(5) - 1]; return `${n[0].toUpperCase()}${n.slice(1)} ${ym.slice(0, 4)}`; };
+  const grupoDe = p => { const s = sitDe(p); return s === 'pi' ? 'aprovada' : ['recusada', 'vencida'].includes(s) ? 'perdida' : s; };
+  const PSITS = [['rascunho', 'Rascunho', 't-claro'], ['enviada', 'Enviada', 't-medio'], ['aprovada', 'Aprovada', 't-forte'], ['perdida', 'Não fechou', 't-escuro']];
+  const valorDe = p => Number(p.valor_total || 0);
+  const somaV = l => l.reduce((s, p) => s + valorDe(p), 0);
+  const curtoR = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  // O caminho em 4 pontos: rascunho → enviada → aprovada → PI (recusada/vencida param no 2º, no tom escuro)
+  const trilha = p => { const s = sitDe(p), n = { rascunho:0, enviada:1, vencida:1, recusada:1, aprovada:2, pi:3 }[s], parou = ['vencida', 'recusada'].includes(s);
+    return `<span class="pf-trilha" role="img" aria-label="Caminho: ${['rascunho', 'enviada', 'aprovada', 'PI gerado'][n]}${parou ? ` (${s})` : ''}">${[0, 1, 2, 3].map(i => `${i ? `<s class="${i <= n && !parou ? 'ok' : ''}"></s>` : ''}<i class="${i < n ? 'ok' : i === n ? (parou ? 'parou' : 'agora') : ''}"></i>`).join('')}</span>`; };
+  const etiqueta = p => { const s = sitDe(p);
+    return s === 'pi' ? '<span class="pill fn-ok">PI gerado</span>' : s === 'aprovada' ? '<span class="pill fn-ok">Aprovada</span>' : s === 'enviada' ? '<span class="pill fn-ok pf-vivo">Aguardando</span>'
+      : s === 'rascunho' ? '<span class="pill fn-neutra">Rascunho</span>' : `<span class="pill fn-forte">${s === 'vencida' ? 'Vencida' : 'Recusada'}</span>`; };
+  // Etiqueta de situação (também no editor): nos tons do veículo
+  const pill = p => etiqueta(p);
   const detalheSit = p => { const s = sitDe(p);
     if (s === 'rascunho') { const t = p.atualizado_em || p.criado_em; return `Salva ${S.dia(t) === today() ? 'hoje' : 'em ' + curtoData(S.dia(t))} às ${S.hora(t)}`; }
     if (s === 'enviada') return `${p.enviada_por === 'email' ? 'Por e-mail' : p.enviada_por === 'whatsapp' ? 'Por WhatsApp' : 'Enviada'} · vale até ${curtoData(S.propVence(p))}`;
@@ -55,41 +71,75 @@
 
   const listaView = () => {
     if (ed.id && !ed.sujo) fechar();
-    const todas = lista().slice().sort((a, b) => b.ano - a.ano || b.numero - a.numero), f = S.ui.propFiltro || 'todas';
+    const hoje = today(), ym = pf.mes || hoje.slice(0, 7), mesN = MESES[+ym.slice(5) - 1], todas = lista();
+    const doMes = todas.filter(p => (dataDe(p) || '').slice(0, 7) === ym);
+    const g = PSITS.map(([k, nome, tom]) => { const it = doMes.filter(p => grupoDe(p) === k); return { k, nome, tom, it, v:somaV(it) }; });
+    const tot = somaV(doMes), gs = g.find(x => x.k === pf.sit);
+    // Indicadores: taxa do mês; o que vence logo e o que foi aprovado sem PI valem para todas (não só o mês)
+    const resp = doMes.filter(p => ['aprovada', 'recusada'].includes(p.situacao)), taxa = resp.length ? Math.round(doMes.filter(p => p.situacao === 'aprovada').length / resp.length * 100) : null;
+    const em7 = todas.filter(p => sitDe(p) === 'enviada' && S.propVence(p) <= S.somaDias(hoje, 7)), semPi = todas.filter(p => sitDe(p) === 'aprovada');
+    // Funil: cada degrau conta quem chegou até ele; quem não fechou sai pelo lado
+    const chegou = [['criadas', doMes, 'criada', 'criadas', 't-claro', ''], ['enviadas', doMes.filter(p => p.situacao !== 'rascunho'), 'enviada', 'enviadas', 't-medio', 'enviada'],
+      ['aprovadas', doMes.filter(p => p.situacao === 'aprovada'), 'aprovada', 'aprovadas', 't-forte', 'aprovada'], ['pi', doMes.filter(p => sitDe(p) === 'pi'), 'virou PI', 'viraram PI', 't-escuro', 'aprovada']];
+    const nMax = Math.max(1, doMes.length), perdidas = g[3];
+    const funil = `<div class="pf-funil${pf.sit ? ' filtra' : ''}" role="group" aria-label="Funil das propostas de ${mesN}">
+      <div class="pf-tot"><small>${gs ? gs.nome : `Propostas criadas em ${mesN}`}</small><span class="pf-num">${S.roloFixo('pfTotal', curtoR(gs ? gs.v : tot))}</span><small>${(gs ? gs.it : doMes).length} proposta${(gs ? gs.it : doMes).length === 1 ? '' : 's'} · valor por mês</small></div>
+      ${chegou.map(([k, xs, um, varios, tom, sit], i) => { const ant = i ? chegou[i - 1][1].length : 0, w = Math.max(14, xs.length / nMax * 100);
+        return `${i ? `<div class="pf-conv" aria-hidden="true"><span>↓ ${ant ? Math.round(xs.length / ant * 100) : 0}%</span></div>` : ''}<button type="button" class="pf-lin" data-act="prSit" data-v="${sit}" aria-pressed="${!!sit && pf.sit === sit && k !== 'pi'}" style="--c:var(--${tom})">
+          <span class="pf-trilho"><span class="pf-barra" style="--w:${w}%"></span></span><span class="pf-txt"><b>${xs.length} ${xs.length === 1 ? um : varios}</b><small>${curtoR(somaV(xs))}</small></span></button>`; }).join('')}
+      <button type="button" class="pf-vaza" data-act="prSit" data-v="perdida" aria-pressed="${pf.sit === 'perdida'}"><i></i><span><b>${perdidas.it.length} não ${perdidas.it.length === 1 ? 'fechou' : 'fecharam'}</b> · ${curtoR(perdidas.v)} (recusadas ou vencidas)</span></button></div>`;
+    const sits = g.map(x => { const pc = tot ? Math.round(x.v / tot * 100) : 0;
+      return `<button type="button" class="fn-sit" data-act="prSit" data-v="${x.k}" style="--c:var(--${x.tom})" aria-pressed="${pf.sit === x.k}"><span class="fn-sit-t"><i aria-hidden="true"></i>${x.nome}<small>${x.it.length}</small></span><b>${curtoR(x.v)}</b><span class="fn-sit-bar" aria-hidden="true"><span style="width:${pc}%"></span></span><span class="fn-sit-p">${pc}% do mês</span></button>`; }).join('');
+    const resumo_ = `${taxa === null ? '' : `<span class="pill fn-neutra">Taxa de aprovação ${taxa}%</span>`}${em7.length ? `<span class="pill fn-forte">${em7.length} vence${em7.length > 1 ? 'm' : ''} em 7 dias</span>` : ''}${semPi.length ? `<span class="pill fn-ok">${semPi.length} aprovada${semPi.length > 1 ? 's' : ''} sem PI</span>` : ''}`;
+    const mesCard = `<section class="card fn-mes-card" aria-labelledby="pf-t"><div class="hd"><h2 id="pf-t">Propostas do mês</h2><span class="grow"></span>
+      <div class="fn-nav" role="group" aria-label="Mês"><button class="btn sm ic" data-act="prMes" data-d="-1" aria-label="Mês anterior" title="Mês anterior (←)">${S.svg('esq')}</button>
+        <span class="fn-mes-et" role="status" aria-live="polite"><span>${nomeMes(ym)}</span></span>
+        <button class="btn sm ic" data-act="prMes" data-d="1" aria-label="Próximo mês" title="Próximo mês (→)">${S.svg('seta')}</button>${ym !== hoje.slice(0, 7) ? '<button class="btn sm" data-act="prMes" data-d="0">Hoje</button>' : ''}</div></div>
+      <div class="pf-corpo">${funil}<div class="fn-dir"><div class="fn-sits pf-sits" role="group" aria-label="Situação (escolha para filtrar)">${sits}</div><div class="fn-resumo">${resumo_}</div></div></div></section>`;
+    // Lista do mês
     const q = (S.ui.q || '').toLowerCase();
-    const vis = todas.filter(p => noFiltro(p, f) && (!q || [S.propNo(p), S.nome(p.cliente_id), S.nome(p.agencia_id), resumo(p), S.usuario(p.consultor_id)].join(' ').toLowerCase().includes(q)));
-    const conta = k => todas.filter(p => noFiltro(p, k)).length;
-    // Indicadores: o que está com o cliente, o que fechou no mês, a taxa de aprovação e o que vence logo
-    const abertas = todas.filter(p => sitDe(p) === 'enviada'), mes = today().slice(0, 7);
-    const doMes = todas.filter(p => p.situacao === 'aprovada' && p.aprovada_em && S.dia(p.aprovada_em).slice(0, 7) === mes);
-    const aprov = todas.filter(p => p.situacao === 'aprovada').length, resp = aprov + todas.filter(p => p.situacao === 'recusada').length;
-    const em7 = abertas.filter(p => S.propVence(p) <= S.somaDias(today(), 7));
-    const soma = l => brl(l.reduce((s, p) => s + Number(p.valor_total || 0), 0)).replace(/,00$/, '');
-    const n = (k, um, varios) => `${k} ${k === 1 ? um : varios}`;
-    const tiles = `<div class="tiles pr-tiles">
-      <div class="tile"><small>Em aberto (enviadas)</small><b>${soma(abertas)}</b><small>${n(abertas.length, 'proposta', 'propostas')}</small></div>
-      <div class="tile"><small>Aprovadas no mês</small><b>${soma(doMes)}</b><small>${n(doMes.length, 'proposta', 'propostas')}</small></div>
-      <div class="tile"><small>Taxa de aprovação</small><b>${resp ? Math.round(aprov / resp * 100) + '%' : '—'}</b><small>das que tiveram resposta</small></div>
-      <div class="tile"><small>Vencem em 7 dias</small><b>${em7.length}</b><small>${em7.length ? esc(em7.slice(0, 2).map(p => S.nome(p.cliente_id)).join(', ')) + (em7.length > 2 ? '…' : '') : 'nenhuma'}</small></div></div>`;
-    const ciclo = `<div class="tp-ciclo">${['rascunho', 'enviada', 'aprovada', 'pi'].map(k => `<span class="pill" style="--tone:var(--${SIT[k][1]})">${SIT[k][0]}</span>`).join('<span aria-hidden="true">→</span>')}
-      <span class="muted small">Envie ao cliente pelo WhatsApp ou e-mail: ele recebe um link da proposta. Recusada ou vencida saem do caminho. O PI da aprovada é gerado na tela de PIs.</span></div>`;
-    const seg = `<div class="seg" role="group" aria-label="Filtrar propostas">${FILTROS.map(([k, t]) => `<button class="${f === k ? 'on' : ''}" data-act="prFiltro" data-f="${k}" aria-pressed="${f === k}">${t} · ${conta(k)}</button>`).join('')}</div>`;
+    const vis = (gs ? gs.it : doMes).filter(p => !q || [S.propNo(p), S.nome(p.cliente_id), S.nome(p.agencia_id), resumo(p), S.usuario(p.consultor_id)].join(' ').toLowerCase().includes(q))
+      .sort((a, b) => b.ano - a.ano || b.numero - a.numero);
     const linhas = vis.map(p => { const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id);
-      return `<div class="prl-l click" data-go="/propostas/${p.id}" role="link" tabindex="0">
+      return `<div class="prl-l click" data-go="/propostas/${p.id}" data-flip="${p.id}" role="link" tabindex="0">
         <span class="prl-n">${S.propNo(p)}</span>
-        <span class="prl-c"><b title="${esc(cli)}">${esc(cli)}</b><small>${ag ? esc(ag) : 'Direto'}</small></span>
+        <span class="prl-c"><b title="${esc(cli)}">${esc(cli)}</b><small>${ag ? esc(ag) : 'Direto'}${p.consultor_id ? ' · ' + esc(S.usuario(p.consultor_id)) : ''}</small></span>
         <span class="prl-i" title="${esc(resumo(p))}">${esc(resumo(p))}</span>
-        <span class="prl-q"><small>Inserções/mês</small>${qtdMes(p)}</span>
+        <span class="prl-q">${trilha(p)}</span>
         <span class="prl-v"><small>Investimento mensal</small><b>${brl(p.valor_total)}</b></span>
-        <span class="prl-s">${pill(p)}<small>${detalheSit(p)}</small></span>
+        <span class="prl-s">${etiqueta(p)}<small>${detalheSit(p)}</small></span>
         <span class="prl-a">${proximo(p)}<button class="btn tres" data-act="prOpcoes" data-id="${p.id}" aria-label="Opções da proposta ${S.propNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
-    const vazio = `<div class="card empty"><b>${todas.length ? 'Nenhuma proposta neste filtro' : 'Nenhuma proposta ainda'}</b>${todas.length ? 'Escolha outro filtro ou outra busca.' : `As propostas saem com a marca da ${esc(empCurto())} e os preços da tabela vigente.`}</div>`;
+    const vazio = `<div class="empty"><b>${todas.length ? 'Nenhuma proposta aqui' : 'Nenhuma proposta ainda'}</b>${q ? `Nada com essa busca em ${mesN}.` : gs ? `Nenhuma proposta nesta situação em ${mesN}.` : todas.length ? `Nenhuma proposta criada em ${mesN}.` : `As propostas saem com a marca da ${esc(empCurto())} e os preços dos Produtos.`}</div>`;
+    const listaCard = `<section class="card prl" aria-labelledby="pf-tl"><div class="hd fn-par-hd"><h2 id="pf-tl">Propostas de ${mesN}</h2><span>${vis.length} · ${brl(somaV(vis))} por mês</span></div>
+      <div class="fn-filtros">${gs ? `<button class="fn-chip" data-act="prSit" data-v="${gs.k}" style="--c:var(--${gs.tom})" aria-label="Tirar o filtro ${gs.nome}"><i aria-hidden="true"></i>${gs.nome}${S.svg('fechar', 14)}</button>` : ''}
+        <label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por número, cliente, agência, consultor ou item" aria-label="Buscar propostas"></label></div>
+      ${vis.length ? `<div class="prl-l prl-cab"><span class="prl-n">Nº</span><span class="prl-c">Cliente</span><span class="prl-i">Itens</span><span class="prl-q">Caminho</span><span class="prl-v">Investimento mensal</span><span class="prl-s">Situação</span><span class="prl-a"><span class="sr">Ações</span></span></div>${linhas}` : vazio}
+      <p class="fn-dica"><kbd>←</kbd> <kbd>→</kbd> trocam o mês · <kbd>1</kbd>–<kbd>4</kbd> filtram pela situação · <kbd>Esc</kbd> tira o filtro</p></section>`;
+    queueMicrotask(animaFunil);
     const podeCriar = S.pode('diretor', 'gerente', 'consultor');
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>Propostas`,
       actions:podeCriar ? `<button class="btn pri" data-act="prNova">${S.svg('mais')}Nova proposta</button>` : '',
-      body:`${ciclo}${tiles}${seg}${todas.length > 8 ? `<div style="margin-bottom:16px"><input type="search" style="width:100%;height:44px" placeholder="Buscar por número, cliente, agência ou item" aria-label="Buscar propostas" value="${esc(S.ui.q)}" data-ui="q"></div>` : ''}
-        ${vis.length ? `<section class="card prl" aria-label="Propostas"><div class="prl-l prl-cab"><span class="prl-n">Nº</span><span class="prl-c">Cliente</span><span class="prl-i">Itens</span><span class="prl-q">Inserções/mês</span><span class="prl-v">Investimento mensal</span><span class="prl-s">Situação</span><span class="prl-a"><span class="sr">Ações</span></span></div>${linhas}</section>` : vazio}` };
+      body:mesCard + listaCard };
   };
+  // As barras do funil crescem do zero na entrada e, depois, vão da largura anterior até a nova (mola); o mês desliza
+  function animaFunil() {
+    const bs = [...document.querySelectorAll('.pf-barra')], agora = bs.map(b => b.style.getPropertyValue('--w')), quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!bs.length) return;
+    if (!quieto) bs.forEach((b, i) => { const de = funilAntes ? funilAntes[i] : '0%'; if (b.animate && de && de !== agora[i]) b.animate([{ width:de }, { width:agora[i] }], { duration:900, delay:funilAntes ? 0 : 150 + i * 110, easing:'cubic-bezier(.34,1.3,.5,1)', fill:'backwards' }); });
+    funilAntes = agora;
+    const d = viraMes, cx = document.querySelector('.fn-mes-card .fn-mes-et'); viraMes = 0;
+    if (d && cx && !quieto && cx.firstElementChild.animate) cx.firstElementChild.animate([{ transform:`translateX(${d * 36}px)`, opacity:0 }, { transform:'none', opacity:1 }], { duration:380, easing:'cubic-bezier(.2,.9,.2,1)' });
+  }
+  // Ao sair da lista, o funil volta a crescer do zero na próxima entrada
+  window.addEventListener('hashchange', () => { if (!/^#\/propostas\/?$/.test(location.hash)) funilAntes = null; });
+  // Atalhos da lista: ← → mês, 1–4 situação, Esc tira o filtro
+  document.addEventListener('keydown', e => {
+    if (S.ui.view !== 'propostas' || S.route().id || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open], .menu, .sv-painel:not([hidden]), :popover-open')) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); S.actions.prMes({ d:e.key === 'ArrowLeft' ? -1 : 1 }); }
+    else if (/^[1-4]$/.test(e.key)) { e.preventDefault(); S.actions.prSit({ v:PSITS[+e.key - 1][0] }); }
+    else if (e.key === 'Escape' && pf.sit) { e.preventDefault(); S.actions.prSit({ v:pf.sit }); }
+  });
 
   // ---------- editor: as mudanças ficam na tela até "Salvar" ----------
   const ed = { id:null, p:null, sujo:false };
@@ -234,7 +284,6 @@
     const r = await S.q(S.sb.rpc('mudar_situacao_proposta', { p_proposta:p.id, p_situacao:para, p_motivo:motivo || '' })); trocar(r); return r; }, ok);
 
   const proxMes = () => { const d = new Date(); const n = new Date(d.getFullYear(), d.getMonth() + 1, 1); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-01`; };
-  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const mesExt = per => { const [y, m] = per.split('-').map(Number); const t = MESES[m - 1]; return `${t[0].toUpperCase()}${t.slice(1)} de ${y}`; };
 
   // ---------- gerar o PI da proposta aprovada ----------
@@ -478,7 +527,9 @@
   const atualEd = () => (S.route().view === 'propostas' && ed.id ? ed.p : null);
   const comItem = fn => { const p = atualEd(); if (!p || !editavel(achar(p.id))) return; fn(p); sujar(); S.render(); };
   Object.assign(S.actions, {
-    prFiltro: d => { S.ui.propFiltro = d.f; S.render(); },
+    prSit: d => { if (!d.v) { if (!pf.sit) return; pf.sit = ''; } else pf.sit = pf.sit === d.v ? '' : d.v; S.flip(S.render); },
+    prMes: d => { const hoje = today().slice(0, 7), atual = pf.mes || hoje, alvo = +d.d ? somaMes(atual, +d.d) : hoje;
+      if (alvo === atual) return; viraMes = alvo > atual ? 1 : -1; pf.mes = alvo === hoje ? '' : alvo; pf.sit = ''; S.flip(S.render); },
     prNova: (d = {}) => {
       const v = S.veh(), cls = clientesParaEscolher(null);
       if (!cls.length) return S.toast(S.pode('consultor') ? 'Você ainda não tem clientes nesta rádio. Cadastre em Clientes.' : 'Cadastre o cliente antes, em Clientes.');

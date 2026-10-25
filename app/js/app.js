@@ -51,9 +51,10 @@
     const DIR = !MUSIC && !!(S.me && S.me.diretor), bruto = location.hash.replace(/^#\/?/, '').split('/')[0];
     let { view, id } = S.route();
     if (DIR && !bruto) view = 'geral';
-    if (view === 'geral') S.ui.emGeral = DIR; else if (!['admin', 'combos'].includes(view)) S.ui.emGeral = false;
+    // Administração e Combos do diretor vivem no Dashboard geral (24/10/2026): abrir qualquer uma delas leva o menu para lá
+    if (['geral', 'admin', 'combos'].includes(view)) S.ui.emGeral = DIR; else S.ui.emGeral = false;
     const geral = DIR && S.ui.emGeral, semVeiculo = !S.ui.vehicleId;
-    const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral', 'combos'].includes(n[0])) && (!geral || ['geral', 'combos', 'music', 'admin'].includes(n[0])) && !(n[0] === 'combos' && !geral) && !(n[0] === 'geral' && !geral && !semVeiculo)), telas = itens.filter(n => !n[3]);
+    const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral', 'combos'].includes(n[0])) && (!geral || ['geral', 'combos', 'music', 'admin'].includes(n[0])) && !(n[0] === 'combos' && !geral) && !(n[0] === 'geral' && !geral && !semVeiculo) && !(n[0] === 'admin' && DIR && !geral && !semVeiculo)), telas = itens.filter(n => !n[3]);
     if (!telas.some(n => n[0] === view) && view !== 'pi') view = telas.length ? telas[0][0] : 'soMusic';
     if (semVeiculo && !(DIR && ['geral', 'admin', 'combos'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
     S.ui.view = view;   // tela realmente desenhada (com o hash vazio, o diretor vê o Dashboard geral)
@@ -86,6 +87,7 @@
     const rb = side.querySelector('.recolher'); if (rb) { rb.setAttribute('aria-expanded', String(!recolhido)); rb.title = recolhido ? 'Abrir menu' : 'Recolher menu'; rb.querySelector('.sr').textContent = recolhido ? 'Abrir menu' : 'Recolher menu'; }
     bar.innerHTML = `<h1>${v.title}</h1>${v.actions}`;
     content.innerHTML = v.body;
+    if (S.poeRolos) S.poeRolos();   // números que rolam e ficam montados entre desenhos (S.roloFixo)
     requestAnimationFrame(() => content.querySelectorAll('.scroll').forEach(sc => { if (sc.scrollWidth > sc.clientWidth + 2 && !sc.querySelector('a[href], button, input, select, textarea, [tabindex]')) { const t = sc.closest('.card') && sc.closest('.card').querySelector('h2'); sc.tabIndex = 0; sc.setAttribute('role', 'region'); sc.setAttribute('aria-label', (t ? t.textContent.trim() + ': ' : '') + 'tabela, role para o lado para ver tudo'); } }));
     document.title = (MUSIC ? 'Sonvi Music' : 'SONVI') + (view === 'geral' ? ' · Dashboard geral' : semVeiculo || geral ? '' : ' · ' + veh.nome);
   };

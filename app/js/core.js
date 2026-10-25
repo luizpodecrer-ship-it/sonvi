@@ -386,6 +386,22 @@ S.actions.formEditar = () => {
   document.addEventListener('focusout', e => { const el = e.target; if (el.dataset && el.dataset.mask && el.validationMessage) avisar(el); });
 })();
 
+// Número que rola (S.rolo, de cruzado.js) e fica montado entre um desenho e outro: cada tela tem a sua chave.
+// No lugar dele, a tela escreve <span data-rolo-fixo="chave"></span>; depois do desenho, S.poeRolos() o encaixa e rola até o valor novo.
+const rolosFixos = {};
+S.roloFixo = (chave, texto) => `<span data-rolo-fixo="${chave}" data-rolo-txt="${S.esc(texto)}"></span>`;
+S.poeRolos = () => document.querySelectorAll('[data-rolo-fixo]').forEach(lugar => {
+  const k = lugar.dataset.roloFixo, t = lugar.dataset.roloTxt; let r = rolosFixos[k];
+  if (!r) { const el = document.createElement('span'); el.className = 'rl-fixo'; r = rolosFixos[k] = { el, rolo:S.rolo ? S.rolo(el) : null, novo:true }; }
+  lugar.replaceWith(r.el); if (r.rolo) r.rolo.poe(t, r.novo); else r.el.textContent = t; r.novo = false; });
+// FLIP de lista: guarda onde estava cada [data-flip], redesenha e faz as linhas deslizarem até o lugar novo (as novas sobem de leve)
+S.flip = desenhar => {
+  const antes = new Map(); document.querySelectorAll('[data-flip]').forEach(e => antes.set(e.dataset.flip, e.getBoundingClientRect().top));
+  desenhar(); if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.querySelectorAll('[data-flip]').forEach((e, k) => { if (!e.animate) return; const t0 = antes.get(e.dataset.flip), t1 = e.getBoundingClientRect().top;
+    if (t0 !== undefined) { if (Math.abs(t0 - t1) > 1) e.animate([{ transform:`translateY(${t0 - t1}px)` }, { transform:'none' }], { duration:420, easing:'cubic-bezier(.2,.9,.2,1)' }); }
+    else e.animate([{ opacity:0, transform:'translateY(8px)' }, { opacity:1, transform:'none' }], { duration:320, delay:Math.min(k, 8) * 25, easing:'ease-out', fill:'backwards' }); });
+};
 // Aviso no rodapé. Com { fn, acao } ganha um botão (ex.: "Desfazer") e fica mais tempo na tela
 S.toast = (msg, op) => { const t = document.getElementById('toast'), comAcao = !!(op && op.fn); t.textContent = msg; t.classList.toggle('com-acao', comAcao);
   if (comAcao) { const b = document.createElement('button'); b.type = 'button'; b.textContent = op.acao || 'Desfazer';

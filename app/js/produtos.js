@@ -73,19 +73,42 @@
     return `<nav class="seg tp-abas" aria-label="Produtos">${it.map(([k, rota, nome, q]) => `<button class="${k === on ? 'on' : ''}" data-go="${rota}"${k === on ? ' aria-current="page"' : ''}>${nome}${q !== null ? ` <small>${q}</small>` : ''}</button>`).join('')}</nav>`;
   };
 
-  // ---------- rádio: produtos ----------
+  // ---------- rádio: produtos (resumo, variação para comparar, cartões com barras ou mapa de preços; aprovado em 24/10/2026) ----------
+  // Tudo nos tons da cor do veículo. Estilos .pdt-* em sonvi.css (nunca .pd-*, que é do PI impresso).
   const chip = (nome, valor, cls) => `<span class="pdt-var${cls ? ' ' + cls : ''}"><small>${esc(nome)}</small><b>${brl(valor)}</b></span>`;
-  const cartaoRadio = p => { const vs = formatos(true).map(f => [f, precoDe(p, f)]).filter(x => x[1] > 0), d = dadosDe(p);
-    return `<article class="card pdt-card${p.ativo ? '' : ' inativo'}"><div class="pdt-cab"><h3>${esc(p.nome)}</h3>${ehLocal(p) ? S.tag('Local', 'green') : ''}${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pdt-tipo">${TIPO[p.secao] || 'Determinado'}</span>${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
+  const pv = { vista:'cartoes', varia:'' };   // varia = id da variação escolhida para comparar
+  const curto = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  const cartaoRadio = (p, mx) => { const d = dadosDe(p), vs = formatos(true).map(f => [f, precoDe(p, f)]).filter(x => x[1] > 0 || x[0].id === pv.varia);
+    return `<article class="card pdt-card${p.ativo ? '' : ' inativo'}" data-flip="${p.id}"><div class="pdt-cab"><h3>${esc(p.nome)}</h3>${ehLocal(p) ? '<span class="pill fn-ok">Local</span>' : ''}${p.ativo ? '' : '<span class="pill fn-neutra">Inativo</span>'}<span class="pdt-tipo">${TIPO[p.secao] || 'Determinado'}</span>${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
       <small class="muted pdt-hor">${horario(p)}</small>${d.obs ? `<small class="muted">${esc(d.obs)}</small>` : ''}
-      <div class="pdt-vars">${vs.length ? vs.map(([f, v]) => chip(f.nome, v, unico(f) ? 't' : '')).join('') : '<span class="muted small">Sem preço ainda</span>'}</div></article>`; };
+      ${vs.some(x => x[1] > 0) ? `<div class="pdt-precos-b${pv.varia ? ' filtra' : ''}">${vs.map(([f, v]) => `<div class="pdt-pb${f.id === pv.varia ? ' foco' : ''}${v ? '' : ' vazio'}"><span>${esc(f.nome)}${unico(f) ? '<small> · preço único</small>' : ''}</span><span class="pdt-pb-barra" aria-hidden="true"><i style="width:${v ? Math.max(3, v / mx * 100) : 0}%"></i></span><b>${v ? brl(v) : 'não vende'}</b></div>`).join('')}</div>` : '<span class="muted small">Sem preço ainda</span>'}</article>`; };
   const vistaRadio = () => {
-    const ps = radioProds().filter(p => p.secao !== 'patrocinio' && (p.ativo || pode()));
-    const blocos = SECOES.map(([k, n, sub]) => { const l = ps.filter(p => (SECOES.some(s => s[0] === p.secao) ? p.secao : 'programa') === k);
-      return l.length ? `<section class="pdt-sec"><div class="pdt-sec-hd"><h2>${n}</h2><small class="muted">${sub}</small></div><div class="pdt-grade">${l.map(cartaoRadio).join('')}</div></section>` : ''; }).join('');
+    const ps = radioProds().filter(p => p.secao !== 'patrocinio' && (p.ativo || pode())), fs = formatos(true).filter(f => ps.some(p => precoDe(p, f) > 0));
+    if (pv.varia && !fs.some(f => f.id === pv.varia)) pv.varia = '';
+    const precos = ps.flatMap(p => fs.map(f => ({ p, f, v:precoDe(p, f) }))).filter(x => x.v > 0), mx = Math.max(1, ...precos.map(x => x.v));
+    const menor = precos.reduce((a, x) => !a || x.v < a.v ? x : a, null), maior = precos.reduce((a, x) => !a || x.v > a.v ? x : a, null);
+    const cotas = radioProds().filter(p => p.secao === 'patrocinio' && p.ativo).length, nSec = new Set(ps.map(p => p.secao)).size, fv = fs.find(f => f.id === pv.varia);
+    const daVar = fv ? ps.map(p => precoDe(p, fv)).filter(Boolean) : [];
+    const resumoV = fv ? `<span class="pill fn-ok">${esc(fv.nome)}: ${daVar.length > 1 ? `de ${brl(Math.min(...daVar))} a ${brl(Math.max(...daVar))}` : brl(daVar[0])} · ${daVar.length} produto${daVar.length === 1 ? '' : 's'}</span>` : '<span class="pill fn-neutra">Escolha uma variação para comparar os produtos</span>';
+    const topo = ps.length ? `<section class="card pdt-topo" aria-labelledby="pdt-t"><div class="hd"><h2 id="pdt-t">Tabela da ${esc(S.veh().nome)}</h2>
+        <div class="seg" role="group" aria-label="Ver como">${[['cartoes', 'Cartões'], ['mapa', 'Mapa de preços']].map(([k, n]) => `<button class="${pv.vista === k ? 'on' : ''}" data-act="pdVista" data-v="${k}" aria-pressed="${pv.vista === k}">${n}</button>`).join('')}</div></div>
+      <div class="pdt-kpis"><div><small>Produtos ativos</small><b>${S.roloFixo('pdt1', String(ps.filter(p => p.ativo).length))}</b><span>em ${nSec} seç${nSec === 1 ? 'ão' : 'ões'}</span></div>
+        <div><small>Cotas de patrocínio</small><b>${S.roloFixo('pdt2', String(cotas))}</b><span>${cotas ? 'na aba Patrocínios' : 'nenhuma ativa'}</span></div>
+        <div><small>Menor preço</small><b>${S.roloFixo('pdt3', menor ? curto(menor.v) : 'R$ 0')}</b><span>${menor ? `${esc(menor.f.nome)} · ${esc(menor.p.nome)}` : '—'}</span></div>
+        <div><small>Maior preço</small><b>${S.roloFixo('pdt4', maior ? curto(maior.v) : 'R$ 0')}</b><span>${maior ? `${esc(maior.f.nome)} · ${esc(maior.p.nome)}` : '—'}</span></div></div>
+      <div class="pdt-comparar"><div class="pdt-var-chips" role="group" aria-label="Comparar uma variação">${fs.map(f => `<button data-act="pdVar" data-id="${f.id}" aria-pressed="${pv.varia === f.id}">${esc(f.nome)}</button>`).join('')}</div><span class="grow"></span>${resumoV}</div></section>` : '';
+    let blocos;
+    if (pv.vista === 'mapa' && ps.length) {
+      const mn = menor ? menor.v : 0, faixa = Math.max(1, mx - mn);
+      blocos = `<section class="card" aria-labelledby="pdt-tm"><div class="hd"><h2 id="pdt-tm">Mapa de preços</h2><span>quanto mais forte, mais caro</span></div><div class="pdt-mapa scroll"><table><thead><tr><th><span class="sr">Produto</span></th>${fs.map(f => `<th class="c${f.id === pv.varia ? ' on' : ''}">${esc(f.nome)}</th>`).join('')}</tr></thead><tbody>
+        ${ps.map(p => `<tr><td class="nome"><b>${esc(p.nome)}</b></td>${fs.map(f => { const v = precoDe(p, f), pc = v ? Math.round(12 + (v - mn) / faixa * 88) : 0;
+          return `<td class="${f.id === pv.varia ? 'on' : ''}">${v ? `<span class="pdt-cel" style="--p:${pc}" title="${esc(p.nome)} · ${esc(f.nome)}: ${brl(v)}"><span>${curto(v).replace('R$ ', '')}</span></span>` : '<span class="pdt-cel nada">não vende</span>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>
+        <div class="pdt-escala"><span>${curto(mn)}</span><i aria-hidden="true"></i><span>${curto(mx)}</span></div></section>`;
+    } else blocos = SECOES.map(([k, n, sub]) => { const l = ps.filter(p => (SECOES.some(s => s[0] === p.secao) ? p.secao : 'programa') === k);
+      return l.length ? `<section class="pdt-sec"><div class="pdt-sec-hd"><h2>${n}</h2><small class="muted">${sub}</small></div><div class="pdt-grade">${l.map(p => cartaoRadio(p, mx)).join('')}</div></section>` : ''; }).join('');
     const vazio = `<div class="card empty"><b>Nenhum produto cadastrado</b>${pode() ? 'Cadastre os programas, o rotativo e os testemunhais que a rádio vende, com o preço de cada duração.' : 'Quando o diretor cadastrar, os produtos aparecem aqui.'}</div>`;
     return { title:titulo('Produtos'), actions:pode() ? `<button class="btn" data-act="pdVariacoes">Durações e variações</button><button class="btn pri" data-act="pdNovo">${S.svg('mais')}Novo produto</button>` : '',
-      body:S.produtosAbas('produtos') + (blocos || vazio) + (blocos ? `<p class="muted small pdt-nota">Mudar um preço vale na hora para as propostas novas. Propostas e PIs já feitos guardam o preço do dia.</p>` : '') };
+      body:S.produtosAbas('produtos') + (ps.length ? topo + blocos : vazio) + (ps.length ? `<p class="muted small pdt-nota">Mudar um preço vale na hora para as propostas novas. Propostas e PIs já feitos guardam o preço do dia.</p>` : '') };
   };
 
   // Formulário do produto de rádio
@@ -134,13 +157,20 @@
 
   // ---------- rádio: cotas de patrocínio ----------
   const incluiTxt = p => (dadosDe(p).incluido || []).filter(x => Number(x.qtd) > 0).map(x => `${x.qtd} ${esc((prod(x.formato_id) || {}).nome || 'variação removida')}`).join(' · ');
+  // A mistura do pacote numa barra (citações, spots, testemunhais…) nos tons do veículo, e o valor contra a cota mais cara
+  const TONS = ['t-claro', 't-medio', 't-forte', 't-escuro'];
+  let cotaMax = 1;
+  const mistura = p => { const inc = (dadosDe(p).incluido || []).filter(x => Number(x.qtd) > 0), fs = formatos(true);
+    return inc.length ? `<span class="pdt-mix" aria-hidden="true">${inc.map(x => `<i style="flex:${Number(x.qtd)};background:var(--${TONS[Math.max(0, fs.findIndex(f => f.id === x.formato_id)) % TONS.length]})" title="${x.qtd} ${esc((prod(x.formato_id) || {}).nome || '')}"></i>`).join('')}</span>` : ''; };
+  const barraValor = p => `<span class="pdt-vbar" aria-hidden="true"><i style="width:${Math.max(3, Number(dadosDe(p).valor || 0) / cotaMax * 100)}%"></i></span>`;
   const vistaCotas = () => {
     const cs = radioProds().filter(p => p.secao === 'patrocinio' && (p.ativo || pode()));
-    const linhas = cs.map(p => `<tr class="${p.ativo ? '' : 'inativo'}"><td><b>${esc(p.nome)}</b>${ehLocal(p) ? ' ' + S.tag('Local', 'green') : ''}${p.ativo ? '' : ' ' + S.tag('Inativo', 'gray')}</td>
-      <td class="pdt-hor-td">${horario(p)}</td><td class="pdt-inclui">${incluiTxt(p) || '<span class="muted">—</span>'}</td><td class="r nw"><b>${brl(dadosDe(p).valor)}</b></td>
+    cotaMax = Math.max(1, ...cs.map(p => Number(dadosDe(p).valor || 0)));
+    const linhas = cs.map(p => `<tr class="${p.ativo ? '' : 'inativo'}"><td><b>${esc(p.nome)}</b>${ehLocal(p) ? ' <span class="pill fn-ok">Local</span>' : ''}${p.ativo ? '' : ' <span class="pill fn-neutra">Inativo</span>'}</td>
+      <td class="pdt-hor-td">${horario(p)}</td><td class="pdt-inclui">${mistura(p)}${incluiTxt(p) || '<span class="muted">—</span>'}</td><td class="r nw"><b>${brl(dadosDe(p).valor)}</b>${barraValor(p)}</td>
       <td class="r">${pode() ? `<span class="lin-acoes">${tres('pdMenu', p.id, p.nome)}</span>` : ''}</td></tr>`).join('');
-    const cards = cs.map(p => `<article class="card pdt-card${p.ativo ? '' : ' inativo'}"><div class="pdt-cab"><h3>${esc(p.nome)}</h3>${ehLocal(p) ? S.tag('Local', 'green') : ''}${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
-      <small class="muted pdt-hor">${horario(p)}</small><small>${incluiTxt(p)}</small><b class="pdt-valor">${brl(dadosDe(p).valor)}<small class="muted">/mês</small></b></article>`).join('');
+    const cards = cs.map(p => `<article class="card pdt-card${p.ativo ? '' : ' inativo'}"><div class="pdt-cab"><h3>${esc(p.nome)}</h3>${ehLocal(p) ? '<span class="pill fn-ok">Local</span>' : ''}${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
+      <small class="muted pdt-hor">${horario(p)}</small>${mistura(p)}<small>${incluiTxt(p)}</small><b class="pdt-valor">${brl(dadosDe(p).valor)}<small class="muted">/mês</small></b></article>`).join('');
     const corpo = !cs.length ? `<div class="card empty"><b>Nenhuma cota de patrocínio</b>${pode() ? 'A cota é o programa vendido por mês, com um pacote fixo dentro (citações, spots e testemunhais).' : 'Quando o diretor cadastrar, as cotas aparecem aqui.'}</div>`
       : S.celular ? `<div class="pdt-grade">${cards}</div>` : `<section class="card"><div class="scroll"><table class="pdt-cotas"><thead><tr><th>Programa</th><th>Exibição e horário</th><th>O que inclui por mês</th><th class="r">Valor/mês</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div></section>`;
     return { title:titulo('Produtos'), actions:pode() ? `<button class="btn" data-act="pdVariacoes">Durações e variações</button><button class="btn pri" data-act="pdNovaCota">${S.svg('mais')}Nova cota de patrocínio</button>` : '',
@@ -318,6 +348,8 @@
     const d = document.getElementById('dlg'); if (d) d.dataset.sujo = '1'; };
   Object.assign(S.actions, {
     pdNovo: () => formRadio(null),
+    pdVista: d => { if (pv.vista === d.v) return; pv.vista = d.v; S.render(); },
+    pdVar: d => { pv.varia = pv.varia === d.id ? '' : d.id; S.render(); },
     pdNovaCota: () => formCota(null),
     pdNovoOoh: () => formOoh(null),
     pdEditarOoh: d => formOoh(prod(d.id)),
