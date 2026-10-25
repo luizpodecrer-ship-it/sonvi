@@ -1843,10 +1843,9 @@ td.r, td.nw, th.nw { white-space:nowrap; }
 .cz-pill.cz-muda { animation:cz-pill .6s var(--cz-mola); }
 @keyframes cz-pill { from { transform:translateY(5px); opacity:0; } to { transform:none; opacity:1; } }
 .cz-rod { display:inline-flex; align-items:center; height:var(--cz-dh); font:600 30px/var(--cz-dh) var(--display); letter-spacing:-.03em; font-variant-numeric:tabular-nums; color:var(--ink); white-space:nowrap; }
-.cz-rod-col { position:relative; display:inline-block; height:var(--cz-dh); padding:0 .03em; overflow:hidden; -webkit-mask-image:linear-gradient(180deg, transparent, #000 16%, #000 84%, transparent); mask-image:linear-gradient(180deg, transparent, #000 16%, #000 84%, transparent); }
+.cz-rod-col { position:relative; display:inline-block; height:var(--cz-dh); margin-right:-.03em; overflow:hidden; -webkit-mask-image:linear-gradient(180deg, transparent, #000 16%, #000 84%, transparent); mask-image:linear-gradient(180deg, transparent, #000 16%, #000 84%, transparent); }
 .cz-rod-tira { position:relative; display:block; will-change:transform; }   /* a coluna tem a largura do algarismo (não corta os lados) */
-.cz-rod-tira i { display:block; height:var(--cz-dh); text-align:center; font-style:normal; letter-spacing:0; }
-.cz-rod-col + .cz-rod-col, .cz-rod-sep + .cz-rod-col, .cz-rod-col + .cz-rod-sep { margin-left:-.06em; }
+.cz-rod-tira i { display:block; height:var(--cz-dh); text-align:center; font-style:normal; letter-spacing:0; font-variant-numeric:tabular-nums; }
 .cz-rod-sep { display:inline-block; text-align:center; }
 .cz-rod-sep[data-c="."], .cz-rod-sep[data-c=","] { width:.28em; }
 .cz-rod-sep[data-c=" "] { width:.3em; }
