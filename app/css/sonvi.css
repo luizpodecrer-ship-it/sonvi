@@ -2852,3 +2852,28 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 .cs2-fixa .cs2-corta { overflow:hidden; text-overflow:ellipsis; }
 .cs2-fixa .cs2-corta b, .cs2-fixa .cs2-corta small { overflow:hidden; text-overflow:ellipsis; }
 .cs2-fixa .cs2-corta small { display:block; }
+/* Menu fluido do Dashboard geral (mesmo movimento do menu do Console, 25/10/2026): realce que desliza com mola até o item sob o mouse;
+   o ícone cresce e ganha a cor do item; no item da tela o realce fica na cor do destaque. Só no computador (no celular é a barra de abas). */
+@media (min-width:821px) {
+  #side nav.fluido { position:relative; }
+  #side nav.fluido .realce { position:absolute; left:0; right:0; top:0; height:44px; border-radius:var(--radius-s); background:var(--fill); opacity:0; pointer-events:none; z-index:0;
+    transition:transform .5s cubic-bezier(.34,1.25,.5,1), height .3s, opacity .2s, background-color .25s; }
+  #side nav.fluido .realce.no-on { background:var(--accent-soft); }
+  #side nav.fluido a { position:relative; z-index:1; transition:color .15s; }
+  #side nav.fluido a:hover, #side nav.fluido a.on { background:none; }
+  #side nav.fluido a.quente { color:var(--ink); }
+  #side nav.fluido a svg { transition:transform .3s cubic-bezier(.34,1.4,.5,1), color .25s; }
+  #side nav.fluido a.quente svg, #side nav.fluido a.on svg { transform:scale(1.18); color:var(--c, currentColor); }
+  #side nav.fluido a.externo svg:last-child { transform:none; color:inherit; }
+  #side nav.fluido .div { height:1px; background:var(--line); margin:8px 12px; flex:none; }
+  body.compacto #side nav.fluido .div { margin:8px 6px; }
+}
+@media (max-width:820px) { #side nav .realce, #side nav .div { display:none; } }
+@media (prefers-reduced-motion: reduce) { #side nav.fluido .realce, #side nav.fluido a svg { transition:none; } }
+/* Cores dos ícones do menu do Dashboard geral (claro / escuro, como no Console) */
+#side nav [data-ico="geral"] { --c:#0055FF; } #side nav [data-ico="combos"] { --c:#7C3AED; } #side nav [data-ico="music"] { --c:#D9367A; }
+#side nav [data-ico="admin"] { --c:#0D8F82; } #side nav [data-ico="chamados"] { --c:#E0701B; }
+@media (prefers-color-scheme: dark) {
+  #side nav [data-ico="geral"] { --c:#4C9DFF; } #side nav [data-ico="combos"] { --c:#B69CFF; } #side nav [data-ico="music"] { --c:#F47BB0; }
+  #side nav [data-ico="admin"] { --c:#3DDC97; } #side nav [data-ico="chamados"] { --c:#F2A65A; }
+}

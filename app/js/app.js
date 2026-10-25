@@ -41,6 +41,32 @@
     if (fimSuporte !== sup.id) { fimSuporte = sup.id; setTimeout(() => { if (S.ctx && S.ctx.suporte && S.ctx.suporte.id === sup.id) { S.toast('O acesso de suporte terminou.'); S.iniciar(); } }, Math.max(0, fim - Date.now()) + 1000); }
   };
 
+  // Menu fluido do Dashboard geral (o mesmo do Console, 25/10/2026): o realce desliza até o item sob o mouse ou o foco,
+  // o ícone cresce e ganha a cor do item; na troca de tela o realce sai de onde estava e vai até o item novo. Só no computador.
+  let realceY = null;
+  const menuFluido = (side, liga) => {
+    const nav = side.querySelector('nav'); if (!nav) return;
+    nav.classList.toggle('fluido', liga);
+    if (!liga) { realceY = null; return; }
+    let r = nav.querySelector('.realce');
+    if (!r) { r = document.createElement('span'); r.className = 'realce'; r.setAttribute('aria-hidden', 'true'); nav.prepend(r); }
+    const itens = [...nav.querySelectorAll('a')];
+    itens.forEach(a => { if (a.dataset.ico === 'admin' && !(a.previousElementSibling && a.previousElementSibling.classList.contains('div'))) a.insertAdjacentHTML('beforebegin', '<span class="div" aria-hidden="true"></span>'); });
+    const on = () => nav.querySelector('a.on');
+    const ir = (a, sem) => { if (!a) { r.style.opacity = 0; return; } if (sem) r.style.transition = 'none';
+      r.style.opacity = 1; r.style.transform = `translateY(${a.offsetTop}px)`; r.style.height = a.offsetHeight + 'px'; if (sem) { r.offsetHeight; r.style.transition = ''; }
+      itens.forEach(x => x.classList.toggle('quente', x === a && !x.classList.contains('on'))); r.classList.toggle('no-on', a === on()); if (a === on()) realceY = a.offsetTop; };
+    const a0 = on();
+    if (realceY !== null && a0 && realceY !== a0.offsetTop) { r.style.transition = 'none'; r.style.opacity = 1; r.style.height = a0.offsetHeight + 'px'; r.style.transform = `translateY(${realceY}px)`; r.offsetHeight; r.style.transition = ''; requestAnimationFrame(() => ir(a0)); }
+    else ir(a0, true);
+    if (nav.dataset.fluido) return; nav.dataset.fluido = '1';
+    const volta = () => { if (!nav.classList.contains('fluido')) return; ir(on()); itens.forEach(x => x.classList.remove('quente')); };
+    nav.addEventListener('mouseover', e => { const a = e.target.closest('a'); if (a && nav.classList.contains('fluido')) ir(a); });
+    nav.addEventListener('focusin', e => { const a = e.target.closest('a'); if (a && nav.classList.contains('fluido')) ir(a); });
+    nav.addEventListener('mouseleave', volta);
+    nav.addEventListener('focusout', e => { if (!nav.contains(e.relatedTarget)) volta(); });
+  };
+
   S.render = () => {
     const content = document.getElementById('content'), bar = document.getElementById('bar');
     const acesso = S.carregando ? `<div class="carregando"><div style="display:grid;justify-items:center;gap:18px"><img src="img/simbolo.svg" width="66" height="78" alt="${MUSIC ? 'Sonvi Music' : 'SONVI'}"><div class="eq" aria-label="Carregando"><span></span><span></span><span></span><span></span><span></span></div></div></div>` : S.telaDeAcesso();
@@ -74,6 +100,7 @@
     const molde = sideHtml.replace(/ class="on( extra)?" aria-current="page"/g, ' class="$1"').replace(/class=" extra"/g, 'class="extra"');
     if (molde === ultimoSide) side.querySelectorAll('nav a[data-go]').forEach(a => { const on = a.dataset.go === '/' + active; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     else { side.innerHTML = sideHtml; ultimoSide = molde; }
+    menuFluido(side, !MUSIC && geral);
     const mais = side.querySelector('.nav-mais'); if (mais) { mais.classList.toggle('on', !!side.querySelector('nav a.extra.on'));
       const bx = side.querySelector('nav a.extra .badge'), bm = mais.querySelector('.badge'); if (bm) bm.remove(); if (bx) mais.insertAdjacentHTML('beforeend', `<span class="badge" aria-label="${bx.textContent} pendentes">${bx.textContent}</span>`); }
     const v = (S.views[view] || S.views.soMusic)(id), chave = `${view}/${view === 'clientes' ? '' : id || ''}/${S.ui.vehicleId}/${S.ui.tab}`; // abas dentro da mesma tela não animam
