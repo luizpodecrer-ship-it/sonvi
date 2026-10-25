@@ -66,21 +66,89 @@
   const resumo = r => { const c = (r.criados || []).map(nomeRadio), j = (r.ja || []).map(nomeRadio);
     return [c.length && 'cadastrado também na ' + c.join(' e na '), j.length && 'já existia na ' + j.join(' e na ')].filter(Boolean).join('; '); };
 
-  // ---------- lista ----------
+  // ---------- lista (aprovada em 24/10/2026): carteira com números, consultores, mapa da carteira e a lista com as compras ----------
+  // Compras = PIs que saíram do comercial (na OPEC, aprovados, programados, faturados) dos últimos 12 meses, pela data de criação.
+  // O mapa: um bloco por cliente (ou agência), do tamanho do que comprou; a cor é a recência (tons do veículo). Estilos .ct-* em sonvi.css.
+  const VENDA = ['opec', 'aprovado', 'programado', 'faturado'];
+  const cf = { sit:'todos', cons:'', rec:'' };
+  const REC = [['mes', 'Comprou neste mês', 't-forte'], ['tri', 'Nos últimos 3 meses', 't-medio'], ['sumiu', 'Sem comprar há 3+ meses', 't-claro']];
+  const curtoC = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  // Compras por mês (12 meses, o último é o atual) de cada pessoa, pelo campo do PI (cliente_id ou agencia_id)
+  const compras = campo => { const h = S.today(), mes0 = (() => { const [y, m] = h.split('-').map(Number), d = new Date(y, m - 12, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
+    const idx = ym => { const [y, m] = ym.split('-').map(Number), [y0, m0] = mes0.split('-').map(Number); return (y - y0) * 12 + (m - m0); };
+    const out = {}; S.db.pis.filter(p => VENDA.includes(p.status) && p[campo]).forEach(p => { const i = idx(S.dia(p.criado_em).slice(0, 7)); if (i < 0 || i > 11) return;
+      const r = out[p[campo]] = out[p[campo]] || { m:Array(12).fill(0), total:0 }; const v = S.calc(p).total; r.m[i] += v; r.total += v; });
+    Object.values(out).forEach(r => { const k = r.m.map((v, i) => v ? i : -1).filter(i => i > -1).pop(); r.ult = k === undefined ? -1 : 11 - k; });
+    return out; };
+  const recDe = c => !c || c.ult < 0 ? null : c.ult === 0 ? REC[0] : c.ult <= 3 ? REC[1] : REC[2];
+  const ultTxt = c => !c || c.ult < 0 ? 'nunca' : c.ult === 0 ? 'este mês' : c.ult === 1 ? 'há 1 mês' : `há ${c.ult} meses`;
+  // Mapa da carteira (treemap "squarified"): devolve os retângulos em px
+  const squarify = (itens, x, y, w, h) => { const out = [], tot = itens.reduce((s, i) => s + i.v, 0); if (!tot || w <= 0 || h <= 0) return out;
+    let rest = itens.map(i => Object.assign({}, i, { a:i.v / tot * w * h }));
+    const pior = (lin, l) => { const s = lin.reduce((t, r) => t + r.a, 0), mx = Math.max(...lin.map(r => r.a)), mn = Math.min(...lin.map(r => r.a)); return Math.max(l * l * mx / (s * s), s * s / (l * l * mn)); };
+    while (rest.length) { const l = Math.min(w, h); const lin = [rest[0]]; let k = 1;
+      while (k < rest.length && pior([...lin, rest[k]], l) <= pior(lin, l)) { lin.push(rest[k]); k++; }
+      const esp = lin.reduce((t, r) => t + r.a, 0) / l; let off = 0;
+      lin.forEach(r => { const t = r.a / esp; out.push(Object.assign({}, r, w >= h ? { x, y:y + off, w:esp, h:t } : { x:x + off, y, w:t, h:esp })); off += t; });
+      if (w >= h) { x += esp; w -= esp; } else { y += esp; h -= esp; } rest = rest.slice(k); }
+    return out; };
+  let mapaItens = [];
+  const desenhaMapa = parado => { const box = document.getElementById('ct-mapa'); if (!box) return; box.classList.toggle('parado', !!parado);
+    const W = box.clientWidth, H = box.clientHeight, g = 3;
+    box.innerHTML = squarify(mapaItens, 0, 0, W, H).map((r, i) => { const mini = r.w < 76 || r.h < 46;
+      return `<button type="button" class="ct-bloco${r.rec[0] === 'sumiu' ? ' claro' : r.rec[0] === 'tri' ? ' medio' : ''}${mini ? ' mini' : ''}${cf.rec === r.rec[0] ? ' on' : ''}" data-act="pesEditar" data-id="${r.p.id}" style="left:${r.x + g / 2}px;top:${r.y + g / 2}px;width:${Math.max(0, r.w - g)}px;height:${Math.max(0, r.h - g)}px;--c:var(--${r.rec[2]});--i:${i}" title="${esc(r.p.nome)} · ${curtoC(r.v)} em 12 meses · última compra ${ultTxt(r.c)}" aria-label="${esc(r.p.nome)}: ${curtoC(r.v)} em 12 meses, última compra ${ultTxt(r.c)}"><b>${esc(r.p.nome)}</b><small>${curtoC(r.v)} · ${ultTxt(r.c)}</small></button>`; }).join(''); };
+  let tMapa; window.addEventListener('resize', () => { clearTimeout(tMapa); tMapa = setTimeout(() => desenhaMapa(true), 150); });
+
   S.views.clientes = id => {
     aba = id === 'agencias' ? 'agencia' : 'cliente';
-    const q = S.ui.q.toLowerCase(), lista = S.pessoas(aba).filter(p => !q || [p.nome, p.razao_social, p.documento, p.cidade, p.segmento].join(' ').toLowerCase().includes(q));
-    const podeCriar = S.pode('diretor', 'gerente', 'consultor'), outras = radiosDestino().length > 0;
+    const cli = aba === 'cliente', q = S.ui.q.toLowerCase(), todas = S.pessoas(aba), cp = compras(cli ? 'cliente_id' : 'agencia_id');
+    const gestor = S.pode('diretor', 'gerente'), podeCriar = S.pode('diretor', 'gerente', 'consultor'), outras = radiosDestino().length > 0;
+    const base = todas.filter(p => !cli || !cf.cons || p.consultor_id === cf.cons);
+    const vis0 = base.filter(p => !cli || cf.sit === 'todos' || p.situacao === cf.sit);
+    const lista = vis0.filter(p => (!cf.rec || (recDe(cp[p.id]) || [])[0] === cf.rec) && (!q || [p.nome, p.razao_social, p.documento, p.cidade, p.segmento].join(' ').toLowerCase().includes(q)))
+      .sort((a, b) => ((cp[b.id] || {}).total || 0) - ((cp[a.id] || {}).total || 0) || a.nome.localeCompare(b.nome));
+    const comCompra = base.filter(p => cp[p.id]), recentes = base.filter(p => cp[p.id] && cp[p.id].ult <= 2), sumidos = base.filter(p => cp[p.id] && cp[p.id].ult > 3);
+    const tot12 = comCompra.reduce((s, p) => s + cp[p.id].total, 0);
+    const kpis = `<div class="ct-kpis">
+      <div><small>${cli ? 'Clientes ativos' : 'Agências'}</small><b>${S.roloFixo('ct1' + aba, String(cli ? base.filter(p => p.situacao === 'ativo').length : base.length))}</b><span>${cli ? `${base.filter(p => p.situacao === 'prospect').length} prospects em negociação` : 'cadastradas nesta rádio'}</span></div>
+      <div><small>Compraram nos últimos 3 meses</small><b>${S.roloFixo('ct2' + aba, String(recentes.length))}</b><span>de ${comCompra.length} com compras em 12 meses</span></div>
+      <div><small>Sem comprar há 3+ meses</small><b>${S.roloFixo('ct3' + aba, String(sumidos.length))}</b><span>${cli ? 'bons para um follow-up' : 'vale uma visita'}</span></div>
+      <div><small>Comprado em 12 meses</small><b>${S.roloFixo('ct4' + aba, curtoC(tot12))}</b><span>${comCompra.length} ${cli ? (comCompra.length === 1 ? 'cliente' : 'clientes') : (comCompra.length === 1 ? 'agência' : 'agências')}</span></div></div>`;
+    // Responsáveis: consultores e gerentes da rádio e quem mais tiver clientes (ex.: o diretor)
+    const resp = !(cli && gestor) ? [] : [...S.responsaveis(), ...[...new Set(todas.map(p => p.consultor_id).filter(Boolean))].map(id => ({ id, nome:S.usuario(id) || 'Responsável' }))]
+      .filter((u, i, l) => l.findIndex(x => x.id === u.id) === i && todas.some(p => p.consultor_id === u.id));
+    const chipsCons = resp.length > 1 ? `<div class="ct-cons" role="group" aria-label="Filtrar por consultor">${[{ id:'', nome:'Toda a equipe' }, ...resp].map(u => `<button type="button" data-act="cliCons" data-v="${u.id}" aria-pressed="${cf.cons === u.id}"><span class="av soft" aria-hidden="true">${u.id ? esc(S.iniciais(u.nome)) : '∗'}</span>${esc(u.id ? u.nome.split(' ')[0] : u.nome)}${u.id ? ` <small>${todas.filter(p => p.consultor_id === u.id).length}</small>` : ''}</button>`).join('')}</div>` : '';
+    mapaItens = vis0.filter(p => cp[p.id] && cp[p.id].total > 0).map(p => ({ p, c:cp[p.id], v:cp[p.id].total, rec:recDe(cp[p.id]) })).sort((a, b) => b.v - a.v);
+    const carteira = `<section class="card" aria-labelledby="ct-t"><div class="hd"><h2 id="ct-t">Carteira</h2><span>quanto cada ${cli ? 'cliente' : 'agência'} comprou nos últimos 12 meses</span></div>${kpis}${chipsCons}
+      ${mapaItens.length ? `<div class="ct-mapa${cf.rec ? ' filtra' : ''}" id="ct-mapa" role="group" aria-label="Mapa da carteira: cada bloco é ${cli ? 'um cliente' : 'uma agência'}, do tamanho do que comprou em 12 meses"></div>
+        <div class="ct-leg">${REC.map(([k, n, t]) => `<button type="button" class="fn-chip" style="--c:var(--${t})" data-act="cliRec" data-v="${k}" aria-pressed="${cf.rec === k}"><i aria-hidden="true"></i>${n}${cf.rec === k ? S.svg('fechar', 14) : ''}</button>`).join('')}<span class="grow"></span><span class="muted small">O tamanho é o valor; a cor, há quanto tempo comprou</span></div>`
+        : `<p class="muted" style="margin-top:14px">Nenhuma compra nos últimos 12 meses${cf.cons ? ' nesta carteira' : ''}. Os blocos aparecem quando houver PIs.</p>`}</section>`;
     const tres = p => outras && podeAlterarLa(p) ? `<button class="btn tres" data-act="pesMenu" data-id="${p.id}" aria-label="Opções de ${esc(p.nome)}">${S.svg('mais3')}</button>` : '';
-    const linhas = lista.map(p => `<tr class="click" data-act="pesEditar" data-id="${p.id}"><td><div style="display:flex;align-items:center;gap:12px"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><b class="cli-nome">${esc(p.nome)}</b></div></td><td class="nw num">${esc(p.documento)}</td><td class="nw">${esc(p.cidade)}</td><td class="nw num cli-tel">${esc(p.telefone || p.whatsapp)}</td>
-      ${aba === 'cliente' ? `<td class="nw">${esc(S.usuario(p.consultor_id))}</td><td class="cli-ag">${esc(S.nome(p.agencia_id))}</td><td>${S.tag(...SIT[p.situacao])}</td>` : `<td class="r">${S.nfmt(Number(p.comissao)) || '0'}%</td>`}<td class="r">${tres(p)}</td></tr>`).join('');
-    return { title:`<span class="sub">${esc(S.veh().nome)} · ${S.pessoas(aba).length} ${aba === 'cliente' ? (S.pessoas(aba).length === 1 ? 'cliente' : 'clientes') : (S.pessoas(aba).length === 1 ? 'agência' : 'agências')}</span>${aba === 'cliente' ? 'Clientes' : 'Agências'}`, actions:podeCriar ? `<button class="btn pri" data-act="pesNovo">${S.svg('mais')}${aba === 'cliente' ? 'Novo cliente' : 'Nova agência'}</button>` : '',
-      body:`<div class="row mid" style="margin-bottom:16px"><div class="seg" style="margin:0">${[['cliente', 'Clientes'], ['agencia', 'Agências']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="pesAba" data-tab="${k}">${n}</button>`).join('')}</div><input type="search" class="grow" style="height:42px" placeholder="Buscar por nome, CNPJ, cidade ou segmento" aria-label="Buscar clientes e agências" value="${esc(S.ui.q)}" data-ui="q"></div>
-        <div class="card">${lista.length && S.celular ? `<div class="list cli-lista">${lista.map(p => `<div data-act="pesEditar" data-id="${p.id}" tabindex="-1"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span>
-            <span class="tx"><b><a href="#/clientes" data-act="pesEditar" data-id="${p.id}">${esc(p.nome)}</a></b><small>${esc([p.cidade, p.segmento].filter(Boolean).join(' · ') || '—')}</small>
-            ${aba === 'cliente' ? `<span class="cli-meta">${S.tag(...SIT[p.situacao])}${p.consultor_id ? `<small>${esc(S.usuario(p.consultor_id))}</small>` : ''}${p.agencia_id ? `<small>· ${esc(S.nome(p.agencia_id))}</small>` : ''}</span>` : `<span class="cli-meta"><small>Comissão ${S.nfmt(Number(p.comissao)) || '0'}%</small></span>`}</span>${tres(p)}</div>`).join('')}</div>`
-          : lista.length ? `<div class="scroll"><table class="cli-tab"><thead><tr><th>Nome</th><th>CNPJ / CPF</th><th>Cidade</th><th class="cli-tel">Telefone</th>${aba === 'cliente' ? '<th>Consultor</th><th class="cli-ag">Agência</th><th>Situação</th>' : '<th class="r">Comissão</th>'}<th><span class="sr">Opções</span></th></tr></thead><tbody>${linhas}</tbody></table></div>` : `<div class="empty"><b>Nenhum cadastro${q ? ' encontrado' : ''}</b>${S.pode('consultor') && aba === 'cliente' ? 'Aqui aparecem os clientes da sua carteira.' : ''}</div>`}</div>` };
+    const spark = c => { const m = c ? c.m : Array(12).fill(0), mx = Math.max(1, ...m); return `<span class="ct-spark" role="img" aria-label="Compras mês a mês nos últimos 12 meses">${m.map((v, i) => `<i class="${i === 11 && v ? 'ult' : ''}" style="height:${v ? Math.max(14, v / mx * 100) : 8}%"></i>`).join('')}</span>`; };
+    const ult = c => { const r = recDe(c); return `<span class="pill ${!r ? 'fn-neutra' : r[0] === 'sumiu' ? 'fn-forte' : r[0] === 'mes' ? 'fn-ok' : 'fn-neutra'}">${ultTxt(c)}</span>`; };
+    const sub = p => cli ? (p.situacao === 'ativo' ? (p.telefone || p.whatsapp || p.cidade || '') : SIT[p.situacao][0]) : `Comissão ${S.nfmt(Number(p.comissao)) || '0'}%`;
+    const linhas = lista.map(p => { const c = cp[p.id];
+      return `<tr class="click" data-act="pesEditar" data-id="${p.id}" data-flip="${p.id}"><td><div class="ct-nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><span><b class="cli-nome">${esc(p.nome)}</b><small>${esc(sub(p))}</small></span></div></td><td class="nw num">${esc(p.documento)}</td><td class="nw cli-cid">${esc(p.cidade)}</td>
+        ${cli ? `<td class="nw">${esc((S.usuario(p.consultor_id) || '—').split(' ')[0])}</td>` : ''}<td class="ct-c-spark">${spark(c)}</td><td class="r nw num"><b>${c ? curtoC(c.total) : '—'}</b></td><td class="nw">${ult(c)}</td><td class="r">${tres(p)}</td></tr>`; }).join('');
+    const cartoes = lista.map(p => { const c = cp[p.id];
+      return `<div data-act="pesEditar" data-id="${p.id}" data-flip="${p.id}" tabindex="-1"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span>
+        <span class="tx"><b><a href="#/clientes" data-act="pesEditar" data-id="${p.id}">${esc(p.nome)}</a></b><small>${esc([p.cidade, cli && p.consultor_id ? S.usuario(p.consultor_id) : ''].filter(Boolean).join(' · ') || '—')}</small>
+        <span class="cli-meta">${ult(c)}<small>${c ? curtoC(c.total) + ' em 12 meses' : 'sem compras em 12 meses'}</small></span></span>${tres(p)}</div>`; }).join('');
+    const sits = cli ? `<div class="seg" role="group" aria-label="Situação">${[['todos', 'Todos', base.length], ['ativo', 'Ativos', base.filter(p => p.situacao === 'ativo').length], ['prospect', 'Prospects', base.filter(p => p.situacao === 'prospect').length], ['inativo', 'Inativos', base.filter(p => p.situacao === 'inativo').length]].map(([k, n, c]) => `<button class="${cf.sit === k ? 'on' : ''}" data-act="cliSit" data-v="${k}" aria-pressed="${cf.sit === k}">${n} <span>${c}</span></button>`).join('')}</div>` : '';
+    const vazio = `<div class="empty"><b>Nenhum cadastro${q || cf.rec || cf.sit !== 'todos' ? ' encontrado' : ''}</b>${q || cf.rec || cf.sit !== 'todos' ? 'Experimente outro filtro ou outra busca.' : S.pode('consultor') && cli ? 'Aqui aparecem os clientes da sua carteira.' : ''}</div>`;
+    const listaCard = `<section class="card" aria-labelledby="ct-tl"><div class="hd"><h2 id="ct-tl">${cli ? 'Clientes' : 'Agências'}</h2>${sits}</div>
+      <div class="fn-filtros"><label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por nome, CNPJ, cidade ou segmento" aria-label="Buscar ${cli ? 'clientes' : 'agências'}"></label></div>
+      ${!lista.length ? vazio : S.celular ? `<div class="list cli-lista">${cartoes}</div>`
+        : `<div class="scroll"><table class="cli-tab ct-tab"><thead><tr><th>Nome</th><th>CNPJ / CPF</th><th class="cli-cid">Cidade</th>${cli ? '<th>Consultor</th>' : ''}<th class="ct-c-spark">12 meses</th><th class="r">Comprado</th><th>Última compra</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${linhas}</tbody></table></div>`}</section>`;
+    queueMicrotask(() => desenhaMapa(false));
+    return { title:`<span class="sub">${esc(S.veh().nome)}</span>${cli ? 'Clientes' : 'Agências'}`, actions:podeCriar ? `<button class="btn pri" data-act="pesNovo">${S.svg('mais')}${cli ? 'Novo cliente' : 'Nova agência'}</button>` : '',
+      body:`<div class="seg ct-abas" role="tablist" aria-label="Cadastros">${[['cliente', 'Clientes', S.pessoas('cliente').length], ['agencia', 'Agências', S.pessoas('agencia').length]].map(([k, n, c]) => `<button role="tab" aria-selected="${aba === k}" class="${aba === k ? 'on' : ''}" data-act="pesAba" data-tab="${k}">${n} <span>${c}</span></button>`).join('')}</div>${carteira}${listaCard}` };
   };
+  Object.assign(S.actions, {
+    cliCons: d => { cf.cons = d.v; S.flip(S.render); },
+    cliSit: d => { cf.sit = d.v; S.flip(S.render); },
+    cliRec: d => { cf.rec = cf.rec === d.v ? '' : d.v; S.flip(S.render); },
+  });
 
   // ---------- formulário ----------
   async function formulario(p) {

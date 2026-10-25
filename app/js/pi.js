@@ -9,34 +9,97 @@
   const editavel = pi => S.EDITABLE.includes(pi.status) && comercial(pi);
   const produtos = tipo => S.db.produtos.filter(p => p.tipo === tipo && p.ativo).map(p => p.nome).sort();
 
-  // ---------- lista ----------
+  // ---------- lista (aprovada em 24/10/2026): PIs do mês, régua das etapas, propostas aprovadas, "no ar" no mês e a lista ----------
+  // Tudo nos tons da cor do veículo. Estilos .pr-* (régua), .ga-* (no ar) e os .fn-* compartilhados em sonvi.css.
+  const pm = { mes:'', et:'', todos:false };   // todos: mostra todos os PIs no ar (senão, os 8 primeiros)   // mes '' = o mês de hoje
+  let viraMesPi = 0, reguaAntes = null;
+  const MESES_PI = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const nomeMesPi = ym => { const n = MESES_PI[+ym.slice(5) - 1]; return `${n[0].toUpperCase()}${n.slice(1)} ${ym.slice(0, 4)}`; };
+  const somaMesPi = (ym, n) => { const [y, m] = ym.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  const ETAPAS_PI = ['rascunho', 'opec', 'devolvido', 'aprovado', 'programado', 'faturado'];
+  const curtoPi = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  // Primeiro e último dia com inserção (rádio) ou período da ação digital
+  const veiculacao = p => { const ds = [];
+    (p.dados.grids || []).forEach(g => (g.items || []).forEach(it => Object.entries(it.days || {}).forEach(([d, n]) => { if (Number(n) > 0) ds.push(`${g.period}-${String(d).padStart(2, '0')}`); })));
+    (p.dados.digital || []).forEach(a => { if (a.inicio) ds.push(a.inicio); if (a.fim) ds.push(a.fim); });
+    if (!ds.length) return null; ds.sort(); return [ds[0], ds[ds.length - 1]]; };
+  const etiquetaPi = p => p.status === 'opec' ? '<span class="pill fn-ok pf-vivo">Na OPEC</span>' : p.status === 'devolvido' ? '<span class="pill fn-forte">Devolvido</span>'
+    : ['rascunho', 'cancelado'].includes(p.status) ? `<span class="pill fn-neutra">${S.STATUS[p.status].label}</span>` : `<span class="pill fn-ok">${S.STATUS[p.status].label}</span>`;
+  const pagTom = p => { const r = ((S.db && S.db.pagPis) || {})[p.id]; if (!r) return '';
+    return r.situacao === 'pago' ? '<span class="pill fn-neutra">Pago</span>' : r.situacao === 'atrasado' ? '<span class="pill fn-forte">Pagamento atrasado</span>'
+      : `<span class="pill fn-neutra">Em aberto${r.proximo ? ` · vence ${S.dfmt(r.proximo).slice(0, 5)}` : ''}</span>`; };
   S.views.pis = () => {
-    const q = S.ui.q.toLowerCase();
-    const pis = S.db.pis.filter(p => !q || [p.titulo, S.nome(p.cliente_id), S.nome(p.agencia_id), S.usuario(p.consultor_id), p.projeto, S.piNo(p)].join(' ').toLowerCase().includes(q));
-    // Cada PI é uma linha de uma só altura: textos longos são cortados com "…" (o nome completo aparece ao passar o mouse).
-    // No notebook o consultor vira só o selo com as iniciais; no celular cada PI vira um cartão.
-    const groups = Object.keys(S.STATUS).map(s => {
-      const rows = pis.filter(p => p.status === s).sort((a, b) => b.numero - a.numero); if (!rows.length) return '';
-      const t = { ins:0, net:0, total:0 };
-      const body = rows.map(p => { const c = S.calc(p); t.ins += c.ins; t.net += c.net; t.total += c.total;
-        const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id), cons = S.usuario(p.consultor_id), tit = p.titulo || 'Sem título';
-        return `<div class="pl-l click" data-go="/pi/${p.id}" role="link" tabindex="0">
-          <span class="pl-n">${S.piNo(p)}</span>
-          <span class="pl-t"><b title="${esc(tit)}">${esc(tit)}</b>${p.projeto ? `<small title="${esc(p.projeto)}">${esc(p.projeto)}</small>` : ''}</span>
-          <span class="pl-c"><span title="${esc(cli)}">${esc(cli)}</span><small title="${esc(ag || 'Venda direta')}">${ag ? esc(ag) : 'Venda direta'}</small></span>
-          <span class="pl-u" title="${esc(cons)}">${cons ? `<span class="av soft" aria-hidden="true">${esc(S.iniciais(cons))}</span><span class="pl-un">${esc(S.celular ? cons : cons.split(' ')[0])}</span>` : '<span class="muted">—</span>'}</span>
-          <span class="pl-p"><small>Prazo</small>${p.prazo ? dfmt(p.prazo) : '—'}</span>
-          <span class="pl-i"><small>Inserções</small>${c.ins}${c.pub ? `<small class="pl-pub">+ ${c.pub} pub.</small>` : ''}</span>
-          <span class="pl-v"><b>${brl(c.total)}</b>${c.commission ? `<small>Líquido ${brl(c.net)}</small>` : ''}${S.pagPi(p)}</span>
-          <span class="pl-m"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
-      return `<section class="card pis-g"><div class="hd"><h2>${S.pill(s)} <span class="muted small">${rows.length} ${rows.length > 1 ? 'pedidos' : 'pedido'}</span></h2></div>
-        <div class="pl"><div class="pl-l pl-cab"><span class="pl-n">Nº</span><span class="pl-t">Título</span><span class="pl-c">Cliente · agência</span><span class="pl-u">Consultor</span><span class="pl-p">Prazo</span><span class="pl-i">Inserções</span><span class="pl-v">Total</span><span class="pl-m"></span></div>
-        ${body}
-        <div class="pl-l pl-tot"><span class="pl-n">Total</span><span class="pl-t"></span><span class="pl-c"></span><span class="pl-u"></span><span class="pl-p"></span><span class="pl-i"><small>Inserções</small>${t.ins}</span><span class="pl-v"><b>${brl(t.total)}</b>${t.total !== t.net ? `<small>Líquido ${brl(t.net)}</small>` : ''}</span><span class="pl-m"></span></div></div></section>`;
-    }).join('');
-    return { title:`<span class="sub">${esc(S.veh().nome)} · ${pis.length} ${pis.length === 1 ? 'pedido' : 'pedidos'}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="piNew">${S.svg('mais')}Novo PI</button>` : '',
-      body:`<div style="margin-bottom:16px"><input type="search" style="width:100%;height:44px" placeholder="Buscar por número, título, cliente, agência ou consultor" aria-label="Buscar PIs" value="${esc(S.ui.q)}" data-ui="q"></div>${S.propostasParaPi ? S.propostasParaPi() : ''}${groups || `<div class="card empty"><b>Nenhum pedido${q ? ' encontrado' : ''}</b>${q ? 'Tente outra busca.' : 'Os pedidos desta rádio aparecem aqui.'}</div>`}` };
+    const hoje = today(), ym = pm.mes || hoje.slice(0, 7), mesN = MESES_PI[+ym.slice(5) - 1], q = (S.ui.q || '').toLowerCase();
+    const doMes = S.db.pis.filter(p => S.dia(p.criado_em).slice(0, 7) === ym && p.status !== 'cancelado');
+    const totDe = l => l.reduce((s, p) => s + S.calc(p).total, 0);
+    const et = ETAPAS_PI.map(k => { const xs = doMes.filter(p => p.status === k); return { k, nome:S.STATUS[k].label, xs, v:totDe(xs) }; });
+    const sel = et.find(e => e.k === pm.et), base = sel ? sel.xs : doMes, tot = totDe(base);
+    const atrasados = S.db.pis.filter(p => (((S.db.pagPis || {})[p.id]) || {}).situacao === 'atrasado').length, devolvidos = S.db.pis.filter(p => p.status === 'devolvido').length, naOpec = S.db.pis.filter(p => p.status === 'opec').length;
+    const regua = `<div class="pr-regua${sel ? ' filtra' : ''}" role="group" aria-label="Etapas dos PIs de ${mesN} (escolha para filtrar)">${et.filter(e => e.xs.length).map(e => `<button type="button" class="pr-et-${e.k}" data-act="piEtapa" data-v="${e.k}" style="flex-grow:${Math.max(1, Math.round(e.v)) || 1}" aria-pressed="${pm.et === e.k}" aria-label="${e.nome}: ${e.xs.length} PI${e.xs.length === 1 ? '' : 's'}, ${curtoPi(e.v)}" title="${e.nome} · ${curtoPi(e.v)}"></button>`).join('') || '<span class="pr-vazia"></span>'}</div>
+      <div class="pr-leg">${et.map(e => `<button type="button" class="pr-et-${e.k}" data-act="piEtapa" data-v="${e.k}" aria-pressed="${pm.et === e.k}"><i aria-hidden="true"></i><b>${e.nome} · ${e.xs.length}</b><span>${curtoPi(e.v)}</span></button>`).join('')}</div>`;
+    const resumo = `${atrasados ? `<span class="pill fn-forte">${atrasados} com pagamento atrasado</span>` : ''}${devolvidos ? `<span class="pill fn-forte">${devolvidos} devolvido${devolvidos > 1 ? 's' : ''} pela OPEC</span>` : ''}<span class="pill fn-neutra">${naOpec} na OPEC</span>`;
+    const topo = `<section class="card fn-mes-card" aria-labelledby="pr-t"><div class="hd"><h2 id="pr-t">PIs do mês</h2><span class="grow"></span>
+      <div class="fn-nav" role="group" aria-label="Mês"><button class="btn sm ic" data-act="piMes" data-d="-1" aria-label="Mês anterior" title="Mês anterior (←)">${S.svg('esq')}</button>
+        <span class="fn-mes-et" role="status" aria-live="polite"><span>${nomeMesPi(ym)}</span></span>
+        <button class="btn sm ic" data-act="piMes" data-d="1" aria-label="Próximo mês" title="Próximo mês (→)">${S.svg('seta')}</button>${ym !== hoje.slice(0, 7) ? '<button class="btn sm" data-act="piMes" data-d="0">Hoje</button>' : ''}</div></div>
+      <div class="pr-topo"><div class="pr-tot"><small>${sel ? sel.nome : `Vendido em ${mesN}`}</small><span class="pf-num">${S.roloFixo('prTotal', curtoPi(tot))}</span><small>${base.length} PI${base.length === 1 ? '' : 's'} · ticket médio ${curtoPi(tot / Math.max(1, base.length))}</small></div><div>${regua}</div></div>
+      <div class="fn-resumo" style="margin-top:14px">${resumo}</div></section>`;
+    // No ar no mês: o que veicula em algum dia do mês (sem rascunho, devolvido e cancelado)
+    const [yy, mm] = ym.split('-').map(Number), nd = new Date(yy, mm, 0).getDate(), d1 = `${ym}-01`, dN = `${ym}-${String(nd).padStart(2, '0')}`;
+    const noAr = S.db.pis.filter(p => !['rascunho', 'devolvido', 'cancelado'].includes(p.status)).map(p => ({ p, v:veiculacao(p) })).filter(x => x.v && x.v[0] <= dN && x.v[1] >= d1).sort((a, b) => a.v[0].localeCompare(b.v[0]));
+    const dia = d => d < d1 ? 1 : d > dN ? nd : +d.slice(8);
+    const hojeX = hoje.slice(0, 7) === ym ? (+hoje.slice(8) - .5) / nd * 100 : -1;
+    const insMes = p => (p.dados.grids || []).filter(g => g.period === ym).reduce((s, g) => s + (g.items || []).reduce((t, it) => t + Object.values(it.days || {}).reduce((u, n) => u + (Number(n) || 0), 0), 0), 0);
+    const noArCard = `<section class="card" aria-labelledby="ga-t"><div class="hd"><h2 id="ga-t">No ar em ${mesN}</h2><span>${noAr.length} PI${noAr.length === 1 ? '' : 's'} veiculando${hojeX >= 0 ? ' · a linha marca hoje' : ''}</span></div>
+      ${noAr.length ? `<div class="ga-g"><div class="ga-l ga-cab"><span>PI</span><span class="ga-dias"><span>1</span><span>${Math.round(nd / 2)}</span><span>${nd}</span></span><span class="r">Inserções no mês</span></div>
+        ${(pm.todos ? noAr : noAr.slice(0, 8)).map(({ p, v }, i) => { const a = dia(v[0]), b = dia(v[1]);
+          return `<a class="ga-l" data-go="/pi/${p.id}" title="${S.piNo(p)} · ${dfmt(v[0])} a ${dfmt(v[1])}"><span class="ga-q"><b>${esc(p.titulo) || 'Sem título'}</b><small>${esc(S.nome(p.cliente_id)) || S.piNo(p)}</small></span>
+            <span class="ga-trilho"><span class="ga-barra pr-et-${p.status}" style="left:${(a - 1) / nd * 100}%;width:${Math.max(1.5, (b - a + 1) / nd * 100)}%;--i:${i}"></span>${hojeX >= 0 ? `<span class="ga-hoje" style="left:${hojeX}%"></span>` : ''}</span><span class="r ga-n">${insMes(p).toLocaleString('pt-BR')}</span></a>`; }).join('')}</div>${noAr.length > 8 ? `<button class="btn sm" style="margin-top:12px" data-act="piNoArTodos">${pm.todos ? 'Mostrar menos' : `Ver todos (${noAr.length})`}</button>` : ''}`
+        : `<p class="muted">Nenhum PI veiculando em ${mesN}.</p>`}</section>`;
+    // Lista do mês
+    const pis = base.filter(p => !q || [p.titulo, S.nome(p.cliente_id), S.nome(p.agencia_id), S.usuario(p.consultor_id), p.projeto, S.piNo(p)].join(' ').toLowerCase().includes(q)).sort((a, b) => b.numero - a.numero);
+    const linhas = pis.map(p => { const c = S.calc(p), cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id), cons = S.usuario(p.consultor_id), tit = p.titulo || 'Sem título', v = veiculacao(p);
+      return `<div class="pl-l click" data-go="/pi/${p.id}" data-flip="${p.id}" role="link" tabindex="0">
+        <span class="pl-n">${S.piNo(p)}</span>
+        <span class="pl-t"><b title="${esc(tit)}">${esc(tit)}</b><small>${p.projeto ? esc(p.projeto) + ' · ' : ''}${c.ins} inserç${c.ins === 1 ? 'ão' : 'ões'}${c.pub ? ` + ${c.pub} pub.` : ''}</small></span>
+        <span class="pl-c"><span title="${esc(cli)}">${esc(cli)}</span><small title="${esc(ag || 'Venda direta')}">${ag ? esc(ag) : 'Venda direta'}</small></span>
+        <span class="pl-u" title="${esc(cons)}">${cons ? `<span class="av soft" aria-hidden="true">${esc(S.iniciais(cons))}</span><span class="pl-un">${esc(S.celular ? cons : cons.split(' ')[0])}</span>` : '<span class="muted">—</span>'}</span>
+        <span class="pl-p"><small>Veiculação</small>${v ? `${dfmt(v[0]).slice(0, 5)} a ${dfmt(v[1]).slice(0, 5)}` : '—'}</span>
+        <span class="pl-i pl-sit">${etiquetaPi(p)}${pagTom(p)}</span>
+        <span class="pl-v"><b>${brl(c.total)}</b>${c.commission ? `<small>Líquido ${brl(c.net)}</small>` : ''}</span>
+        <span class="pl-m"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
+    const vazio = `<div class="empty"><b>Nenhum PI</b>${q ? `Nada com essa busca em ${mesN}.` : sel ? `Nenhum PI nesta etapa em ${mesN}.` : S.db.pis.length ? `Nenhum PI criado em ${mesN}.` : 'Os pedidos desta rádio aparecem aqui.'}</div>`;
+    const listaCard = `<section class="card pl-card" aria-labelledby="pr-tl"><div class="hd fn-par-hd"><h2 id="pr-tl">PIs de ${mesN}</h2><span>${pis.length} · ${brl(totDe(pis))}</span></div>
+      <div class="fn-filtros">${sel ? `<button class="fn-chip pr-chip pr-et-${sel.k}" data-act="piEtapa" data-v="${sel.k}" aria-label="Tirar o filtro ${sel.nome}"><i aria-hidden="true"></i>${sel.nome}${S.svg('fechar', 14)}</button>` : ''}
+        <label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por número, título, cliente, agência ou consultor" aria-label="Buscar PIs"></label></div>
+      ${pis.length ? `<div class="pl"><div class="pl-l pl-cab"><span class="pl-n">Nº</span><span class="pl-t">Título</span><span class="pl-c">Cliente · agência</span><span class="pl-u">Consultor</span><span class="pl-p">Veiculação</span><span class="pl-i">Situação</span><span class="pl-v">Total</span><span class="pl-m"><span class="sr">Ações</span></span></div>${linhas}</div>` : vazio}
+      <p class="fn-dica"><kbd>←</kbd> <kbd>→</kbd> trocam o mês · clique numa etapa da régua para filtrar · <kbd>Esc</kbd> tira o filtro</p></section>`;
+    queueMicrotask(animaPis);
+    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="piNew">${S.svg('mais')}Novo PI</button>` : '',
+      body:topo + (S.propostasParaPi ? S.propostasParaPi() : '') + noArCard + listaCard };
   };
+  // A régua cresce com mola (do zero na entrada; depois, da fatia anterior até a nova) e o nome do mês desliza
+  function animaPis() {
+    const bs = [...document.querySelectorAll('.pr-regua button')], quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const agora = Object.fromEntries(bs.map(b => [b.dataset.v, b.style.flexGrow]));
+    if (!quieto) bs.forEach((b, i) => { const de = reguaAntes ? (reguaAntes[b.dataset.v] || 0) : 0; if (b.animate && String(de) !== agora[b.dataset.v]) b.animate([{ flexGrow:de }, { flexGrow:agora[b.dataset.v] }], { duration:900, delay:reguaAntes ? 0 : 150 + i * 80, easing:'cubic-bezier(.34,1.3,.5,1)', fill:'backwards' }); });
+    reguaAntes = agora;
+    const d = viraMesPi, cx = document.querySelector('.fn-mes-card .fn-mes-et'); viraMesPi = 0;
+    if (d && cx && !quieto && cx.firstElementChild.animate) cx.firstElementChild.animate([{ transform:`translateX(${d * 36}px)`, opacity:0 }, { transform:'none', opacity:1 }], { duration:380, easing:'cubic-bezier(.2,.9,.2,1)' });
+  }
+  window.addEventListener('hashchange', () => { if (!/^#\/pis\/?$/.test(location.hash)) reguaAntes = null; });
+  Object.assign(S.actions, {
+    piNoArTodos: () => { pm.todos = !pm.todos; S.render(); },
+    piEtapa: d => { pm.et = pm.et === d.v ? '' : d.v; S.flip(S.render); },
+    piMes: d => { const hoje = today().slice(0, 7), atual = pm.mes || hoje, alvo = +d.d ? somaMesPi(atual, +d.d) : hoje;
+      if (alvo === atual) return; viraMesPi = alvo > atual ? 1 : -1; pm.mes = alvo === hoje ? '' : alvo; pm.et = ''; pm.todos = false; S.flip(S.render); },
+  });
+  document.addEventListener('keydown', e => {
+    if (S.ui.view !== 'pis' || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open], .menu, .sv-painel:not([hidden]), :popover-open')) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); S.actions.piMes({ d:e.key === 'ArrowLeft' ? -1 : 1 }); }
+    else if (e.key === 'Escape' && pm.et) { e.preventDefault(); S.actions.piEtapa({ v:pm.et }); }
+  });
 
   // ---------- edição com Editar / Salvar ----------
   // O PI abre para consulta. "Editar" libera os campos; as mudanças ficam só na tela até "Salvar".

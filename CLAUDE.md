@@ -169,6 +169,13 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - Aba Produtos (rádio): cartão "Tabela da <veículo>" com Cartões · Mapa de preços, quatro números (produtos ativos, cotas, menor e maior preço) e botões de variação para comparar (destaca a variação em todos os produtos e mostra a faixa de preço). Nos cartões, cada preço tem uma barra proporcional ao maior da tabela; o mapa é produtos × variações com o tom mais forte para o mais caro. Patrocínios: barra com a mistura do pacote e barra do valor. Tudo nos tons do veículo.
 
+## PIs, Clientes, Combos e Administração (aprovados em 24/10/2026, implementados em 25/10/2026)
+
+- **PIs** (`pi.js`, estilos `.pr-*`, `.ga-*`, `.pl-*`): cartão "PIs do mês" com setas de mês (← →), régua das etapas (Rascunho → Faturado; clique filtra, Esc tira) e etiquetas; depois "Propostas aprovadas" (gerar PI), "No ar em <mês>" (Gantt da veiculação, 8 primeiros + "Ver todos") e a lista com situação e pagamento. Ações `piEtapa`, `piMes`, `piNoArTodos`.
+- **Clientes e agências** (`pessoas.js`, estilos `.ct-*`): números (rolando), consultores em botões, mapa da carteira (blocos do tamanho do que cada cliente comprou em 12 meses, nos tons do veículo pela recência: comprou no mês, nos 3 meses, sumiu) e tabela com mini-gráfico de 12 meses, comprado e última compra; no celular, cartões. Ações `cliCons`, `cliSit`, `cliRec`.
+- **Combos** (`combos.js`, estilos `.cb-*`): números do topo; cartão com a mistura por veículo (nas cores deles), Tabela × Combo, desconto e validade. Editor com itens agrupados por veículo e o cartão de preço fixo ao lado, atualizado ao digitar.
+- **Administração** (`admin.js`, estilos `.ad-*`): Veículos = números (veículos, cadastro completo, PIs no grupo, pessoas ativas), filtro por categoria (`admCat`) e um cartão por veículo com faixa na cor dele, categorias, sigla, frequência/praça, PIs e o cadastro em 5 partes (logo; CNPJ e razão social; e-mail da OPEC; dados bancários; endereço e telefone) com "Falta: …", Editar e Completar. Usuários (diretor, fora do celular) = matriz "Quem acessa o quê" (pessoas × veículos, perfil na cor do veículo; diretor = "Diretor · todos os veículos"), último acesso e ⋯. Gerente e celular continuam com a lista.
+
 ## Números que rolam e FLIP (core.js)
 
 - `S.roloFixo(chave, texto)` escreve um lugar; depois de cada desenho, `S.poeRolos()` (chamado pelo `S.render`) encaixa ali o mesmo elemento de `S.rolo` e rola até o valor novo. `S.flip(S.render)` faz as linhas `[data-flip]` deslizarem até o lugar novo.

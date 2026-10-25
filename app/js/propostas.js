@@ -453,7 +453,7 @@
         <span class="prl-v"><small>Investimento mensal</small><b>${brl(p.valor_total)}</b></span>
         <span class="prl-s"><small>Aprovada em ${curtoData(S.dia(p.aprovada_em))}</small></span>
         <span class="prl-a">${pode(p) ? `<button class="btn sm pri" data-act="prGerar" data-id="${p.id}">${S.svg('pis')}Gerar PI</button>` : ''}<button class="btn tres" data-act="prOpcoes" data-id="${p.id}" aria-label="Opções da proposta ${S.propNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
-    return `<section class="card prl pr-aprov" aria-label="Propostas aprovadas"><div class="hd"><h2><span class="pill" style="--tone:var(--green)">Propostas aprovadas</span> <span class="muted small">${l.length} ${l.length === 1 ? 'aguardando' : 'aguardando'} PI · as inserções são distribuídas sozinhas</span></h2></div>
+    return `<section class="card prl pr-aprov" aria-label="Propostas aprovadas"><div class="hd"><h2><span class="pill fn-ok">Propostas aprovadas</span> <span class="muted small">${l.length} ${l.length === 1 ? 'aguardando' : 'aguardando'} PI · as inserções são distribuídas sozinhas</span></h2></div>
       <div class="prl-l prl-cab"><span class="prl-n">Proposta</span><span class="prl-c">Cliente</span><span class="prl-i">Itens</span><span class="prl-q">Inserções/mês</span><span class="prl-v">Investimento mensal</span><span class="prl-s">Aprovação</span><span class="prl-a"><span class="sr">Ações</span></span></div>${linhas}</section>`;
   };
 

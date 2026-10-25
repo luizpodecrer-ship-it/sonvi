@@ -88,13 +88,24 @@
     const seg = ehGer() ? '' : `<div class="seg">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
     let body;
     if (aba === 'veiculos') {
-      // Agrupados por categoria (rádio, painel de LED, outdoor…); cada cartão só aparece se tiver veículo
-      // Linha compacta: dados curtos sem quebra; ações = Editar + ⋯ (Propostas e PI, Textos do PI)
-      const linha = (v, radio) => `<tr class="click" data-act="admVeiculo" data-id="${v.id}"><td><div class="adm-veic">${S.vav(v)}<div class="adm-veic-tx"><b>${esc(v.nome)}</b>${S.categorias(v).length > 1 ? `<span class="adm-cats">${S.categorias(v).map(k => `<span class="pill" style="--tone:var(--gray)">${esc(S.nomeCategoria(k))}</span>`).join('')}</span>` : `<small class="muted" title="${esc(v.razao_social)}">${esc(v.razao_social)}</small>`}</div></div></td><td class="nw">${esc(v.sigla)}</td><td class="nw">${esc(v.cnpj) || '<span class="muted">—</span>'}</td>${radio ? `<td class="nw">${esc(v.frequencia) || '<span class="muted">—</span>'}</td>` : ''}<td class="nw">${esc(v.cidade) || '<span class="muted">—</span>'}</td><td class="r">${v.pi_seq || 0}</td><td class="r"><span class="lin-acoes"><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button><button class="btn tres" data-act="admVeiculoMenu" data-id="${v.id}" aria-label="Mais opções de ${esc(v.nome)}">${S.svg('mais3')}</button></span></td></tr>`;
-      // Quem vende mais de uma categoria (ex.: Media On) fica no grupo "Várias categorias", com as etiquetas de cada uma
-      const grupos = [...S.CATEGORIAS.map(([k, n]) => ({ k, n, vs:S.db.veiculos.filter(v => S.categorias(v).length === 1 && S.categoria(v) === k) })),
-        { k:'varias', n:'Várias categorias', vs:S.db.veiculos.filter(v => S.categorias(v).length > 1) }].filter(g => g.vs.length);
-      body = grupos.length ? grupos.map(g => `<section class="card adm-cat"><div class="hd"><h2>${esc(g.n)}</h2><span>${g.vs.length} veículo${g.vs.length === 1 ? '' : 's'}</span></div><div class="scroll"><table class="adm-veics"><colgroup><col class="c-v"><col class="c-s"><col class="c-d">${g.k === 'radio' ? '<col class="c-f">' : ''}<col class="c-c"><col class="c-n"><col class="c-a"></colgroup><thead><tr><th>Veículo</th><th>Sigla do PI</th><th>CNPJ</th>${g.k === 'radio' ? '<th>Frequência</th>' : ''}<th>${g.k === 'radio' ? 'Cidade' : 'Praça'}</th><th class="r">PIs</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${g.vs.map(v => linha(v, g.k === 'radio')).join('')}</tbody></table></div></section>`).join('')
+      // Aprovado em 24/10/2026: números do grupo, filtro por categoria e um cartão por veículo (na cor dele) com o cadastro em 5 partes
+      const vs = S.db.veiculos, cats = S.CATEGORIAS.filter(([k]) => vs.some(v => S.categorias(v).includes(k))), cat = S.ui.admCat && cats.some(c => c[0] === S.ui.admCat) ? S.ui.admCat : '';
+      const vis = vs.filter(v => !cat || S.categorias(v).includes(cat)), ok = (v, k) => !!String(v[k] || '').trim();
+      const PARTES = [['logo', 'logo', v => ok(v, 'logo')], ['cnpj', 'CNPJ e razão social', v => ok(v, 'cnpj') && ok(v, 'razao_social')], ['opec', 'e-mail da OPEC', v => ok(v, 'opec_email')], ['banco', 'dados bancários', v => ok(v, 'dados_bancarios')], ['end', 'endereço e telefone', v => ok(v, 'endereco') && ok(v, 'telefone')]];
+      const completos = vs.filter(v => PARTES.every(p => p[2](v))).length, pis = vs.reduce((t, v) => t + (Number(v.pi_seq) || 0), 0), pessoas = S.db.usuarios.filter(u => u.ativo).length;
+      const cor = v => /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : S.COR_PADRAO;
+      const kpis = `<section class="card"><div class="ct-kpis"><div><small>Veículos</small><b>${S.roloFixo('ad1', String(vs.length))}</b><span>${cats.length} categoria${cats.length === 1 ? '' : 's'}</span></div>
+        <div><small>Cadastro completo</small><b>${S.roloFixo('ad2', String(completos))}</b><span>de ${vs.length} veículo${vs.length === 1 ? '' : 's'}</span></div>
+        <div><small>PIs no grupo</small><b>${S.roloFixo('ad3', String(pis))}</b><span>somando todos os veículos</span></div><div><small>Pessoas com acesso</small><b>${S.roloFixo('ad4', String(pessoas))}</b><span>ativas</span></div></div>
+        ${cats.length > 1 ? `<div class="pdt-var-chips ad-cats" role="group" aria-label="Categoria">${[['', 'Todas', vs.length], ...cats.map(([k, n]) => [k, n, vs.filter(v => S.categorias(v).includes(k)).length])].map(([k, n, c]) => `<button data-act="admCat" data-v="${k}" aria-pressed="${cat === k}">${esc(n)} · ${c}</button>`).join('')}</div>` : ''}</section>`;
+      const cartao = v => { const feitos = PARTES.filter(p => p[2](v)), falta = PARTES.filter(p => !p[2](v)), radio = S.temCategoria(v, 'radio');
+        return `<article class="card ad-v" style="--v:${cor(v)}" data-flip="${v.id}"><div class="ad-v-hd">${S.vav(v)}<span class="ad-v-tx"><b>${esc(v.nome)}</b><small title="${esc(v.razao_social)}">${esc(v.razao_social) || 'Razão social não informada'}</small></span><button class="btn tres" data-act="admVeiculoMenu" data-id="${v.id}" aria-label="Mais opções de ${esc(v.nome)}">${S.svg('mais3')}</button></div>
+          <div class="ad-v-cats">${S.categorias(v).map(k => `<span class="pill fn-neutra">${esc(S.nomeCategoria(k))}</span>`).join('')}</div>
+          <dl class="ad-v-dl"><div><dt>Sigla do PI</dt><dd>${esc(v.sigla) || '—'}</dd></div><div><dt>${radio ? 'Frequência' : 'Praça'}</dt><dd title="${esc(radio ? v.frequencia : v.cidade)}">${esc(radio ? v.frequencia : v.cidade) || '—'}</dd></div><div><dt>PIs</dt><dd>${v.pi_seq || 0}</dd></div></dl>
+          <div class="ad-v-cad"><div class="ad-v-cad-t"><span>Cadastro</span><b>${feitos.length} de ${PARTES.length}</b></div><div class="ad-v-bar" aria-hidden="true">${PARTES.map(p => `<i class="${p[2](v) ? 'ok' : ''}"></i>`).join('')}</div>
+            ${falta.length ? `<span class="ad-v-falta">Falta: ${falta.map(p => p[1]).join(', ')}</span>` : '<span class="muted small">Tudo preenchido</span>'}</div>
+          <div class="ad-v-ac"><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button>${falta.length ? `<button class="btn sm pri" data-act="admVeiculo" data-id="${v.id}" data-editar="1">Completar</button>` : ''}</div></article>`; };
+      body = vs.length ? kpis + `<div class="ad-vg">${vis.map(cartao).join('')}</div>`
         : '<div class="card"><div class="empty"><b>Cadastre o primeiro veículo</b>Rádio, painel de LED, outdoor, front light, empena ou mídia DOOH. Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div></div>';
     } else if (aba === 'empresa') {
       const e = S.db.empresa || {}, curto = String(e.nome || 'Empresa comercial').split('·')[0].trim(), n = S.db.veiculos.length;
@@ -110,7 +121,14 @@
     } else {
       // Gerente vê a equipe das rádios em que é gerente (ele mesmo e outros gerentes aparecem, só para consulta)
       const us = ehGer() ? S.db.usuarios.filter(u => vinculosDe(u).some(x => ehMinha(x.veiculo_id))) : S.db.usuarios;
-      body = S.celular
+      // Diretor (aprovado em 24/10/2026): "Quem acessa o quê", pessoas nas linhas e veículos nas colunas, com o perfil em cada um
+      const vsU = S.db.veiculos, cor = v => /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : S.COR_PADRAO;
+      const matriz = `<section class="card"><div class="hd"><h2>Quem acessa o quê</h2><span>cada linha é uma pessoa; cada coluna, um veículo</span></div><div class="scroll ad-mz"><table><thead><tr><th>Pessoa</th>${vsU.map(v => `<th class="c" title="${esc(v.nome)}">${S.vav(v)}<span>${esc(v.sigla || v.nome)}</span></th>`).join('')}<th>Último acesso</th><th><span class="sr">Opções</span></th></tr></thead><tbody>
+        ${us.map(u => { const vin = Object.fromEntries(vinculosDe(u).map(x => [x.veiculo_id, x.perfil]));
+          return `<tr class="click" data-act="admUsuario" data-id="${u.id}"><td><div class="ad-p"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span><b>${esc(u.nome) || '—'}</b><small>${esc(u.email)}</small></span></div></td>
+            ${u.diretor ? `<td colspan="${vsU.length}"><span class="ad-pp dir">Diretor · todos os veículos</span></td>` : vsU.map(v => `<td class="c">${vin[v.id] ? `<span class="ad-pp" style="--v:${cor(v)}">${esc(S.PERFIS[vin[v.id]] || vin[v.id])}</span>` : '<span class="ad-pp vazio" aria-label="sem acesso">—</span>'}</td>`).join('')}
+            <td><div class="ad-ult"><span class="nw">${ultimo(u)}</span>${u.ativo && u.ultimo_acesso && !u.trocar_senha ? '' : situacao(u)}</div></td><td class="r"><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></td></tr>`; }).join('')}</tbody></table></div></section>`;
+      body = !ehGer() && !S.celular ? matriz : S.celular
         ? `<div class="card"><div class="list">${us.map(u => `<div><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome) || '—'}</b><small>${acessoTexto(u)}</small><small>Último acesso: ${ultimo(u)}</small><span style="margin-top:4px">${situacao(u)}</span></span><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></div>`).join('')}</div></div>`
         : `<div class="card"><div class="scroll"><table><thead><tr><th>Usuário</th><th>Situação</th><th>Último acesso</th><th>Rádios e perfis</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${us.map(u =>
           `<tr class="click" data-act="admUsuario" data-id="${u.id}"><td><div style="display:flex;align-items:center;gap:12px"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><div><b>${esc(u.nome) || '—'}</b><div class="muted small">${esc(u.email)}${u.celular ? ' · ' + esc(u.celular) : ''}</div></div></div></td><td>${situacao(u)}</td><td class="nowrap">${ultimo(u)}</td><td>${acessoTexto(u, '<br>')}</td><td class="r"><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></td></tr>`).join('')}</tbody></table></div></div>`;
@@ -153,6 +171,7 @@
     f.onchange = e => { if (e.target.dataset && e.target.dataset.cat) ajustarCategoria(); }; };
 
   Object.assign(S.actions, {
+    admCat: d => { S.ui.admCat = d.v; S.flip(S.render); },
     admVeiculoMenu: (d, botao) => S.menu(botao, [{ label:'Editar veículo', icon:'editar', act:'admVeiculo', data:{ id:d.id, editar:'1' } },
       { label:'Propostas e PI', icon:'propostas', act:'admPropostas', data:{ id:d.id } }, { label:'Textos do PI', icon:'pis', act:'admTextosPI', data:{ id:d.id } }]),
     admAba: d => { aba = d.tab; S.render(); },
