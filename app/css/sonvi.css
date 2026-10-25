@@ -2846,3 +2846,9 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 @media (max-width:1000px) { .cs2-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 @media (max-width:640px) { .pag button { height:40px; min-width:40px; } .pag .pag-nav { padding:0 8px; } .pag-l { justify-content:center; } .cs2-t { min-width:0; } }
 @media (max-width:640px) { #content .card > .hd:has(.cs2-mes), #content .card > .hd:has(.pdt-var-chips) { flex-direction:column; align-items:stretch; } .cs2-mes { justify-content:space-between; } }
+/* Suporte: colunas de largura fixa (trocar de página não mexe nas colunas); textos longos com reticências; linhas da mesma altura */
+.cs2-t.cs2-fixa { table-layout:fixed; }
+.cs2-fixa td { height:56px; white-space:nowrap; }
+.cs2-fixa .cs2-corta { overflow:hidden; text-overflow:ellipsis; }
+.cs2-fixa .cs2-corta b, .cs2-fixa .cs2-corta small { overflow:hidden; text-overflow:ellipsis; }
+.cs2-fixa .cs2-corta small { display:block; }

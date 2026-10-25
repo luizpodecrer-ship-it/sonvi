@@ -30,6 +30,7 @@
   const fimReal = a => a.encerrado_em && new Date(a.encerrado_em) < new Date(a.fim) ? a.encerrado_em : a.fim;
   const minutos = (a, b) => Math.max(1, Math.round((new Date(b) - new Date(a)) / 60000));
   const fmtMin = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`;
+  const cap = t => t ? t[0].toUpperCase() + t.slice(1) : t;
   const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const nomeMes = ym => { const [y, m] = ym.split('-').map(Number); return `${MESES[m - 1][0].toUpperCase() + MESES[m - 1].slice(1)} ${y}`; };
   const somaMes = (ym, n) => { const [y, m] = ym.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
@@ -70,9 +71,9 @@
       const veic = c => c.veiculo_id ? ((S.veh(c.veiculo_id) || {}).nome || '') : '';
       const vazio = `<div class="empty"><b>${st.sit === 'abertos' ? 'Nenhum chamado em aberto' : 'Nenhum chamado'}</b>Para falar com a equipe SONVI, use o balão no canto da tela ou o botão "Falar com o suporte".</div>`;
       const linhas = S.celular ? `<div class="cs2-cel">${pg.map(c => `<div class="cs2-c" data-act="chAbrir" data-id="${c.id}"><div><b>${esc(c.assunto)}${naoLido(c) ? '<span class="cs2-nova" title="Resposta nova"></span>' : ''}</b><small>#${c.numero}${veic(c) ? ' · ' + esc(veic(c)) : ''} · ${dataCurta(c.atualizado_em)}</small></div>${sit(c)}</div>`).join('')}</div>`
-        : `<div class="scroll"><table class="cs2-t"><thead><tr><th>Nº</th><th>Assunto</th><th>Aberto por</th><th>Atendente</th><th>Situação</th><th class="r">Atualizado</th></tr></thead><tbody>
-          ${pg.map(c => `<tr class="click" data-act="chAbrir" data-id="${c.id}"><td class="nw cs2-num">#${c.numero}</td><td><b>${esc(c.assunto)}</b>${naoLido(c) ? '<span class="cs2-nova" title="Resposta nova"></span>' : ''}${veic(c) ? `<small>${esc(veic(c))}</small>` : ''}</td>
-            <td class="nw">${esc(S.usuario(c.aberto_por) || '—')}</td><td class="nw">${esc(c.atendente || '—')}</td><td>${sit(c)}</td><td class="r nw">${dataCurta(c.atualizado_em)}</td></tr>`).join('')}</tbody></table></div>`;
+        : `<div class="scroll"><table class="cs2-t cs2-fixa"><colgroup><col style="width:80px"><col><col style="width:17%"><col style="width:13%"><col style="width:150px"><col style="width:130px"></colgroup><thead><tr><th>Nº</th><th>Assunto</th><th>Aberto por</th><th>Atendente</th><th>Situação</th><th class="r">Atualizado</th></tr></thead><tbody>
+          ${pg.map(c => `<tr class="click" data-act="chAbrir" data-id="${c.id}"><td class="nw cs2-num">#${c.numero}</td><td class="cs2-corta" title="${esc(c.assunto)}"><b>${esc(c.assunto)}</b>${naoLido(c) ? '<span class="cs2-nova" title="Resposta nova"></span>' : ''}${veic(c) ? `<small>${esc(veic(c))}</small>` : ''}</td>
+            <td class="cs2-corta">${esc(S.usuario(c.aberto_por) || '—')}</td><td class="cs2-corta">${esc(c.atendente || '—')}</td><td>${sit(c)}</td><td class="r nw">${dataCurta(c.atualizado_em)}</td></tr>`).join('')}</tbody></table></div>`;
       corpo = `<section class="card" id="cs2-corpo" aria-labelledby="cs2-tc"><div class="hd"><div><h2 id="cs2-tc">Chamados</h2><p class="muted small" style="margin:2px 0 0">As conversas da empresa com o suporte SONVI. Clique para abrir no chat.</p></div>${chips}</div>
         <div class="cs2-lista">${pg.length ? linhas : vazio}</div>${paginacao('chamados', lista.length, 'chamados')}</section>`;
     } else {
@@ -81,9 +82,9 @@
       const tempo = a => { const lib = minutos(a.inicio, a.fim), uso = ativo(a) ? minutos(a.inicio, new Date()) : minutos(a.inicio, fimReal(a));
         return `<span class="cs2-dur"><span class="cs2-b" aria-hidden="true"><i style="width:${Math.min(100, uso / lib * 100)}%"></i></span><span class="nw">${fmtMin(Math.min(uso, lib))} de ${fmtMin(lib)}</span></span>`; };
       const nav = `<div class="fn-nav cs2-mes"><button class="btn tres" data-act="chMes" data-v="-1" aria-label="Mês anterior">${S.svg('esq', 16)}</button><b>${nomeMes(st.mes)}</b><button class="btn tres" data-act="chMes" data-v="1" aria-label="Próximo mês"${st.mes >= mesHoje ? ' disabled' : ''}>${S.svg('seta', 16)}</button></div>`;
-      const linhas = S.celular ? `<div class="cs2-cel">${pg.map(a => `<div class="cs2-c sem"><div><b>${esc(a.motivo)}</b><small>${dt(a.inicio)} · ${tempo(a)}</small></div>${fim(a)}</div>`).join('')}</div>`
-        : `<div class="scroll"><table class="cs2-t"><thead><tr><th>Quando</th><th>Motivo</th><th>Quem</th><th>Tempo usado</th><th>Como terminou</th></tr></thead><tbody>
-          ${pg.map(a => `<tr><td class="nw">${dt(a.inicio)}</td><td>${esc(a.motivo)}</td><td class="nw">Suporte SONVI</td><td>${tempo(a)}</td><td>${fim(a)}</td></tr>`).join('')}</tbody></table></div>`;
+      const linhas = S.celular ? `<div class="cs2-cel">${pg.map(a => `<div class="cs2-c sem"><div><b>${esc(cap(a.motivo))}</b><small>${dt(a.inicio)} · ${tempo(a)}</small></div>${fim(a)}</div>`).join('')}</div>`
+        : `<div class="scroll"><table class="cs2-t cs2-fixa"><colgroup><col style="width:130px"><col><col style="width:150px"><col style="width:250px"><col style="width:150px"></colgroup><thead><tr><th>Quando</th><th>Motivo</th><th>Quem</th><th>Tempo usado</th><th>Como terminou</th></tr></thead><tbody>
+          ${pg.map(a => `<tr><td class="nw">${dt(a.inicio)}</td><td class="cs2-corta" title="${esc(cap(a.motivo))}">${esc(cap(a.motivo))}</td><td class="nw">Suporte SONVI</td><td>${tempo(a)}</td><td>${fim(a)}</td></tr>`).join('')}</tbody></table></div>`;
       corpo = `<section class="card" id="cs2-corpo" aria-labelledby="cs2-ta"><div class="hd"><div><h2 id="cs2-ta">Acessos da equipe SONVI</h2><p class="muted small" style="margin:2px 0 0">A equipe SONVI só vê os dados da empresa quando entra como suporte. Cada entrada fica anotada aqui; o que o suporte alterar aparece no histórico como "Suporte SONVI".</p></div>${nav}</div>
         <div class="cs2-lista">${pg.length ? linhas : `<div class="empty"><b>Nenhum acesso em ${nomeMes(st.mes).toLowerCase()}</b>A equipe SONVI não entrou no ambiente da empresa neste mês.</div>`}</div>
         ${paginacao('acessos', doMes.length, `acessos em ${MESES[+st.mes.slice(5) - 1]}${usado ? ` · ${fmtMin(usado)} usados` : ''}`)}</section>`;
