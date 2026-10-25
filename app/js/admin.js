@@ -133,22 +133,7 @@
         : `<div class="card"><div class="scroll"><table><thead><tr><th>Usuário</th><th>Situação</th><th>Último acesso</th><th>Rádios e perfis</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${us.map(u =>
           `<tr class="click" data-act="admUsuario" data-id="${u.id}"><td><div style="display:flex;align-items:center;gap:12px"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><div><b>${esc(u.nome) || '—'}</b><div class="muted small">${esc(u.email)}${u.celular ? ' · ' + esc(u.celular) : ''}</div></div></div></td><td>${situacao(u)}</td><td class="nowrap">${ultimo(u)}</td><td>${acessoTexto(u, '<br>')}</td><td class="r"><button class="btn tres" data-act="admUsuarioMenu" data-id="${u.id}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button></td></tr>`).join('')}</tbody></table></div></div>`;
     }
-    // Transparência: toda entrada do suporte SONVI fica registrada (quando, quanto tempo e por quê) e o diretor vê aqui
-    if (aba === 'usuarios' && !ehGer()) {
-      const log = S.db.suporteLog || [], dt = d => new Date(d).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
-      const dur = a => Math.max(1, Math.round((new Date(a.encerrado_em && new Date(a.encerrado_em) < new Date(a.fim) ? a.encerrado_em : a.fim) - new Date(a.inicio)) / 60000));
-      const ativo = a => !a.encerrado_em && new Date(a.fim) > new Date();
-      body += `<section class="card sup-log" style="margin-top:18px"><div class="hd"><h2>Acessos do suporte SONVI</h2><span>${log.length ? `${log.length} registro${log.length === 1 ? '' : 's'}` : 'nenhum até agora'}</span></div>
-        <p class="muted small" style="margin:0 0 12px">A equipe SONVI só vê os dados da empresa quando entra como suporte. Cada entrada fica anotada aqui, com o motivo e o tempo. O que o suporte alterar aparece no histórico como "Suporte SONVI".</p>
-        ${log.length ? `<div class="acc">${log.map(a => { const fimReal = a.encerrado_em && new Date(a.encerrado_em) < new Date(a.fim) ? a.encerrado_em : a.fim, hora = d => new Date(d).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-          const comoTerminou = ativo(a) ? 'Em andamento' : a.encerrado_em && new Date(a.encerrado_em) < new Date(a.fim) ? 'Encerrado pelo suporte' : 'Terminou no horário combinado';
-          const previsto = Math.round((new Date(a.fim) - new Date(a.inicio)) / 60000), fmtMin = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`;
-          return `<details class="acc-item" name="suplog"${ativo(a) ? ' open' : ''}><summary><span class="ic" aria-hidden="true">${S.svg('chave')}</span>
-            <span class="acc-tit"><b>${esc(a.motivo)}${ativo(a) ? ' <span class="pill" style="--tone:var(--blue)">agora</span>' : ''}</b><small>${dt(a.inicio)} · ${ativo(a) ? `até ${hora(a.fim)}` : fmtMin(dur(a))}</small></span><span class="acc-seta" aria-hidden="true">${S.svg('baixo')}</span></summary>
-            <dl class="acc-corpo"><div><dt>Quem</dt><dd>Equipe SONVI (aparece como "Suporte SONVI")</dd></div><div><dt>Motivo</dt><dd>${esc(a.motivo)}</dd></div>
-              <div><dt>Entrou</dt><dd>${dt(a.inicio)}</dd></div><div><dt>${ativo(a) ? 'Termina' : 'Saiu'}</dt><dd>${ativo(a) ? hora(a.fim) : dt(fimReal)}</dd></div>
-              <div><dt>Tempo</dt><dd>${ativo(a) ? `liberado por ${fmtMin(previsto)}` : `${fmtMin(dur(a))} de ${fmtMin(previsto)} liberados`}</dd></div><div><dt>Situação</dt><dd>${comoTerminou}</dd></div></dl></details>`; }).join('')}</div>` : ''}</section>`;
-    }
+    // Os acessos da equipe SONVI saíram daqui em 25/10/2026: ficam no Dashboard geral › Suporte (chamados.js)
     if (ehGer()) return { title:`<span class="sub">${esc(minhas().map(v => v.nome).join(' · '))}</span>Usuários`, actions:`<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`,
       body:`<p class="muted small" style="margin:0 0 14px">Você cadastra e edita consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente. Gerentes e diretores ficam com o diretor.</p>${body}` };
     return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'empresa' ? '' : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:seg + body };

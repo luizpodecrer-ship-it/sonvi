@@ -17,6 +17,7 @@
     ['produtos', 'Produtos', ['diretor', 'gerente', 'consultor']],
     ['music', 'Sonvi Music', S.MUSIC_PERFIS, 'music/'],
     ['admin', 'Administração', ['diretor']],
+    ['chamados', 'Suporte', ['diretor']],        // chamados e acessos da equipe SONVI, só no Dashboard geral (25/10/2026)
     ['admin', 'Usuários', ['gerente']]]; // o gerente cadastra a equipe das rádios dele
   const SOON = [];
 
@@ -52,11 +53,11 @@
     let { view, id } = S.route();
     if (DIR && !bruto) view = 'geral';
     // Administração e Combos do diretor vivem no Dashboard geral (24/10/2026): abrir qualquer uma delas leva o menu para lá
-    if (['geral', 'admin', 'combos'].includes(view)) S.ui.emGeral = DIR; else S.ui.emGeral = false;
+    if (['geral', 'admin', 'combos', 'chamados'].includes(view)) S.ui.emGeral = DIR; else S.ui.emGeral = false;
     const geral = DIR && S.ui.emGeral, semVeiculo = !S.ui.vehicleId;
-    const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral', 'combos'].includes(n[0])) && (!geral || ['geral', 'combos', 'music', 'admin'].includes(n[0])) && !(n[0] === 'combos' && !geral) && !(n[0] === 'geral' && !geral && !semVeiculo) && !(n[0] === 'admin' && DIR && !geral && !semVeiculo)), telas = itens.filter(n => !n[3]);
+    const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral', 'combos', 'chamados'].includes(n[0])) && (!geral || ['geral', 'combos', 'music', 'admin', 'chamados'].includes(n[0])) && !(n[0] === 'combos' && !geral) && !(n[0] === 'chamados' && !geral) && !(n[0] === 'geral' && !geral && !semVeiculo) && !(n[0] === 'admin' && DIR && !geral && !semVeiculo)), telas = itens.filter(n => !n[3]);
     if (!telas.some(n => n[0] === view) && view !== 'pi') view = telas.length ? telas[0][0] : 'soMusic';
-    if (semVeiculo && !(DIR && ['geral', 'admin', 'combos'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
+    if (semVeiculo && !(DIR && ['geral', 'admin', 'combos', 'chamados'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
     S.ui.view = view;   // tela realmente desenhada (com o hash vazio, o diretor vê o Dashboard geral)
     S.temaRadio(semVeiculo || geral ? null : S.veh());
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, atrasos = !MUSIC && S.fuAtrasados && !semVeiculo ? S.fuAtrasados() : 0, veh = semVeiculo ? null : S.veh();
