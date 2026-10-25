@@ -215,26 +215,73 @@
   // ---------- mídia exterior ----------
   const ehInsercao = p => (dadosDe(p).cobranca || COBRA[p.categoria]) === 'insercao';
   const foto = (src, w = 64, h = 44, alt = '') => src ? `<img class="pdt-foto" src="${src}" width="${w}" height="${h}" alt="${esc(alt)}">` : `<span class="pdt-foto vazia" style="width:${w}px;height:${h}px" aria-hidden="true">${S.svg('imagem', 18)}</span>`;
-  const cartaoOoh = p => { const d = dadosDe(p), vs = (d.variacoes || []).filter(x => Number(x.valor) > 0);
-    if (ehInsercao(p)) { const pts = d.pontos || [];
-      return `<article class="card pdt-card pdt-ooh${p.ativo ? '' : ' inativo'}"><div class="pdt-cab"><h3><a data-go="/produtos/${p.id}">${esc(p.nome)}</a></h3>${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pdt-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
-        <small class="muted">por inserção · por dia · por ${unidade(d, 1)}${d.funcionamento ? ' · ' + esc(d.funcionamento) : ''}</small>${d.obs ? `<small class="muted">${esc(d.obs)}</small>` : ''}
-        <div class="pdt-vars">${vs.length ? vs.map(x => chip(x.nome, x.valor)).join('') : '<span class="muted small">Sem preço ainda</span>'}</div>
-        <button type="button" class="pdt-pontos" data-go="/produtos/${p.id}"><span class="pdt-fotos">${pts.slice(0, 4).map(x => foto(x.foto, 40, 28)).join('')}</span><span>${pts.length ? `${pts.length} ${unidade(d, pts.length)}` : d.frota ? `${d.frota} ${unidade(d, d.frota)} na frota` : 'Cadastrar pontos'}</span><span class="grow"></span>${S.svg('seta', 16)}</button></article>`; }
-    const pt = d.ponto || {}, pr = d.producao || {};
-    return `<article class="card pdt-card pdt-ooh${p.ativo ? '' : ' inativo'}"><div class="pdt-ooh-mes">${foto(pt.foto, 96, 72, p.nome)}<div><div class="pdt-cab"><h3>${esc(p.nome)}</h3>${p.ativo ? '' : S.tag('Inativo', 'gray')}<span class="pdt-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
-      <small class="muted">${[pt.endereco, pt.cidade].filter(Boolean).map(esc).join(' · ') || 'Endereço não informado'}</small>
-      <small class="muted">${[pt.formato, pt.impacto ? `${esc(pt.impacto)}/dia` : '', pt.impacto_mes ? `${esc(pt.impacto_mes)}/mês` : ''].filter(Boolean).join(' · ')}</small></div></div>
-      <div class="pdt-vars">${vs.map(x => chip(x.nome + (x.obs ? ' · ' + x.obs : ''), x.valor)).join('')}${Number(pr.valor) > 0 ? chip(`${pr.nome || 'Produção'} (uma vez)`, pr.valor, 't') : ''}${vs.length ? '' : '<span class="muted small">Sem preço ainda</span>'}</div>
-      <small class="muted">${vs.length ? 'preço por mês' : ''}</small></article>`; };
+  // Mídia exterior no padrão da rádio (aprovado em 25/10/2026): "Tabela da <veículo>" com Cartões · Mapa de preços, quatro números,
+  // filtro por categoria (quando há mais de uma) e, para quem vende por inserção, a comparação por variação. Cartões em grade com
+  // miniaturas pequenas dos pontos ao lado do nome, preços com barra proporcional ao maior da tabela e um exemplo da conta.
+  const po = { vista:'cartoes', cat:'', varia:'' };
+  const fotosDe = p => { const d = dadosDe(p); return ehInsercao(p) ? (d.pontos || []).map(x => x.foto).filter(Boolean) : [(d.ponto || {}).foto].filter(Boolean); };
+  const unidadesDe = p => { const d = dadosDe(p); return (d.pontos || []).length || Number(d.frota) || 1; };
+  const mini = p => { const fs = fotosDe(p), d = dadosDe(p);
+    return `<span class="pdt-mini" aria-hidden="true">${fs.length ? fs.slice(0, 3).map(src => `<img src="${src}" width="36" height="36" alt="">`).join('') + (fs.length > 3 ? `<span class="q">+${fs.length - 3}</span>` : '')
+      : `<span class="q">${ehInsercao(p) ? (d.frota || (d.pontos || []).length || '—') : S.svg('imagem', 16)}</span>`}</span>`; };
+  const cartaoOoh = (p, mx) => { const d = dadosDe(p), vs = (d.variacoes || []).filter(x => Number(x.valor) > 0), ins = ehInsercao(p), pr = d.producao || {}, pt = d.ponto || {};
+    const sub = ins ? `por inserção · por dia · por ${unidade(d, 1)}${d.funcionamento ? ' · ' + esc(d.funcionamento) : ''}` : [pt.endereco, pt.cidade].filter(Boolean).map(esc).join(' · ') || 'Endereço não informado';
+    const spec = ins ? (d.obs ? esc(d.obs) : '') : [pt.formato, pt.impacto ? `${esc(pt.impacto)}/dia` : '', pt.impacto_mes ? `${esc(pt.impacto_mes)}/mês` : ''].filter(Boolean).join(' · ');
+    const filtra = ins && po.varia;
+    const linhas = vs.map(x => `<div class="pdt-pb${filtra && x.nome === po.varia ? ' foco' : ''}"><span title="${esc(x.nome + (x.obs ? ' · ' + x.obs : ''))}">${esc(x.nome)}${x.obs ? `<small> · ${esc(x.obs)}</small>` : ''}</span><span class="pdt-pb-barra" aria-hidden="true"><i style="width:${Math.max(3, x.valor / mx * 100)}%"></i></span><b>${brl(x.valor)}</b></div>`).join('')
+      + (!ins && Number(pr.valor) > 0 ? `<div class="pdt-pb prod"><span>${esc(pr.nome || 'Produção')}<small> · uma vez</small></span><span class="pdt-pb-barra" aria-hidden="true"><i style="width:${Math.max(3, pr.valor / mx * 100)}%"></i></span><b>${brl(pr.valor)}</b></div>` : '');
+    const n = unidadesDe(p), ref = vs.find(x => x.nome === po.varia) || vs.find(x => /30/.test(x.nome)) || vs[0];
+    const conta = !ref ? '' : ins ? `Exemplo: <b>${esc(ref.nome)}</b> · 30 por dia · ${n} ${unidade(d, n)} · 30 dias = <b>${brl(ref.valor * 30 * n * 30)}</b> no mês`
+      : `Exemplo: <b>${vs.length > 1 ? 'todas as faces' : esc(ref.nome)}</b> por 1 mês = <b>${brl(vs.reduce((a, x) => a + Number(x.valor), 0))}</b>${Number(pr.valor) > 0 ? ` + produção ${brl(pr.valor)} (uma vez)` : ''}`;
+    const pe = ins ? `<button type="button" class="pdt-ooh-pe" data-go="/produtos/${p.id}"><span>${(d.pontos || []).length ? `${d.pontos.length} ${unidade(d, d.pontos.length)}` : d.frota ? `${d.frota} ${unidade(d, d.frota)} na frota` : 'Cadastrar pontos'}</span><span class="grow"></span><b>Ver pontos</b>${S.svg('seta', 16)}</button>`
+      : pode() ? `<button type="button" class="pdt-ooh-pe" data-act="pdEditarOoh" data-id="${p.id}"><span>Ficha do ponto</span><span class="grow"></span><b>Editar ficha</b>${S.svg('seta', 16)}</button>` : '';
+    return `<article class="card pdt-card pdt-ooh2${p.ativo ? '' : ' inativo'}" data-flip="${p.id}"><div class="pdt-ooh-cab">${mini(p)}<div class="pdt-ooh-tx"><h3>${ins ? `<a data-go="/produtos/${p.id}">${esc(p.nome)}</a>` : esc(p.nome)}</h3><small>${sub}</small>${spec ? `<small>${spec}</small>` : ''}</div>
+        ${p.ativo ? '' : '<span class="pill fn-neutra">Inativo</span>'}<span class="pdt-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
+      ${linhas ? `<div class="pdt-precos-b${filtra ? ' filtra' : ''}">${linhas}</div>` : '<span class="muted small">Sem preço ainda</span>'}
+      ${conta ? `<div class="pdt-conta">${conta}</div>` : ''}${pe}</article>`; };
   const vistaOoh = () => {
-    const cats = catsOoh(), ps = oohProds().filter(p => p.ativo || pode());
-    const blocos = cats.map(k => { const l = ps.filter(p => p.categoria === k);
-      return `<section class="pdt-sec"><div class="pdt-sec-hd"><h2>${esc(S.nomeCategoria(k))}</h2><small class="muted">${COBRA[k] === 'insercao' ? 'por inserção, por dia e por ponto' : 'por mês, por face'}</small></div>
-        ${l.length ? `<div class="pdt-grade">${l.map(cartaoOoh).join('')}</div>` : `<p class="muted small">Nenhum produto de ${esc(S.nomeCategoria(k).toLowerCase())} ainda.</p>`}</section>`; }).join('');
+    const cats = catsOoh(), todos = oohProds().filter(p => p.ativo || pode());
+    if (po.cat && !cats.includes(po.cat)) po.cat = '';
+    const ps = todos.filter(p => !po.cat || p.categoria === po.cat), insV = todos.some(ehInsercao), mesV = todos.some(p => !ehInsercao(p));
+    const vals = p => (dadosDe(p).variacoes || []).filter(x => Number(x.valor) > 0);
+    const varsIns = [...new Set(ps.filter(ehInsercao).flatMap(p => vals(p).map(x => x.nome)))];
+    if (po.varia && !varsIns.includes(po.varia)) po.varia = '';
+    const precos = ps.flatMap(p => vals(p).map(x => ({ p, n:x.nome, v:Number(x.valor), ins:ehInsercao(p) })));
+    const mx = Math.max(1, ...ps.flatMap(p => [...vals(p).map(x => Number(x.valor)), Number((dadosDe(p).producao || {}).valor) || 0]));
+    const grupo = insV && !mesV ? precos : precos.filter(x => x.ins === (insV && !mesV));
+    const menor = grupo.reduce((a, x) => !a || x.v < a.v ? x : a, null), maior = grupo.reduce((a, x) => !a || x.v > a.v ? x : a, null);
+    const pIns = todos.filter(ehInsercao), pMes = todos.filter(p => !ehInsercao(p));
+    const kpis = insV && !mesV
+      ? `<div><small>Produtos ativos</small><b>${S.roloFixo('po1', String(todos.filter(p => p.ativo).length))}</b><span>em ${cats.length} categoria${cats.length === 1 ? '' : 's'}</span></div>
+        <div><small>Pontos</small><b>${S.roloFixo('po2', String(pIns.reduce((a, p) => a + unidadesDe(p), 0)))}</b><span>${pIns.map(p => `${unidadesDe(p)} ${unidade(dadosDe(p), unidadesDe(p))}`).join(' · ') || '—'}</span></div>`
+      : `<div><small>Pontos</small><b>${S.roloFixo('po1', String(pMes.length + pIns.reduce((a, p) => a + unidadesDe(p), 0)))}</b><span>${cats.map(k => S.nomeCategoria(k)).join(' · ')}</span></div>
+        <div><small>Faces</small><b>${S.roloFixo('po2', String(pMes.reduce((a, p) => a + vals(p).length, 0)))}</b><span>à venda por mês</span></div>`;
+    const un = insV && !mesV ? 'por inserção' : 'por mês';
+    const fmt = v => v < 100 ? brl(v) : curto(v);
+    const topo = `<section class="card pdt-topo" aria-labelledby="pdt-t"><div class="hd"><h2 id="pdt-t">Tabela da ${esc(S.veh().nome)}</h2>
+        <div class="seg" role="group" aria-label="Ver como">${[['cartoes', 'Cartões'], ['mapa', 'Mapa de preços']].map(([k, n]) => `<button class="${po.vista === k ? 'on' : ''}" data-act="poVista" data-v="${k}" aria-pressed="${po.vista === k}">${n}</button>`).join('')}</div></div>
+      <div class="pdt-kpis">${kpis}<div><small>${insV && !mesV ? 'Menor preço' : 'Menor face'}</small><b>${S.roloFixo('po3', menor ? fmt(menor.v) : 'R$ 0')}</b><span>${menor ? `${un} · ${esc(menor.n)}` : '—'}</span></div>
+        <div><small>${insV && !mesV ? 'Maior preço' : 'Maior face'}</small><b>${S.roloFixo('po4', maior ? fmt(maior.v) : 'R$ 0')}</b><span>${maior ? `${un} · ${esc(maior.p.nome)}` : '—'}</span></div></div>
+      ${cats.length > 1 || varsIns.length ? `<div class="pdt-comparar">${cats.length > 1 ? `<span class="pdt-rot">Categoria</span><div class="pdt-var-chips" role="group" aria-label="Categoria">${[['', 'Todas'], ...cats.map(k => [k, S.nomeCategoria(k)])].map(([k, n]) => `<button data-act="poCat" data-v="${k}" aria-pressed="${po.cat === k}">${esc(n)}</button>`).join('')}</div>` : ''}
+        ${varsIns.length ? `<span class="pdt-rot">Comparar</span><div class="pdt-var-chips" role="group" aria-label="Comparar uma variação">${varsIns.map(n => `<button data-act="poVar" data-v="${esc(n)}" aria-pressed="${po.varia === n}">${esc(n)}</button>`).join('')}</div><span class="grow"></span>
+          ${po.varia ? (() => { const xs = precos.filter(x => x.n === po.varia).map(x => x.v); return `<span class="pill fn-ok">${esc(po.varia)}: ${xs.length > 1 ? `de ${brl(Math.min(...xs))} a ${brl(Math.max(...xs))}` : brl(xs[0])} · ${xs.length} produto${xs.length === 1 ? '' : 's'}</span>`; })() : '<span class="pill fn-neutra">Escolha uma variação para comparar</span>'}` : ''}</div>` : ''}</section>`;
+    let corpo;
+    if (po.vista === 'mapa') {
+      const pi = ps.filter(ehInsercao), pm = ps.filter(p => !ehInsercao(p));
+      const tabela = (titulo, linhas, cols, valor, mn, mxx, rot) => { const fx = Math.max(1e-9, mxx - mn);
+        return `<div class="pdt-mapa scroll"><table><thead><tr><th>${titulo}</th>${cols.map(c => `<th class="c${c === po.varia ? ' on' : ''}">${esc(c)}</th>`).join('')}</tr></thead><tbody>
+          ${linhas.map(p => `<tr><td class="nome"><b>${esc(p.nome)}</b></td>${cols.map(c => { const v = valor(p, c), pc = v ? Math.round(12 + (v - mn) / fx * 88) : 0;
+            return `<td class="${c === po.varia ? 'on' : ''}">${v ? `<span class="pdt-cel" style="--p:${pc}" title="${esc(p.nome)} · ${esc(c)}: ${brl(v)}"><span>${fmt(v).replace('R$ ', '')}</span></span>` : '<span class="pdt-cel nada">—</span>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>
+          <div class="pdt-escala"><span>${fmt(mn)}</span><i aria-hidden="true"></i><span>${fmt(mxx)}</span><span class="grow"></span><span>${rot}</span></div>`; };
+      const vi = pi.flatMap(p => vals(p).map(x => Number(x.valor))), vm = pm.flatMap(p => [...vals(p).map(x => Number(x.valor)), Number((dadosDe(p).producao || {}).valor) || 0]).filter(Boolean);
+      const facesN = [...new Set(pm.flatMap(p => vals(p).map(x => x.nome)))];
+      corpo = `<section class="card" aria-labelledby="pdt-tm"><div class="hd"><h2 id="pdt-tm">Mapa de preços</h2><span>quanto mais forte, mais caro</span></div>
+        ${pi.length ? tabela('<span class="sr">Produto</span>', pi, varsIns, (p, c) => Number((vals(p).find(x => x.nome === c) || {}).valor) || 0, Math.min(...vi), Math.max(...vi), 'preço por inserção') : ''}
+        ${pm.length ? tabela('<span class="sr">Ponto</span>', pm, [...facesN, 'Produção'], (p, c) => c === 'Produção' ? Number((dadosDe(p).producao || {}).valor) || 0 : Number((vals(p).find(x => x.nome === c) || {}).valor) || 0, Math.min(...vm), Math.max(...vm), 'preço por mês; a produção é cobrada uma vez') : ''}</section>`;
+    } else corpo = `<div class="pdt-grade">${ps.map(p => cartaoOoh(p, mx)).join('')}</div>`;
     return { title:titulo('Produtos'), actions:pode() ? `<button class="btn pri" data-act="pdNovoOoh">${S.svg('mais')}Novo produto</button>` : '',
-      body:S.produtosAbas('ooh') + (ps.length ? blocos : `<div class="card empty"><b>Nenhum produto cadastrado</b>${pode() ? `Cadastre o que ${esc(S.veh().nome)} vende: ${cats.map(k => S.nomeCategoria(k).toLowerCase()).join(', ')}.` : 'Quando o diretor cadastrar, os produtos aparecem aqui.'}</div>`)
-        + (ps.length ? '<p class="muted small pdt-nota">Mudar um preço vale na hora para as propostas novas. Na proposta, estes produtos entram pelo botão "Produto".</p>' : '') };
+      body:S.produtosAbas('ooh') + (todos.length ? topo + corpo : `<div class="card empty"><b>Nenhum produto cadastrado</b>${pode() ? `Cadastre o que ${esc(S.veh().nome)} vende: ${cats.map(k => S.nomeCategoria(k).toLowerCase()).join(', ')}.` : 'Quando o diretor cadastrar, os produtos aparecem aqui.'}</div>`)
+        + (todos.length ? '<p class="muted small pdt-nota">Mudar um preço vale na hora para as propostas novas. Na proposta, estes produtos entram pelo botão "Produto".</p>' : '') };
   };
   // Página de um produto por inserção: os pontos onde ele roda e o preço
   const vistaPontos = p => {
@@ -348,6 +395,9 @@
     const d = document.getElementById('dlg'); if (d) d.dataset.sujo = '1'; };
   Object.assign(S.actions, {
     pdNovo: () => formRadio(null),
+    poVista: d => { if (po.vista === d.v) return; po.vista = d.v; S.render(); },
+    poCat: d => { po.cat = d.v; S.flip(S.render); },
+    poVar: d => { po.varia = po.varia === d.v ? '' : d.v; S.render(); },
     pdVista: d => { if (pv.vista === d.v) return; pv.vista = d.v; S.render(); },
     pdVar: d => { pv.varia = pv.varia === d.id ? '' : d.id; S.render(); },
     pdNovaCota: () => formCota(null),
