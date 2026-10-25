@@ -32,8 +32,8 @@
 
   // Editor: as mudanças ficam aqui até "Salvar combo"
   let ce = null;
-  const novo = () => ({ id:null, nome:'', vale_ate:'', ativo:true, itens:[], preco:0, sujo:false });
-  const abrir = c => { ce = c ? { id:c.id, nome:c.nome, vale_ate:c.vale_ate || '', ativo:c.ativo, itens:JSON.parse(JSON.stringify(c.itens || [])), preco:Number(c.preco) || 0, sujo:false } : novo(); };
+  const novo = () => ({ id:null, nome:'', vale_ate:'', ativo:true, itens:[], preco:0, sujo:false, edit:true });
+  const abrir = c => { ce = c ? { id:c.id, nome:c.nome, vale_ate:c.vale_ate || '', ativo:c.ativo, itens:JSON.parse(JSON.stringify(c.itens || [])), preco:Number(c.preco) || 0, sujo:false, edit:false } : novo(); };
   S.comboSujo = () => !!(ce && ce.sujo);
   const veic = id => S.veh(id) || {};
   const situacao = c => !c.ativo ? ['Inativo', 'gray'] : c.vale_ate && c.vale_ate < S.today() ? ['Vencido', 'orange'] : c.vale_ate ? [`até ${dfmt(c.vale_ate)}`, 'green'] : ['Sem prazo', 'blue'];
@@ -67,24 +67,32 @@
       .sort((a, b) => Math.abs(a.r.top - b.r.top) > 8 ? a.r.top - b.r.top : a.r.left - b.r.left)
       .forEach(({ e }, i) => { e.style.setProperty('--atraso', quieto ? '0s' : Math.min(i, 8) * .09 + 's'); e.setAttribute('data-vis', ''); }))); };
 
-  const editor = () => { const tab = tabelaDe(ce.itens), pv = porVeic(ce.itens), d = pct(ce.preco, tab);
+  // O combo abre para consulta (aprovado em 25/10/2026, igual ao PI e à tabela): no alto, Editar e ⋯ (Duplicar, Ligar/Desligar,
+  // Excluir); editando, Descartar e Salvar combo lado a lado. "Aparece nas novas propostas" é uma chave no fim do cartão de preço.
+  const editor = () => { const tab = tabelaDe(ce.itens), pv = porVeic(ce.itens), d = pct(ce.preco, tab), ed = ce.edit;
     const grupos = pv.map(([id, v]) => { const its = ce.itens.map((it, i) => [it, i]).filter(([it]) => it.veiculo_id === id), ve = veic(id);
       return `<div class="cb-gv" style="--v:${corV(id)}"><div class="cb-gv-hd">${S.vav(ve)}<b>${esc(ve.nome || 'Veículo')}</b><small>${its.length} ${its.length === 1 ? 'item' : 'itens'} · ${curto(v)}</small></div>
-        ${its.map(([it, i]) => `<div class="cb-it"><span class="cb-it-n"><b>${esc(it.programa)}</b>${it.detalhe ? `<small>${esc(it.detalhe)}</small>` : ''}</span><span class="cb-it-f">${esc(it.formato)}</span><span class="cb-it-q">${esc(S.qtdItem(it))}</span>
-          <span class="cb-it-v">${brl(valorIt(it))}${it.unica ? '<small>uma vez</small>' : ''}</span><button type="button" class="btn tres" data-act="cbTirar" data-i="${i}" aria-label="Tirar ${esc(it.programa)}">${S.svg('fechar', 16)}</button></div>`).join('')}</div>`; }).join('');
-    return `<div class="cb-ed2"><section class="card cb-ed" aria-label="Combo"><div class="hd"><h2>Dados do combo</h2><span class="sujo cb-sujo"${ce.sujo ? '' : ' hidden'}><i></i>Alterações não salvas</span></div>
-      <div class="g2"><label class="f">Nome do combo<input data-cb="nome" value="${esc(ce.nome)}" placeholder="Ex.: Combo Verão Rádio + LED"></label>
-        <label class="f">Vale até (opcional)<input type="date" data-cb="vale_ate" value="${esc(ce.vale_ate)}"></label></div>
+        ${its.map(([it, i]) => `<div class="cb-it${ed ? '' : ' ver'}"><span class="cb-it-n"><b>${esc(it.programa)}</b>${it.detalhe ? `<small>${esc(it.detalhe)}</small>` : ''}</span><span class="cb-it-f">${esc(it.formato)}</span><span class="cb-it-q">${esc(S.qtdItem(it))}</span>
+          <span class="cb-it-v">${brl(valorIt(it))}${it.unica ? '<small>uma vez</small>' : ''}</span>${ed ? `<button type="button" class="btn tres" data-act="cbTirar" data-i="${i}" aria-label="Tirar ${esc(it.programa)}">${S.svg('fechar', 16)}</button>` : ''}</div>`).join('')}</div>`; }).join('');
+    return `<div class="cb-ed2"><section class="card cb-ed" aria-labelledby="cb-td"><div class="hd"><h2 id="cb-td">Dados do combo</h2></div>
+      ${ed ? `<div class="g2"><label class="f">Nome do combo<input data-cb="nome" value="${esc(ce.nome)}" placeholder="Ex.: Combo Verão Rádio + LED"></label>
+        <label class="f">Vale até (opcional)<input type="date" data-cb="vale_ate" value="${esc(ce.vale_ate)}"></label></div>`
+        : `<dl class="cb-dl"><div><dt>Nome do combo</dt><dd>${esc(ce.nome)}</dd></div><div><dt>Vale até</dt><dd>${ce.vale_ate ? dfmt(ce.vale_ate) : 'sem data para acabar'}</dd></div></dl>`}
       <div class="form-sec">Itens · de qualquer veículo do grupo</div>
       ${grupos || '<p class="muted">Nenhum item ainda. Adicione produtos de um ou mais veículos.</p>'}
-      <button type="button" class="btn sm cb-add" data-act="cbAdd">${S.svg('mais')}Adicionar produto</button></section>
+      ${ed ? `<button type="button" class="btn sm cb-add" data-act="cbAdd">${S.svg('mais')}Adicionar produto</button>` : ''}</section>
       <section class="card cb-preco-card" aria-labelledby="cb-tp"><div class="hd"><h2 id="cb-tp">Preço do combo</h2></div>
-        <label class="f">Preço fechado (R$)<input data-cb="preco" data-mask="dec" inputmode="decimal" value="${ce.preco ? S.nfmt(ce.preco) : ''}" placeholder="0,00"></label>
+        ${ed ? `<label class="f">Preço fechado (R$)<input data-cb="preco" data-mask="dec" inputmode="decimal" value="${ce.preco ? S.nfmt(ce.preco) : ''}" placeholder="0,00"></label>`
+          : `<div class="cb-preco-v"><small>Preço fechado</small><b>${brl(ce.preco)}</b></div>`}
         ${comparar(tab, ce.preco, 'cbBar')}
         <span id="cbDesc">${d ? `<span class="pill fn-forte">${d} de desconto · ${brl(r2(tab - ce.preco))}</span>` : '<span class="pill fn-neutra">Sem desconto</span>'}</span>
         ${pv.length ? `<div><div class="cb-div-t">Como o preço se divide na proposta</div><div class="cb-div" id="cbDiv"></div><small class="muted">Cada veículo recebe a parte dele na proporção da tabela e gera o próprio PI.</small></div>` : ''}
-        <label class="chk"><input type="checkbox" data-cb="ativo"${ce.ativo ? ' checked' : ''}>Aparece nas novas propostas</label>
-        <div class="cb-bt">${ce.id ? `<button type="button" class="btn perigo" data-act="cbExcluir">Excluir</button>` : ''}<button type="button" class="btn" data-act="cbDescartar">${ce.id ? 'Descartar' : 'Cancelar'}</button><button type="button" class="btn pri" data-act="cbSalvar">Salvar combo</button></div></section></div>`; };
+        <label class="cb-liga"><span>Aparece nas novas propostas</span><input type="checkbox" role="switch" class="cb-sw" data-cb="ativo"${ce.ativo ? ' checked' : ''}></label></section></div>`; };
+  const situ = () => { const venc = ce.vale_ate && ce.vale_ate < S.today(), f = ce.vale_ate ? diasAte(ce.vale_ate) : 0;
+    return `<div class="cb-situ"><span class="pill ${ce.ativo && !venc ? 'fn-ok' : 'fn-neutra'}">${!ce.id ? 'Combo novo' : ce.ativo ? (venc ? 'Vencido' : 'Nas propostas') : 'Fora das propostas'}</span>
+      ${ce.vale_ate ? `<span class="pill fn-neutra">${venc ? `venceu em ${dfmt(ce.vale_ate)}` : `vale até ${dfmt(ce.vale_ate).slice(0, 5)}${f <= 60 ? ` · ${f ? `faltam ${f} dia${f === 1 ? '' : 's'}` : 'acaba hoje'}` : ''}`}</span>` : ''}
+      <span class="pill cb-sujo-p cb-sujo"${ce.sujo ? '' : ' hidden'}><i aria-hidden="true"></i>Alterações não salvas</span></div>`; };
+
   // Parte de cada veículo no preço fechado (proporção da tabela) e a comparação tabela × combo, ao vivo
   const atualizaPreco = () => { if (!ce) return; const tab = tabelaDe(ce.itens), p = Number(ce.preco) || 0, d = pct(p, tab);
     const bar = document.getElementById('cbBar'), bp = document.getElementById('cbBarP'), ds = document.getElementById('cbDesc'), dv = document.getElementById('cbDiv');
@@ -96,8 +104,10 @@
     if (!fonte) { carregar(); return { title:'<span class="sub">Grupo · valem em todos os veículos</span>Combos', actions:'', body:'<div class="card empty"><b>Carregando os produtos de todos os veículos…</b></div>' }; }
     const cs = S.db.combos || [];
     if (ce) { naLista = false; queueMicrotask(atualizaPreco);
-      return { title:`<span class="sub"><a href="#/combos" data-act="cbVoltar" class="cb-volta">${S.svg('esq', 14)}Combos</a></span>${ce.id ? esc(ce.nome || 'Combo') : 'Novo combo'}`, actions:'',
-        body:`${editor()}<p class="muted small cb-nota">Só o diretor cria e edita combos. O consultor usa na proposta (botão "Combo"), sem mudar as quantidades. Aprovada a proposta, o SONVI gera um PI por veículo, e cada veículo fatura a sua parte (o preço do combo é dividido na proporção da tabela).</p>` }; }
+      const acoes = ce.edit ? `<button class="btn" data-act="cbDescartar">Descartar</button><button class="btn pri" data-act="cbSalvar">Salvar combo</button>`
+        : `<button class="btn tres" data-act="cbMenu" aria-label="Mais opções do combo">${S.svg('mais3')}</button><button class="btn pri" data-act="cbEditar">${S.svg('editar')}Editar</button>`;
+      return { title:`<span class="sub"><a href="#/combos" data-act="cbVoltar" class="cb-volta">${S.svg('esq', 14)}Combos</a></span>${ce.id ? esc(ce.nome || 'Combo') : 'Novo combo'}`, actions:acoes,
+        body:`${situ()}${editor()}<p class="muted small cb-nota">Só o diretor cria e edita combos. O consultor usa na proposta (botão "Combo"), sem mudar as quantidades. Aprovada a proposta, o SONVI gera um PI por veículo, e cada veículo fatura a sua parte (o preço do combo é dividido na proporção da tabela).</p>` }; }
     // Os blocos entram como cartas só quando a lista aparece (não a cada redesenho)
     const anima = !naLista; naLista = true;
     if (anima) queueMicrotask(aparece);
@@ -109,16 +119,25 @@
   };
 
   const sujar = () => { if (!ce.sujo) { ce.sujo = true; document.querySelectorAll('.cb-sujo').forEach(e => { e.hidden = false; }); } };
-  document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.cb; if (!k || !ce) return;
+  document.addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.cb; if (!k || !ce || k === 'ativo') return;
     if (k === 'preco') { ce.preco = S.num(e.target.value); atualizaPreco(); } else if (k === 'ativo') ce.ativo = e.target.checked; else ce[k] = e.target.value; sujar(); });
-  document.addEventListener('change', e => { if (e.target.dataset && e.target.dataset.cb === 'ativo' && ce) { ce.ativo = e.target.checked; sujar(); } });
+  // A chave: editando, entra no que será salvo; na consulta, grava na hora
+  document.addEventListener('change', e => { if (!(e.target.dataset && e.target.dataset.cb === 'ativo' && ce)) return;
+    if (ce.edit) { ce.ativo = e.target.checked; sujar(); } else ligar(e.target.checked); });
+  const ligar = v => { const id = ce.id; if (!id) return; S.run(async () => { const r = await S.salvar('combos', { id, ativo:v, atualizado_em:new Date().toISOString() }); abrir(Object.assign({}, (S.db.combos || []).find(c => c.id === id) || {}, r)); },
+    v ? 'Combo de volta nas propostas' : 'Combo fora das novas propostas'); };
   const pergunta = async () => !ce || !ce.sujo || await S.confirmar('Sair sem salvar o combo?\n\nAs alterações que ainda não foram salvas serão perdidas.', { ok:'Sair sem salvar', voltar:'Continuar editando', perigo:true });
 
   Object.assign(S.actions, {
     cbNovo: async () => { if (!await pergunta()) return; ce = novo(); S.render(); window.scrollTo(0, 0); const el = document.querySelector('[data-cb="nome"]'); if (el) el.focus(); },
     cbAbrir: async d => { if (ce && ce.id === d.id) return; if (!await pergunta()) return; abrir((S.db.combos || []).find(c => c.id === d.id)); S.render(); window.scrollTo(0, 0); },
     cbVoltar: async () => { if (!await pergunta()) return; ce = null; S.render(); },
-    cbDescartar: () => { const c = ce && ce.id && (S.db.combos || []).find(x => x.id === ce.id); ce = null; if (c) abrir(c); S.render(); },
+    cbDescartar: async () => { if (ce && ce.sujo && !await S.confirmar('Descartar as alterações do combo?', { ok:'Descartar', voltar:'Continuar editando', perigo:true })) return;
+      const c = ce && ce.id && (S.db.combos || []).find(x => x.id === ce.id); ce = null; if (c) abrir(c); S.render(); },
+    cbEditar: () => { if (!ce) return; ce.edit = true; S.render(); const el = document.querySelector('[data-cb="nome"]'); if (el) el.focus(); },
+    cbMenu: (d, botao) => S.menu(botao, [{ label:'Duplicar combo', icon:'copia', act:'cbDuplicar' }, { label:ce.ativo ? 'Desligar das propostas' : 'Ligar nas propostas', icon:ce.ativo ? 'fechar' : 'check', act:'cbLigar' }, '-', { label:'Excluir combo', icon:'lixo', act:'cbExcluir', perigo:true }]),
+    cbLigar: () => ligar(!ce.ativo),
+    cbDuplicar: () => { ce = Object.assign(JSON.parse(JSON.stringify(ce)), { id:null, nome:`${ce.nome} (cópia)`, edit:true, sujo:true }); S.render(); window.scrollTo(0, 0); const el = document.querySelector('[data-cb="nome"]'); if (el) { el.focus(); el.select(); } },
     cbTirar: d => { ce.itens.splice(+d.i, 1); sujar(); S.render(); },
     cbAdd: () => S.escolherProduto({ titulo:'Adicionar ao combo', veiculos:(S.db.veiculos || []).filter(v => fonte[v.id]), fonte:vid => fonte[vid] || {},
       onItens:its => { its.forEach(it => { delete it.total; it.total = r2((parseInt(it.insercoes) || 0) * (Number(it.preco_tabela) || 0)); }); ce.itens.push(...its);

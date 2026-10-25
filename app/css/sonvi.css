@@ -2768,3 +2768,16 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 @media (max-width:600px) { .cb-grade { grid-template-columns:1fr; } .cb-bloco { min-height:170px; } }
 .cb-b-mais svg { fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; }
 .cb-volta svg { fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+/* Combo em consulta / editando (aprovado em 25/10/2026) */
+.cb-situ { display:flex; flex-wrap:wrap; gap:8px; margin:-6px 0 18px; }
+.pill.cb-sujo-p { background:color-mix(in srgb, var(--orange) 14%, var(--surface)); color:var(--orange); display:inline-flex; align-items:center; gap:6px; }
+.pill.cb-sujo-p[hidden] { display:none; } .pill.cb-sujo-p i { width:7px; height:7px; border-radius:50%; background:currentColor; }
+.cb-dl { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:0; } .cb-dl dt { font-size:13px; color:var(--ink-2); } .cb-dl dd { margin:2px 0 0; font-weight:600; font-size:15px; }
+.cb-preco-v { display:grid; gap:2px; } .cb-preco-v small { font-size:13px; color:var(--ink-2); } .cb-preco-v b { font:600 28px var(--display); font-variant-numeric:tabular-nums; }
+.cb-liga { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:14px; border-top:1px solid var(--line); font-size:14px; color:var(--ink); cursor:pointer; }
+.cb-preco-card input.cb-sw { appearance:none; -webkit-appearance:none; width:42px; height:24px; flex:none; border-radius:12px; background:var(--line); border:0; padding:0; position:relative; cursor:pointer; transition:background .25s; }
+.cb-preco-card input.cb-sw::after { content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:transform .3s cubic-bezier(.34,1.4,.5,1); }
+.cb-preco-card input.cb-sw:checked { background:var(--accent); } .cb-preco-card input.cb-sw:checked::after { transform:translateX(18px); }
+.cb-preco-card input.cb-sw:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.cb-it.ver { padding-right:14px; }
+@media (max-width:600px) { .cb-dl { grid-template-columns:1fr; } }
