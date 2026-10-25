@@ -409,3 +409,32 @@ S.toast = (msg, op) => { const t = document.getElementById('toast'), comAcao = !
   if (comAcao) { const b = document.createElement('button'); b.type = 'button'; b.textContent = op.acao || 'Desfazer';
     b.onclick = () => { clearTimeout(S._toast); t.classList.remove('on', 'com-acao'); op.fn(); }; t.appendChild(b); }
   t.classList.add('on'); clearTimeout(S._toast); S._toast = setTimeout(() => t.classList.remove('on'), comAcao ? 7000 : 3200); };
+
+// Abas que deslizam (adaptado do "SegmentedControl" da Halaska UI, licença MIT): num .seg.desliza a marca branca da aba
+// escolhida é uma peça só que escorrega até a aba nova (posição com curva enfatizada, largura suave). Como a tela é
+// redesenhada a cada clique, a última posição fica guardada pela chave do grupo (data-seg) e a peça nasce ali.
+// Setas, Home e End andam entre as abas e já escolhem (como no original).
+(() => {
+  const ultimo = {};
+  S.segDesliza = (raiz = document) => raiz.querySelectorAll('.seg.desliza').forEach(seg => {
+    const on = seg.querySelector('button.on'), chave = seg.dataset.seg || 'seg';
+    let ind = seg.querySelector(':scope > .seg-ind');
+    if (!ind) { ind = document.createElement('span'); ind.className = 'seg-ind'; ind.setAttribute('aria-hidden', 'true'); seg.prepend(ind); }
+    if (!on) { ind.style.opacity = 0; return; }
+    const alvo = { x:on.offsetLeft, w:on.offsetWidth }, antes = ultimo[chave];
+    if (antes && (antes.x !== alvo.x || antes.w !== alvo.w) && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      ind.style.transition = 'none'; ind.style.transform = `translateX(${antes.x}px)`; ind.style.width = antes.w + 'px'; ind.offsetWidth; ind.style.transition = '';
+      requestAnimationFrame(() => { ind.style.transform = `translateX(${alvo.x}px)`; ind.style.width = alvo.w + 'px'; });
+    } else { ind.style.transition = 'none'; ind.style.transform = `translateX(${alvo.x}px)`; ind.style.width = alvo.w + 'px'; ind.offsetWidth; ind.style.transition = ''; }
+    ind.style.opacity = 1; ultimo[chave] = alvo;
+    seg.querySelectorAll('button').forEach(b => { const sel = b === on; b.tabIndex = sel ? 0 : -1; b.setAttribute('aria-pressed', String(sel)); });
+  });
+  document.addEventListener('keydown', e => {
+    const seg = e.target.closest && e.target.closest('.seg.desliza'); if (!seg || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    const bs = [...seg.querySelectorAll('button:not([disabled])')], i = bs.indexOf(e.target); if (i < 0) return;
+    const alvo = e.key === 'Home' ? bs[0] : e.key === 'End' ? bs[bs.length - 1] : bs[(i + (e.key === 'ArrowRight' ? 1 : -1) + bs.length) % bs.length];
+    e.preventDefault(); e.stopPropagation(); alvo.click();
+    requestAnimationFrame(() => { const n = document.querySelector(`.seg.desliza[data-seg="${seg.dataset.seg}"] button.on`); if (n) n.focus(); });
+  });
+  window.addEventListener('resize', () => S.segDesliza());
+})();

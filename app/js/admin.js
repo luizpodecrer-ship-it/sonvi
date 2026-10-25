@@ -216,7 +216,7 @@
 
   S.views.admin = () => {
     if (ehGer()) aba = 'usuarios';
-    const seg = ehGer() ? '' : `<div class="seg">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['colaboradores', 'Colaboradores'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
+    const seg = ehGer() ? '' : `<div class="seg desliza" data-seg="admin" role="group" aria-label="Seções da administração">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['colaboradores', 'Colaboradores'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
     let body;
     if (aba === 'veiculos') {
       // Lista enxuta (aprovada em 25/10/2026): resumo numa linha, uma linha por veículo (selo, nome e razão social, categorias, sigla,
