@@ -164,7 +164,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 ## OPEC (tela aprovada em 24/10/2026, `app/js/opec.js`, estilos `.oe-*`)
 
-- Esteira "Caminho dos PIs": Para conferir → Aprovados → Programados → Faturados no mês, com o número rolando (`S.roloFixo`) e o valor; escolher uma etapa mostra os PIs dela (FLIP). Aviso "Mais antigo esperando há N dias"; na fila, os mais antigos primeiro e a barra de espera (desde `atualizado_em`). Botões: Devolver/Aprovar (`piReturn`/`piStatus` de pi.js), Marcar programado, Abrir PI. Embaixo: inserções programadas nos próximos 30 dias (grades dos aprovados, programados e faturados). No celular, cartões.
+- Esteira "Caminho dos PIs": Para conferir → Aprovados → Programados → Faturados no mês, com o número rolando (`S.roloFixo`) e o valor; escolher uma etapa mostra os PIs dela (FLIP). Aviso "Mais antigo esperando há N dias"; na fila, os mais antigos primeiro e a barra de espera (desde `atualizado_em`). Botões: Devolver/Aprovar (`piReturn`/`piStatus` de pi.js), Marcar programado, Abrir PI. Lista em grade com colunas de texto flexíveis e colunas fixas para números e ações (ações 176 px, cabem "Devolver · Aprovar" e "Marcar programado"): todas as linhas alinhadas e os botões sempre dentro do cartão. Embaixo: inserções programadas nos próximos 30 dias (grades dos aprovados, programados e faturados). No celular, cartões.
 
 ## Produtos: resumo e comparação (aprovado em 24/10/2026)
 
