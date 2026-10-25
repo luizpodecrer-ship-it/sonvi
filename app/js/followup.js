@@ -62,20 +62,59 @@
   const vazio = t => `<p class="muted">${t}</p>`;
   const tile = (l, v, h, cls = '') => `<div class="tile${cls}"><small>${l}</small><b>${v}</b><span>${h}</span></div>`;
 
+
+  // ---------- painel do topo (cuadrante.js): anéis por tipo, contatos registrados e propostas pedidas ----------
+  const PER = ['semana', 'mes', '3meses'], RING = [['visita'], ['ligacao', 'retorno'], ['whatsapp'], ['reuniao']];
+  const MES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  // Início e fim do período (desloc = -1: o período anterior) e as faixas da linha e das barras
+  const periodoDe = (i, desloc = 0) => {
+    const hoje = S.today(), seg = segunda(hoje);
+    if (i === 0) { const ini = somaDias(seg, desloc * 7), fim = somaDias(ini, 6);
+      return { ini, fim, texto:'esta semana', sub:'por dia', faixas:Array.from({ length:7 }, (_, k) => { const d = somaDias(ini, k); return [d, d, CURTO[(k + 1) % 7] + ' ' + d.slice(8)]; }) }; }
+    if (i === 1) { const [y, m] = hoje.split('-').map(Number), x = new Date(y, m - 1 + desloc, 1), ini = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-01`;
+      const fim = somaDias(somaDias(ini, 32).slice(0, 8) + '01', -1), n = +fim.slice(8), faixas = [];
+      for (let a = 1; a <= n; a += 3) { const b = Math.min(n, a + 2); faixas.push([ini.slice(0, 8) + String(a).padStart(2, '0'), ini.slice(0, 8) + String(b).padStart(2, '0'), `${a}–${b} ${MES3[x.getMonth()]}`]); }
+      return { ini, fim, texto:'este mês', sub:'a cada 3 dias', faixas }; }
+    const ini = somaDias(seg, -84 + desloc * 91), fim = somaDias(ini, 90);
+    return { ini, fim, texto:'últimos 3 meses', sub:'por semana', faixas:Array.from({ length:13 }, (_, k) => { const a = somaDias(ini, k * 7); return [a, somaDias(a, 6), `semana de ${dfmt(a).slice(0, 5)}`]; }) };
+  };
+  const varia = (agora, antes) => antes ? Math.round((agora - antes) / antes * 100) : agora ? null : 0;
+  const cuDados = lista => PER.map((_, i) => {
+    const P = periodoDe(i), A = periodoDe(i, -1), dentro = (d, R) => d >= R.ini && d <= R.fim;
+    const plan = R => lista.filter(a => situacao(a) !== 'cancelado' && dentro(S.dia(a.quando), R));
+    const reg = (R, f) => lista.filter(a => S.fuFeito(a) && a.registrado_em && dentro(S.dia(a.registrado_em), R) && (!f || f(a)));
+    const porFaixa = l => P.faixas.map(([a, b]) => l.filter(x => { const d = S.dia(x.registrado_em); return d >= a && d <= b; }).length);
+    const pAg = plan(P), pAn = plan(A), feitosAg = reg(P), feitosAn = reg(A), prop = a => a.resposta === 'proposta';
+    return { texto:P.texto,
+      canales:RING.map(t => { const p = pAg.filter(a => t.includes(a.tipo)), f = p.filter(S.fuFeito).length, fa = pAn.filter(a => t.includes(a.tipo) && S.fuFeito(a)).length;
+        return { v:f, p:p.length, meta:p.length ? Math.min(1, f / p.length) : 0, d:varia(f, fa) }; }),
+      ingresos:{ valores:porFaixa(feitosAg), etiquetas:P.faixas.map(x => x[2]), delta:varia(feitosAg.length, feitosAn.length) },
+      pedidos:{ valores:porFaixa(feitosAg.filter(prop)), etiquetas:P.faixas.map(x => x[2]), delta:varia(feitosAg.filter(prop).length, feitosAn.filter(prop).length), texto:P.sub } };
+  });
+  let painel = null;   // { chave, el, montado }: o painel fica montado entre um desenho e outro da tela
+  const painelTopo = (lista, quem) => {
+    const hoje = S.today(), atras = lista.filter(a => aberto(a) && S.dia(a.quando) < hoje).length, datos = cuDados(lista);
+    const chave = JSON.stringify([S.ui.vehicleId, quem, atras, datos]);
+    if (!painel || painel.chave !== chave) { const host = document.createElement('div'); host.innerHTML = S.cuHtml({ quem, atrasados:atras, periodo:PER.indexOf(st.periodo) }); painel = { chave, el:host.firstElementChild, datos, montado:false }; }
+    const p = painel;
+    queueMicrotask(() => { const lugar = document.getElementById('cu-lugar'); if (!lugar || painel !== p) return; lugar.replaceWith(p.el);
+      if (!p.montado) { p.montado = true; S.cuadrante(p.el, { datos:p.datos, inicial:Math.max(0, PER.indexOf(st.periodo)), alMudar:i => { st.periodo = PER[i];
+        const r = document.getElementById('fu-resto'); if (r && gestor() && st.aba === 'equipe') r.innerHTML = equipeResto(); } }); } });
+    return '<div id="cu-lugar"></div>';
+  };
+
   // Agenda (consultor, ou gerente/diretor olhando um consultor ou todos)
   const agenda = () => {
     const hoje = S.today(), todos = doEscopo().slice().sort((a, b) => a.quando.localeCompare(b.quando)), comConsultor = gestor() && !st.consultor;
     const abertos = todos.filter(aberto), atras = abertos.filter(a => S.dia(a.quando) < hoje), deHoje = abertos.filter(a => S.dia(a.quando) === hoje);
     const fim = somaDias(hoje, 7), prox = abertos.filter(a => S.dia(a.quando) > hoje && S.dia(a.quando) <= fim), depois = abertos.filter(a => S.dia(a.quando) > fim).length;
     const feitos = todos.filter(a => !aberto(a) && a.registrado_em).sort((a, b) => b.registrado_em.localeCompare(a.registrado_em)).slice(0, 8);
-    const seg = segunda(hoje), semana = todos.filter(a => S.dia(a.quando) >= seg && S.dia(a.quando) <= somaDias(seg, 6));
     const mes = hoje.slice(0, 7), c = gestor() ? st.consultor : S.me.id, props = (S.db.propostas || []).filter(p => !c || p.consultor_id === c);
-    const pMes = props.filter(p => (p.criado_em || '').slice(0, 7) === mes).length, vMes = props.filter(p => (p.aprovada_em || '').slice(0, 7) === mes).length;
     const porDia = prox.reduce((g, a) => { const d = S.dia(a.quando); (g[d] = g[d] || []).push(a); return g; }, {});
     const sr = semResposta(c), esq = esquecidos(c);
     const agPorProposta = id => S.db.agenda.find(a => a.proposta_id === id && aberto(a));
-    return `<div class="tiles">${tile('Hoje', deHoje.length, deHoje.length === 1 ? 'contato marcado' : 'contatos marcados')}${tile('Atrasados', atras.length, atras.length ? 'retornos que passaram do dia' : 'nenhum, tudo em dia', atras.length ? ' fu-alerta' : '')}
-        ${tile('Esta semana', `${semana.filter(S.fuFeito).length} / ${semana.length}`, 'feitos / planejados')}${tile('No mês', `${pMes} → ${vMes}`, 'propostas → vendas')}</div>
+    const quem = gestor() ? (st.consultor ? S.usuario(st.consultor) : 'Todos os consultores') : 'Seus contatos';
+    return `${painelTopo(todos, quem)}
       <div class="cols fu-cols"><div class="fu-col">
         ${atras.length ? card(`Atrasados <span class="muted small">${atras.length}</span>`, `<div class="agenda">${atras.map(a => linha(a, { comConsultor })).join('')}</div>`, '<span class="muted small">o gerente vê no resumo do dia seguinte</span>', ' fu-atras') : ''}
         ${card(`Hoje <span class="muted small">${deHoje.length || ''}</span>`, deHoje.length ? `<div class="agenda">${deHoje.map(a => linha(a, { comConsultor })).join('')}</div>` : vazio('Nada marcado para hoje.'))}
@@ -91,8 +130,9 @@
   };
 
   // Equipe (gerente e diretor): números do período, tabela por consultor, atrasados e funil
-  const equipe = () => {
-    const hoje = S.today(), ini = st.periodo === 'semana' ? segunda(hoje) : hoje.slice(0, 8) + '01', fim = st.periodo === 'semana' ? somaDias(ini, 6) : somaDias(somaDias(ini, 32).slice(0, 8) + '01', -1);
+  const equipe = () => `${painelTopo(S.db.agenda, 'Toda a equipe')}<div id="fu-resto">${equipeResto()}</div>`;
+  const equipeResto = () => {
+    const R = periodoDe(Math.max(0, PER.indexOf(st.periodo))), hoje = S.today(), ini = R.ini, fim = R.fim, nomeP = { semana:['na semana', 'da semana'], mes:['no mês', 'do mês'], '3meses':['em 3 meses', 'dos 3 meses'] }[st.periodo] || ['na semana', 'da semana'];
     const noPer = a => { const d = S.dia(a.quando); return d >= ini && d <= fim; }, regPer = a => a.registrado_em && S.dia(a.registrado_em) >= ini && S.dia(a.registrado_em) <= fim;
     const ag = S.db.agenda, plan = ag.filter(noPer), feitos = ag.filter(a => S.fuFeito(a) && regPer(a)), atras = ag.filter(a => aberto(a) && S.dia(a.quando) < hoje).sort((a, b) => a.quando.localeCompare(b.quando));
     const props = (S.db.propostas || []), pPer = props.filter(p => p.criado_em && S.dia(p.criado_em) >= ini && S.dia(p.criado_em) <= fim), vPer = props.filter(p => p.aprovada_em && S.dia(p.aprovada_em) >= ini && S.dia(p.aprovada_em) <= fim);
@@ -114,13 +154,10 @@
       return cel.length >= 10 ? `<a class="btn sm" href="https://wa.me/55${cel}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Cobrar consultor</a>`
         : u.email ? `<a class="btn sm" href="mailto:${esc(u.email)}?subject=${encodeURIComponent('Follow-up sem registro: ' + cli)}&body=${encodeURIComponent(msg)}">Cobrar consultor</a>` : ''; };
     const funil = [['Contatos realizados', real.length], ['Com interesse', int], ['Pediram proposta', pp], ['Fecharam', fe]];
-    return `<div class="tiles">${tile('Contatos feitos', feitos.length, `de ${plan.length} planejados${plan.length ? ` (${Math.round(plan.filter(S.fuFeito).length / plan.length * 100)}%)` : ''}`)}
-        ${tile('Retornos atrasados', atras.length, atras.length ? `em ${new Set(atras.map(a => a.consultor_id)).size} ${new Set(atras.map(a => a.consultor_id)).size === 1 ? 'consultor' : 'consultores'}` : 'equipe em dia', atras.length ? ' fu-alerta' : '')}
-        ${tile('Propostas', pPer.length, `${brl(soma(pPer))} por mês`)}${tile('Vendas', vPer.length, `${brl(soma(vPer))} por mês`)}</div>
-      <section class="card"><div class="hd"><h2>Por consultor</h2></div>${cons.length ? `<div class="scroll"><table class="fu-tab"><thead><tr><th>Consultor</th><th>Contatos ${st.periodo === 'semana' ? 'na semana' : 'no mês'}</th><th class="r">Atrasados</th><th class="r">Propostas</th><th class="r">Vendas</th><th class="r">Carteira sem contato 30+ dias</th><th>Último registro</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div>` : vazio('Nenhum consultor nesta rádio ainda.')}</section>
+    return `      <section class="card"><div class="hd"><h2>Por consultor</h2></div>${cons.length ? `<div class="scroll"><table class="fu-tab"><thead><tr><th>Consultor</th><th>Contatos ${nomeP[0]}</th><th class="r">Atrasados</th><th class="r">Propostas</th><th class="r">Vendas</th><th class="r">Carteira sem contato 30+ dias</th><th>Último registro</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div>` : vazio('Nenhum consultor nesta rádio ainda.')}</section>
       <div class="cols fu-cols">${card(`Atrasados da equipe <span class="muted small">${atras.length || ''}</span>`, atras.length ? `<div class="agenda">${atras.slice(0, 12).map(a => { const d = entre(S.dia(a.quando), S.today());
           return `<div class="ag fu-l"><span class="tx" style="grid-column:1/3"><b>${esc(S.nome(a.cliente_id) || 'Sem cliente')}</b><small>${TIPOS[a.tipo] || ''} de ${dfmt(S.dia(a.quando)).slice(0, 5)} · ${esc(S.usuario(a.consultor_id))}</small><small class="fu-esc">${d} ${d === 1 ? 'dia' : 'dias'} sem registro${d >= 2 ? ' · já entrou no resumo do gerente' : ''}</small></span><span class="ac">${cobrar(a)}</span></div>`; }).join('')}</div>` : vazio('Nenhum retorno atrasado. A equipe está em dia.'))}
-        ${card(`Funil ${st.periodo === 'semana' ? 'da semana' : 'do mês'}`, `<div class="fu-funil">${funil.map(([n, v], i) => `<div><span>${n}</span><span class="fu-fb" aria-hidden="true"><i style="width:${Math.max(v ? 4 : 0, Math.round(v / maxF * 100))}%;opacity:${1 - i * .16}"></i></span><b>${v}</b></div>`).join('')}</div>
+        ${card(`Funil ${nomeP[1]}`, `<div class="fu-funil">${funil.map(([n, v], i) => `<div><span>${n}</span><span class="fu-fb" aria-hidden="true"><i style="width:${Math.max(v ? 4 : 0, Math.round(v / maxF * 100))}%;opacity:${1 - i * .16}"></i></span><b>${v}</b></div>`).join('')}</div>
           ${motivos.length ? `<p class="muted small" style="margin-top:16px">Motivos de "sem interesse": ${motivos.map(([m, n]) => `${esc(m.toLowerCase())} (${n})`).join(', ')}.</p>` : ''}`)}</div>`;
   };
 
@@ -129,7 +166,7 @@
     if (g && st.consultor && !S.db.agenda.some(a => a.consultor_id === st.consultor) && !S.consultores().some(u => u.id === st.consultor)) st.consultor = '';
     const hoje = S.today(), sub = `${esc(v.nome)} · ${diaSemana(hoje)}, ${dfmt(hoje).slice(0, 5)}${!g ? ' · ' + esc(S.me.nome || '') : ''}`;
     const abas = g ? `<div class="row mid fu-topo"><div class="seg" style="margin:0">${[['equipe', 'Equipe'], ['agenda', 'Agenda']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="fuAba" data-tab="${k}" aria-pressed="${aba === k}">${n}</button>`).join('')}</div>
-        ${aba === 'equipe' ? `<div class="seg" style="margin:0">${[['semana', 'Semana'], ['mes', 'Mês']].map(([k, n]) => `<button class="${st.periodo === k ? 'on' : ''}" data-act="fuPeriodo" data-tab="${k}" aria-pressed="${st.periodo === k}">${n}</button>`).join('')}</div>`
+        ${aba === 'equipe' ? ''
           : `<label class="fu-filtro"><span class="sr">Consultor</span><select data-fu-consultor aria-label="Consultor">${[['', 'Todos os consultores'], ...S.consultores().map(u => [u.id, u.nome || u.email])].map(([k, n]) => `<option value="${k}"${k === st.consultor ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`}
         <span class="grow"></span>${S.pode('diretor') ? `<button class="btn sm" data-act="fuAmostra">${S.svg('seta')}Receber o resumo de hoje</button>` : ''}</div>` : '';
     return { title:`<span class="sub">${sub}</span>${g && aba === 'equipe' ? 'Follow-up da equipe' : 'Follow-up'}`,
