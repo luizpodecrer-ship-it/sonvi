@@ -150,39 +150,33 @@
     queueMicrotask(() => { const lugar = document.getElementById('cz-lugar'), p = painel; if (!lugar || !p) return;
       lugar.replaceWith(p.el); if (!p.montado) { p.montado = true; S.cruzado(p.el, p.dados); } });
 
-    const q = f.q.trim().toLowerCase();
-    // Abas por categoria: só as que têm veículo cadastrado (e só quando há mais de uma)
-    const cats = S.CATEGORIAS.map(([k, n]) => ({ k, n, qt:veiculos.filter(v => S.temCategoria(v, k)).length })).filter(x => x.qt);
-    if (f.cat && !cats.some(x => x.k === f.cat)) f.cat = '';
-    const abasCat = cats.length > 1 ? `<div class="seg gv-cats" role="group" aria-label="Categoria">${[{ k:'', n:'Todos', qt:veiculos.length }, ...cats].map(x => `<button class="${f.cat === x.k ? 'on' : ''}" data-act="geralCat" data-v="${x.k}" aria-pressed="${f.cat === x.k}">${esc(x.n)} <span class="muted">${x.qt}</span></button>`).join('')}</div>` : '';
-    // Números de cada veículo seguindo os filtros do painel (consultor e dias); com um veículo escolhido, só ele aparece
+    // Números de cada veículo seguindo os filtros do painel (consultor e dias). Decidido em 25/10/2026: sem busca e sem abas de
+    // categoria, e todos os veículos ficam sempre na lista; com um veículo escolhido, a linha dele fica destacada e as outras, apagadas
     const corpo_ = () => {
     const fp = painel.f, cb = painel.cubo, idx = new Map(veiculos.map((v, i) => [v.id, i]));
     const todas = c.linhas.map(l => { const ci = idx.get(l.v.id); if (fp.d == null && !fp.r) return l; let s_ = 0, n_ = 0;
       cb.V[ci].forEach((linha, d) => { if (fp.d != null && d !== fp.d) return; linha.forEach((x, t) => { if (fp.r && (t < fp.r[0] || t > fp.r[1])) return; s_ += x; n_ += cb.N[ci][d][t]; }); });
       const r = cb.receber({ d:fp.d }, ci); return Object.assign({}, l, { vendido:s_, pis:n_, receber:r.valor, vencido:r.vencido }); });
     const totalF = todas.reduce((a, l) => a + l.vendido, 0), fora = l => fp.c != null && idx.get(l.v.id) !== fp.c;
-    const linhas = todas.filter(l => !fora(l) && (!f.cat || S.temCategoria(l.v, f.cat)) && (!q || [l.v.nome, l.v.sigla, l.v.cidade, l.v.frequencia, ...S.categorias(l.v).map(S.nomeCategoria)].join(' ').toLowerCase().includes(q)))
-      .sort((a, b) => b.vendido - a.vendido || a.v.nome.localeCompare(b.v.nome));
+    const linhas = todas.slice().sort((a, b) => b.vendido - a.vendido || a.v.nome.localeCompare(b.v.nome));
+    const marca = l => fp.c == null ? '' : fora(l) ? ' gv-fora' : ' gv-on';
     const abrir = l => `data-act="geralAbrir" data-id="${l.v.id}" aria-label="Abrir o Dashboard da ${esc(l.v.nome)}"`;
     const receberTxt = l => `<b>${brl(l.receber)}</b>${l.vencido ? `<small class="fin-laranja">${brl(l.vencido)} vencido</small>` : `<small class="muted">${l.receber ? 'nada vencido' : 'nada em aberto'}</small>`}`;
     const vendidoTxt = l => `<b>${brl(l.vendido)}</b>${barra(l.vendido, totalF)}<small class="muted">${l.pis} PI${l.pis === 1 ? '' : 's'}${totalF ? ' · ' + pctTxt(l.vendido, totalF) : ''}</small>`;
     const veic = l => `<span class="gv-v">${S.vav(l.v)}<span class="gv-tx"><b>${esc(l.v.nome)}</b><small>${tipo(l.v)}</small></span></span>`;
     let corpo;
     if (!veiculos.length) corpo = '<div class="empty"><b>Nenhum veículo cadastrado</b>Cadastre os veículos em Administração.</div>';
-    else if (!linhas.length) corpo = '<div class="empty"><b>Nenhum veículo encontrado</b>Nada com esse filtro. Experimente outra busca ou categoria.</div>';
-    else if (S.celular) corpo = `<div class="gv-cartoes">${linhas.map(l => `<div class="gv-cartao" ${abrir(l)}>
+    else if (S.celular) corpo = `<div class="gv-cartoes">${linhas.map(l => `<div class="gv-cartao${marca(l)}" ${abrir(l)}>
         <div class="gv-c-topo">${veic(l)}<span class="gv-seta" aria-hidden="true">${S.svg('seta')}</span></div>
         <div class="gv-pills">${catPills(l.v)}${pills(l)}</div>
         <div class="gv-c-num"><div><small class="muted">Vendido no período</small>${vendidoTxt(l)}</div><div><small class="muted">A receber</small>${receberTxt(l)}</div></div>
         <div class="gv-c-rod"><small class="muted">Consultores</small>${consultores(l.v)}</div></div>`).join('')}</div>`;
     else corpo = `<div class="gv-tab"><div class="gv-cab"><span>Veículo</span><span>Categoria</span><span>Vendido no período</span><span>Situação</span><span>Consultores</span><span>A receber</span><span><span class="sr">Abrir</span></span></div>
-      ${linhas.map(l => `<div class="gv-lin" ${abrir(l)}>${veic(l)}<span class="gv-catc">${catPills(l.v)}</span><span class="gv-num">${vendidoTxt(l)}</span><span class="gv-pills">${pills(l)}</span>${consultores(l.v)}<span class="gv-num">${receberTxt(l)}</span><span class="gv-seta" aria-hidden="true">${S.svg('seta')}</span></div>`).join('')}</div>`;
+      ${linhas.map(l => `<div class="gv-lin${marca(l)}" ${abrir(l)}>${veic(l)}<span class="gv-catc">${catPills(l.v)}</span><span class="gv-num">${vendidoTxt(l)}</span><span class="gv-pills">${pills(l)}</span>${consultores(l.v)}<span class="gv-num">${receberTxt(l)}</span><span class="gv-seta" aria-hidden="true">${S.svg('seta')}</span></div>`).join('')}</div>`;
     return corpo; };
     painel.corpo = corpo_;
     const corpo = corpo_();
-    const lista = `<section class="card gv"><div class="hd gv-hd"><h2>Veículos</h2><span class="muted small gv-at">atualizado às ${S.hora(cache.em)} · <a data-act="geralAtualizar">Atualizar</a></span>
-        <label class="fin-busca gv-busca">${S.svg('busca')}<input data-geral="q" value="${esc(f.q)}" placeholder="Buscar veículo" aria-label="Buscar veículo"></label></div>${abasCat}<div id="gv-corpo">${corpo}</div></section>`;
+    const lista = `<section class="card gv"><div class="hd gv-hd"><h2>Veículos</h2><span class="muted small gv-at">atualizado às ${S.hora(cache.em)} · <a data-act="geralAtualizar">Atualizar</a></span></div><div id="gv-corpo">${corpo}</div></section>`;
     return Object.assign(topo, { body:`${intro}<div id="cz-lugar"></div>${lista}` });
   };
 

@@ -2800,3 +2800,9 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 /* Revisão de UI/UX de 25/10/2026: celular */
 @media (max-width:820px) { .pdt-topo .hd { flex-wrap:wrap; } .pdt-topo .hd h2 { flex-basis:100%; } .pdt-topo .hd .seg { width:100%; display:flex; } .pdt-topo .hd .seg button { flex:1; } }
 @media (max-width:600px) { .pdt-ooh-cab .pdt-tipo { display:none; } .card .hd:has(#oe-t) { flex-wrap:wrap; } }
+/* Dashboard geral · Veículos (25/10/2026): o filtro por veículo destaca a linha e apaga as outras, sem esconder */
+.gv-lin, .gv-cartao { transition:background .3s; }
+.gv-lin.gv-on, .gv-cartao.gv-on { background:var(--accent-soft); border-radius:var(--radius-m); }
+/* apagar pela cor (não pela opacidade) para o texto continuar legível */
+.gv-fora .gv-num b, .gv-fora .gv-tx b { color:var(--ink-2); font-weight:500; transition:color .3s; } .gv-fora .gv-num .fin-laranja { color:var(--ink-2); }
+.gv-fora [class*="bar"] i { opacity:.45; transition:opacity .3s; } .gv-fora .pill { filter:saturate(.3); }
