@@ -2616,39 +2616,58 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 @media (max-width:1100px) { .pr-topo { grid-template-columns:1fr; gap:18px; } }
 @media (max-width:820px) { .ga-l { grid-template-columns:110px minmax(0, 1fr); } .ga-l > :last-child { display:none; } .pl-l > .pl-sit { flex-direction:row; flex-wrap:wrap; justify-content:flex-end; } }
 
-/* ===== Clientes e agências: carteira (pessoas.js, aprovado em 24/10/2026; tons do veículo) ===== */
+/* ===== Clientes e agências: lista que se ordena (pessoas.js, aprovada em 25/10/2026; adaptada do "Escalafón" da Moxen; tons do veículo) ===== */
 .ct-abas { margin:0 0 16px; }
 .ct-abas button span, .card .hd .seg button span { font-weight:500; color:var(--ink-2); }
 .ct-kpis { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
 .ct-kpis > div { display:grid; gap:4px; padding:14px 16px; border:1px solid var(--line); border-radius:var(--radius-m); min-width:0; }
 .ct-kpis small { font-size:13px; color:var(--ink-2); } .ct-kpis > div > span { font-size:12px; color:var(--ink-2); }
 .ct-kpis b .cz-rod { --cz-dh:30px; font-size:22px; }
-.ct-cons { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
-.ct-cons button { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 14px 0 5px; border-radius:20px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font:600 13px var(--font); cursor:pointer; }
-.ct-cons button .av { width:30px; height:30px; font-size:11px; } .ct-cons button small { color:var(--ink-2); font-weight:500; }
-.ct-cons button:hover { border-color:var(--campo-borda); } .ct-cons button[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-soft); }
-.ct-mapa { position:relative; height:300px; margin-top:16px; border-radius:10px; overflow:hidden; background:var(--fill); }
-.ct-bloco { position:absolute; display:flex; flex-direction:column; justify-content:space-between; padding:10px 12px; border:0; border-radius:6px; overflow:hidden; text-align:left; cursor:pointer; background:var(--c); color:var(--t-escuro-ink); font:inherit; transition:filter .2s, opacity .3s; }
-.ct-bloco b { font:600 14px/1.2 var(--display); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.ct-bloco small { font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.ct-bloco.claro { color:var(--ink); } .ct-bloco.medio { color:#0a0b0d; }
-.ct-bloco.mini b, .ct-bloco.mini small { display:none; }
-.ct-bloco:hover { filter:brightness(1.08); } .ct-bloco:focus-visible { outline:2px solid var(--ink); outline-offset:-3px; }
-.ct-mapa.filtra .ct-bloco:not(.on) { opacity:.22; }
-.entra .ct-bloco, .ct-bloco { animation:ct-surge .7s cubic-bezier(.34,1.2,.5,1) backwards; animation-delay:calc(var(--i, 0) * 35ms); }
-@keyframes ct-surge { from { opacity:0; transform:scale(.85); } }
-.ct-leg { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; margin-top:12px; }
-.ct-leg .fn-chip { height:34px; }
-.ct-nome { display:flex; align-items:center; gap:12px; min-width:0; } .ct-nome > span:last-child { display:flex; flex-direction:column; min-width:0; } .ct-nome small { font-size:12.5px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.ct-spark { display:flex; align-items:flex-end; gap:2px; height:22px; width:84px; }
-.ct-spark i { flex:1; min-height:2px; border-radius:2px 2px 0 0; background:var(--t-claro); } .ct-spark i.ult { background:var(--t-forte); }
-.ct-tab td { vertical-align:middle; }
-@media (max-width:1300px) { .ct-tab .cli-cid { display:none; } }
-@media (max-width:1100px) { .ct-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } .ct-tab .ct-c-spark { display:none; } }
-@media (max-width:820px) { .ct-mapa { height:240px; } }
-@media (prefers-reduced-motion: reduce) { .ct-bloco { animation:none; } }
-@media (prefers-color-scheme: dark) { .ct-bloco.medio { color:#fff; } }
-.ct-mapa.parado .ct-bloco { animation:none; }
+@media (max-width:1100px) { .ct-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+.cl-card { padding-bottom:10px; }
+.cl-barra { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:18px; }
+.cl-barra .fin-busca { flex:1; min-width:220px; margin:0; }
+.cl-barra select { width:auto; min-width:190px; height:42px; }
+.cl-cab { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:8px; }
+.cl-cab h2 { margin:0; } .cl-cab p { margin:2px 0 0; font-size:13.5px; color:var(--ink-2); }
+.cl-estado { font-size:13px; color:var(--ink-2); }
+.cl-tab { position:relative; --cl-cols:minmax(0, 2.3fr) minmax(0, .9fr) minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, .95fr) minmax(0, .8fr) 40px; }
+.cl-tab.cl-ag { --cl-cols:minmax(0, 2.4fr) minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr) 40px; }
+.cl-fila { position:relative; display:grid; grid-template-columns:var(--cl-cols); gap:14px; align-items:center; min-height:62px; padding:0 12px; background:var(--surface); }
+.cl-corpo .cl-fila { border-top:1px solid var(--line); cursor:pointer; }
+.cl-corpo .cl-fila:hover { background:color-mix(in srgb, var(--fill) 55%, var(--surface)); }
+.cl-corpo .cl-fila:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; border-radius:8px; }
+.cl-corpo .cl-fila::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 18px 32px -16px rgba(0,0,0,.3); opacity:0; }
+.cl-cel { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px; color:var(--ink); font-variant-numeric:tabular-nums; color:var(--ink-2); transition:color .45s cubic-bezier(.22,1,.36,1); }
+.cl-cel .pill { transition:filter .45s; filter:saturate(.55); } .cl-cel .cl-bar { transition:opacity .45s; opacity:.5; }
+.cl-tab[data-por="nome"] [data-col="nome"], .cl-tab[data-por="cons"] [data-col="cons"], .cl-tab[data-por="cidade"] [data-col="cidade"], .cl-tab[data-por="comprado"] [data-col="comprado"],
+.cl-tab[data-por="ultima"] [data-col="ultima"], .cl-tab[data-por="sit"] [data-col="sit"], .cl-cel.cl-nome { color:var(--ink); }
+.cl-tab[data-por="ultima"] [data-col="ultima"] .pill, .cl-tab[data-por="sit"] [data-col="sit"] .pill { filter:none; } .cl-tab[data-por="comprado"] .cl-bar { opacity:1; }
+.cl-nome { display:flex; align-items:center; gap:12px; min-width:0; }
+.cl-nome > span:last-child { display:flex; flex-direction:column; min-width:0; }
+.cl-nome b { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .cl-nome small { font-size:12.5px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cl-comp { display:flex; align-items:center; gap:10px; font-weight:600; }
+.cl-bar { flex:none; width:54px; height:4px; border-radius:4px; background:var(--line); overflow:hidden; }
+.cl-bar i { display:block; height:100%; border-radius:inherit; background:var(--t-forte); transform-origin:0 50%; transform:scaleX(var(--p, 0)); }
+.cl-acao { display:flex; justify-content:flex-end; }
+.pill.cl-u-mes { background:var(--accent); color:var(--accent-ink); } .pill.cl-u-tri { background:var(--t-claro); color:var(--ink); }
+.pill.cl-u-sumiu, .pill.cl-u-nunca { background:var(--fill); color:var(--ink-2); }
+.pill.cl-s-ativo { background:var(--accent-soft); color:var(--accent-text); } .pill.cl-s-prospect { background:transparent; box-shadow:inset 0 0 0 1px var(--line); color:var(--ink-2); } .pill.cl-s-inativo { background:var(--fill); color:var(--ink-2); }
+/* a cabeça: títulos que ordenam, com a pílula que viaja ao ativo */
+.cl-tit { min-height:44px; margin-bottom:2px; }
+.cl-tit [role="columnheader"] { position:relative; z-index:1; min-width:0; }
+.cl-tit button { display:inline-flex; align-items:center; gap:6px; max-width:100%; margin-left:-10px; padding:7px 10px; border:0; border-radius:8px; background:none; color:var(--ink-2); font:500 13px var(--font); cursor:pointer; white-space:nowrap; transition:color .3s; }
+.cl-tit button:hover, .cl-tit [aria-sort="ascending"] button, .cl-tit [aria-sort="descending"] button { color:var(--ink); }
+.cl-tit button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.cl-seta { flex:none; width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; opacity:0; transform:translateY(-3px); transition:opacity .3s, transform .5s cubic-bezier(.34,1.56,.64,1); }
+.cl-tit button:hover .cl-seta { opacity:.4; transform:none; } [aria-sort="descending"] .cl-seta { opacity:1; transform:none; } [aria-sort="ascending"] .cl-seta { opacity:1; transform:rotate(180deg); }
+.cl-pilula { position:absolute; left:0; top:50%; height:32px; margin-top:-16px; border-radius:8px; background:var(--fill); transform-origin:0 50%; pointer-events:none; }
+/* celular: nome e comprado */
+.cl-cel-lista > div { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; align-items:center; padding:12px 4px; border-top:1px solid var(--line); cursor:pointer; min-height:44px; }
+.cl-dir { display:flex; flex-direction:column; align-items:flex-end; gap:4px; } .cl-dir b { font:600 14px var(--display); font-variant-numeric:tabular-nums; }
+@media (max-width:1240px) { .cl-tab { --cl-cols:minmax(0, 2.2fr) minmax(0, .9fr) minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, .85fr) 40px; } .cl-tab.cl-cli .cl-c-cid { display:none; } }
+@media (max-width:1100px) { .cl-tab.cl-cli { --cl-cols:minmax(0, 2.2fr) minmax(0, .9fr) minmax(0, 1.35fr) minmax(0, 1fr) 40px; } .cl-tab .cl-c-sit { display:none; } }
+@media (prefers-reduced-motion: reduce) { .cl-cel, .cl-cel .pill, .cl-cel .cl-bar, .cl-seta { transition:none; } }
 
 /* ===== Combos (combos.js, aprovado em 24/10/2026): cartões com a mistura por veículo e editor com o preço ao lado ===== */
 #content .cb-lista { grid-template-columns:repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap:16px; }

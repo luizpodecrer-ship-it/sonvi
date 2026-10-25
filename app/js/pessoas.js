@@ -68,10 +68,11 @@
 
   // ---------- lista (aprovada em 24/10/2026): carteira com números, consultores, mapa da carteira e a lista com as compras ----------
   // Compras = PIs que saíram do comercial (na OPEC, aprovados, programados, faturados) dos últimos 12 meses, pela data de criação.
-  // O mapa: um bloco por cliente (ou agência), do tamanho do que comprou; a cor é a recência (tons do veículo). Estilos .ct-* em sonvi.css.
+  // Lista aprovada em 25/10/2026 (adaptada do recurso "Escalafón" da Moxen, licença permite uso dentro do produto; estilos .cl-* em sonvi.css):
+  // só a lista, que se ordena pelos títulos. Cada linha viaja do lugar velho ao novo com mola e em cascata; as que sobem passam por cima,
+  // com sombra. Uma pílula salta ao título que manda, a seta gira ao inverter e as outras colunas ficam mais fracas. Tons do veículo.
   const VENDA = ['opec', 'aprovado', 'programado', 'faturado'];
-  const cf = { sit:'todos', cons:'', rec:'' };
-  const REC = [['mes', 'Comprou neste mês', 't-forte'], ['tri', 'Nos últimos 3 meses', 't-medio'], ['sumiu', 'Sem comprar há 3+ meses', 't-claro']];
+  const cf = { sit:'todos', cons:'', por:'comprado', sentido:'desc' };
   const curtoC = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
   // Compras por mês (12 meses, o último é o atual) de cada pessoa, pelo campo do PI (cliente_id ou agencia_id)
   const compras = campo => { const h = S.today(), mes0 = (() => { const [y, m] = h.split('-').map(Number), d = new Date(y, m - 12, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
@@ -80,75 +81,93 @@
       const r = out[p[campo]] = out[p[campo]] || { m:Array(12).fill(0), total:0 }; const v = S.calc(p).total; r.m[i] += v; r.total += v; });
     Object.values(out).forEach(r => { const k = r.m.map((v, i) => v ? i : -1).filter(i => i > -1).pop(); r.ult = k === undefined ? -1 : 11 - k; });
     return out; };
-  const recDe = c => !c || c.ult < 0 ? null : c.ult === 0 ? REC[0] : c.ult <= 3 ? REC[1] : REC[2];
   const ultTxt = c => !c || c.ult < 0 ? 'nunca' : c.ult === 0 ? 'este mês' : c.ult === 1 ? 'há 1 mês' : `há ${c.ult} meses`;
-  // Mapa da carteira (treemap "squarified"): devolve os retângulos em px
-  const squarify = (itens, x, y, w, h) => { const out = [], tot = itens.reduce((s, i) => s + i.v, 0); if (!tot || w <= 0 || h <= 0) return out;
-    let rest = itens.map(i => Object.assign({}, i, { a:i.v / tot * w * h }));
-    const pior = (lin, l) => { const s = lin.reduce((t, r) => t + r.a, 0), mx = Math.max(...lin.map(r => r.a)), mn = Math.min(...lin.map(r => r.a)); return Math.max(l * l * mx / (s * s), s * s / (l * l * mn)); };
-    while (rest.length) { const l = Math.min(w, h); const lin = [rest[0]]; let k = 1;
-      while (k < rest.length && pior([...lin, rest[k]], l) <= pior(lin, l)) { lin.push(rest[k]); k++; }
-      const esp = lin.reduce((t, r) => t + r.a, 0) / l; let off = 0;
-      lin.forEach(r => { const t = r.a / esp; out.push(Object.assign({}, r, w >= h ? { x, y:y + off, w:esp, h:t } : { x:x + off, y, w:t, h:esp })); off += t; });
-      if (w >= h) { x += esp; w -= esp; } else { y += esp; h -= esp; } rest = rest.slice(k); }
-    return out; };
-  let mapaItens = [];
-  const desenhaMapa = parado => { const box = document.getElementById('ct-mapa'); if (!box) return; box.classList.toggle('parado', !!parado);
-    const W = box.clientWidth, H = box.clientHeight, g = 3;
-    box.innerHTML = squarify(mapaItens, 0, 0, W, H).map((r, i) => { const mini = r.w < 76 || r.h < 46;
-      return `<button type="button" class="ct-bloco${r.rec[0] === 'sumiu' ? ' claro' : r.rec[0] === 'tri' ? ' medio' : ''}${mini ? ' mini' : ''}${cf.rec === r.rec[0] ? ' on' : ''}" data-act="pesEditar" data-id="${r.p.id}" style="left:${r.x + g / 2}px;top:${r.y + g / 2}px;width:${Math.max(0, r.w - g)}px;height:${Math.max(0, r.h - g)}px;--c:var(--${r.rec[2]});--i:${i}" title="${esc(r.p.nome)} · ${curtoC(r.v)} em 12 meses · última compra ${ultTxt(r.c)}" aria-label="${esc(r.p.nome)}: ${curtoC(r.v)} em 12 meses, última compra ${ultTxt(r.c)}"><b>${esc(r.p.nome)}</b><small>${curtoC(r.v)} · ${ultTxt(r.c)}</small></button>`; }).join(''); };
-  let tMapa; window.addEventListener('resize', () => { clearTimeout(tMapa); tMapa = setTimeout(() => desenhaMapa(true), 150); });
+  const ultCls = c => !c || c.ult < 0 ? 'cl-u-nunca' : c.ult === 0 ? 'cl-u-mes' : c.ult <= 3 ? 'cl-u-tri' : 'cl-u-sumiu';
+  // Colunas: [chave, título, sentido de partida, classe]
+  const colunas = cli => [['nome', cli ? 'Cliente' : 'Agência', 'asc', ''], ...(cli ? [['cons', 'Consultor', 'asc', 'cl-c-cons']] : []), ['cidade', 'Cidade', 'asc', 'cl-c-cid'],
+    ['comprado', 'Comprado', 'desc', ''], ['ultima', 'Última compra', 'asc', 'cl-c-ult'], ...(cli ? [['sit', 'Situação', 'asc', 'cl-c-sit']] : [])];
+  const DITO = { nome:['de A a Z', 'de Z a A'], cons:['consultor, de A a Z', 'consultor, de Z a A'], cidade:['cidade, de A a Z', 'cidade, de Z a A'],
+    comprado:['quem comprou mais primeiro', 'quem comprou menos primeiro'], ultima:['compra mais recente primeiro', 'compra mais antiga primeiro'], sit:['situação, de A a Z', 'situação, de Z a A'] };
+  const SETA = '<svg class="cl-seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5v13m0 0-5-5m5 5 5-5"/></svg>';
+  // Mola convertida em curva linear() do CSS: o navegador anima sem JavaScript a cada quadro
+  const mola = (k, c) => { const pts = [0]; let x = 0, v = 0, t = 0;
+    while (t < 3) { v += (k * (1 - x) - c * v) / 240; x += v / 240; t += 1 / 240; pts.push(x); if (t > .15 && Math.abs(1 - x) < .001 && Math.abs(v) < .01) break; }
+    const out = []; for (let i = 0; i <= 50; i++) out.push(pts[Math.round(i / 50 * (pts.length - 1))].toFixed(4)); out[50] = '1';
+    return { easing:'linear(' + out.join(', ') + ')', duration:Math.round(t * 1000) }; };
+  const VIAJE = mola(170, 19), PILULA = mola(260, 22), ESCADA = 18;
+  const quieto = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let pilulaEm = null;
+  const poePilula = salta => { const tab = document.querySelector('.cl-tab'); if (!tab) { pilulaEm = null; return; }
+    const p = tab.querySelector('.cl-pilula'), b = tab.querySelector('[aria-sort="ascending"] button, [aria-sort="descending"] button'); if (!p || !b) return;
+    const rt = tab.querySelector('.cl-tit').getBoundingClientRect(), rb = b.getBoundingClientRect(), x = rb.left - rt.left, w = rb.width;
+    p.style.width = w.toFixed(1) + 'px'; p.style.transform = `translateX(${x.toFixed(1)}px)`;
+    if (pilulaEm && !salta && !quieto() && p.animate) p.animate([{ transform:`translateX(${pilulaEm.x.toFixed(1)}px) scaleX(${(pilulaEm.w / w).toFixed(4)})` }, { transform:`translateX(${x.toFixed(1)}px)` }], PILULA);
+    pilulaEm = { x, w }; };
+  let tPil; window.addEventListener('resize', () => { clearTimeout(tPil); tPil = setTimeout(() => poePilula(true), 100); });
+  // Reordena com a viagem: mede antes, redesenha, mede depois e anima a diferença (as que sobem passam por cima)
+  const viaja = () => {
+    const antes = new Map([...document.querySelectorAll('.cl-corpo [data-linha]')].map(f => [f.dataset.linha, f.getBoundingClientRect().top]));
+    S.render(); poePilula(false);
+    if (quieto()) return;
+    const filas = [...document.querySelectorAll('.cl-corpo [data-linha]')]; if (!filas.length || !filas[0].animate) return;
+    const alto = filas[0].offsetHeight;
+    filas.forEach((f, i) => { if (!antes.has(f.dataset.linha)) return; const dy = antes.get(f.dataset.linha) - f.getBoundingClientRect().top; if (Math.abs(dy) < .5) return;
+      const sobe = dy > 0, longe = Math.min(1, Math.abs(dy) / (alto * 3)); f.style.zIndex = sobe ? '3' : '1';
+      const op = { duration:VIAJE.duration, easing:VIAJE.easing, delay:i * ESCADA, fill:'backwards' };
+      f.animate([{ transform:`translateY(${dy.toFixed(1)}px)`, opacity:1 }, { transform:`translateY(${(dy * .55).toFixed(1)}px) scale(${(sobe ? 1 + .022 * longe : 1 - .02 * longe).toFixed(3)})`, opacity:sobe ? 1 : 1 - .35 * longe, offset:.3 }, { transform:'none', opacity:1 }], op);
+      if (sobe) f.animate([{ opacity:0 }, { opacity:.3 + .7 * longe, offset:.3 }, { opacity:0 }], Object.assign({}, op, { pseudoElement:'::after' }));
+      setTimeout(() => { f.style.zIndex = ''; }, VIAJE.duration + i * ESCADA); });
+  };
 
   S.views.clientes = id => {
     aba = id === 'agencias' ? 'agencia' : 'cliente';
     const cli = aba === 'cliente', q = S.ui.q.toLowerCase(), todas = S.pessoas(aba), cp = compras(cli ? 'cliente_id' : 'agencia_id');
     const gestor = S.pode('diretor', 'gerente'), podeCriar = S.pode('diretor', 'gerente', 'consultor'), outras = radiosDestino().length > 0;
-    const base = todas.filter(p => !cli || !cf.cons || p.consultor_id === cf.cons);
-    const vis0 = base.filter(p => !cli || cf.sit === 'todos' || p.situacao === cf.sit);
-    const lista = vis0.filter(p => (!cf.rec || (recDe(cp[p.id]) || [])[0] === cf.rec) && (!q || [p.nome, p.razao_social, p.documento, p.cidade, p.segmento].join(' ').toLowerCase().includes(q)))
-      .sort((a, b) => ((cp[b.id] || {}).total || 0) - ((cp[a.id] || {}).total || 0) || a.nome.localeCompare(b.nome));
-    const comCompra = base.filter(p => cp[p.id]), recentes = base.filter(p => cp[p.id] && cp[p.id].ult <= 2), sumidos = base.filter(p => cp[p.id] && cp[p.id].ult > 3);
-    const tot12 = comCompra.reduce((s, p) => s + cp[p.id].total, 0);
-    const kpis = `<div class="ct-kpis">
-      <div><small>${cli ? 'Clientes ativos' : 'Agências'}</small><b>${S.roloFixo('ct1' + aba, String(cli ? base.filter(p => p.situacao === 'ativo').length : base.length))}</b><span>${cli ? `${base.filter(p => p.situacao === 'prospect').length} prospects em negociação` : 'cadastradas nesta rádio'}</span></div>
-      <div><small>Compraram nos últimos 3 meses</small><b>${S.roloFixo('ct2' + aba, String(recentes.length))}</b><span>de ${comCompra.length} com compras em 12 meses</span></div>
-      <div><small>Sem comprar há 3+ meses</small><b>${S.roloFixo('ct3' + aba, String(sumidos.length))}</b><span>${cli ? 'bons para um follow-up' : 'vale uma visita'}</span></div>
-      <div><small>Comprado em 12 meses</small><b>${S.roloFixo('ct4' + aba, curtoC(tot12))}</b><span>${comCompra.length} ${cli ? (comCompra.length === 1 ? 'cliente' : 'clientes') : (comCompra.length === 1 ? 'agência' : 'agências')}</span></div></div>`;
+    const cols = colunas(cli); if (!cols.some(c => c[0] === cf.por)) { cf.por = 'comprado'; cf.sentido = 'desc'; }
     // Responsáveis: consultores e gerentes da rádio e quem mais tiver clientes (ex.: o diretor)
     const resp = !(cli && gestor) ? [] : [...S.responsaveis(), ...[...new Set(todas.map(p => p.consultor_id).filter(Boolean))].map(id => ({ id, nome:S.usuario(id) || 'Responsável' }))]
       .filter((u, i, l) => l.findIndex(x => x.id === u.id) === i && todas.some(p => p.consultor_id === u.id));
-    const chipsCons = resp.length > 1 ? `<div class="ct-cons" role="group" aria-label="Filtrar por consultor">${[{ id:'', nome:'Toda a equipe' }, ...resp].map(u => `<button type="button" data-act="cliCons" data-v="${u.id}" aria-pressed="${cf.cons === u.id}"><span class="av soft" aria-hidden="true">${u.id ? esc(S.iniciais(u.nome)) : '∗'}</span>${esc(u.id ? u.nome.split(' ')[0] : u.nome)}${u.id ? ` <small>${todas.filter(p => p.consultor_id === u.id).length}</small>` : ''}</button>`).join('')}</div>` : '';
-    mapaItens = vis0.filter(p => cp[p.id] && cp[p.id].total > 0).map(p => ({ p, c:cp[p.id], v:cp[p.id].total, rec:recDe(cp[p.id]) })).sort((a, b) => b.v - a.v);
-    const carteira = `<section class="card" aria-labelledby="ct-t"><div class="hd"><h2 id="ct-t">Carteira</h2><span>quanto cada ${cli ? 'cliente' : 'agência'} comprou nos últimos 12 meses</span></div>${kpis}${chipsCons}
-      ${mapaItens.length ? `<div class="ct-mapa${cf.rec ? ' filtra' : ''}" id="ct-mapa" role="group" aria-label="Mapa da carteira: cada bloco é ${cli ? 'um cliente' : 'uma agência'}, do tamanho do que comprou em 12 meses"></div>
-        <div class="ct-leg">${REC.map(([k, n, t]) => `<button type="button" class="fn-chip" style="--c:var(--${t})" data-act="cliRec" data-v="${k}" aria-pressed="${cf.rec === k}"><i aria-hidden="true"></i>${n}${cf.rec === k ? S.svg('fechar', 14) : ''}</button>`).join('')}<span class="grow"></span><span class="muted small">O tamanho é o valor; a cor, há quanto tempo comprou</span></div>`
-        : `<p class="muted" style="margin-top:14px">Nenhuma compra nos últimos 12 meses${cf.cons ? ' nesta carteira' : ''}. Os blocos aparecem quando houver PIs.</p>`}</section>`;
+    if (cf.cons && !resp.some(u => u.id === cf.cons)) cf.cons = '';
+    const nomeCons = p => p.consultor_id ? (S.usuario(p.consultor_id) || '') : '';
+    const valor = (p, k) => { const c = cp[p.id]; return k === 'comprado' ? (c ? c.total : 0) : k === 'ultima' ? (c && c.ult >= 0 ? c.ult : 999) : k === 'cons' ? (nomeCons(p) || '￿') : k === 'sit' ? (SIT[p.situacao] || [''])[0] : String(p[k === 'nome' ? 'nome' : 'cidade'] || '￿'); };
+    const lista = todas.filter(p => (!cli || !cf.cons || p.consultor_id === cf.cons) && (!cli || cf.sit === 'todos' || p.situacao === cf.sit)
+      && (!q || [p.nome, p.razao_social, p.documento, p.cidade, p.segmento].join(' ').toLowerCase().includes(q)))
+      .sort((a, b) => { const x = valor(a, cf.por), y = valor(b, cf.por), r = typeof x === 'number' ? x - y : x.localeCompare(y, 'pt-BR');
+        return (r || a.nome.localeCompare(b.nome, 'pt-BR')) * (cf.sentido === 'asc' ? 1 : -1); });
+    const max = Math.max(1, ...lista.map(p => (cp[p.id] || {}).total || 0)), tot = lista.reduce((s, p) => s + ((cp[p.id] || {}).total || 0), 0);
+    const recentes = lista.filter(p => cp[p.id] && cp[p.id].ult <= 2).length, palavra = cli ? (lista.length === 1 ? 'cliente' : 'clientes') : (lista.length === 1 ? 'agência' : 'agências');
+    const resumo = `${lista.length} ${palavra} · ${curtoC(tot)} em 12 meses · ${recentes} ${recentes === 1 ? 'comprou' : 'compraram'} nos últimos 3 meses`;
+    const ini = cols.find(c => c[0] === cf.por)[2], estado = 'Ordenado: ' + DITO[cf.por][cf.sentido === ini ? 0 : 1];
     const tres = p => outras && podeAlterarLa(p) ? `<button class="btn tres" data-act="pesMenu" data-id="${p.id}" aria-label="Opções de ${esc(p.nome)}">${S.svg('mais3')}</button>` : '';
-    const spark = c => { const m = c ? c.m : Array(12).fill(0), mx = Math.max(1, ...m); return `<span class="ct-spark" role="img" aria-label="Compras mês a mês nos últimos 12 meses">${m.map((v, i) => `<i class="${i === 11 && v ? 'ult' : ''}" style="height:${v ? Math.max(14, v / mx * 100) : 8}%"></i>`).join('')}</span>`; };
-    const ult = c => { const r = recDe(c); return `<span class="pill ${!r ? 'fn-neutra' : r[0] === 'sumiu' ? 'fn-forte' : r[0] === 'mes' ? 'fn-ok' : 'fn-neutra'}">${ultTxt(c)}</span>`; };
-    const sub = p => cli ? (p.situacao === 'ativo' ? (p.telefone || p.whatsapp || p.cidade || '') : SIT[p.situacao][0]) : `Comissão ${S.nfmt(Number(p.comissao)) || '0'}%`;
-    const linhas = lista.map(p => { const c = cp[p.id];
-      return `<tr class="click" data-act="pesEditar" data-id="${p.id}" data-flip="${p.id}"><td><div class="ct-nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><span><b class="cli-nome">${esc(p.nome)}</b><small>${esc(sub(p))}</small></span></div></td><td class="nw num">${esc(p.documento)}</td><td class="nw cli-cid">${esc(p.cidade)}</td>
-        ${cli ? `<td class="nw">${esc((S.usuario(p.consultor_id) || '—').split(' ')[0])}</td>` : ''}<td class="ct-c-spark">${spark(c)}</td><td class="r nw num"><b>${c ? curtoC(c.total) : '—'}</b></td><td class="nw">${ult(c)}</td><td class="r">${tres(p)}</td></tr>`; }).join('');
-    const cartoes = lista.map(p => { const c = cp[p.id];
-      return `<div data-act="pesEditar" data-id="${p.id}" data-flip="${p.id}" tabindex="-1"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span>
-        <span class="tx"><b><a href="#/clientes" data-act="pesEditar" data-id="${p.id}">${esc(p.nome)}</a></b><small>${esc([p.cidade, cli && p.consultor_id ? S.usuario(p.consultor_id) : ''].filter(Boolean).join(' · ') || '—')}</small>
-        <span class="cli-meta">${ult(c)}<small>${c ? curtoC(c.total) + ' em 12 meses' : 'sem compras em 12 meses'}</small></span></span>${tres(p)}</div>`; }).join('');
-    const sits = cli ? `<div class="seg" role="group" aria-label="Situação">${[['todos', 'Todos', base.length], ['ativo', 'Ativos', base.filter(p => p.situacao === 'ativo').length], ['prospect', 'Prospects', base.filter(p => p.situacao === 'prospect').length], ['inativo', 'Inativos', base.filter(p => p.situacao === 'inativo').length]].map(([k, n, c]) => `<button class="${cf.sit === k ? 'on' : ''}" data-act="cliSit" data-v="${k}" aria-pressed="${cf.sit === k}">${n} <span>${c}</span></button>`).join('')}</div>` : '';
-    const vazio = `<div class="empty"><b>Nenhum cadastro${q || cf.rec || cf.sit !== 'todos' ? ' encontrado' : ''}</b>${q || cf.rec || cf.sit !== 'todos' ? 'Experimente outro filtro ou outra busca.' : S.pode('consultor') && cli ? 'Aqui aparecem os clientes da sua carteira.' : ''}</div>`;
-    const listaCard = `<section class="card" aria-labelledby="ct-tl"><div class="hd"><h2 id="ct-tl">${cli ? 'Clientes' : 'Agências'}</h2>${sits}</div>
-      <div class="fn-filtros"><label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por nome, CNPJ, cidade ou segmento" aria-label="Buscar ${cli ? 'clientes' : 'agências'}"></label></div>
-      ${!lista.length ? vazio : S.celular ? `<div class="list cli-lista">${cartoes}</div>`
-        : `<div class="scroll"><table class="cli-tab ct-tab"><thead><tr><th>Nome</th><th>CNPJ / CPF</th><th class="cli-cid">Cidade</th>${cli ? '<th>Consultor</th>' : ''}<th class="ct-c-spark">12 meses</th><th class="r">Comprado</th><th>Última compra</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${linhas}</tbody></table></div>`}</section>`;
-    queueMicrotask(() => desenhaMapa(false));
+    const sub = p => cli ? [p.documento, p.telefone || p.whatsapp].filter(Boolean).join(' · ') : [`Comissão ${S.nfmt(Number(p.comissao)) || '0'}%`, (() => { const n = S.pessoas('cliente').filter(c => c.agencia_id === p.id).length; return n ? `${n} cliente${n === 1 ? '' : 's'}` : ''; })()].filter(Boolean).join(' · ');
+    const comp = p => { const c = cp[p.id], v = c ? c.total : 0; return `<span class="cl-bar" aria-hidden="true"><i style="--p:${v ? (.08 + .92 * v / max).toFixed(3) : 0}"></i></span>${v ? curtoC(v) : '—'}`; };
+    const sitPill = p => `<span class="pill cl-s-${esc(p.situacao)}">${esc((SIT[p.situacao] || [p.situacao])[0])}</span>`;
+    const linha = p => `<div class="cl-fila" role="row" data-linha="${p.id}" data-act="pesEditar" data-id="${p.id}">
+      <span class="cl-cel cl-nome" role="cell" data-col="nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><span><b title="${esc(p.nome)}">${esc(p.nome)}</b>${sub(p) ? `<small>${esc(sub(p))}</small>` : ''}</span></span>
+      ${cli ? `<span class="cl-cel cl-c-cons" role="cell" data-col="cons">${esc(nomeCons(p).split(' ')[0]) || '—'}</span>` : ''}
+      <span class="cl-cel cl-c-cid" role="cell" data-col="cidade" title="${esc(p.cidade)}">${esc(p.cidade) || '—'}</span>
+      <span class="cl-cel cl-comp" role="cell" data-col="comprado">${comp(p)}</span>
+      <span class="cl-cel cl-c-ult" role="cell" data-col="ultima"><span class="pill ${ultCls(cp[p.id])}">${ultTxt(cp[p.id])}</span></span>
+      ${cli ? `<span class="cl-cel cl-c-sit" role="cell" data-col="sit">${sitPill(p)}</span>` : ''}
+      <span class="cl-acao" role="cell">${tres(p)}</span></div>`;
+    const cab = `<div class="cl-fila cl-tit" role="row"><span class="cl-pilula" aria-hidden="true"></span>${cols.map(([k, n, s, cl]) => `<span role="columnheader" class="${cl}" data-col="${k}" aria-sort="${cf.por === k ? (cf.sentido === 'asc' ? 'ascending' : 'descending') : 'none'}"><button type="button" data-act="cliOrdem" data-v="${k}" data-sentido="${s}">${n}${SETA}</button></span>`).join('')}<span role="columnheader" class="cl-acao"><span class="sr">Opções</span></span></div>`;
+    const cel = p => `<div class="cl-cel-l" data-flip="${p.id}" data-act="pesEditar" data-id="${p.id}"><span class="cl-nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><span><b>${esc(p.nome)}</b><small>${esc([cli ? nomeCons(p).split(' ')[0] : '', p.cidade].filter(Boolean).join(' · ') || '—')}</small></span></span>
+      <span class="cl-dir"><b>${cp[p.id] ? curtoC(cp[p.id].total) : '—'}</b><span class="pill ${ultCls(cp[p.id])}">${ultTxt(cp[p.id])}</span></span></div>`;
+    const filtrado = q || cf.sit !== 'todos' || cf.cons;
+    const vazio = `<div class="empty"><b>Nenhum cadastro${filtrado ? ' encontrado' : ''}</b>${filtrado ? 'Experimente outro filtro ou outra busca.' : S.pode('consultor') && cli ? 'Aqui aparecem os clientes da sua carteira.' : ''}</div>`;
+    const filtros = `<div class="cl-barra"><label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por nome, CNPJ, cidade ou segmento" aria-label="Buscar ${cli ? 'clientes' : 'agências'}"></label>
+      ${cli ? `<select data-clif="sit" aria-label="Situação">${[['todos', 'Todas as situações'], ['ativo', 'Ativos'], ['prospect', 'Prospects'], ['inativo', 'Inativos']].map(([k, n]) => `<option value="${k}"${cf.sit === k ? ' selected' : ''}>${n} · ${k === 'todos' ? todas.length : todas.filter(p => p.situacao === k).length}</option>`).join('')}</select>` : ''}
+      ${resp.length > 1 ? `<select data-clif="cons" aria-label="Consultor"><option value="">Todos os consultores</option>${resp.map(u => `<option value="${u.id}"${cf.cons === u.id ? ' selected' : ''}>${esc(u.nome)} · ${todas.filter(p => p.consultor_id === u.id).length}</option>`).join('')}</select>` : ''}</div>`;
+    const card = `<section class="card cl-card" aria-labelledby="cl-t">${filtros}
+      <div class="cl-cab"><div><h2 id="cl-t">${cli ? 'Clientes' : 'Agências'}</h2><p>${resumo}</p></div>${S.celular ? '' : `<span class="cl-estado" aria-live="polite">${estado}</span>`}</div>
+      ${!lista.length ? vazio : S.celular ? `<div class="cl-cel-lista">${lista.map(cel).join('')}</div>`
+        : `<div class="cl-tab ${cli ? 'cl-cli' : 'cl-ag'}" role="table" aria-labelledby="cl-t" data-por="${cf.por}">${cab}<div class="cl-corpo" role="rowgroup">${lista.map(linha).join('')}</div></div>`}</section>`;
+    queueMicrotask(() => poePilula(true));
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>${cli ? 'Clientes' : 'Agências'}`, actions:podeCriar ? `<button class="btn pri" data-act="pesNovo">${S.svg('mais')}${cli ? 'Novo cliente' : 'Nova agência'}</button>` : '',
-      body:`<div class="seg ct-abas" role="tablist" aria-label="Cadastros">${[['cliente', 'Clientes', S.pessoas('cliente').length], ['agencia', 'Agências', S.pessoas('agencia').length]].map(([k, n, c]) => `<button role="tab" aria-selected="${aba === k}" class="${aba === k ? 'on' : ''}" data-act="pesAba" data-tab="${k}">${n} <span>${c}</span></button>`).join('')}</div>${carteira}${listaCard}` };
+      body:`<div class="seg ct-abas" role="tablist" aria-label="Cadastros">${[['cliente', 'Clientes', S.pessoas('cliente').length], ['agencia', 'Agências', S.pessoas('agencia').length]].map(([k, n, c]) => `<button role="tab" aria-selected="${aba === k}" class="${aba === k ? 'on' : ''}" data-act="pesAba" data-tab="${k}">${n} <span>${c}</span></button>`).join('')}</div>${card}` };
   };
-  Object.assign(S.actions, {
-    cliCons: d => { cf.cons = d.v; S.flip(S.render); },
-    cliSit: d => { cf.sit = d.v; S.flip(S.render); },
-    cliRec: d => { cf.rec = cf.rec === d.v ? '' : d.v; S.flip(S.render); },
-  });
+  S.actions.cliOrdem = d => { const k = d.v; cf.sentido = cf.por === k ? (cf.sentido === 'asc' ? 'desc' : 'asc') : d.sentido; cf.por = k; viaja(); };
+  document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-clif]'); if (!s) return; cf[s.dataset.clif] = s.value; S.flip(S.render); });
 
   // ---------- formulário ----------
   async function formulario(p) {
