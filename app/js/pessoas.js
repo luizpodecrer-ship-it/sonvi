@@ -19,7 +19,7 @@
   const radiosDestino = () => S.db.veiculos.filter(v => v.id !== S.ui.vehicleId && ['diretor', 'gerente', 'consultor'].includes(perfilEm(v.id)));
   const consultoresDe = v => S.responsaveis(v);
   const podeAlterarLa = r => { const pf = perfilEm(r.veiculo_id); return pf === 'diretor' || pf === 'gerente' || (pf === 'consultor' && (r.tipo === 'agencia' || r.consultor_id === S.me.id)); };
-  const nomeRadio = id => (S.veh(id) || {}).nome || 'outra rádio';
+  const nomeRadio = id => (S.veh(id) || {}).nome || 'outro veículo';
 
   // O mesmo cadastro nas outras rádios (só aparecem os que o perfil pode ver)
   const grupoDe = p => p.cadastro_id || p.id;
@@ -31,7 +31,7 @@
   const agenciasDe = async ids => ids.length ? S.q(S.sb.from('pessoas').select('id,veiculo_id,nome,cadastro_id,documento_num').eq('tipo', 'agencia').in('veiculo_id', ids)) : [];
   const soNumeros = s => String(s || '').replace(/\D/g, '');
 
-  // ---------- bloco "Cadastrar também em" (formulário novo e "Levar para outra rádio") ----------
+  // ---------- bloco "Cadastrar também em" (formulário novo e "Levar para outro veículo") ----------
   const agenciaNaRadio = (v, agId) => {
     const a = S.pessoa(agId); if (!a) return null;
     const g = grupoDe(a), n = soNumeros(a.documento);
@@ -41,8 +41,8 @@
     const a = S.pessoa(agId);
     if (!a) return `<span class="cad-ag ok">${S.svg('check')}<span>Sem agência</span></span>`;
     const la = agenciaNaRadio(v, agId);
-    return la ? `<span class="cad-ag ok">${S.svg('check')}<span><b>${esc(a.nome)}</b> já está na ${esc(nomeRadio(v))}: o cliente vai ligado a ela.</span></span>`
-      : `<span class="cad-ag falta"><span><b>${esc(a.nome)}</b> ainda não está na ${esc(nomeRadio(v))}.</span><label class="chk"><input type="checkbox" name="x_ag_${v}" checked>Cadastrar a agência também</label></span>`;
+    return la ? `<span class="cad-ag ok">${S.svg('check')}<span><b>${esc(a.nome)}</b> já está em ${esc(nomeRadio(v))}: o cliente vai ligado a ela.</span></span>`
+      : `<span class="cad-ag falta"><span><b>${esc(a.nome)}</b> ainda não está em ${esc(nomeRadio(v))}.</span><label class="chk"><input type="checkbox" name="x_ag_${v}" checked>Cadastrar a agência também</label></span>`;
   };
   const blocoRadios = ({ tipo, consultor, agencia, ja = new Set(), marcar = false }) => {
     const linhas = cad.destinos.map(v => {
@@ -50,10 +50,10 @@
       const pf = perfilEm(v.id), cons = consultoresDe(v.id);
       const padrao = cons.some(u => u.id === consultor) ? consultor : '';
       const campoCons = tipo !== 'cliente' ? '' : pf === 'consultor'
-        ? `<div class="f">Consultor nesta rádio<span class="cad-fixo">${esc(S.me.nome || S.me.email)} (você)</span></div>`
-        : `<label class="f">Consultor nesta rádio<select name="x_cons_${v.id}"><option value="">Sem consultor</option>${cons.map(u => `<option value="${u.id}"${u.id === padrao ? ' selected' : ''}>${esc(u.nome)}</option>`).join('')}</select></label>`;
+        ? `<div class="f">Consultor neste veículo<span class="cad-fixo">${esc(S.me.nome || S.me.email)} (você)</span></div>`
+        : `<label class="f">Consultor neste veículo<select name="x_cons_${v.id}"><option value="">Sem consultor</option>${cons.map(u => `<option value="${u.id}"${u.id === padrao ? ' selected' : ''}>${esc(u.nome)}</option>`).join('')}</select></label>`;
       return `<div class="cad-radio"><label class="cad-top"><input type="checkbox" name="x_rad_${v.id}"${marcar ? ' checked' : ''}>${S.vav(v)}<b>${esc(v.nome)}</b></label>
-        ${tipo === 'cliente' ? `<div class="cad-det">${campoCons}<div class="f">Agência nesta rádio<div data-cad-ag="${v.id}">${situacaoAgencia(v.id, agencia)}</div></div></div>` : ''}</div>`;
+        ${tipo === 'cliente' ? `<div class="cad-det">${campoCons}<div class="f">Agência neste veículo<div data-cad-ag="${v.id}">${situacaoAgencia(v.id, agencia)}</div></div></div>` : ''}</div>`;
     }).join('');
     return `<div class="cad-radios">${linhas}</div>`;
   };
@@ -175,9 +175,9 @@
     Object.assign(cad, { destinos:novo ? radiosDestino() : [], agencias:[], trazido:null, achados:[], ignorar:'' });
     if (novo && cliente && cad.destinos.length) { try { cad.agencias = await agenciasDe(cad.destinos.map(v => v.id)); } catch (e) { console.error(e); } }
     const buscar = (id, label) => ({ html:`<div style="display:flex;align-items:flex-end"><button type="button" class="btn sm" data-act="${id}">${label}</button></div>` });
-    const bloco = novo && cad.destinos.length ? [{ html:`<div class="cad-bloco" style="grid-column:1/-1"><div class="cad-hd"><b>Cadastrar também em</b><small>${S.pode('consultor') ? 'Aparecem as rádios que você atende' : 'Aparecem as rádios em que você trabalha'}</small></div>
+    const bloco = novo && cad.destinos.length ? [{ html:`<div class="cad-bloco" style="grid-column:1/-1"><div class="cad-hd"><b>Cadastrar também em</b><small>${S.pode('consultor') ? 'Aparecem os veículos que você atende' : 'Aparecem os veículos em que você trabalha'}</small></div>
         ${blocoRadios({ tipo, consultor:p.consultor_id, agencia:p.agencia_id })}
-        <small class="muted">Nome, CNPJ, endereço e contatos vão iguais. ${cliente ? 'A situação vai igual; consultor, PIs e financeiro ficam separados em cada rádio.' : 'Os PIs e o financeiro ficam separados em cada rádio.'}</small></div>` }] : [];
+        <small class="muted">Nome, CNPJ, endereço e contatos vão iguais. ${cliente ? 'A situação vai igual; consultor, PIs e financeiro ficam separados em cada veículo.' : 'Os PIs e o financeiro ficam separados em cada veículo.'}</small></div>` }] : [];
     const campos = [
       { k:'nome', label:cliente ? 'Nome fantasia ou nome' : 'Nome da agência', req:true, ph:cliente ? 'Ex.: Supermercado Três Irmãos' : 'Ex.: Agência Ponto Alto' },
       { k:'pessoa', label:'Tipo', type:'select', options:[['pj', 'Pessoa jurídica'], ['pf', 'Pessoa física']] },
@@ -192,7 +192,7 @@
         { k:'segmento', label:'Segmento' }, { k:'contato_decide', label:'Contato que decide' }, { k:'contato_assina', label:'Contato que assina' },
         { k:'agencia_id', label:'Agência', type:'select', options:[['', 'Sem agência'], ...S.pessoas('agencia').map(a => [a.id, a.nome])] },
         { k:'situacao', label:'Situação', type:'select', options:Object.entries(SIT).map(([k, v]) => [k, v[0]]) },
-        ...(gestor ? [{ k:'consultor_id', label:'Consultor responsável', type:'select', options:[['', 'Sem consultor'], ...S.responsaveis().map(u => [u.id, u.nome]), ...(p.consultor_id && !S.responsaveis().some(u => u.id === p.consultor_id) ? [[p.consultor_id, (S.usuario(p.consultor_id) || 'Responsável atual') + ' (sem acesso a esta rádio)']] : [])] }] : [])
+        ...(gestor ? [{ k:'consultor_id', label:'Consultor responsável', type:'select', options:[['', 'Sem consultor'], ...S.responsaveis().map(u => [u.id, u.nome]), ...(p.consultor_id && !S.responsaveis().some(u => u.id === p.consultor_id) ? [[p.consultor_id, (S.usuario(p.consultor_id) || 'Responsável atual') + ' (sem acesso a este veículo)']] : [])] }] : [])
       ] : [{ k:'comissao', label:'Comissão padrão (%)' }]),
       { k:'observacoes', label:'Observações', type:'textarea' },
       ...bloco,
@@ -231,27 +231,27 @@
     const linhas = mudou.map(([k, n]) => `<div class="cad-mud"><span>${n}</span><span>${velho[k] ? `<s>${esc(velho[k])}</s>` : ''}<b>${esc(p[k] || '—')}</b></span></div>`).join('');
     const antes = p;
     const total = irmaos.length + 1;
-    S.dialog(`<h2>Atualizar também nas outras rádios?</h2><p class="muted" style="margin-top:-8px">${esc(antes.nome)} também está ${irmaos.length > 1 ? 'nestas rádios' : 'nesta rádio'}. Marque onde atualizar.</p>
+    S.dialog(`<h2>Atualizar também nos outros veículos?</h2><p class="muted" style="margin-top:-8px">${esc(antes.nome)} também está ${irmaos.length > 1 ? 'nestes veículos' : 'neste veículo'}. Marque onde atualizar.</p>
       <div><small class="cad-rot">O QUE MUDOU</small>${linhas}</div>
       <div class="cad-radios">${irmaos.map(r => `<label class="cad-radio cad-top"><input type="checkbox" name="x_${r.id}" checked>${S.vav(S.veh(r.veiculo_id))}<b>${esc(nomeRadio(r.veiculo_id))}</b></label>`).join('')}</div>
-      <small class="muted">Só os dados cadastrais vão para as outras rádios. Consultor, situação, agência e observações de cada rádio continuam como estão.</small>
-      <div class="row cad-acoes"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Só na ${esc(S.veh().nome)}</button><button class="btn pri" value="ok" data-cad-total>Atualizar nas ${total} rádios</button></div>`,
+      <small class="muted">Só os dados cadastrais vão para os outros veículos. Consultor, situação, agência e observações de cada veículo continuam como estão.</small>
+      <div class="row cad-acoes"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Só em ${esc(S.veh().nome)}</button><button class="btn pri" value="ok" data-cad-total>Atualizar nos ${total} veículos</button></div>`,
     f => { const ids = irmaos.filter(r => f['x_' + r.id] === 'on').map(r => r.id); if (!ids.length) return;
-      S.run(async () => { const n = await S.q(S.sb.rpc('atualizar_cadastros_irmaos', { p_origem:p.id, p_ids:ids })); S.toast(`Atualizado em ${n} outra${n === 1 ? '' : 's'} rádio${n === 1 ? '' : 's'}.`); }, null); });
+      S.run(async () => { const n = await S.q(S.sb.rpc('atualizar_cadastros_irmaos', { p_origem:p.id, p_ids:ids })); S.toast(`Atualizado em ${n} outro${n === 1 ? '' : 's'} veículo${n === 1 ? '' : 's'}.`); }, null); });
   }
 
-  // ---------- menu ⋯ › Levar para outra rádio ----------
+  // ---------- menu ⋯ › Levar para outro veículo ----------
   async function levarDialogo(p) {
     cad.destinos = radiosDestino(); cad.agencias = [];
     let irmaos = [];
     try { [irmaos, cad.agencias] = await Promise.all([buscarIrmaos(p.tipo, grupoDe(p), soNumeros(p.documento)), p.tipo === 'cliente' ? agenciasDe(cad.destinos.map(v => v.id)) : []]); }
     catch (e) { return S.toast(S.erro(e)); }
     const ja = new Set(irmaos.map(r => r.veiculo_id)), livres = cad.destinos.filter(v => !ja.has(v.id));
-    S.dialog(`<h2>Levar para outra rádio</h2><p class="muted" style="margin-top:-8px">${esc(p.nome)} · ${esc(S.veh().nome)}</p>
+    S.dialog(`<h2>Levar para outro veículo</h2><p class="muted" style="margin-top:-8px">${esc(p.nome)} · ${esc(S.veh().nome)}</p>
       ${blocoRadios({ tipo:p.tipo, consultor:p.consultor_id, agencia:p.agencia_id, ja, marcar:livres.length === 1 })}
-      <small class="muted">${S.pode('consultor') ? 'Aparecem só as rádios que você atende. ' : ''}${p.tipo === 'cliente' ? 'A situação (Ativo, Prospect, Inativo) vai igual. ' : ''}Nome, CNPJ, endereço e contatos vão iguais; PIs e financeiro ficam separados.</small>
+      <small class="muted">${S.pode('consultor') ? 'Aparecem só os veículos que você atende. ' : ''}${p.tipo === 'cliente' ? 'A situação (Ativo, Prospect, Inativo) vai igual. ' : ''}Nome, CNPJ, endereço e contatos vão iguais; PIs e financeiro ficam separados.</small>
       <div class="row cad-acoes"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>${livres.length ? 'Cancelar' : 'Fechar'}</button>${livres.length ? '<button class="btn pri" value="ok" data-cad-levar>Cadastrar</button>' : ''}</div>`,
-    f => { const destinos = destinosMarcados(f); if (!destinos.length) return S.toast('Marque pelo menos uma rádio.');
+    f => { const destinos = destinosMarcados(f); if (!destinos.length) return S.toast('Marque pelo menos um veículo.');
       S.run(async () => { const r = await levar(p.id, destinos); const atual = await S.q(S.sb.from('pessoas').select('*').eq('id', p.id).single()); Object.assign(S.pessoa(p.id) || {}, atual);
         S.toast(('Pronto: ' + resumo(r) + '.').replace('Pronto: .', 'Nada para cadastrar.')); }, null); });
     document.getElementById('dlg').classList.add('medio');
@@ -263,9 +263,9 @@
   function contarRadios() {
     const d = document.getElementById('dlg'); if (!d) return;
     const n = d.querySelectorAll('.cad-radios input[name^="x_rad_"]:checked').length;
-    const pri = d.querySelector('.so-editar .btn.pri'); if (pri) pri.textContent = n ? `Salvar nas ${n + 1} rádios` : 'Salvar';
-    const lev = d.querySelector('[data-cad-levar]'); if (lev) { lev.textContent = n === 1 ? 'Cadastrar na ' + nomeRadio(d.querySelector('.cad-radios input[name^="x_rad_"]:checked').name.slice(6)) : n ? `Cadastrar nas ${n} rádios` : 'Cadastrar'; lev.disabled = !n; }
-    const tot = d.querySelector('[data-cad-total]'); if (tot) { const m = d.querySelectorAll('.cad-radios input[name^="x_"]:checked').length; tot.textContent = m ? `Atualizar nas ${m + 1} rádios` : 'Atualizar'; tot.disabled = !m; }
+    const pri = d.querySelector('.so-editar .btn.pri'); if (pri) pri.textContent = n ? `Salvar nos ${n + 1} veículos` : 'Salvar';
+    const lev = d.querySelector('[data-cad-levar]'); if (lev) { lev.textContent = n === 1 ? 'Cadastrar em ' + nomeRadio(d.querySelector('.cad-radios input[name^="x_rad_"]:checked').name.slice(6)) : n ? `Cadastrar nos ${n} veículos` : 'Cadastrar'; lev.disabled = !n; }
+    const tot = d.querySelector('[data-cad-total]'); if (tot) { const m = d.querySelectorAll('.cad-radios input[name^="x_"]:checked').length; tot.textContent = m ? `Atualizar nos ${m + 1} veículos` : 'Atualizar'; tot.disabled = !m; }
   }
   document.addEventListener('change', e => {
     const d = document.getElementById('dlg'); if (!d || !d.open || !d.contains(e.target)) return;
@@ -288,9 +288,9 @@
       try { dono = await S.q(S.sb.rpc('cliente_de_outro', { p_veiculo:S.ui.vehicleId, p_doc:n })); } catch (e) { console.error(e); }
       const el = campo('documento');
       if (dono && el && soNumeros(el.value) === n) {
-        const msg = S.pode('consultor') ? `Este cliente já é atendido por ${dono} nesta rádio. Fale com o gerente.` : `Este cliente já está cadastrado nesta rádio (consultor: ${dono}).`;
+        const msg = S.pode('consultor') ? `Este cliente já é atendido por ${dono} neste veículo. Fale com o gerente.` : `Este cliente já está cadastrado neste veículo (consultor: ${dono}).`;
         el.setCustomValidity(msg); box.hidden = false;
-        box.innerHTML = `<div class="cad-achado aviso" role="alert">${S.svg('bloqueio')}<div><b>${n.length === 14 ? 'CNPJ' : 'CPF'} já cadastrado nesta rádio</b><span>${esc(msg)}</span></div></div>`;
+        box.innerHTML = `<div class="cad-achado aviso" role="alert">${S.svg('bloqueio')}<div><b>${n.length === 14 ? 'CNPJ' : 'CPF'} já cadastrado neste veículo</b><span>${esc(msg)}</span></div></div>`;
         return; } }
     if (n === cad.ignorar) { box.hidden = true; return; }
     let achados = [];
@@ -298,10 +298,10 @@
     cad.achados = achados; const a = achados[0];
     if (!a || cad.trazido) { box.hidden = true; return; }
     box.hidden = false;
-    box.innerHTML = `<div class="cad-achado">${S.vav(S.veh(a.veiculo_id))}<div><b>Esse ${n.length === 14 ? 'CNPJ' : 'CPF'} já está cadastrado na ${esc(nomeRadio(a.veiculo_id))}</b>
+    box.innerHTML = `<div class="cad-achado">${S.vav(S.veh(a.veiculo_id))}<div><b>Esse ${n.length === 14 ? 'CNPJ' : 'CPF'} já está cadastrado em ${esc(nomeRadio(a.veiculo_id))}</b>
       <span>${esc([a.nome, a.cidade, a.telefone].filter(Boolean).join(' · '))}</span>
-      <small class="muted">Trazer os dados de lá preenche o formulário. Você confere${aba === 'cliente' ? ' e escolhe o consultor desta rádio' : ''}.</small>
-      <div class="row"><button type="button" class="btn sm pri" data-act="pesTrazer">Trazer os dados da ${esc(nomeRadio(a.veiculo_id))}</button><button type="button" class="btn sm" data-act="pesIgnorar">Não, é outro cadastro</button></div></div></div>`;
+      <small class="muted">Trazer os dados de lá preenche o formulário. Você confere${aba === 'cliente' ? ' e escolhe o consultor deste veículo' : ''}.</small>
+      <div class="row"><button type="button" class="btn sm pri" data-act="pesTrazer">Trazer os dados de ${esc(nomeRadio(a.veiculo_id))}</button><button type="button" class="btn sm" data-act="pesIgnorar">Não, é outro cadastro</button></div></div></div>`;
     // A rádio de onde veio já tem o cadastro: some do "Cadastrar também em"
     achados.forEach(r => { const c = document.querySelector(`#dlg input[name="x_rad_${r.veiculo_id}"]`); if (c) { c.checked = false; c.closest('.cad-radio').classList.add('ja'); c.closest('.cad-radio').innerHTML = `${S.vav(S.veh(r.veiculo_id))}<b>${esc(nomeRadio(r.veiculo_id))}</b><span class="cad-ja">${S.svg('check')}Já cadastrado</span>`; } });
     contarRadios();
@@ -346,12 +346,12 @@
     pesAba: d => S.go(d.tab === 'agencia' ? '/clientes/agencias' : '/clientes'),
     pesNovo: () => formulario({ tipo:aba, pessoa:'pj', situacao:'prospect', comissao:20, consultor_id:S.pode('consultor') ? S.me.id : '' }),
     pesEditar: d => { const p = S.pessoa(d.id); if (S.pode('diretor', 'gerente') || (S.pode('consultor') && (p.tipo === 'agencia' || p.consultor_id === S.me.id))) formulario(p); else S.toast('Seu perfil só pode consultar este cadastro.'); },
-    pesMenu: (d, botao) => S.menu(botao, [{ label:'Abrir', icon:'abrir', act:'pesEditar', data:{ id:d.id } }, { label:'Levar para outra rádio', icon:'copia', act:'pesLevar', data:{ id:d.id } }]),
+    pesMenu: (d, botao) => S.menu(botao, [{ label:'Abrir', icon:'abrir', act:'pesEditar', data:{ id:d.id } }, { label:'Levar para outro veículo', icon:'copia', act:'pesLevar', data:{ id:d.id } }]),
     pesLevar: d => { const p = S.pessoa(d.id); if (p) levarDialogo(p); },
     pesTrazer: () => { const a = cad.achados[0]; if (!a) return;
       CADASTRAIS.forEach(([k]) => { const c = campo(k); if (c && a[k] != null && a[k] !== '') c.value = a[k]; });
       cad.trazido = grupoDe(a); S.mascarar(document.getElementById('dlg'));
-      document.querySelector('#dlg #cadAchado').innerHTML = `<div class="cad-achado ok">${S.svg('check')}<span>Dados trazidos da ${esc(nomeRadio(a.veiculo_id))}. Confira e salve: os dois cadastros ficam ligados.</span></div>`; },
+      document.querySelector('#dlg #cadAchado').innerHTML = `<div class="cad-achado ok">${S.svg('check')}<span>Dados trazidos de ${esc(nomeRadio(a.veiculo_id))}. Confira e salve: os dois cadastros ficam ligados.</span></div>`; },
     pesIgnorar: () => { cad.ignorar = soNumeros((campo('documento') || {}).value); const b = document.querySelector('#dlg #cadAchado'); if (b) b.hidden = true; },
     pesCnpj: () => { const n = (campo('documento').value || '').replace(/\D/g, ''); if (n.length !== 14) return S.toast('Digite os 14 números do CNPJ.'); preencherCnpj(n); }
   });
