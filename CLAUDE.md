@@ -64,6 +64,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - **Grade por categoria de veículo** (a categoria já existe, `039`). Cada tipo vende de um jeito (rádio: inserções por dia; LED: inserções no ciclo por ponto; outdoor: placas por bissemana; front light e empena: faces por mês; DOOH: inserções por dia por ônibus), então cada um precisa da própria grade no PI e na tabela de preços. O fluxo do PI e o financeiro continuam iguais.
 - **Pacotes de mídia:** virou "Combos" (decisões em "Próximas etapas de Produtos", abaixo).
+- **Financeiro do grupo no Dashboard geral** (ideia de 25/10/2026, deixada para depois): item "Financeiro" no menu do Dashboard geral, só o diretor; visão somada do grupo (mês com setas, anel Recebido/A vencer/Vencido, uma linha por veículo com "Abrir financeiro", vencidas de todos os veículos, fluxo de 6 meses por veículo). Baixa, nota e cobrança continuam só no financeiro de cada veículo; números do grupo são gerenciais, não contábeis.
 - **Comissão do consultor:** percentual por consultor e por veículo, informado pelo diretor; o SONVI calcula a comissão no fechamento do mês. Definir antes: a base (valor do PI, líquido da rádio ou recebido), o mês de referência (criação, faturamento ou recebimento) e se mudar o percentual afeta vendas antigas.
 
 ## Produtos (aprovado em 24/10/2026, Etapa 1; `database/043_produtos.sql`, `app/js/produtos.js`, estilos `.pdt-*` no fim de `sonvi.css`; nunca `.pd-*`, que é do PI impresso)
