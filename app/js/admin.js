@@ -88,24 +88,30 @@
     const seg = ehGer() ? '' : `<div class="seg">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
     let body;
     if (aba === 'veiculos') {
-      // Aprovado em 24/10/2026: números do grupo, filtro por categoria e um cartão por veículo (na cor dele) com o cadastro em 5 partes
-      const vs = S.db.veiculos, cats = S.CATEGORIAS.filter(([k]) => vs.some(v => S.categorias(v).includes(k))), cat = S.ui.admCat && cats.some(c => c[0] === S.ui.admCat) ? S.ui.admCat : '';
-      const vis = vs.filter(v => !cat || S.categorias(v).includes(cat)), ok = (v, k) => !!String(v[k] || '').trim();
+      // Lista enxuta (aprovada em 25/10/2026): resumo numa linha, uma linha por veículo (selo, nome e razão social, categorias, sigla,
+      // frequência ou praça, PIs, cadastro em 5 partes com o que falta, Editar e ⋯). A cor do veículo só no selo e na barrinha. No celular, linhas compactas.
+      const vs = [...S.db.veiculos].sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR')), ok = (v, k) => !!String(v[k] || '').trim();
       const PARTES = [['logo', 'logo', v => ok(v, 'logo')], ['cnpj', 'CNPJ e razão social', v => ok(v, 'cnpj') && ok(v, 'razao_social')], ['opec', 'e-mail da OPEC', v => ok(v, 'opec_email')], ['banco', 'dados bancários', v => ok(v, 'dados_bancarios')], ['end', 'endereço e telefone', v => ok(v, 'endereco') && ok(v, 'telefone')]];
-      const completos = vs.filter(v => PARTES.every(p => p[2](v))).length, pis = vs.reduce((t, v) => t + (Number(v.pi_seq) || 0), 0), pessoas = S.db.usuarios.filter(u => u.ativo).length;
+      const completos = vs.filter(v => PARTES.every(p => p[2](v))).length, pis = vs.reduce((t, v) => t + (Number(v.pi_seq) || 0), 0);
       const cor = v => /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : S.COR_PADRAO;
-      const kpis = `<section class="card"><div class="ct-kpis"><div><small>Veículos</small><b>${S.roloFixo('ad1', String(vs.length))}</b><span>${cats.length} categoria${cats.length === 1 ? '' : 's'}</span></div>
-        <div><small>Cadastro completo</small><b>${S.roloFixo('ad2', String(completos))}</b><span>de ${vs.length} veículo${vs.length === 1 ? '' : 's'}</span></div>
-        <div><small>PIs no grupo</small><b>${S.roloFixo('ad3', String(pis))}</b><span>somando todos os veículos</span></div><div><small>Pessoas com acesso</small><b>${S.roloFixo('ad4', String(pessoas))}</b><span>ativas</span></div></div>
-        ${cats.length > 1 ? `<div class="pdt-var-chips ad-cats" role="group" aria-label="Categoria">${[['', 'Todas', vs.length], ...cats.map(([k, n]) => [k, n, vs.filter(v => S.categorias(v).includes(k)).length])].map(([k, n, c]) => `<button data-act="admCat" data-v="${k}" aria-pressed="${cat === k}">${esc(n)} · ${c}</button>`).join('')}</div>` : ''}</section>`;
-      const cartao = v => { const feitos = PARTES.filter(p => p[2](v)), falta = PARTES.filter(p => !p[2](v)), radio = S.temCategoria(v, 'radio');
-        return `<article class="card ad-v" style="--v:${cor(v)}" data-flip="${v.id}"><div class="ad-v-hd">${S.vav(v)}<span class="ad-v-tx"><b>${esc(v.nome)}</b><small title="${esc(v.razao_social)}">${esc(v.razao_social) || 'Razão social não informada'}</small></span><button class="btn tres" data-act="admVeiculoMenu" data-id="${v.id}" aria-label="Mais opções de ${esc(v.nome)}">${S.svg('mais3')}</button></div>
-          <div class="ad-v-cats">${S.categorias(v).map(k => `<span class="pill fn-neutra">${esc(S.nomeCategoria(k))}</span>`).join('')}</div>
-          <dl class="ad-v-dl"><div><dt>Sigla do PI</dt><dd>${esc(v.sigla) || '—'}</dd></div><div><dt>${radio ? 'Frequência' : 'Praça'}</dt><dd title="${esc(radio ? v.frequencia : v.cidade)}">${esc(radio ? v.frequencia : v.cidade) || '—'}</dd></div><div><dt>PIs</dt><dd>${v.pi_seq || 0}</dd></div></dl>
-          <div class="ad-v-cad"><div class="ad-v-cad-t"><span>Cadastro</span><b>${feitos.length} de ${PARTES.length}</b></div><div class="ad-v-bar" aria-hidden="true">${PARTES.map(p => `<i class="${p[2](v) ? 'ok' : ''}"></i>`).join('')}</div>
-            ${falta.length ? `<span class="ad-v-falta">Falta: ${falta.map(p => p[1]).join(', ')}</span>` : '<span class="muted small">Tudo preenchido</span>'}</div>
-          <div class="ad-v-ac"><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">${S.svg('editar')}Editar</button>${falta.length ? `<button class="btn sm pri" data-act="admVeiculo" data-id="${v.id}" data-editar="1">Completar</button>` : ''}</div></article>`; };
-      body = vs.length ? kpis + `<div class="ad-vg">${vis.map(cartao).join('')}</div>`
+      const barra = v => `<span class="adv-l-bar" style="--v:${cor(v)}" aria-hidden="true">${PARTES.map(p => `<i class="${p[2](v) ? 'ok' : ''}"></i>`).join('')}</span>`;
+      const onde = v => S.temCategoria(v, 'radio') ? v.frequencia : v.cidade;
+      const resumo = `<b>${vs.length} veículo${vs.length === 1 ? '' : 's'}</b> · ${completos} com cadastro completo · ${pis} PI${pis === 1 ? '' : 's'} no grupo`;
+      const linhas = S.celular
+        ? `<div class="adv-l-cel">${vs.map(v => { const falta = PARTES.filter(p => !p[2](v)).length;
+            return `<div class="adv-l-c" data-act="admVeiculo" data-id="${v.id}" data-editar="1" aria-label="Editar ${esc(v.nome)}">${S.vav(v)}<span class="adv-l-tx"><b>${esc(v.nome)}</b><small>${S.categorias(v).map(k => esc(S.nomeCategoria(k))).join(' · ')}${v.sigla ? ' · ' + esc(v.sigla) : ''}</small></span>
+              <span class="adv-l-dir">${barra(v)}<small>${falta ? `${falta} faltando` : 'Completo'}</small></span></div>`; }).join('')}</div>`
+        : `<div class="scroll"><table class="adv-l"><colgroup><col style="width:26%"><col style="width:18%"><col style="width:64px"><col style="width:13%"><col style="width:52px"><col style="width:25%"><col style="width:124px"></colgroup>
+            <thead><tr><th>Veículo</th><th>Categorias</th><th>Sigla</th><th>Frequência / praça</th><th class="r">PIs</th><th>Cadastro</th><th><span class="sr">Ações</span></th></tr></thead><tbody>
+            ${vs.map(v => { const falta = PARTES.filter(p => !p[2](v)), txt = falta.length ? 'Falta: ' + falta.map(p => p[1]).join(', ') : 'Completo';
+              return `<tr class="click" data-act="admVeiculo" data-id="${v.id}" data-editar="1">
+                <td><span class="adv-l-v">${S.vav(v)}<span class="adv-l-tx"><b title="${esc(v.nome)}">${esc(v.nome)}</b><small title="${esc(v.razao_social)}">${esc(v.razao_social) || 'Razão social não informada'}</small></span></span></td>
+                <td><span class="adv-l-cats">${S.categorias(v).map(k => `<span class="pill fn-neutra">${esc(S.nomeCategoria(k))}</span>`).join('')}</span></td>
+                <td class="nw adv-l-sig">${esc(v.sigla) || '—'}</td><td class="nw adv-l-onde" title="${esc(onde(v))}">${esc(onde(v)) || '—'}</td><td class="r nw">${Number(v.pi_seq) || 0}</td>
+                <td><span class="adv-l-cad">${barra(v)}<small class="${falta.length ? 'falta' : ''}" title="${esc(txt)}">${esc(txt)}</small></span></td>
+                <td><span class="lin-acoes"><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">Editar</button><button class="btn tres" data-act="admVeiculoMenu" data-id="${v.id}" aria-label="Mais opções de ${esc(v.nome)}">${S.svg('mais3')}</button></span></td></tr>`; }).join('')}
+            </tbody></table></div>`;
+      body = vs.length ? `<section class="card adv-lista"><div class="hd"><div><h2>Veículos</h2><p class="muted small" style="margin:3px 0 0">${resumo}</p></div></div>${linhas}</section>`
         : '<div class="card"><div class="empty"><b>Cadastre o primeiro veículo</b>Rádio, painel de LED, outdoor, front light, empena ou mídia DOOH. Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div></div>';
     } else if (aba === 'empresa') {
       const e = S.db.empresa || {}, curto = String(e.nome || 'Empresa comercial').split('·')[0].trim(), n = S.db.veiculos.length;
@@ -156,8 +162,8 @@
     f.onchange = e => { if (e.target.dataset && e.target.dataset.cat) ajustarCategoria(); }; };
 
   Object.assign(S.actions, {
-    admCat: d => { S.ui.admCat = d.v; S.flip(S.render); },
     admVeiculoMenu: (d, botao) => S.menu(botao, [{ label:'Editar veículo', icon:'editar', act:'admVeiculo', data:{ id:d.id, editar:'1' } },
+      ...(() => { const v = S.veh(d.id) || {}, f = k => !String(v[k] || '').trim(); return f('logo') || f('cnpj') || f('razao_social') || f('opec_email') || f('dados_bancarios') || f('endereco') || f('telefone') ? [{ label:'Completar cadastro', icon:'check', act:'admVeiculo', data:{ id:d.id, editar:'1' } }] : []; })(),
       { label:'Propostas e PI', icon:'propostas', act:'admPropostas', data:{ id:d.id } }, { label:'Textos do PI', icon:'pis', act:'admTextosPI', data:{ id:d.id } }]),
     admAba: d => { aba = d.tab; S.render(); },
     admVeiculo: d => { const v = d.id ? S.veh(d.id) : {};
