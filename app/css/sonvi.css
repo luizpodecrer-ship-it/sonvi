@@ -2114,3 +2114,7 @@ td.r, td.nw, th.nw { white-space:nowrap; }
 @media (prefers-reduced-motion: reduce) { .cx-celda *, .cx-celda *::before, .cx-celda *::after { transition-duration:.01s !important; animation:none !important; } }
 .cx-dica { margin:0 0 14px; color:var(--ink-2); font:500 13px/1.4 var(--font); }
 .cx-apoio, .cx-nota:not(.cx-nota-c) { max-width:calc(100% - 40px); overflow:hidden; text-overflow:ellipsis; }
+/* Seletor de veículo do diretor: a última opção volta ao Dashboard geral */
+.fl-geral { width:30px; height:30px; flex:none; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-s); background:var(--accent-soft); color:var(--accent-text); }
+.fl-geral svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.fl-item[data-v="__geral"] { margin-top:5px; box-shadow:0 -5px 0 -4px var(--line); }

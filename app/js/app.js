@@ -62,7 +62,7 @@
     const inicio = MUSIC ? 'hoje' : DIR ? 'geral' : 'dashboard';
     const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${inicio}" data-go="/${inicio}" aria-label="${MUSIC ? 'Sonvi Music' : DIR ? 'SONVI · Dashboard geral' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
       <button type="button" class="recolher" data-act="menuRecolher" aria-controls="side">${S.svg('recolher')}${S.svg('expandir')}<span class="sr">Recolher menu</span></button>
-      ${semVeiculo || geral ? '' : DIR ? `<a class="veh veh-volta" href="#/geral" data-go="/geral" title="Voltar ao Dashboard geral">${S.vav(veh)}<span class="vt"><small>${S.svg('voltar', 12)}Dashboard geral</small><b>${esc(veh.nome)}</b></span></a>` : `<label class="veh" title="Trocar de veículo">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc(S.vehSub(veh) || 'Veículo selecionado')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Veículo">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></label>`}
+      ${semVeiculo || geral ? '' : `<label class="veh" title="Trocar de veículo">${S.vav(veh)}<span class="vt"><b>${esc(veh.nome)}</b><small>${esc(S.vehSub(veh) || 'Veículo selecionado')}</small></span>${S.svg('baixo')}<select data-ui="vehicleId" aria-label="Veículo">${S.db.veiculos.map(v => `<option value="${v.id}"${v.id === S.ui.vehicleId ? ' selected' : ''}>${esc(v.nome)}</option>`).join('')}${DIR ? '<option value="__geral">Dashboard geral</option>' : ''}</select></label>`}
       <nav aria-label="Menu principal">${itens.map(([k, n, , href], i) => { const ex = itens.length > 5 && i >= 4 ? ' extra' : ''; return href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo${ex}" data-ico="${k}">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
         : `<a href="#/${k}" data-go="/${k}" title="${n}" data-ico="${k}" class="${(active === k ? 'on' : '') + ex}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}${k === 'followup' && atrasos ? `<span class="badge alerta" title="Retornos atrasados">${atrasos}</span>` : ''}</a>`; }).join('')}
       ${itens.length > 5 ? `<button type="button" class="nav-mais" data-act="navMais" aria-haspopup="menu">${S.svg('mais3')}Mais</button>` : ''}
@@ -156,6 +156,8 @@
   document.addEventListener('change', async e => {
     const el = e.target, d = el.dataset;
     if (el.closest('dialog')) return;
+    // Diretor: a última opção do seletor volta ao Dashboard geral (24/10/2026)
+    if (d.ui === 'vehicleId' && el.value === '__geral') { el.value = S.ui.vehicleId; const msg = pendente(); if (msg) return S.toast(msg); return S.go('/geral'); }
     if (d.ui === 'vehicleId' && pendente()) { el.value = S.ui.vehicleId; return S.toast(pendente()); }
     if (d.ui === 'vehicleId') { // troca de rádio: busca na nuvem só os dados dela
       S.ui.vehicleId = el.value; S.ui.q = ''; S.guardarRadio(el.value);
