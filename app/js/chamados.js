@@ -61,7 +61,7 @@
       <div><small>Aguardando você</small><b>${S.roloFixo('cs2', String(aguard.length))}</b><span>${aguard.length ? 'o suporte pediu uma informação' : 'nada pendente com vocês'}</span></div>
       <div><small>Resolvidos no mês</small><b>${S.roloFixo('cs3', String(resMes.length))}</b><span>${resMes.length ? `${resMes.filter(c => c.avaliacao === 'resolveu').length} avaliados "Resolveu"` : 'nenhum neste mês'}</span></div>
       <div><small>1ª resposta</small><b>${S.roloFixo('cs4', tempos.length ? fmtMin(media) : '—')}</b><span>${tempos.length ? 'em média' : 'sem chamados respondidos ainda'}</span></div></div>`;
-    const abas = `<div class="seg" role="group" aria-label="Ver">${[['chamados', 'Chamados', L.length], ['acessos', S.celular ? 'Acessos SONVI' : 'Acessos da equipe SONVI', A.length]].map(([k, n, q]) => `<button class="${st.aba === k ? 'on' : ''}" data-act="chAba" data-v="${k}" aria-pressed="${st.aba === k}">${n} <span>${q}</span></button>`).join('')}</div>`;
+    const abas = `<div class="seg cs2-abas" role="group" aria-label="Ver">${[['chamados', 'Chamados', L.length], ['acessos', S.celular ? 'Acessos SONVI' : 'Acessos da equipe SONVI', A.length]].map(([k, n, q]) => `<button class="${st.aba === k ? 'on' : ''}" data-act="chAba" data-v="${k}" aria-pressed="${st.aba === k}">${n} <span>${q}</span></button>`).join('')}</div>`;
     let corpo;
     if (st.aba === 'chamados') {
       const lista = L.filter(c => st.sit === 'todos' || (st.sit === 'abertos' ? emAberto(c) : !emAberto(c))), pg = fatia(lista, 'chamados');
@@ -73,8 +73,8 @@
         : `<div class="scroll"><table class="cs2-t"><thead><tr><th>Nº</th><th>Assunto</th><th>Aberto por</th><th>Atendente</th><th>Situação</th><th class="r">Atualizado</th></tr></thead><tbody>
           ${pg.map(c => `<tr class="click" data-act="chAbrir" data-id="${c.id}"><td class="nw cs2-num">#${c.numero}</td><td><b>${esc(c.assunto)}</b>${naoLido(c) ? '<span class="cs2-nova" title="Resposta nova"></span>' : ''}${veic(c) ? `<small>${esc(veic(c))}</small>` : ''}</td>
             <td class="nw">${esc(S.usuario(c.aberto_por) || '—')}</td><td class="nw">${esc(c.atendente || '—')}</td><td>${sit(c)}</td><td class="r nw">${dataCurta(c.atualizado_em)}</td></tr>`).join('')}</tbody></table></div>`;
-      corpo = `<section class="card" aria-labelledby="cs2-tc"><div class="hd"><div><h2 id="cs2-tc">Chamados</h2><p class="muted small" style="margin:2px 0 0">As conversas da empresa com o suporte SONVI. Clique para abrir no chat.</p></div>${chips}</div>
-        ${pg.length ? linhas : vazio}${paginacao('chamados', lista.length, 'chamados')}</section>`;
+      corpo = `<section class="card" id="cs2-corpo" aria-labelledby="cs2-tc"><div class="hd"><div><h2 id="cs2-tc">Chamados</h2><p class="muted small" style="margin:2px 0 0">As conversas da empresa com o suporte SONVI. Clique para abrir no chat.</p></div>${chips}</div>
+        <div class="cs2-lista">${pg.length ? linhas : vazio}</div>${paginacao('chamados', lista.length, 'chamados')}</section>`;
     } else {
       const doMes = A.filter(a => a.inicio.slice(0, 7) === st.mes), pg = fatia(doMes, 'acessos'), usado = doMes.reduce((s, a) => s + (ativo(a) ? 0 : minutos(a.inicio, fimReal(a))), 0);
       const fim = a => ativo(a) ? '<span class="pill cs2-ab"><i aria-hidden="true"></i>Agora</span>' : a.encerrado_em && new Date(a.encerrado_em) < new Date(a.fim) ? `<span class="pill cs2-ok">${S.svg('check', 12)}Encerrado</span>` : '<span class="pill fn-neutra">Tempo acabou</span>';
@@ -84,17 +84,35 @@
       const linhas = S.celular ? `<div class="cs2-cel">${pg.map(a => `<div class="cs2-c sem"><div><b>${esc(a.motivo)}</b><small>${dt(a.inicio)} · ${tempo(a)}</small></div>${fim(a)}</div>`).join('')}</div>`
         : `<div class="scroll"><table class="cs2-t"><thead><tr><th>Quando</th><th>Motivo</th><th>Quem</th><th>Tempo usado</th><th>Como terminou</th></tr></thead><tbody>
           ${pg.map(a => `<tr><td class="nw">${dt(a.inicio)}</td><td>${esc(a.motivo)}</td><td class="nw">Suporte SONVI</td><td>${tempo(a)}</td><td>${fim(a)}</td></tr>`).join('')}</tbody></table></div>`;
-      corpo = `<section class="card" aria-labelledby="cs2-ta"><div class="hd"><div><h2 id="cs2-ta">Acessos da equipe SONVI</h2><p class="muted small" style="margin:2px 0 0">A equipe SONVI só vê os dados da empresa quando entra como suporte. Cada entrada fica anotada aqui; o que o suporte alterar aparece no histórico como "Suporte SONVI".</p></div>${nav}</div>
-        ${pg.length ? linhas : `<div class="empty"><b>Nenhum acesso em ${nomeMes(st.mes).toLowerCase()}</b>A equipe SONVI não entrou no ambiente da empresa neste mês.</div>`}
+      corpo = `<section class="card" id="cs2-corpo" aria-labelledby="cs2-ta"><div class="hd"><div><h2 id="cs2-ta">Acessos da equipe SONVI</h2><p class="muted small" style="margin:2px 0 0">A equipe SONVI só vê os dados da empresa quando entra como suporte. Cada entrada fica anotada aqui; o que o suporte alterar aparece no histórico como "Suporte SONVI".</p></div>${nav}</div>
+        <div class="cs2-lista">${pg.length ? linhas : `<div class="empty"><b>Nenhum acesso em ${nomeMes(st.mes).toLowerCase()}</b>A equipe SONVI não entrou no ambiente da empresa neste mês.</div>`}</div>
         ${paginacao('acessos', doMes.length, `acessos em ${MESES[+st.mes.slice(5) - 1]}${usado ? ` · ${fmtMin(usado)} usados` : ''}`)}</section>`;
     }
     return { title:titulo, actions:acoes, body:faixa + kpis + abas + corpo };
   };
+  // Troca só o cartão da lista (página, filtro, mês, aba): números, faixa e abas não se mexem e a página não pula.
+  // A lista entra com um esmaecer curto; na troca de página a altura fica a mesma, para os botões não saírem do lugar.
+  const reduz = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const troca = (tipo, foco) => {
+    const velho = document.getElementById('cs2-corpo'), content = document.getElementById('content');
+    if (!velho || !content) return S.render();
+    const t = document.createElement('template'); t.innerHTML = S.views.chamados().body;
+    const novo = t.content.getElementById('cs2-corpo'); if (!novo) return S.render();
+    content.classList.remove('entra');
+    const abaN = t.content.querySelector('.cs2-abas'), abaV = content.querySelector('.cs2-abas'); if (abaN && abaV) abaV.replaceWith(abaN);
+    const lv = velho.querySelector('.cs2-lista'), h = lv ? lv.getBoundingClientRect().height : 0;
+    velho.replaceWith(novo);
+    const ln = novo.querySelector('.cs2-lista');
+    if (ln && tipo === 'pagina' && h) ln.style.minHeight = h + 'px';
+    if (ln && !reduz()) ln.animate([{ opacity:0, transform:'translateY(4px)' }, { opacity:1, transform:'none' }], { duration:200, easing:'cubic-bezier(.22,1,.36,1)' });
+    const r = novo.getBoundingClientRect(); if (r.top < 0) novo.scrollIntoView({ behavior:reduz() ? 'auto' : 'smooth', block:'start' });
+    const f = foco && novo.querySelector(foco) || (foco && content.querySelector(foco)); if (f) f.focus({ preventScroll:true });
+  };
   Object.assign(S.actions, {
-    chAba: d => { if (st.aba === d.v) return; st.aba = d.v; S.render(); },
-    chSit: d => { st.sit = d.v; st.pg.chamados = 1; S.render(); },
-    chMes: d => { const n = somaMes(st.mes, +d.v); if (n > S.today().slice(0, 7)) return; st.mes = n; st.pg.acessos = 1; S.render(); },
-    chPagina: d => { st.pg[d.k] = Math.max(1, +d.v); S.render(); const b = document.querySelector(`[data-act="chPagina"][data-k="${d.k}"][aria-current]`); if (b) b.focus(); },
+    chAba: d => { if (st.aba === d.v) return; st.aba = d.v; troca('aba', `.cs2-abas [data-v="${d.v}"]`); },
+    chSit: d => { if (st.sit === d.v) return; st.sit = d.v; st.pg.chamados = 1; troca('filtro', `[data-act="chSit"][data-v="${d.v}"]`); },
+    chMes: d => { const n = somaMes(st.mes, +d.v); if (n > S.today().slice(0, 7)) return; st.mes = n; st.pg.acessos = 1; troca('mes', `[data-act="chMes"][data-v="${d.v}"]:not([disabled])`); },
+    chPagina: d => { const v = Math.max(1, +d.v); if (st.pg[d.k] === v) return; st.pg[d.k] = v; troca('pagina', `[data-act="chPagina"][data-k="${d.k}"][aria-current]`); },
     chAbrir: d => { if (S.chatSuporte) S.chatSuporte.abrir(d.id); },
   });
   // ← → trocam de página (fora de campos e de janelas abertas)
