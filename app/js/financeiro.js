@@ -52,9 +52,14 @@
       return { p, a0:mola(0), a1:mola(0), off:mola(0), w:mola(GROSSO), op:mola(1) }; });
     anel = { el, arcos, rolo:S.rolo ? S.rolo(el.querySelector('.fn-c-total')) : null, novo:true };
   }
-  const arco = (a0, a1, off) => { const r = RAIO + off, p = a => [Math.sin(a) * r, -Math.cos(a) * r];
+  // A mola pode passar um pouco da volta inteira: o arco é limitado a quase 360°, senão o SVG desenha o círculo do lado errado
+  const arco = (a0, a1, off) => { const r = RAIO + Math.max(0, off), p = a => [Math.sin(a) * r, -Math.cos(a) * r];
+    a1 = Math.min(a1, a0 + Math.PI * 2 - .002);
     if (a1 - a0 < .0005) { const [x, y] = p(a0); return `M${x.toFixed(2)} ${y.toFixed(2)}l0 0`; }
-    const [x0, y0] = p(a0), [x1, y1] = p(a1); return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`; };
+    // Desenhado em duas metades (cada uma menor que meia volta): com o início e o fim quase no mesmo ponto, um arco só
+    // deixa o navegador escolher o círculo errado e o anel aparece deslocado para cima
+    const am = (a0 + a1) / 2, [x0, y0] = p(a0), [xm, ym] = p(am), [x1, y1] = p(a1), f = n => n.toFixed(2);
+    return `M${f(x0)} ${f(y0)}A${r} ${r} 0 0 1 ${f(xm)} ${f(ym)}A${r} ${r} 0 0 1 ${f(x1)} ${f(y1)}`; };
   function alvos() {
     if (!anel) return;
     const { grupos, total } = alvosAtuais, tot = total || 1, vivos = grupos.filter(g => g.v > 0).length, escolhido = grupos.findIndex(g => g.k === f.sit);
