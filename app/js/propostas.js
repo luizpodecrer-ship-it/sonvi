@@ -459,8 +459,11 @@
 
   // ---------- PDF da proposta (A4 em pé, modelo da empresa comercial) ----------
   const DATA_EXT = iso => { const [y, m, d] = iso.split('-').map(Number); return `${d} de ${MESES[m - 1]} de ${y}`; };
+  // Modelo da proposta A4 (Administração › Empresa comercial › Modelo da proposta, 25/10/2026)
+  S.MODELO_PADRAO = { logo:'esquerda', cabecalho:'fina', apresentacao:'', condicoes:'', tabela:true, ass_cliente:true, rodape:true, dados_cliente:true };
+  S.modeloProposta = e => Object.assign({}, S.MODELO_PADRAO, (e || emp()).modelo || {});
   S.htmlProposta = p => {
-    const v = S.veh(p.veiculo_id), e = emp(), cli = S.pessoa(p.cliente_id) || {}, ag = S.pessoa(p.agencia_id), t = S.propTotais(p), as = assinante(p);
+    const v = S.veh(p.veiculo_id) || {}, e = emp(), cli = p._cliente || S.pessoa(p.cliente_id) || {}, ag = S.pessoa(p.agencia_id), t = S.propTotais(p), as = assinante(p), m = S.modeloProposta(e);
     const cor = /^#[0-9a-f]{6}$/i.test(e.cor || '') ? e.cor : '#2b5fb5', cor2 = /^#[0-9a-f]{6}$/i.test(e.cor2 || '') ? e.cor2 : '#f1853d';
     const its = (p.itens || []).filter(it => it.insercoes), um = its.length === 1 ? its[0] : null, cidade = cidadeDe(e.cidade || v.cidade);
     const rad = its.filter(it => !ehDig(it) && !it.combo), dgs = its.filter(ehDig), ambos = (rad.length || its.some(it => it.combo)) && dgs.length;
@@ -468,13 +471,15 @@
     const nomes = [...new Set([p.veiculo_id, ...its.map(it => it.veiculo_id).filter(Boolean)])].map(x => (S.veh(x) || {}).nome).filter(Boolean);
     const qtdCab = rad.some(it => it.por_dia || it.mensal || it.unica) ? 'Quantidade' : 'Inserções/mês';
     const prog = it => `${esc(it.programa)}, ${S.diasTexto(it.dias)}${it.faixa ? ' · ' + esc(it.faixa) : ''}`;
+    const apres = String(m.apresentacao || '').trim().replace(/\{CLIENTE\}/g, cli.nome || 'sua empresa');
     return `<div class="prdoc" style="--pc:${cor};--pc2:${cor2}">
-      <div class="prd-faixa"><i></i><i></i></div>
-      <div class="prd-cab">${empImg('prd-logo')}<div class="prd-tit"><b>PROPOSTA COMERCIAL</b><span>Nº ${S.propNo(p)} · ${esc(cidade ? cidade + ', ' : '')}${DATA_EXT(p.data)}</span></div></div>
+      ${m.cabecalho === 'sem' || m.cabecalho === 'larga' ? '' : '<div class="prd-faixa"><i></i><i></i></div>'}
+      <div class="prd-cab${m.cabecalho === 'larga' ? ' larga' : ''}${m.logo === 'centro' ? ' centro' : ''}">${empImg('prd-logo')}<div class="prd-tit"><b>PROPOSTA COMERCIAL</b><span>Nº ${S.propNo(p)} · ${esc(cidade ? cidade + ', ' : '')}${DATA_EXT(p.data)}</span></div></div>
       <div class="prd-corpo">
-        <div class="prd-partes"><div><small>Cliente</small><b>${esc(cli.nome)}</b>${docCli(cli) ? `<span>${esc(docCli(cli))}</span>` : ''}${cli.endereco || cli.cidade ? `<span>${esc([cli.endereco, cli.cidade].filter(Boolean).join(' · '))}</span>` : ''}</div>
+        <div class="prd-partes"><div><small>Cliente</small><b>${esc(cli.nome)}</b>${m.dados_cliente && docCli(cli) ? `<span>${esc(docCli(cli))}</span>` : ''}${m.dados_cliente && (cli.endereco || cli.cidade) ? `<span>${esc([cli.endereco, cli.cidade].filter(Boolean).join(' · '))}</span>` : ''}</div>
           <div><small>Negociação</small><b>${ag ? esc(ag.nome) : 'DIRETO'}</b>${ag ? '<span>Por agência</span>' : ''}</div></div>
         <h1 class="prd-radio">${esc(nomes.join(' + ') || v.nome)}</h1>
+        ${apres ? `<p class="prd-texto">${esc(apres).replace(/\n/g, '<br>')}</p>` : ''}
         ${p.texto ? `<p class="prd-texto">${esc(p.texto).replace(/\n/g, '<br>')}</p>` : ''}
         ${rad.length ? `${ambos ? '<div class="prd-sec">Rádio</div>' : ''}<table class="prd-tab"><thead><tr><th>Formato</th><th>Programação</th><th class="r">${qtdCab}</th><th class="r">Valor unitário</th><th class="r">Total mensal</th></tr></thead>
           <tbody>${rad.map(it => `<tr><td>${esc(it.formato)}</td><td>${prog(it)}</td><td class="r">${esc(S.qtdItem(it))}</td><td class="r">${brl(it.preco)}</td><td class="r"><b>${brl(it.total)}</b></td></tr>`).join('')}</tbody></table>` : ''}
@@ -485,13 +490,13 @@
         ${dgs.length ? `<div class="prd-sec">Ação digital · redes sociais da ${esc(v.nome)}</div><table class="prd-tab"><thead><tr><th>Ação</th><th>Entregas</th><th>Período</th><th class="r">Valor</th></tr></thead>
           <tbody>${dgs.map(it => `<tr><td><b>${esc(S.acaoTitulo(it))}</b><br>${esc(S.acaoCanal(it))}</td><td>${esc(S.acaoEntregasTxt(it))}</td><td>${S.acaoPeriodo(it)}</td><td class="r"><b>${brl(it.total)}</b></td></tr>`).join('')}</tbody></table>
           <p class="prd-nota">Ação única. Datas das publicações definidas pela rádio dentro do período. A produção do conteúdo está incluída.</p>` : ''}
-        <div class="prd-tot">${ambos ? `<span>Rádio · ${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'} por mês</span><span class="r">${brl(t.radio)}</span><span>Ação digital · única</span><span class="r">${brl(t.digital)}</span>` : ''}<span>Valor de tabela${um ? ` (${um.insercoes} × ${brl(um.preco_tabela)})` : ''}</span><span class="r">${brl(t.tabela)}</span>
-          ${t.desconto > 0.004 ? `<span>Desconto negociado</span><span class="r">− ${brl(t.desconto)}</span>` : ''}
+        <div class="prd-tot">${ambos ? `<span>Rádio · ${t.ins} ${t.ins === 1 ? 'inserção' : 'inserções'} por mês</span><span class="r">${brl(t.radio)}</span><span>Ação digital · única</span><span class="r">${brl(t.digital)}</span>` : ''}${m.tabela ? `<span>Valor de tabela${um ? ` (${um.insercoes} × ${brl(um.preco_tabela)})` : ''}</span><span class="r">${brl(t.tabela)}</span>
+          ${t.desconto > 0.004 ? `<span>Desconto negociado</span><span class="r">− ${brl(t.desconto)}</span>` : ''}` : ''}
           <b class="prd-inv">${invRot(t)}</b><b class="prd-inv r">${brl(t.total)}</b>${t.producao ? `<span>Produção (cobrada uma vez)</span><span class="r">${brl(t.producao)}</span><span>Nos meses seguintes</span><span class="r">${brl(t.total - t.producao)}</span>` : ''}</div>
         ${linhasCond(p.condicoes).length ? `<div class="prd-cond"><small>Condições comerciais</small><ul>${linhasCond(p.condicoes).map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>` : ''}
-        <div class="prd-ass"><div><b>${esc(as.nome)}</b><span>${esc(as.cargo)}</span></div><div><b>De acordo</b><span>${esc(cli.nome)}</span></div></div>
+        <div class="prd-ass${m.ass_cliente ? '' : ' so'}"><div><b>${esc(as.nome)}</b><span>${esc(as.cargo)}</span></div>${m.ass_cliente ? `<div><b>De acordo</b><span>${esc(cli.nome)}</span></div>` : ''}</div>
       </div>
-      <div class="prd-rod"><b>${esc([e.nome, cidadeDe(e.cidade) ? e.cidade : ''].filter(Boolean).join(' · '))}</b><span>${esc([e.email, e.telefone, e.site].filter(Boolean).join(' · '))}</span></div></div>`;
+      ${m.rodape ? `<div class="prd-rod"><b>${esc([e.razao_social || e.nome, e.cnpj ? 'CNPJ ' + e.cnpj : '', cidadeDe(e.cidade) ? e.cidade : ''].filter(Boolean).join(' · '))}</b><span>${esc([e.email, e.telefone, e.site].filter(Boolean).join(' · '))}</span></div>` : ''}</div>`;
   };
   S.buildProposta = p => {
     let st = document.getElementById('pagina'); if (!st) { st = document.createElement('style'); st.id = 'pagina'; document.head.appendChild(st); }
@@ -540,7 +545,7 @@
         f => S.run(async () => { const cli = S.pessoa(f.cliente_id), val = Number(v.prop_validade) || 15, vig = S.tabelaVigente();
           const r = await S.salvar('propostas', { veiculo_id:v.id, cliente_id:f.cliente_id, agencia_id:f.agencia_id || (cli && cli.agencia_id) || null, validade:val, data:today(),
             consultor_id:S.pode('consultor') ? S.me.id : (cli && cli.consultor_id) || S.me.id, tabela_id:vig ? vig.id : null,
-            condicoes:String(v.prop_condicoes || S.PROP_CONDICOES_PADRAO).replace(/\{VALIDADE\}/g, val), texto:'', itens:[] });
+            condicoes:String(v.prop_condicoes || S.modeloProposta().condicoes || S.PROP_CONDICOES_PADRAO).replace(/\{VALIDADE\}/g, val), texto:'', itens:[] });
           abrir(r); location.hash = '/propostas/' + r.id; }, 'Proposta criada'), 'Criar proposta');
       // O cliente atendido por agência já vem com ela
       const sel = document.querySelector('#dlg [name="cliente_id"]'), ags = document.querySelector('#dlg [name="agencia_id"]');

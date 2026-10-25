@@ -374,13 +374,15 @@ S.actions.formEditar = () => {
     dica(el, 'Buscando o endereço…');
     const r = await S.buscarCep(n); if (el._cep !== n) return; // o CEP mudou enquanto buscava
     if (!r) return dica(el, r === false ? 'CEP não encontrado. Preencha o endereço à mão.' : '', true);
-    const f = el.form, end = f.elements.endereco, cid = f.elements.cidade;
+    const f = el.form, end = f.elements.endereco, cid = f.elements.cidade, bai = f.elements.bairro;
     const rua = r.logradouro, resto = [r.bairro].filter(Boolean).join(', ');
-    if (end) { end.value = [rua, resto].filter(Boolean).join(', '); }
+    // Formulário com campo de bairro (empresa comercial): rua e bairro em campos separados
+    if (bai) { if (end) end.value = rua; bai.value = r.bairro || ''; } else if (end) { end.value = [rua, resto].filter(Boolean).join(', '); }
     if (cid) cid.value = [r.cidade, r.uf].filter(Boolean).join(' / ');
     dica(el, rua ? 'Endereço preenchido. Complete o número.' : 'Cidade preenchida. Este CEP não tem rua: preencha o endereço.');
     // Deixa o cursor logo depois do nome da rua, para digitar o número
-    if (end) { end.focus(); const pos = rua ? rua.length : end.value.length; try { end.setSelectionRange(pos, pos); } catch (er) { /* campo sem cursor */ } }
+    if (bai && f.elements.numero && rua) f.elements.numero.focus();
+    else if (end) { end.focus(); const pos = rua ? rua.length : end.value.length; try { end.setSelectionRange(pos, pos); } catch (er) { /* campo sem cursor */ } }
   });
   // Ao sair do campo, avisa na hora se o número está errado
   document.addEventListener('focusout', e => { const el = e.target; if (el.dataset && el.dataset.mask && el.validationMessage) avisar(el); });

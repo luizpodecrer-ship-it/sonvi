@@ -329,6 +329,7 @@
     }
     throw new Error(naoExiste >= 2 ? 'naoexiste' : 'fora');
   }
+  S.dadosDoCnpj = n => dadosDoCnpj(n);   // usado também no cadastro da empresa comercial
   async function preencherCnpj(n) {
     const btn = document.querySelector('#dlg [data-act="pesCnpj"]'); if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
     try {

@@ -83,9 +83,140 @@
       trocouEmail ? `Usuário salvo. ${String(f.nome).split(' ')[0]} agora entra com ${email} (a senha continua a mesma).` : 'Usuário salvo');
   };
 
+  // Proposta de exemplo (miniatura e prévia do modelo A4); o cliente é inventado e o veículo é o primeiro da empresa
+  const amostraProposta = (cond) => { const v = S.db.veiculos[0] || {}, m = S.modeloProposta();
+    return { veiculo_id:v.id, ano:new Date().getFullYear(), numero:104, data:S.today(), validade:15, consultor_id:S.me && S.me.id, texto:'',
+      condicoes:String(cond ?? (m.condicoes || S.PROP_CONDICOES_PADRAO)).replace(/\{VALIDADE\}/g, 15),
+      _cliente:{ nome:'Supermercado Exemplo', razao_social:'Supermercado Exemplo Ltda', documento:'12.345.678/0001-90', cidade:'Cuiabá / MT', pessoa:'pj' },
+      itens:[{ programa:'ROTATIVO 7H ÀS 19H', formato:'30"', dias:[1, 2, 3, 4, 5, 6], faixa:'07h às 19h', insercoes:120, preco:40, preco_tabela:45, total:4800 },
+        { programa:'Manhã', formato:'Testemunhal', dias:[1, 2, 3, 4, 5], insercoes:20, preco:120, preco_tabela:130, total:2400 },
+        { programa:'Flash ao vivo', formato:'15"', dias:[1, 2, 3, 4, 5], insercoes:40, preco:30, preco_tabela:30, total:1200 }] }; };
+
+  // ---------- Colaboradores (aprovado em 25/10/2026) ----------
+  // Colaborador é a pessoa que trabalha no grupo (CPF, nascimento, função, veículos, Pix e, para o consultor, a comissão).
+  // Usuário é só o acesso ao SONVI; o colaborador pode ter ou não. Comissão: sobre o que o cliente pagou, no mês em que pagou;
+  // mudar o percentual vale só para as vendas novas (o banco guarda o histórico em colaborador_comissoes).
+  const FUNCOES = [['consultor', 'Consultor'], ['opec', 'OPEC'], ['financeiro', 'Financeiro'], ['programador', 'Programador'], ['locutor', 'Locutor'], ['outra', 'Outra']];
+  const CONTRATOS = [['', 'Não informar'], ['clt', 'CLT'], ['pj', 'PJ'], ['autonomo', 'Autônomo'], ['estagio', 'Estágio'], ['outro', 'Outro']];
+  const col = { carregando:false, desligados:false };
+  const carregarColab = async () => { if (col.carregando) return; col.carregando = true;
+    try { S.db.colaboradores = await S.q(S.sb.from('colaboradores').select('*').order('nome')); }
+    catch (e) { console.error(e); S.db.colaboradores = []; S.toast(S.erro(e)); }
+    col.carregando = false; if (S.ui.view === 'admin' && aba === 'colaboradores') S.render(); };
+  S.colaboradoresUsar = l => { S.db.colaboradores = l; };   // testes
+  const pct = n => n === null || n === undefined || n === '' ? '' : String(Number(n)).replace('.', ',') + '%';
+  const nomeFuncao = c => c.funcao === 'outra' ? (c.funcao_outra || 'Outra') : (FUNCOES.find(f => f[0] === c.funcao) || [, c.funcao])[1];
+  const cpfOculto = c => { const d = String(c.cpf || '').replace(/\D/g, ''); return d.length === 11 ? `CPF ***.${d.slice(3, 6)}.${d.slice(6, 9)}-**` : 'CPF não informado'; };
+  const mesAno = iso => { if (!iso) return '—'; const [y, m] = iso.split('-'); return `${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][+m - 1]}/${y}`; };
+  const excecoes = c => Object.entries(c.comissao_veiculos || {}).filter(([, v]) => v !== null && v !== '' && Number(v) !== Number(c.comissao));
+  const acessoDe = c => { const u = c.usuario_id && S.db.usuarios.find(x => x.id === c.usuario_id); if (!u) return '<span class="pill fn-neutra">Sem acesso</span>';
+    if (!u.ativo) return '<span class="pill fn-neutra">Acesso desativado</span>';
+    const pf = u.diretor ? 'Diretor' : [...new Set(vinculosDe(u).map(x => S.PERFIS[x.perfil] || x.perfil))].join(', ') || 'Sem perfil';
+    return `<span class="pill em-ok">${S.svg('check', 12)}${esc(pf)}</span>`; };
+  const telaColaboradores = () => {
+    if (!S.db.colaboradores) { carregarColab(); return '<div class="card empty"><b>Carregando os colaboradores…</b></div>'; }
+    const todos = S.db.colaboradores, lista = todos.filter(c => col.desligados || c.ativo), ativos = todos.filter(c => c.ativo), cons = ativos.filter(c => c.funcao === 'consultor' && c.comissao !== null && c.comissao !== undefined);
+    const media = cons.length ? cons.reduce((t, c) => t + Number(c.comissao), 0) / cons.length : 0;
+    const resumo = `<b>${ativos.length} ativo${ativos.length === 1 ? '' : 's'}</b> · ${ativos.filter(c => c.funcao === 'consultor').length} consultor${ativos.filter(c => c.funcao === 'consultor').length === 1 ? '' : 'es'}${cons.length ? ` · comissão média de ${pct(Math.round(media * 10) / 10)}` : ''}`;
+    const deslig = todos.length - ativos.length;
+    const hd = `<div class="hd"><div><h2>Colaboradores</h2><p class="muted small" style="margin:3px 0 0">${resumo}</p></div>${deslig ? `<button class="btn sm" data-act="colDesligados" aria-pressed="${col.desligados}">${col.desligados ? 'Esconder' : 'Mostrar'} desligados (${deslig})</button>` : ''}</div>`;
+    if (!todos.length) return `<section class="card">${hd}<div class="empty"><b>Cadastre o primeiro colaborador</b>Consultores, OPEC, financeiro, programadores e locutores. O consultor tem a comissão de cada venda, que o SONVI usa no fechamento do mês. Dar acesso ao SONVI é opcional.</div></section>`;
+    const selos = c => { const vs = (c.veiculos || []).map(id => S.veh(id)).filter(Boolean); return vs.length ? `<span class="col-selos">${vs.slice(0, 4).map(v => S.vav(v)).join('')}${vs.length > 4 ? `<small>+${vs.length - 4}</small>` : ''}</span>` : '<span class="muted small">—</span>'; };
+    const com = c => c.funcao !== 'consultor' ? '<span class="muted small">—</span>' : c.comissao === null || c.comissao === undefined ? '<span class="pill em-falta">Sem percentual</span>'
+      : `<span class="col-pct">${pct(c.comissao)}</span>${excecoes(c).length ? `<small class="muted">${excecoes(c).map(([id, v]) => `${pct(v)} na ${esc((S.veh(id) || {}).nome || '')}`).join(' · ')}</small>` : ''}`;
+    const linhas = S.celular
+      ? `<div class="col-cel">${lista.map(c => `<div class="col-c${c.ativo ? '' : ' fora'}" data-act="colEditar" data-id="${c.id}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(c.nome))}</span><span class="col-tx"><b>${esc(c.nome)}</b><small>${esc(nomeFuncao(c))}${c.funcao === 'consultor' && c.comissao !== null ? ' · ' + pct(c.comissao) : ''}${c.ativo ? '' : ' · desligado'}</small></span>${selos(c)}</div>`).join('')}</div>`
+      : `<div class="scroll"><table class="col-t"><colgroup><col style="width:27%"><col style="width:12%"><col style="width:15%"><col style="width:17%"><col style="width:15%"><col style="width:84px"><col style="width:52px"></colgroup>
+        <thead><tr><th>Colaborador</th><th>Função</th><th>Veículos</th><th>Comissão</th><th>Acesso ao SONVI</th><th>Desde</th><th><span class="sr">Opções</span></th></tr></thead><tbody>
+        ${lista.map(c => `<tr class="click${c.ativo ? '' : ' fora'}" data-act="colEditar" data-id="${c.id}"><td><span class="col-p"><span class="av soft" aria-hidden="true">${esc(S.iniciais(c.nome))}</span><span class="col-tx"><b title="${esc(c.nome)}">${esc(c.nome)}</b><small>${cpfOculto(c)}${c.ativo ? '' : ' · desligado'}</small></span></span></td>
+          <td class="nw">${esc(nomeFuncao(c))}</td><td>${selos(c)}</td><td><span class="col-com">${com(c)}</span></td><td>${acessoDe(c)}</td><td class="nw">${mesAno(c.inicio)}</td>
+          <td class="r"><button class="btn tres" data-act="colMenu" data-id="${c.id}" aria-label="Opções de ${esc(c.nome)}">${S.svg('mais3')}</button></td></tr>`).join('')}</tbody></table></div>`;
+    return `<section class="card col-lista">${hd}${linhas}</section>`;
+  };
+  // Formulário do colaborador: Dados pessoais · Trabalho · Comissão (só consultor) · Pagamento e acesso
+  const formColab = (c = {}) => { const novo = !c.id, vs = S.db.veiculos, marcados = new Set(c.veiculos || []), cv = c.comissao_veiculos || {};
+    const livres = S.db.usuarios.filter(u => !u.diretor && !(S.db.colaboradores || []).some(x => x.usuario_id === u.id && x.id !== c.id));
+    const ligado = c.usuario_id && S.db.usuarios.find(u => u.id === c.usuario_id);
+    const inp = (k, rot, cls, extra = '') => `<label class="f ${cls}">${rot}<input name="${k}" value="${esc(c[k] ?? '')}"${extra}></label>`;
+    S.dialog(`<div class="em-j-hd"><h2>${novo ? 'Novo colaborador' : esc(c.nome)}</h2>${novo ? '' : `<span class="muted small">${c.ativo ? 'ativo' : 'desligado'}</span>`}</div>
+      <div class="em-painel"><div class="em-blocos">
+        <fieldset class="em-bl"><legend>Dados pessoais</legend><div class="em-g">
+          <label class="f s6">Nome completo<input name="nome" required value="${esc(c.nome || '')}" placeholder="Nome e sobrenome"></label>
+          ${inp('cpf', 'CPF', 's3', ' data-mask="cpf" inputmode="numeric" autocomplete="off"')}${inp('nascimento', 'Data de nascimento', 's3', ' type="date"')}
+          ${inp('celular', 'Celular / WhatsApp', 's3', ' data-mask="tel" inputmode="tel" autocomplete="off"')}${inp('email', 'E-mail', 's3', ' type="email" placeholder="nome@empresa.com.br"')}</div></fieldset>
+        <fieldset class="em-bl"><legend>Trabalho</legend><div class="em-g">
+          <div class="f s6"><span>Função</span><div class="em-opc" role="radiogroup" aria-label="Função">${FUNCOES.map(([k, n]) => `<label class="em-op"><input type="radio" name="funcao" value="${k}"${(c.funcao || 'consultor') === k ? ' checked' : ''}><span>${n}</span></label>`).join('')}</div></div>
+          <label class="f s6" data-so="outra"${c.funcao === 'outra' ? '' : ' hidden'}>Qual função?<input name="funcao_outra" value="${esc(c.funcao_outra || '')}" placeholder="Ex.: Produtor, motorista…"></label>
+          ${inp('inicio', 'Início no grupo', 's3', ' type="date"')}
+          <label class="f s3">Forma de contratação<select name="contratacao">${CONTRATOS.map(([k, n]) => `<option value="${k}"${(c.contratacao || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+          <div class="f s6"><span>Veículos em que atua</span><div class="em-opc">${vs.map(v => `<label class="em-op"><input type="checkbox" name="v_${v.id}"${marcados.has(v.id) ? ' checked' : ''}><span>${esc(v.nome)}</span></label>`).join('')}</div></div></div></fieldset>
+        <fieldset class="em-bl col-com-bl" data-so="consultor"${(c.funcao || 'consultor') === 'consultor' ? '' : ' hidden'}><legend>Comissão <span class="muted small" style="font:500 12px var(--font)">sobre o que o cliente pagou, no mês do pagamento</span></legend>
+          <div class="col-com-box">
+            <div class="col-pad"><label class="f">Percentual padrão<span class="col-pct-in"><input name="comissao" inputmode="decimal" value="${c.comissao === null || c.comissao === undefined ? '' : String(c.comissao).replace('.', ',')}" placeholder="0" autocomplete="off"><b>%</b></span></label>
+              <small class="muted">Vale para todos os veículos marcados, menos os que tiverem percentual próprio abaixo.${novo ? '' : ' Mudar o percentual vale só para as vendas novas.'}</small></div>
+            <div class="col-vs">${vs.map(v => `<div class="col-v" data-v="${v.id}"${marcados.has(v.id) ? '' : ' hidden'}>${S.vav(v)}<span>${esc(v.nome)}</span><span class="col-pct-in sm"><input name="cv_${v.id}" inputmode="decimal" value="${cv[v.id] === undefined || cv[v.id] === null ? '' : String(cv[v.id]).replace('.', ',')}" placeholder="padrão" aria-label="Percentual na ${esc(v.nome)}" autocomplete="off"><b>%</b></span></div>`).join('')}</div>
+            <p class="col-ex" id="colEx"></p></div></fieldset>
+        <fieldset class="em-bl"><legend>Pagamento e acesso</legend><div class="em-g">
+          ${inp('pix', 'Chave Pix', 's3', ' placeholder="CPF, e-mail, celular…"')}${inp('banco', 'Banco · agência · conta', 's3', ' placeholder="Opcional"')}
+          <label class="f s6">Acesso ao SONVI<select name="usuario_id">${ligado ? `<option value="${ligado.id}" selected>Ligado a ${esc(ligado.nome || ligado.email)} (${esc(ligado.email)})</option><option value="">Desligar do usuário (o acesso continua; só tira a ligação)</option>`
+            : `<option value="">Sem acesso ao SONVI</option><option value="__novo">Criar o acesso agora (senha provisória)</option>${livres.length ? `<optgroup label="Ligar a um usuário que já existe">${livres.map(u => `<option value="${u.id}">${esc(u.nome || u.email)} · ${esc(u.email)}</option>`).join('')}</optgroup>` : ''}`}</select>
+            <small class="muted" id="colAcessoDica">${ligado ? 'Para mudar o perfil ou os veículos do acesso, use a aba Usuários.' : 'Ao criar o acesso, o perfil em cada veículo marcado é o da função.'}</small></label>
+          <label class="f s6">Observações<textarea name="observacoes" rows="2" placeholder="Uso interno">${esc(c.observacoes || '')}</textarea></label></div></fieldset>
+      </div></div>
+      <div class="row em-pe"><small class="muted grow">CPF, nascimento e comissão só aparecem para o diretor e o financeiro.</small><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${novo ? 'Salvar colaborador' : 'Salvar'}</button></div>`,
+      f => salvarColab(c, f));
+    const dl = document.getElementById('dlg'), form = dl.querySelector('form'); dl.dataset.guarda = '1'; dl.classList.add('em-dlg');
+    const antes = dl.onclose; dl.onclose = ev => { dl.classList.remove('em-dlg'); if (antes) antes(ev); };
+    const num = v => { const n = parseFloat(String(v || '').replace(/\./g, '').replace(',', '.')); return isNaN(n) ? null : n; };
+    const ajusta = () => { const fn = (form.querySelector('[name=funcao]:checked') || {}).value;
+      form.querySelector('[data-so=outra]').hidden = fn !== 'outra'; form.querySelector('[data-so=consultor]').hidden = fn !== 'consultor';
+      vs.forEach(v => { const r = form.querySelector(`.col-v[data-v="${v.id}"]`); if (r) r.hidden = !form.elements['v_' + v.id].checked; });
+      const pad = num(form.elements.comissao.value), ex = document.getElementById('colEx'), mv = vs.filter(v => form.elements['v_' + v.id].checked);
+      if (ex) { const k = mv.slice(0, 2).map((v, i) => { const p = num(form.elements['cv_' + v.id].value) ?? pad, venda = i ? 5000 : 20000; return { v, p, venda, c:p === null ? null : venda * p / 100 }; });
+        ex.innerHTML = pad === null && !k.some(x => x.p !== null) ? 'Digite o percentual para ver um exemplo da conta.'
+          : !k.length ? 'Marque os veículos em que ele atua.'
+          : `Exemplo: se no mês os clientes dele pagarem ${k.map(x => `${S.brl(x.venda)} na ${esc(x.v.nome)}`).join(' e ')}, a comissão é de ${k.map(x => x.c === null ? '—' : S.brl(x.c)).join(' + ')}${k.length > 1 && k.every(x => x.c !== null) ? ` = <b>${S.brl(k.reduce((t, x) => t + x.c, 0))}</b>` : ''}.`; }
+      const sel = form.elements.usuario_id, dica = document.getElementById('colAcessoDica');
+      if (sel && sel.value === '__novo' && dica) dica.textContent = fn === 'outra' ? 'Para criar o acesso, escolha uma função do SONVI (consultor, OPEC, financeiro, programador ou locutor).' : 'O e-mail vira o login. O perfil em cada veículo marcado é o da função; a senha provisória aparece ao salvar.'; };
+    form.addEventListener('change', e => { ajusta();
+      if (e.target.name === 'usuario_id' && e.target.value && e.target.value !== '__novo') { const u = S.db.usuarios.find(x => x.id === e.target.value); if (u) { if (!form.elements.nome.value) form.elements.nome.value = u.nome || ''; if (!form.elements.email.value) form.elements.email.value = u.email || ''; if (!form.elements.celular.value) form.elements.celular.value = u.celular || ''; } } });
+    form.addEventListener('input', e => { if (/^(comissao|cv_)/.test(e.target.name)) { e.target.value = e.target.value.replace(/[^\d,]/g, '').replace(/,(?=.*,)/g, ''); ajusta(); } });
+    ajusta(); };
+  const salvarColab = (c, f) => {
+    const num = v => { const n = parseFloat(String(v || '').replace(',', '.')); return isNaN(n) ? null : Math.round(n * 100) / 100; };
+    const veics = S.db.veiculos.filter(v => f['v_' + v.id]).map(v => v.id), consultor = f.funcao === 'consultor';
+    const cv = {}; if (consultor) veics.forEach(id => { const n = num(f['cv_' + id]); if (n !== null) cv[id] = n; });
+    const comissao = consultor ? num(f.comissao) : null;
+    const reabre = (campo, msg) => { formColab(Object.assign({}, c, f, { veiculos:veics, comissao, comissao_veiculos:cv, usuario_id:c.usuario_id })); S.erroNoCampo(campo, msg); };
+    if ([comissao, ...Object.values(cv)].some(n => n !== null && (n < 0 || n > 100))) return reabre('comissao', 'Use um percentual de 0 a 100.');
+    const novoAcesso = f.usuario_id === '__novo';
+    if (novoAcesso && !String(f.email || '').trim()) return reabre('email', 'Para criar o acesso, informe o e-mail (é com ele que a pessoa entra).');
+    if (novoAcesso && f.funcao === 'outra') return reabre('usuario_id', 'Para criar o acesso, escolha uma função do SONVI.');
+    if (novoAcesso && !veics.length) return reabre('usuario_id', 'Marque os veículos em que a pessoa vai ter acesso.');
+    S.run(async () => {
+      let usuarioId = novoAcesso ? null : (f.usuario_id || null), senha = null;
+      if (novoAcesso) { const r = await servidor({ acao:'criar', nome:f.nome.trim(), email:f.email.trim(), celular:f.celular || '', diretor:false, vinculos:veics.map(id => ({ veiculo_id:id, perfil:f.funcao })) }); usuarioId = r.usuario_id; senha = r.senha; }
+      const row = { nome:f.nome.trim(), cpf:f.cpf || '', nascimento:f.nascimento || null, celular:f.celular || '', email:String(f.email || '').trim(), funcao:f.funcao || 'consultor', funcao_outra:f.funcao === 'outra' ? (f.funcao_outra || '').trim() : '',
+        inicio:f.inicio || null, contratacao:f.contratacao || '', veiculos:veics, comissao, comissao_veiculos:cv, pix:f.pix || '', banco:f.banco || '', observacoes:f.observacoes || '', usuario_id:usuarioId };
+      if (c.id) await S.q(S.sb.from('colaboradores').update(row).eq('id', c.id)); else await S.q(S.sb.from('colaboradores').insert(row));
+      if (novoAcesso) await S.carregarBase();
+      S.db.colaboradores = null; await carregarColab();
+      if (senha) mostrarSenha({ id:usuarioId, nome:row.nome, email:row.email.toLowerCase(), celular:row.celular }, senha, true);
+    }, c.id ? 'Colaborador salvo' : 'Colaborador cadastrado');
+  };
+
+  // Prévia ao vivo do modelo A4 dentro da janela da empresa: monta a proposta de exemplo com o que está na tela
+  const previa = () => { const dl = document.getElementById('dlg'), f = dl && dl.querySelector('form'), box = dl && dl.querySelector('.em-previa-folha'); if (!f || !box || box.closest('[hidden]')) return;
+    const el = f.elements, real = S.db.empresa, rascunho = Object.assign({}, real || {}, { nome:el.nome.value, razao_social:el.razao_social.value, cnpj:el.cnpj.value, cidade:el.cidade.value, email:el.email.value,
+      telefone:el.telefone.value, site:el.site.value, assina:el.assina.value, responsavel:el.responsavel.value, cargo:el.cargo.value, cor:el.cor.value, cor2:el.cor2.value, logo:el.logo.value || (real || {}).logo,
+      modelo:{ logo:(f.querySelector('[name=m_logo]:checked') || {}).value, cabecalho:(f.querySelector('[name=m_cabecalho]:checked') || {}).value, apresentacao:el.m_apresentacao.value, condicoes:el.m_condicoes.value,
+        tabela:el.m_tabela.checked, dados_cliente:el.m_dados_cliente.checked, ass_cliente:el.m_ass_cliente.checked, rodape:el.m_rodape.checked } });
+    S.db.empresa = rascunho; try { box.innerHTML = S.htmlProposta(amostraProposta(el.m_condicoes.value.trim() || S.PROP_CONDICOES_PADRAO)); } finally { S.db.empresa = real; }
+    const doc = box.querySelector('.prdoc'), k = Math.min(1, (box.parentElement.clientWidth - 28) / doc.offsetWidth); box.style.transform = `scale(${k})`; box.style.width = doc.offsetWidth * k + 'px'; box.style.height = doc.offsetHeight * k + 'px'; };
+
   S.views.admin = () => {
     if (ehGer()) aba = 'usuarios';
-    const seg = ehGer() ? '' : `<div class="seg">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
+    const seg = ehGer() ? '' : `<div class="seg">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['colaboradores', 'Colaboradores'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
     let body;
     if (aba === 'veiculos') {
       // Lista enxuta (aprovada em 25/10/2026): resumo numa linha, uma linha por veículo (selo, nome e razão social, categorias, sigla,
@@ -114,16 +245,32 @@
       body = vs.length ? `<section class="card adv-lista"><div class="hd"><div><h2>Veículos</h2><p class="muted small" style="margin:3px 0 0">${resumo}</p></div></div>${linhas}</section>`
         : '<div class="card"><div class="empty"><b>Cadastre o primeiro veículo</b>Rádio, painel de LED, outdoor, front light, empena ou mídia DOOH. Cada veículo tem CNPJ, clientes, PIs e financeiro próprios.</div></div>';
     } else if (aba === 'empresa') {
-      const e = S.db.empresa || {}, curto = String(e.nome || 'Empresa comercial').split('·')[0].trim(), n = S.db.veiculos.length;
+      // Empresa comercial (aprovada em 25/10/2026): cabeçalho com logo e CNPJ, Endereço · Contato · Quem assina lado a lado,
+      // a miniatura de verdade da proposta A4 e a lista compacta dos padrões de cada veículo
+      const e = S.db.empresa || {}, curto = String(e.nome || 'Empresa comercial').split('·')[0].trim(), n = S.db.veiculos.length, m = S.modeloProposta(e);
       const kv = (k, val) => `<div><small>${k}</small><span>${val ? esc(val) : '<span class="muted">—</span>'}</span></div>`;
       const marcaDe = v => v.pi_marca === 'comercial' ? esc(curto) : esc(v.nome);
-      body = `<div class="emp-grid"><section class="card"><div class="hd"><h2>Empresa comercial</h2><span class="pill" style="--tone:var(--gray)">vale para ${n === 1 ? 'a rádio' : `as ${n} rádios`}</span></div>
-          <div class="emp-cab"><span class="pr-logo"><img src="${esc(e.logo || S.logoReserva())}" width="600" height="122" alt="Logo da ${esc(curto)}"></span><p class="muted small">A marca que sai nas propostas e, quando escolhida, nos PIs. Quem fatura continua sendo cada rádio.</p></div>
-          <div class="emp-kv">${kv('Nome', e.nome)}${kv('CNPJ', e.cnpj)}${kv('Cidade', e.cidade)}${kv('E-mail', e.email)}${kv('Telefone', e.telefone)}${kv('Site', e.site)}
-            ${kv('Assina as propostas', e.assina === 'consultor' ? 'Quem fez a proposta' : [e.responsavel, e.cargo].filter(Boolean).join(' · '))}</div>
-          <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn pri" data-act="admEmpresa">${S.svg('editar')}Editar dados</button></div></section>
-        <section class="card"><div class="hd"><h2>Propostas e PI por rádio</h2><span>cada rádio tem os seus</span></div>
-          <div class="list">${S.db.veiculos.map(v => `<div>${S.vav(v)}<span class="tx"><b>${esc(v.nome)}</b><small>Faixa ${esc(v.prop_faixa || '07h às 19h')} · PI com a marca ${marcaDe(v)} · validade ${v.prop_validade || 15} dias</small></span><button class="btn sm" data-act="admPropostas" data-id="${v.id}" aria-label="Editar propostas e PI da ${esc(v.nome)}">${S.svg('editar')}Editar</button></div>`).join('')}</div></section></div>`;
+      const falta = [['CNPJ', e.cnpj], ['razão social', e.razao_social], ['CEP', e.cep], ['endereço', e.endereco], ['e-mail', e.email], ['telefone', e.telefone]].filter(x => !String(x[1] || '').trim()).map(x => x[0]);
+      const rua = [e.endereco, e.numero].filter(Boolean).join(', ') + (e.complemento ? ' · ' + e.complemento : '');
+      const CAB = { fina:'Faixa fina no topo', larga:'Faixa larga com o logo', sem:'Sem faixa' };
+      body = `<section class="card em-topo"><span class="em-logo"><img src="${esc(e.logo || S.logoReserva())}" width="600" height="122" alt="Logo da ${esc(curto)}"></span>
+          <div class="em-id"><h2>${esc(e.nome || 'Empresa comercial')}</h2><span class="muted">${esc(e.razao_social) || 'Razão social não informada'}</span>
+            <div class="em-tags">${e.cnpj ? `<span class="pill fn-neutra">CNPJ ${esc(e.cnpj)}</span>` : ''}${e.inscricao_estadual ? `<span class="pill fn-neutra">IE ${esc(e.inscricao_estadual)}</span>` : ''}<span class="pill fn-neutra">Vende para ${n} veículo${n === 1 ? '' : 's'}</span></div></div>
+          ${falta.length ? `<span class="pill em-falta" title="Falta: ${esc(falta.join(', '))}">Falta: ${esc(falta.slice(0, 2).join(', '))}${falta.length > 2 ? ` +${falta.length - 2}` : ''}</span>` : `<span class="pill em-ok">${S.svg('check', 12)}Cadastro completo</span>`}</section>
+        <div class="em-grade">
+          <div class="em-tres">
+            <section class="card em-c"><h2>Endereço</h2><div class="em-kv">${kv('CEP', e.cep)}${kv('Rua e número', rua)}${kv('Bairro · cidade', [e.bairro, e.cidade].filter(Boolean).join(' · '))}</div></section>
+            <section class="card em-c"><h2>Contato</h2><div class="em-kv">${kv('E-mail', e.email)}${kv('Telefone', e.telefone)}${kv('Site', e.site)}</div></section>
+            <section class="card em-c"><h2>Quem assina</h2><div class="em-kv">${kv('Nas propostas', e.assina === 'consultor' ? 'Quem fez a proposta' : e.responsavel)}${e.assina === 'consultor' ? '' : kv('Cargo', e.cargo)}</div></section>
+          </div>
+          <section class="card em-c em-mod"><div class="hd"><h2>Modelo da proposta (A4)</h2><button class="btn sm" data-act="admEmpresa" data-aba="modelo">Personalizar</button></div>
+            <div class="em-mod-c"><div class="em-a4" aria-hidden="true"><div class="em-a4-in">${S.htmlProposta(amostraProposta())}</div></div>
+              <div class="em-kv">${kv('Cores', ' ').replace('<span> </span>', `<span class="em-cores"><i style="background:${esc(e.cor || '#2b5fb5')}"></i><i style="background:${esc(e.cor2 || '#f1853d')}"></i></span>`)}${kv('Cabeçalho', `Logo ${m.logo === 'centro' ? 'no centro' : 'à esquerda'} · ${CAB[m.cabecalho].toLowerCase()}`)}${kv('Rodapé', m.rodape ? 'Dados da empresa' : 'Sem rodapé')}</div></div></section>
+        </div>
+        <section class="card"><div class="hd"><h2>Propostas e PI por veículo</h2><span>cada veículo tem os seus</span></div>
+          <div class="list">${S.db.veiculos.map(v => `<div>${S.vav(v)}<span class="tx"><b>${esc(v.nome)}</b><small>Faixa ${esc(v.prop_faixa || '07h às 19h')} · PI com a marca ${marcaDe(v)} · validade ${v.prop_validade || 15} dias</small></span><button class="btn sm" data-act="admPropostas" data-id="${v.id}" aria-label="Editar propostas e PI da ${esc(v.nome)}">${S.svg('editar')}Editar</button></div>`).join('')}</div></section>`;
+    } else if (aba === 'colaboradores') {
+      body = telaColaboradores();
     } else {
       // Gerente vê a equipe das rádios em que é gerente (ele mesmo e outros gerentes aparecem, só para consulta)
       const us = ehGer() ? S.db.usuarios.filter(u => vinculosDe(u).some(x => ehMinha(x.veiculo_id))) : S.db.usuarios;
@@ -142,7 +289,7 @@
     // Os acessos da equipe SONVI saíram daqui em 25/10/2026: ficam no Dashboard geral › Suporte (chamados.js)
     if (ehGer()) return { title:`<span class="sub">${esc(minhas().map(v => v.nome).join(' · '))}</span>Usuários`, actions:`<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`,
       body:`<p class="muted small" style="margin:0 0 14px">Você cadastra e edita consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente. Gerentes e diretores ficam com o diretor.</p>${body}` };
-    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'empresa' ? '' : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:seg + body };
+    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'empresa' ? `<button class="btn pri" data-act="admEmpresa">${S.svg('editar')}Editar dados</button>` : aba === 'colaboradores' ? `<button class="btn pri" data-act="colNovo">${S.svg('mais')}Novo colaborador</button>` : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:seg + body };
   };
 
   // Categoria do veículo no formulário: Frequência e Rede afiliada só aparecem para rádio
@@ -197,21 +344,89 @@
       const ta = document.querySelector('#dlg textarea[name=pi_condicoes]'); if (ta) ta.classList.add('alto');
       document.getElementById('dlg').classList.add('largo'); const dl = document.getElementById('dlg'), antes = dl.onclose; dl.onclose = e => { dl.classList.remove('largo'); if (antes) antes(e); }; },
     // Empresa comercial (Head 14): dados e logo que saem nas propostas e nos PIs com a marca dela
-    admEmpresa: () => { const e = S.db.empresa || {};
-      const logo = `<div class="logo-campo" style="grid-column:1/-1"><div class="emp-prev pr-logo" id="empPrev"><img src="${esc(e.logo || S.logoReserva())}" width="600" height="122" alt="Logo atual"></div>
-        <div class="logo-info"><b>Logo</b><small class="muted">Horizontal, PNG ou JPG com fundo branco ou transparente. Sai nas propostas e nos PIs.</small>
-        <div class="row"><button type="button" class="btn sm" data-act="empLogoEscolher">${S.svg('baixar')}Trocar logo</button></div><small class="aviso" id="empAviso"></small></div>
-        <input type="file" accept="image/png,image/jpeg,image/webp" id="empLogoArq" hidden><input type="hidden" name="logo" value="${esc(e.logo || '')}"></div>`;
-      S.form('Empresa comercial', [{ html:logo },
-        { k:'nome', label:'Nome', req:true, full:true, ph:'Ex.: Head 14 · Vendas e Comunicação' }, { k:'razao_social', label:'Razão social' }, { k:'cnpj', label:'CNPJ' },
-        { k:'cidade', label:'Cidade / UF' }, { k:'endereco', label:'Endereço' }, { k:'email', label:'E-mail', type:'email' }, { k:'telefone', label:'Telefone' }, { k:'site', label:'Site', ph:'Ex.: head14.com.br' },
-        { k:'assina', label:'Assina as propostas', type:'select', options:[['responsavel', 'O responsável abaixo'], ['consultor', 'Quem fez a proposta']] },
-        { k:'responsavel', label:'Responsável', ph:'Nome de quem assina' }, { k:'cargo', label:'Cargo', ph:'Ex.: Diretor' },
-        { k:'cor', label:'Cor principal (faixas e tabela da proposta)', type:'color' }, { k:'cor2', label:'Cor de destaque', type:'color' }],
-        Object.assign({ cor:'#2b5fb5', cor2:'#f1853d', assina:'responsavel' }, e),
-        f => S.run(async () => { const row = { nome:f.nome.trim(), razao_social:f.razao_social || '', cnpj:f.cnpj || '', cidade:f.cidade || '', endereco:f.endereco || '', email:f.email || '', telefone:f.telefone || '',
-            site:f.site || '', assina:f.assina, responsavel:f.responsavel || '', cargo:f.cargo || '', cor:f.cor || '#2b5fb5', cor2:f.cor2 || '#f1853d', logo:f.logo || null, atualizado_em:new Date().toISOString() };
-          S.db.empresa = e.id ? await S.q(S.sb.from('empresa_comercial').update(row).eq('id', e.id).select().single()) : await S.q(S.sb.from('empresa_comercial').insert(row).select().single()); }, 'Empresa comercial salva'), 'Salvar', { editar:true }); },
+    // Empresa comercial (aprovada em 25/10/2026): janela larga com duas abas, Dados (Empresa · Endereço · Contato · Quem assina)
+    // e Modelo da proposta (cores, cabeçalho, textos e o que aparece), com a folha A4 mudando ao lado
+    admEmpresa: (d = {}) => { const e = S.db.empresa || {}, m = S.modeloProposta(e), n = S.db.veiculos.length;
+      const c = (k, rot, cls, extra = '') => `<label class="f ${cls}">${rot}<input name="${k}" value="${esc(e[k] || '')}"${extra}></label>`;
+      const cores = (k, val, lista) => `<div class="em-cores-ed" role="group" aria-label="${k === 'cor' ? 'Cor principal' : 'Cor de destaque'}">${lista.map(x => `<button type="button" class="em-cor${x.toLowerCase() === String(val).toLowerCase() ? ' on' : ''}" data-act="empCor" data-k="${k}" data-v="${x}" style="background:${x}" aria-label="Cor ${x}" aria-pressed="${x.toLowerCase() === String(val).toLowerCase()}"></button>`).join('')}<label class="em-cor-livre" title="Outra cor">${S.svg('editar', 14)}<span class="sr">Outra cor</span><input type="color" name="${k}" value="${esc(val)}"></label></div>`;
+      const opc = (k, val, lista) => `<div class="em-opc" role="radiogroup">${lista.map(([v, rot]) => `<label class="em-op"><input type="radio" name="m_${k}" value="${v}"${v === val ? ' checked' : ''}><span>${rot}</span></label>`).join('')}</div>`;
+      const chave = (k, rot) => `<label class="em-ch"><span>${rot}</span><input type="checkbox" name="m_${k}"${m[k] ? ' checked' : ''}><i aria-hidden="true"></i></label>`;
+      S.dialog(`<div class="em-j-hd"><h2>Empresa comercial</h2><span class="muted small">vale para ${n === 1 ? 'o veículo' : `os ${n} veículos`}</span></div>
+        <div class="em-abas" role="tablist"><button type="button" role="tab" data-act="empAba" data-v="dados" aria-selected="${d.aba !== 'modelo'}">Dados</button><button type="button" role="tab" data-act="empAba" data-v="modelo" aria-selected="${d.aba === 'modelo'}">Modelo da proposta</button></div>
+        <div class="em-painel" data-painel="dados"${d.aba === 'modelo' ? ' hidden' : ''}>
+          <div class="logo-campo"><div class="emp-prev pr-logo" id="empPrev"><img src="${esc(e.logo || S.logoReserva())}" width="600" height="122" alt="Logo atual"></div>
+            <div class="logo-info"><b>Logo</b><small class="muted">Horizontal, PNG ou JPG com fundo branco ou transparente. Sai nas propostas e nos PIs.</small>
+            <div class="row"><button type="button" class="btn sm" data-act="empLogoEscolher">${S.svg('baixar')}Trocar logo</button></div><small class="aviso" id="empAviso"></small></div>
+            <input type="file" accept="image/png,image/jpeg,image/webp" id="empLogoArq" hidden><input type="hidden" name="logo" value="${esc(e.logo || '')}"></div>
+          <div class="em-blocos">
+            <fieldset class="em-bl"><legend>Empresa</legend><div class="em-g">
+              <label class="f s3">CNPJ<span class="em-com"><input name="cnpj" value="${esc(e.cnpj || '')}" data-mask="cnpj" inputmode="numeric" autocomplete="off"><button type="button" class="btn sm" data-act="empCnpj">Buscar</button></span></label>
+              ${c('inscricao_estadual', 'Inscrição estadual', 's3', ' placeholder="Somente números ou Isento"')}
+              ${c('razao_social', 'Razão social', 's6')}
+              <label class="f s6">Nome que aparece no SONVI<input name="nome" required value="${esc(e.nome || '')}" placeholder="Ex.: Head 14"></label></div></fieldset>
+            <fieldset class="em-bl"><legend>Endereço</legend><div class="em-g">
+              ${c('cep', 'CEP', 's2', ' data-mask="cep" inputmode="numeric" autocomplete="off"')}${c('endereco', 'Rua / avenida', 's4')}
+              ${c('numero', 'Número', 's2')}${c('complemento', 'Complemento', 's4', ' placeholder="Sala, andar…"')}
+              ${c('bairro', 'Bairro', 's3')}${c('cidade', 'Cidade / UF', 's3', ' placeholder="Ex.: Cuiabá / MT"')}</div></fieldset>
+            <fieldset class="em-bl"><legend>Contato</legend><div class="em-g">
+              ${c('email', 'E-mail', 's6', ' type="email"')}${c('telefone', 'Telefone', 's3', ' data-mask="tel" inputmode="tel" autocomplete="off"')}${c('site', 'Site', 's3', ' placeholder="Ex.: head14.com.br"')}</div></fieldset>
+            <fieldset class="em-bl"><legend>Quem assina as propostas</legend><div class="em-g">
+              <label class="f s6">Assina<select name="assina"><option value="responsavel"${e.assina !== 'consultor' ? ' selected' : ''}>O responsável abaixo</option><option value="consultor"${e.assina === 'consultor' ? ' selected' : ''}>Quem fez a proposta</option></select></label>
+              ${c('responsavel', 'Responsável', 's3', ' placeholder="Nome de quem assina"')}${c('cargo', 'Cargo', 's3', ' placeholder="Ex.: Diretor"')}</div></fieldset>
+          </div></div>
+        <div class="em-painel em-modelo" data-painel="modelo"${d.aba === 'modelo' ? '' : ' hidden'}>
+          <div class="em-mod-ops">
+            <fieldset class="em-bl"><legend>Cores</legend><div class="em-g">
+              <div class="f s3"><span>Principal <small class="muted">(faixas e tabela)</small></span>${cores('cor', e.cor || '#2b5fb5', ['#2b5fb5', '#111114', '#0f766e', '#7c2d12', '#6d28d9'])}</div>
+              <div class="f s3"><span>Destaque <small class="muted">(detalhes)</small></span>${cores('cor2', e.cor2 || '#f1853d', ['#f1853d', '#0055ff', '#15803d', '#d4a017', '#db2777'])}</div></div></fieldset>
+            <fieldset class="em-bl"><legend>Cabeçalho</legend>
+              <div class="f"><span>Posição do logo</span>${opc('logo', m.logo, [['esquerda', 'Esquerda'], ['centro', 'Centro']])}</div>
+              <div class="f"><span>Estilo</span>${opc('cabecalho', m.cabecalho, [['fina', 'Faixa fina no topo'], ['larga', 'Faixa larga com o logo'], ['sem', 'Sem faixa']])}</div></fieldset>
+            <fieldset class="em-bl"><legend>Textos</legend>
+              <label class="f">Apresentação <small class="muted">(abre a proposta; {CLIENTE} vira o nome do cliente; opcional)</small><textarea name="m_apresentacao" rows="2" placeholder="Ex.: Obrigado pela oportunidade. Segue a proposta preparada para {CLIENTE}.">${esc(m.apresentacao)}</textarea></label>
+              <label class="f">Condições comerciais padrão <small class="muted">(uma por linha; {VALIDADE} vira os dias; vale quando o veículo não tem as próprias)</small><textarea name="m_condicoes" rows="4" placeholder="${esc(S.PROP_CONDICOES_PADRAO)}">${esc(m.condicoes)}</textarea></label></fieldset>
+            <fieldset class="em-bl"><legend>Mostrar na folha</legend>${chave('tabela', 'Valor de tabela e desconto')}${chave('dados_cliente', 'CNPJ e endereço do cliente')}${chave('ass_cliente', 'Linha de assinatura do cliente')}${chave('rodape', 'Rodapé com razão social, CNPJ e contato')}</fieldset>
+          </div>
+          <div class="em-previa" aria-label="Prévia da proposta"><small class="muted">Prévia com um cliente de exemplo</small><div class="em-previa-box"><div class="em-previa-folha"></div></div></div>
+        </div>
+        <div class="row em-pe"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar</button></div>`,
+        f => S.run(async () => {
+          const modelo = { logo:f.m_logo || 'esquerda', cabecalho:f.m_cabecalho || 'fina', apresentacao:(f.m_apresentacao || '').trim(), condicoes:(f.m_condicoes || '').trim(),
+            tabela:!!f.m_tabela, dados_cliente:!!f.m_dados_cliente, ass_cliente:!!f.m_ass_cliente, rodape:!!f.m_rodape };
+          const row = { nome:f.nome.trim(), razao_social:f.razao_social || '', cnpj:f.cnpj || '', inscricao_estadual:f.inscricao_estadual || '', cep:f.cep || '', endereco:f.endereco || '', numero:f.numero || '',
+            complemento:f.complemento || '', bairro:f.bairro || '', cidade:f.cidade || '', email:f.email || '', telefone:f.telefone || '', site:f.site || '', assina:f.assina, responsavel:f.responsavel || '', cargo:f.cargo || '',
+            cor:f.cor || '#2b5fb5', cor2:f.cor2 || '#f1853d', logo:f.logo || null, modelo, atualizado_em:new Date().toISOString() };
+          S.db.empresa = e.id ? await S.q(S.sb.from('empresa_comercial').update(row).eq('id', e.id).select().single()) : await S.q(S.sb.from('empresa_comercial').insert(row).select().single()); }, 'Empresa comercial salva'));
+      const dl = document.getElementById('dlg'); dl.dataset.guarda = '1'; dl.classList.add('em-dlg');
+      const antes = dl.onclose; dl.onclose = ev => { dl.classList.remove('em-dlg'); window.removeEventListener('resize', previa); if (antes) antes(ev); };
+      dl.querySelector('form').addEventListener('input', previa); dl.querySelector('form').addEventListener('change', previa); window.addEventListener('resize', previa);
+      requestAnimationFrame(previa); },
+    colNovo: () => { aba = 'colaboradores'; formColab({ ativo:true, funcao:'consultor' }); },
+    colEditar: d => { const c = (S.db.colaboradores || []).find(x => x.id === d.id); if (c) formColab(c); },
+    colDesligados: () => { col.desligados = !col.desligados; S.render(); },
+    colMenu: (d, botao) => { const c = (S.db.colaboradores || []).find(x => x.id === d.id); if (!c) return;
+      S.menu(botao, [{ label:'Editar', icon:'editar', act:'colEditar', data:{ id:c.id } }, { label:c.ativo ? 'Desligar' : 'Religar', icon:c.ativo ? 'voltar' : 'check', act:'colAtivo', data:{ id:c.id } }, '-', { label:'Excluir cadastro', icon:'lixo', act:'colExcluir', data:{ id:c.id }, perigo:true }]); },
+    colAtivo: async d => { const c = S.db.colaboradores.find(x => x.id === d.id), ativo = !c.ativo;
+      if (!ativo && !await S.confirmar(`Desligar ${c.nome}?\n\nO cadastro e o histórico de comissão ficam guardados. ${c.usuario_id ? 'O acesso ao SONVI não muda: para bloquear, desative o usuário na aba Usuários.' : ''}`, { ok:'Desligar' })) return;
+      S.run(async () => { await S.q(S.sb.from('colaboradores').update({ ativo }).eq('id', c.id)); S.db.colaboradores = null; await carregarColab(); }, ativo ? 'Colaborador religado' : 'Colaborador desligado'); },
+    colExcluir: async d => { const c = S.db.colaboradores.find(x => x.id === d.id);
+      if (!await S.confirmar(`Excluir o cadastro de ${c.nome}?\n\nApaga também o histórico de comissão. Vendas e PIs não mudam. ${c.usuario_id ? 'O acesso ao SONVI continua (é da aba Usuários).' : ''} Para só tirar da lista, use Desligar.`, { ok:'Excluir', perigo:true })) return;
+      S.run(async () => { await S.q(S.sb.from('colaboradores').delete().eq('id', c.id)); S.db.colaboradores = null; await carregarColab(); }, 'Cadastro excluído'); },
+    empAba: d => { const dl = document.getElementById('dlg');
+      dl.querySelectorAll('.em-abas [role=tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.v === d.v)));
+      dl.querySelectorAll('.em-painel').forEach(p => { p.hidden = p.dataset.painel !== d.v; }); previa(); },
+    empCor: d => { const dl = document.getElementById('dlg'), inp = dl.querySelector(`input[name="${d.k}"]`); inp.value = d.v; dl.dataset.sujo = '1';
+      dl.querySelectorAll(`[data-act="empCor"][data-k="${d.k}"]`).forEach(b => { const on = b.dataset.v === d.v; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }); previa(); },
+    empCnpj: () => { const f = document.querySelector('#dlg form'), n = String(f.cnpj.value).replace(/\D/g, ''), b = f.querySelector('[data-act="empCnpj"]');
+      if (n.length !== 14) return S.erroNoCampo(f.cnpj, 'Digite os 14 números do CNPJ.');
+      if (!S.dadosDoCnpj) return S.toast('Busca de CNPJ indisponível agora.');
+      b.disabled = true; b.textContent = 'Buscando…';
+      S.dadosDoCnpj(n).then(j => { const poe = (k, v) => { if (v && f.elements[k]) f.elements[k].value = v; };
+        poe('razao_social', j.razao_social); if (!f.nome.value) poe('nome', j.nome_fantasia || j.razao_social);
+        poe('cep', String(j.cep || '').replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2')); poe('endereco', j.logradouro ? [j.descricao_tipo_de_logradouro, j.logradouro].filter(Boolean).join(' ') : ''); poe('numero', j.numero); poe('complemento', j.complemento); poe('bairro', j.bairro);
+        poe('cidade', [j.municipio, j.uf].filter(Boolean).join(' / ')); document.getElementById('dlg').dataset.sujo = '1'; S.toast('Dados do CNPJ preenchidos. Confira antes de salvar.'); })
+        .catch(er => S.toast(er.message === 'naoexiste' ? 'CNPJ não encontrado na Receita.' : 'Não foi possível buscar agora. Preencha à mão.'))
+        .finally(() => { b.disabled = false; b.textContent = 'Buscar'; }); },
     empLogoEscolher: () => document.getElementById('empLogoArq').click(),
     // Padrões de proposta e PI de cada rádio
     admPropostas: d => { const v = S.veh(d.id), curto = String((S.db.empresa || {}).nome || 'Empresa comercial').split('·')[0].trim();
@@ -271,7 +486,7 @@
     img.onload = () => { const k = Math.min(1, 900 / img.naturalWidth), c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
       let u = c.toDataURL('image/webp', .92); if (!u.startsWith('data:image/webp')) u = c.toDataURL('image/png');
-      const f = document.querySelector('#dlg form'); f.logo.value = u; document.getElementById('empPrev').innerHTML = `<img src="${u}" width="${c.width}" height="${c.height}" alt="Logo novo">`;
+      const f = document.querySelector('#dlg form'); f.logo.value = u; document.getElementById('empPrev').innerHTML = `<img src="${u}" width="${c.width}" height="${c.height}" alt="Logo novo">`; previa();
       aviso.textContent = img.naturalWidth < 400 ? 'A imagem é pequena: pode sair borrada no PDF. O ideal é ter 600 px de largura ou mais.' : ''; document.getElementById('dlg').dataset.sujo = '1'; };
     img.onerror = () => { URL.revokeObjectURL(url); aviso.textContent = 'Não foi possível abrir essa imagem.'; };
     img.src = url;
