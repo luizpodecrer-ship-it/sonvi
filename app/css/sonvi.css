@@ -2877,3 +2877,12 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
   #side nav [data-ico="geral"] { --c:#4C9DFF; } #side nav [data-ico="combos"] { --c:#B69CFF; } #side nav [data-ico="music"] { --c:#F47BB0; }
   #side nav [data-ico="admin"] { --c:#3DDC97; } #side nav [data-ico="chamados"] { --c:#F2A65A; }
 }
+/* Menu fluido dentro dos veículos (25/10/2026): mesmas regras; cor do ícone de cada item (claro / escuro) */
+#side nav [data-ico="dashboard"] { --c:#0055FF; } #side nav [data-ico="followup"] { --c:#0284C7; } #side nav [data-ico="clientes"] { --c:#7C3AED; }
+#side nav [data-ico="propostas"] { --c:#C026D3; } #side nav [data-ico="pis"] { --c:#4F46E5; } #side nav [data-ico="opec"] { --c:#E0701B; }
+#side nav [data-ico="financeiro"] { --c:#16A34A; } #side nav [data-ico="produtos"] { --c:#D97706; }
+@media (prefers-color-scheme: dark) {
+  #side nav [data-ico="dashboard"] { --c:#4C9DFF; } #side nav [data-ico="followup"] { --c:#38BDF8; } #side nav [data-ico="clientes"] { --c:#B69CFF; }
+  #side nav [data-ico="propostas"] { --c:#E879F9; } #side nav [data-ico="pis"] { --c:#A5B4FC; } #side nav [data-ico="opec"] { --c:#F2A65A; }
+  #side nav [data-ico="financeiro"] { --c:#4ADE80; } #side nav [data-ico="produtos"] { --c:#FBBF24; }
+}

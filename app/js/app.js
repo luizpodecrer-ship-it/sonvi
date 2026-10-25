@@ -41,17 +41,17 @@
     if (fimSuporte !== sup.id) { fimSuporte = sup.id; setTimeout(() => { if (S.ctx && S.ctx.suporte && S.ctx.suporte.id === sup.id) { S.toast('O acesso de suporte terminou.'); S.iniciar(); } }, Math.max(0, fim - Date.now()) + 1000); }
   };
 
-  // Menu fluido do Dashboard geral (o mesmo do Console, 25/10/2026): o realce desliza até o item sob o mouse ou o foco,
+  // Menu fluido do Dashboard geral e de todos os veículos (o mesmo do Console, 25/10/2026; divisor antes de Administração só no Dashboard geral): o realce desliza até o item sob o mouse ou o foco,
   // o ícone cresce e ganha a cor do item; na troca de tela o realce sai de onde estava e vai até o item novo. Só no computador.
   let realceY = null;
-  const menuFluido = (side, liga) => {
+  const menuFluido = (side, liga, divisor) => {
     const nav = side.querySelector('nav'); if (!nav) return;
     nav.classList.toggle('fluido', liga);
     if (!liga) { realceY = null; return; }
     let r = nav.querySelector('.realce');
     if (!r) { r = document.createElement('span'); r.className = 'realce'; r.setAttribute('aria-hidden', 'true'); nav.prepend(r); }
     const itens = [...nav.querySelectorAll('a')];
-    itens.forEach(a => { if (a.dataset.ico === 'admin' && !(a.previousElementSibling && a.previousElementSibling.classList.contains('div'))) a.insertAdjacentHTML('beforebegin', '<span class="div" aria-hidden="true"></span>'); });
+    if (divisor) itens.forEach(a => { if (a.dataset.ico === 'admin' && !(a.previousElementSibling && a.previousElementSibling.classList.contains('div'))) a.insertAdjacentHTML('beforebegin', '<span class="div" aria-hidden="true"></span>'); });
     const on = () => nav.querySelector('a.on');
     const ir = (a, sem) => { if (!a) { r.style.opacity = 0; return; } if (sem) r.style.transition = 'none';
       r.style.opacity = 1; r.style.transform = `translateY(${a.offsetTop}px)`; r.style.height = a.offsetHeight + 'px'; if (sem) { r.offsetHeight; r.style.transition = ''; }
@@ -100,7 +100,7 @@
     const molde = sideHtml.replace(/ class="on( extra)?" aria-current="page"/g, ' class="$1"').replace(/class=" extra"/g, 'class="extra"');
     if (molde === ultimoSide) side.querySelectorAll('nav a[data-go]').forEach(a => { const on = a.dataset.go === '/' + active; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     else { side.innerHTML = sideHtml; ultimoSide = molde; }
-    menuFluido(side, !MUSIC && geral);
+    menuFluido(side, !MUSIC, geral);
     const mais = side.querySelector('.nav-mais'); if (mais) { mais.classList.toggle('on', !!side.querySelector('nav a.extra.on'));
       const bx = side.querySelector('nav a.extra .badge'), bm = mais.querySelector('.badge'); if (bm) bm.remove(); if (bx) mais.insertAdjacentHTML('beforeend', `<span class="badge" aria-label="${bx.textContent} pendentes">${bx.textContent}</span>`); }
     const v = (S.views[view] || S.views.soMusic)(id), chave = `${view}/${view === 'clientes' ? '' : id || ''}/${S.ui.vehicleId}/${S.ui.tab}`; // abas dentro da mesma tela não animam
