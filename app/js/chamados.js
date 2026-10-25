@@ -14,6 +14,8 @@
       st.lista = ch || []; st.acessos = ac || [];
     } catch (e) { console.error(e); S.toast(S.erro(e)); st.lista = st.lista || []; st.acessos = st.acessos || []; }
     st.carregando = false; if (S.ui.view === 'chamados') S.render(); };
+  // O chat avisa quando um chamado é aberto ou respondido: a lista desta tela se atualiza na hora
+  S.chamadosAtualizar = () => { if (S.ui.view === 'chamados' && st.lista) carregar(); };
   S.chamadosUsar = (lista, acessos) => { st.lista = lista; st.acessos = acessos; }; // testes
 
   const SIT = { aberto:['Aberto', 'cs2-ab'], andamento:['Em andamento', 'cs2-ab'], aguardando:['Aguardando você', 'cs2-ag'], resolvido:['Resolvido', 'cs2-ok'] };
@@ -49,7 +51,9 @@
   const fatia = (l, chave) => { const n = Math.max(1, Math.ceil(l.length / POR)); if (st.pg[chave] > n) st.pg[chave] = n; return l.slice((st.pg[chave] - 1) * POR, st.pg[chave] * POR); };
 
   S.views.chamados = () => {
-    const titulo = '<span class="sub">Grupo</span>Suporte', acoes = `<button class="btn pri" data-act="irSuporte">${S.svg('chamados')}Falar com o suporte</button>`;
+    const titulo = '<span class="sub">Grupo</span>Suporte', comoSuporte = !!(S.ctx && S.ctx.suporte),
+      acoes = comoSuporte ? `<a class="btn pri" href="/console/#/suporte" target="_blank" rel="noopener">${S.svg('chamados')}Responder no Console<span class="sr"> (abre em outra aba)</span></a>`
+        : `<button class="btn pri" data-act="irSuporte">${S.svg('chamados')}Falar com o suporte</button>`;
     if (!st.lista) { carregar(); return { title:titulo, actions:acoes, body:'<div class="card empty"><b>Carregando os chamados…</b></div>' }; }
     const L = st.lista, A = st.acessos || [], mesHoje = S.today().slice(0, 7);
     const agora = A.find(ativo);
@@ -74,7 +78,7 @@
         : `<div class="scroll"><table class="cs2-t cs2-fixa"><colgroup><col style="width:80px"><col><col style="width:17%"><col style="width:13%"><col style="width:150px"><col style="width:130px"></colgroup><thead><tr><th>Nº</th><th>Assunto</th><th>Aberto por</th><th>Atendente</th><th>Situação</th><th class="r">Atualizado</th></tr></thead><tbody>
           ${pg.map(c => `<tr class="click" data-act="chAbrir" data-id="${c.id}"><td class="nw cs2-num">#${c.numero}</td><td class="cs2-corta" title="${esc(c.assunto)}"><b>${esc(c.assunto)}</b>${naoLido(c) ? '<span class="cs2-nova" title="Resposta nova"></span>' : ''}${veic(c) ? `<small>${esc(veic(c))}</small>` : ''}</td>
             <td class="cs2-corta">${esc(S.usuario(c.aberto_por) || '—')}</td><td class="cs2-corta">${esc(c.atendente || '—')}</td><td>${sit(c)}</td><td class="r nw">${dataCurta(c.atualizado_em)}</td></tr>`).join('')}</tbody></table></div>`;
-      corpo = `<section class="card" id="cs2-corpo" aria-labelledby="cs2-tc"><div class="hd"><div><h2 id="cs2-tc">Chamados</h2><p class="muted small" style="margin:2px 0 0">As conversas da empresa com o suporte SONVI. Clique para abrir no chat.</p></div>${chips}</div>
+      corpo = `<section class="card" id="cs2-corpo" aria-labelledby="cs2-tc"><div class="hd"><div><h2 id="cs2-tc">Chamados</h2><p class="muted small" style="margin:2px 0 0">As conversas da empresa com o suporte SONVI. ${comoSuporte ? "Clique para responder no Console." : "Clique para abrir no chat."}</p></div>${chips}</div>
         <div class="cs2-lista">${pg.length ? linhas : vazio}</div>${paginacao('chamados', lista.length, 'chamados')}</section>`;
     } else {
       const doMes = A.filter(a => a.inicio.slice(0, 7) === st.mes), pg = fatia(doMes, 'acessos'), usado = doMes.reduce((s, a) => s + (ativo(a) ? 0 : minutos(a.inicio, fimReal(a))), 0);
@@ -114,7 +118,8 @@
     chSit: d => { if (st.sit === d.v) return; st.sit = d.v; st.pg.chamados = 1; troca('filtro', `[data-act="chSit"][data-v="${d.v}"]`); },
     chMes: d => { const n = somaMes(st.mes, +d.v); if (n > S.today().slice(0, 7)) return; st.mes = n; st.pg.acessos = 1; troca('mes', `[data-act="chMes"][data-v="${d.v}"]:not([disabled])`); },
     chPagina: d => { const v = Math.max(1, +d.v); if (st.pg[d.k] === v) return; st.pg[d.k] = v; troca('pagina', `[data-act="chPagina"][data-k="${d.k}"][aria-current]`); },
-    chAbrir: d => { if (S.chatSuporte) S.chatSuporte.abrir(d.id); },
+    // No acesso de suporte (equipe SONVI) o chat do cliente não abre: o chamado é respondido no Console
+    chAbrir: d => { if (S.ctx && S.ctx.suporte) { window.open('/console/#/suporte/' + d.id, '_blank', 'noopener'); return; } if (S.chatSuporte) S.chatSuporte.abrir(d.id); },
   });
   // ← → trocam de página (fora de campos e de janelas abertas)
   document.addEventListener('keydown', e => { if (S.ui.view !== 'chamados' || !st.lista || e.altKey || e.metaKey || e.ctrlKey || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;

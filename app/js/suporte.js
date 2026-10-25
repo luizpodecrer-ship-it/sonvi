@@ -113,7 +113,7 @@
     texto = String(texto || '').trim(); if (!texto || st.digitando) return;
     let ch = atual(); st.texto = '';
     if (ch) { (st.msgs[ch.id] = st.msgs[ch.id] || []).push({ id:'p', do_suporte:false, texto, criado_em:new Date().toISOString(), pendente:true }); pintar(true);
-      try { await S.q(S.sb.rpc('responder_chamado', { p_chamado:ch.id, p_texto:texto })); avisarEquipe(ch.id); await carregarMsgs(ch.id); await carregarLista(); }
+      try { await S.q(S.sb.rpc('responder_chamado', { p_chamado:ch.id, p_texto:texto })); avisarEquipe(ch.id); await carregarMsgs(ch.id); await carregarLista(); if (S.chamadosAtualizar) S.chamadosAtualizar(); }
       catch (e) { st.msgs[ch.id] = st.msgs[ch.id].filter(m => !m.pendente); st.texto = texto; S.toast(S.erro(e)); }
       return pintar(true);
     }
@@ -129,6 +129,7 @@
       if (!(st.lista || []).some(c => c.id === r.id)) (st.lista = st.lista || []).unshift({ id:r.id, numero:r.numero, atendente:r.atendente, assunto:texto.slice(0, 120), situacao:'aberto', aberto_por:S.me.id, criado_em:new Date().toISOString(), atualizado_em:new Date().toISOString() });
       await new Promise(ok => setTimeout(ok, Math.max(0, 1100 - (Date.now() - inicio))));
       st.atual = r.id;
+      if (S.chamadosAtualizar) S.chamadosAtualizar();
     } catch (e) { st.texto = texto; S.toast(S.erro(e)); }
     st.digitando = false; st.msgsNova = null; pintar(true);
   };
@@ -179,7 +180,7 @@
   // Link do e-mail (#/suporte/<id>) e o menu da conta abrem o chat
   const pelaRota = () => { const m = location.hash.match(/^#\/suporte(?:\/([0-9a-f-]{36}))?/); if (!m || !visivel()) return false;
     history.replaceState(null, '', location.pathname + location.search + '#/dashboard'); abrir(m[1] || null); return true; };
-  S.actions.irSuporte = () => abrir();
+  S.actions.irSuporte = () => { if (S.ctx && S.ctx.suporte) { S.toast('Você está como Suporte SONVI: os chamados são respondidos no Console'); return; } if (!visivel()) { S.toast('O chat de suporte ainda está carregando. Tente de novo em instantes.'); return; } abrir(); };
   addEventListener('DOMContentLoaded', () => {
     const render = S.render;
     S.render = (...a) => { if (/^#\/suporte/.test(location.hash) && visivel()) { pelaRota(); } const r = render(...a); montar(); pintar();
