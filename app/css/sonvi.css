@@ -3038,3 +3038,6 @@ dialog.em-dlg [hidden] { display:none !important; }
 .md-card svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .md-ac .btn.tres svg { width:16px; height:16px; }
 .md-card .md-ac .btn.tres svg { fill:none; stroke:currentColor; }
+
+/* Excluir cliente com tudo (048) */
+#dlg .lista-ex{margin:0;padding-left:20px;display:grid;gap:4px;font-variant-numeric:tabular-nums}

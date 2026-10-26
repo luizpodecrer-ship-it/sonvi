@@ -200,8 +200,39 @@
     S.form(novo ? (cliente ? 'Novo cliente' : 'Nova agência') : esc(p.nome), campos, p, v => salvar(p, v, { cliente, gestor, novo, tipo }));
     const d = document.getElementById('dlg'), ok = d.onclose;
     if (bloco.length) d.classList.add('medio');
-    d.onclose = async () => { d.classList.remove('medio'); if (d.returnValue === 'excluir') { if (await S.confirmar('Excluir este cadastro?', { ok:'Excluir cadastro', perigo:true })) S.run(() => S.excluir('pessoas', p.id), 'Cadastro excluído'); } else ok(); };
+    d.onclose = async () => { d.classList.remove('medio'); if (d.returnValue === 'excluir') excluirPessoa(p, cliente); else ok(); };
     contarRadios();
+  }
+
+  // Excluir cadastro. Cliente com propostas, PIs ou financeiro: só o diretor, por conta e risco dele (decidido em 26/10/2026,
+  // database/048): a janela mostra o que vai junto e pede o nome digitado; excluir_cliente_completo apaga tudo de uma vez.
+  async function excluirPessoa(p, cliente) {
+    const simples = async () => { if (await S.confirmar('Excluir este cadastro?', { ok:'Excluir cadastro', perigo:true })) S.run(() => S.excluir('pessoas', p.id), 'Cadastro excluído'); };
+    if (!cliente) return simples();
+    if (!S.me.diretor) {
+      if ((S.db.pis || []).some(x => x.cliente_id === p.id) || (S.db.propostas || []).some(x => x.cliente_id === p.id))
+        return S.toast('Este cliente tem propostas ou PIs. Só o diretor pode excluir.');
+      return simples();
+    }
+    let v; try { v = await S.q(S.sb.rpc('vinculos_do_cliente', { p_pessoa:p.id })); } catch (e) { return S.toast(S.erro(e)); }
+    if (!(v.propostas || v.pis || v.parcelas || v.followups)) return simples();
+    const n = (q, um, varios) => `${q} ${q === 1 ? um : varios}`, itens = [
+      v.propostas && n(v.propostas, 'proposta', 'propostas'),
+      v.pis && `${n(v.pis, 'PI', 'PIs')}${v.pis_ativos ? ` (${v.pis_ativos} já ${v.pis_ativos === 1 ? 'enviado' : 'enviados'} para a OPEC)` : ''}`,
+      v.parcelas && `${n(v.parcelas, 'parcela', 'parcelas')} no financeiro${v.pagas ? `, ${v.pagas} já ${v.pagas === 1 ? 'paga' : 'pagas'} (${S.brl(v.valor_pago)})` : ''}`,
+      v.followups && n(v.followups, 'follow-up', 'follow-ups')].filter(Boolean);
+    S.dialog(`<h2>Excluir ${esc(p.nome)} com tudo?</h2>
+      <p>Vai junto, em ${esc(S.veh().nome)}:</p>
+      <ul class="lista-ex">${itens.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <p class="note aviso" style="margin:0">Isso some do SONVI de vez: dashboards, relatórios, comissões e o caminho dos PIs nas OPECs mudam. Não dá para desfazer. Os cadastros deste cliente em outros veículos continuam.</p>
+      <label class="f">Para confirmar, digite o nome do cliente<input name="ex_conf" autocomplete="off" required placeholder="${esc(p.nome)}"></label>
+      <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Voltar</button><button class="btn danger" value="ok">Excluir com tudo</button></div>`,
+      f => S.run(async () => {
+        await S.q(S.sb.rpc('excluir_cliente_completo', { p_pessoa:p.id, p_nome:f.ex_conf }));
+        await S.carregarVeiculo();
+      }, 'Cliente excluído com tudo o que era dele'));
+    const campo = document.querySelector('#dlg [name="ex_conf"]'), confere = () => campo.setCustomValidity(campo.value.trim().toLowerCase() === String(p.nome).trim().toLowerCase() ? '' : `Digite o nome do cliente: ${p.nome}`);
+    confere(); campo.addEventListener('input', confere);
   }
 
   async function salvar(p, v, { cliente, gestor, novo, tipo }) {
@@ -346,7 +377,9 @@
     pesAba: d => S.go(d.tab === 'agencia' ? '/clientes/agencias' : '/clientes'),
     pesNovo: () => formulario({ tipo:aba, pessoa:'pj', situacao:'prospect', comissao:20, consultor_id:S.pode('consultor') ? S.me.id : '' }),
     pesEditar: d => { const p = S.pessoa(d.id); if (S.pode('diretor', 'gerente') || (S.pode('consultor') && (p.tipo === 'agencia' || p.consultor_id === S.me.id))) formulario(p); else S.toast('Seu perfil só pode consultar este cadastro.'); },
-    pesMenu: (d, botao) => S.menu(botao, [{ label:'Abrir', icon:'abrir', act:'pesEditar', data:{ id:d.id } }, { label:'Levar para outro veículo', icon:'copia', act:'pesLevar', data:{ id:d.id } }]),
+    pesMenu: (d, botao) => S.menu(botao, [{ label:'Abrir', icon:'abrir', act:'pesEditar', data:{ id:d.id } }, { label:'Levar para outro veículo', icon:'copia', act:'pesLevar', data:{ id:d.id } },
+      ...(S.pode('diretor', 'gerente') ? ['-', { label:'Excluir cadastro', icon:'lixo', act:'pesExcluir', data:{ id:d.id }, perigo:true }] : [])]),
+    pesExcluir: d => { const p = S.db.pessoas.find(x => x.id === d.id); if (p) excluirPessoa(p, p.tipo === 'cliente'); },
     pesLevar: d => { const p = S.pessoa(d.id); if (p) levarDialogo(p); },
     pesTrazer: () => { const a = cad.achados[0]; if (!a) return;
       CADASTRAIS.forEach(([k]) => { const c = campo(k); if (c && a[k] != null && a[k] !== '') c.value = a[k]; });
