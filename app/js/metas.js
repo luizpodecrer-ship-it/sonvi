@@ -20,8 +20,16 @@
   S.metasUsar = (mes, l) => { cache[mes] = l; };          // testes
   S.metasLimpar = () => { Object.keys(cache).forEach(k => delete cache[k]); };
 
-  const vendidoDe = (pis, mes, usuario, veiculo) => pis.filter(p => VENDIDO.includes(p.status) && String(p.criado_em || '').slice(0, 7) === mes && p.consultor_id === usuario && (!veiculo || p.veiculo_id === veiculo))
-    .reduce((t, p) => t + Number(p.valor_liquido ?? p.valor_total ?? 0), 0);
+  // Só o valor do mês (decidido em 27/10/2026): um PI de 3 meses conta em cada mês só a grade daquele mês (e a ação digital do mês),
+  // no valor líquido (a mesma proporção do PI inteiro: desconto geral e comissão da agência). Sem grades, conta o PI no mês em que nasceu.
+  const valorNoMes = (p, mes) => { const liq = Number(p.valor_liquido ?? p.valor_total ?? 0), d = p.dados || {}; let tot = 0, m = 0;
+    (d.grids || []).forEach(g => (g.items || []).forEach(it => { const v = S.itemCalc(it).sub; tot += v; if (g.period === mes) m += v; }));
+    (d.digital || []).forEach(a => { const v = S.digCalc(a).sub; tot += v; if (a.period === mes || String(a.inicio || '').slice(0, 7) === mes && !a.period) m += v; });
+    if (!tot) return String(p.criado_em || '').slice(0, 7) === mes ? liq : 0;
+    return m * liq / tot; };
+  S.valorNoMes = valorNoMes;
+  const vendidoDe = (pis, mes, usuario, veiculo) => pis.filter(p => VENDIDO.includes(p.status) && p.consultor_id === usuario && (!veiculo || p.veiculo_id === veiculo))
+    .reduce((t, p) => t + valorNoMes(p, mes), 0);
 
   // Cartão "Metas de <mês>". opts: { mes, pis, veiculo (só esse veículo), meu (só a própria), vazio (texto quando não há meta) }
   S.metasHtml = ({ mes, pis, veiculo = null, meu = false, vazio = '' }) => {
@@ -47,6 +55,6 @@
         <div class="mt-top"><b>${meu ? 'Vendido no mês' : esc(p.nome)}</b><span class="mt-num">${brl0(p.vend)} de ${brl0(p.meta)} · <b>${pct(p.vend, p.meta)}%</b></span></div>
         <div class="prog" role="progressbar" aria-valuenow="${Math.min(100, pct(p.vend, p.meta))}" aria-valuemin="0" aria-valuemax="100" aria-label="Meta de ${esc(p.nome)}"><i style="width:${Math.min(100, pct(p.vend, p.meta))}%;background:${tom(p)}"></i>${ritmo > 0 && ritmo < 1 ? `<span class="mt-ritmo" style="left:${ritmo * 100}%" title="Onde deveria estar hoje"></span>` : ''}</div>
         <small class="muted">${sub(p)}</small></div>`).join('')}</div>
-      <p class="muted small mt-pe">Valor líquido dos PIs enviados para a OPEC em diante, pela data do PI.${ritmo > 0 && ritmo < 1 ? ' O risco na barra marca onde deveria estar hoje.' : ''}</p></section>`;
+      <p class="muted small mt-pe">Valor líquido do que vai ao ar no mês, dos PIs enviados para a OPEC em diante (contrato de vários meses conta só a parte de cada mês).${ritmo > 0 && ritmo < 1 ? ' O risco na barra marca onde deveria estar hoje.' : ''}</p></section>`;
   };
 })();

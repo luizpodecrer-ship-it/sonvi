@@ -51,7 +51,7 @@
     try {
       const desde = `${new Date().getFullYear() - 1}-01-01`;
       const [pis, lanc] = await Promise.all([
-        S.q(S.sb.from('pis').select('id, veiculo_id, status, consultor_id, valor_total, valor_liquido, criado_em').in('status', VENDIDO).gte('criado_em', desde)),
+        S.q(S.sb.from('pis').select('id, veiculo_id, status, consultor_id, valor_total, valor_liquido, criado_em, dados').in('status', VENDIDO).gte('criado_em', desde)),
         S.q(S.sb.from('lancamentos').select('id, veiculo_id, valor, vencimento, pi_id').eq('sentido', 'receber').is('pago_em', null))]);
       // Consultor de cada parcela (pelo PI), para o "A receber" filtrar por consultor
       const conhecidos = new Map(pis.map(p => [p.id, p.consultor_id]));
