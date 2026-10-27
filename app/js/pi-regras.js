@@ -112,6 +112,12 @@
   S.fatDia = pi => Math.min(28, Math.max(1, parseInt((S.veh(pi.veiculo_id) || {}).fat_dia) || 5));
   // Meses já faturados (lançamentos do PI com mes_ref)
   S.mesesFaturados = pi => new Set((S.db.lancamentos || []).filter(l => l.pi_id === pi.id && l.mes_ref).map(l => l.mes_ref));
+  // Vencimento de cada mês: com o 1º vencimento escolhido na aba Faturamento, ele vale para o 1º mês e os outros
+  // seguem no mesmo dia, um mês depois do outro; sem ele, dia do veículo (5) do próprio mês veiculado
+  S.vencMes = (pi, mes) => { const meses = S.mesesDoPi(pi), k = Math.max(0, meses.indexOf(mes)), f = (pi.dados.billing || {}).firstDue || '';
+    if (/^(19|20)\d{2}-\d{2}-\d{2}$/.test(f)) { const [y, m, d] = f.split('-').map(Number), dt = new Date(y, m - 1 + k, 1), last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`; }
+    return `${mes}-${String(S.fatDia(pi)).padStart(2, '0')}`; };
   S.lancamentosDoPiMes = (pi, mes, venc) => {
     const c = S.calc(pi), meses = S.mesesDoPi(pi), por = S.midiaPorMes(pi), tot = meses.reduce((s, m) => s + (por[m] || 0), 0);
     const idx = meses.indexOf(mes), ultimo = idx === meses.length - 1, out = [];
@@ -122,7 +128,7 @@
     S.billingEntries(pi, c).forEach(e => {
       const sentido = e.para === 'V' ? 'receber' : e.de === 'V' ? 'pagar' : null;
       if (!sentido || !e.value) return; const valor = parte(e.value); if (!valor) return;
-      out.push({ sentido, descricao:`${S.piNo(pi)} · ${e.what} · ${S.nomeMes(mes)}`, contraparte:sentido === 'receber' ? e.from : e.to, parcela:idx + 1, valor, vencimento:venc || `${mes}-${String(S.fatDia(pi)).padStart(2, '0')}`, forma:pi.dados.billing.method, mes_ref:mes });
+      out.push({ sentido, descricao:`${S.piNo(pi)} · ${e.what} · ${S.nomeMes(mes)}`, contraparte:sentido === 'receber' ? e.from : e.to, parcela:idx + 1, valor, vencimento:venc || S.vencMes(pi, mes), forma:pi.dados.billing.method, mes_ref:mes });
     });
     return out;
   };
