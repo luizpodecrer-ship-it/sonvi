@@ -172,8 +172,13 @@
       <div class="legend">${porFaixa.map(x => `<div><span class="sq" style="background:var(--${x.tom})"></span><span class="grow">${x.nome}</span><span class="muted small">${x.n}</span><b>${brl(x.v)}</b></div>`).join('')}</div></section>`;
 
     // 4. pedidos a faturar
-    const aFaturar = S.db.pis.filter(p => ['aprovado', 'programado'].includes(p.status));
-    const faturar = aFaturar.length ? `<div class="card"><div class="hd"><h2>Pedidos a faturar</h2><span>${aFaturar.length} aguardando</span></div><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Status</th><th class="r">Total</th><th class="r">Líquido da rádio</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${aFaturar.map(p => { const c = S.calc(p); return `<tr><td class="muted nw">${S.piNo(p)}</td><td><a data-go="/pi/${p.id}" style="color:var(--ink)"><b>${esc(p.titulo) || 'Sem título'}</b></a></td><td>${esc(S.nome(p.cliente_id))}</td><td><span class="pill fn-ok">${S.STATUS[p.status].label}</span></td><td class="r">${brl(c.total)}</td><td class="r">${brl(c.net)}</td><td class="r"><button class="btn sm pri" data-act="finFaturar" data-id="${p.id}">Faturar</button></td></tr>`; }).join('')}</tbody></table></div></div>`
+    // PI de vários meses entra uma linha por mês ainda não faturado (database/053): cada mês tem o valor e o vencimento dele
+    const aFaturar = S.db.pis.filter(p => ['aprovado', 'programado'].includes(p.status)).flatMap(p => {
+      const meses = S.mesesDoPi(p); if (meses.length < 2) return [{ p }];
+      const feitos = S.mesesFaturados(p), por = S.midiaPorMes(p), tot = meses.reduce((s, m) => s + (por[m] || 0), 0) || 1;
+      return meses.map((m, i) => ({ p, m, i, n:meses.length, k:(por[m] || 0) / tot })).filter(x => !feitos.has(x.m)); });
+    const faturar = aFaturar.length ? `<div class="card"><div class="hd"><h2>Pedidos a faturar</h2><span>${aFaturar.length} aguardando</span></div><div class="scroll"><table><thead><tr><th>Nº</th><th>Título</th><th>Cliente</th><th>Status</th><th class="r">Total</th><th class="r">Líquido da rádio</th><th><span class="sr">Opções</span></th></tr></thead><tbody>${aFaturar.map(({ p, m, i, n, k }) => { const c = S.calc(p), ls = m ? S.lancamentosDoPiMes(p, m) : null, liq = ls ? ls.filter(l => l.sentido === 'receber').reduce((s, l) => s + l.valor, 0) - ls.filter(l => l.sentido === 'pagar').reduce((s, l) => s + l.valor, 0) : c.net;
+      return `<tr><td class="muted nw">${S.piNo(p)}</td><td><a data-go="/pi/${p.id}" style="color:var(--ink)"><b>${esc(p.titulo) || 'Sem título'}</b></a>${m ? `<br><small class="muted nw">${S.nomeMes(m)} · mês ${i + 1} de ${n}</small>` : ''}</td><td>${esc(S.nome(p.cliente_id))}</td><td><span class="pill fn-ok">${S.STATUS[p.status].label}</span></td><td class="r">${brl(m ? c.total * k : c.total)}</td><td class="r">${brl(m ? liq : c.net)}</td><td class="r"><button class="btn sm pri" data-act="finFaturar" data-id="${p.id}"${m ? ` data-mes="${m}"` : ''}>Faturar</button></td></tr>`; }).join('')}</tbody></table></div></div>`
       : `<div class="card fin-faturar"><b>Pedidos a faturar</b><span class="pill fn-neutra">nenhum aguardando</span><span class="grow"></span><span class="muted small">Aparecem aqui quando a OPEC aprova ou programa um PI.</span></div>`;
 
     queueMicrotask(() => { poeAnel(M, ym); rolaMes(); });
@@ -279,7 +284,9 @@
     finNf: d => { const l = S.db.lancamentos.find(x => x.id === d.id);
       S.form('Nota fiscal', [{ k:'nota_fiscal', label:'Número da nota fiscal', ph:'Ex.: 1.234' }], { nota_fiscal:l.nota_fiscal || '' }, v => S.run(() => S.salvar('lancamentos', { id:l.id, nota_fiscal:(v.nota_fiscal || '').trim() }), 'Nota fiscal salva'), 'Salvar', { editar:true }); },
     // Mostra as parcelas que serão geradas e grava tudo de uma vez
-    finFaturar: d => { const pi = S.db.pis.find(p => p.id === d.id), ls = S.lancamentosDoPi(pi);
+    finFaturar: d => { const pi = S.db.pis.find(p => p.id === d.id);
+      if (S.multiMes(pi)) return faturarMes(pi, d.mes || S.mesesDoPi(pi).find(m => !S.mesesFaturados(pi).has(m)));
+      const ls = S.lancamentosDoPi(pi);
       S.dialog(`<h2>Faturar ${S.piNo(pi)}</h2><p class="muted">${esc(pi.titulo)} · ${esc(S.nome(pi.cliente_id))}</p>
         <table><thead><tr><th>Tipo</th><th>De / para</th><th>Parc.</th><th>Vencimento</th><th class="r">Valor</th></tr></thead><tbody>${ls.map(l => `<tr><td>${l.sentido === 'receber' ? 'Receber' : 'Pagar'}</td><td>${esc(l.contraparte)}</td><td>${l.parcela}</td><td>${dfmt(l.vencimento)}</td><td class="r">${brl(l.valor)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Este PI não gera valores para a rádio.</td></tr>'}</tbody></table>
         ${(() => { const pg = S.pagadorPi(pi); return ls.some(l => l.sentido === 'receber') ? (pg.doFaturamento ? `<p class="note info">Notas e boletos vão para <b>${esc(pg.nome)}</b> (${pg.tipo === 'agencia' ? 'agência' : 'cliente'}): ${esc(pg.email)}.</p>`
@@ -288,6 +295,21 @@
         <div class="row"><span class="grow"></span><button class="btn" value="cancel">Cancelar</button><button class="btn pri" value="ok">Confirmar faturamento</button></div>`,
         () => S.run(async () => { const r = await S.q(S.sb.rpc('faturar_pi', { p_pi:pi.id, p_lancamentos:ls })); Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id]; await recarregar(); }, `${S.piNo(pi)} faturado`)); }
   });
+
+  // Faturar um mês do PI de vários meses: valor do mês, vencimento padrão no dia do veículo (5) do próprio mês veiculado
+  const faturarMes = (pi, mes) => { if (!mes) return S.toast('Todos os meses deste PI já foram faturados');
+    const meses = S.mesesDoPi(pi), idx = meses.indexOf(mes), ls = S.lancamentosDoPiMes(pi, mes), venc = ls.length ? ls[0].vencimento : `${mes}-05`, pg = S.pagadorPi(pi);
+    const ultimo = meses.filter(m => !S.mesesFaturados(pi).has(m)).length === 1;
+    S.dialog(`<h2>Faturar ${S.piNo(pi)} · ${S.nomeMes(mes)}</h2><p class="muted">${esc(pi.titulo)} · ${esc(S.nome(pi.cliente_id))}</p>
+      <p class="note info">Contrato de ${meses.length} meses (${meses.map(S.nomeMes).join(', ')}). Cada mês é faturado separado, com o valor do que vai ao ar nele. Este é o mês ${idx + 1} de ${meses.length}.</p>
+      <table><thead><tr><th>Tipo</th><th>De / para</th><th>Lançamento</th><th class="r">Valor</th></tr></thead><tbody>${ls.map(l => `<tr><td>${l.sentido === 'receber' ? 'Receber' : 'Pagar'}</td><td>${esc(l.contraparte)}</td><td>${esc(l.descricao.split(' · ').slice(1).join(' · '))}</td><td class="r">${brl(l.valor)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Este mês não gera valores para o veículo.</td></tr>'}</tbody></table>
+      <div class="g2"><label class="f">Vencimento<input type="date" name="fm_venc" value="${venc}" required></label><label class="f">Forma<select name="fm_forma">${formas(pi.dados.billing.method)}</select></label></div>
+      ${ls.some(l => l.sentido === 'receber') ? (pg.email ? `<p class="note info">Notas e boletos vão para <b>${esc(pg.nome)}</b>: ${esc(pg.email)}.</p>` : `<p class="note aviso">Falta o e-mail de faturamento de <b>${esc(pg.nome)}</b>. Dá para faturar assim e completar o cadastro depois.</p>`) : ''}
+      <p class="muted small" style="margin:0">${ultimo ? 'É o último mês: o PI passa a Faturado.' : 'O PI continua em andamento até o último mês ser faturado.'}</p>
+      <div class="row"><span class="grow"></span><button class="btn" value="cancel">Cancelar</button><button class="btn pri" value="ok">Faturar ${S.nomeMes(mes).toLowerCase()}</button></div>`,
+      v => S.run(async () => { const xs = ls.map(l => ({ ...l, vencimento:v.fm_venc || venc, forma:v.fm_forma || l.forma }));
+        const r = await S.q(S.sb.rpc('faturar_pi_mes', { p_pi:pi.id, p_mes:mes, p_lancamentos:xs })); Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id]; await recarregar(); }, `${S.piNo(pi)} · ${S.nomeMes(mes)} faturado`));
+  };
 
   // Busca e seleção das parcelas
   let tBusca;

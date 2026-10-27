@@ -94,6 +94,39 @@
     return out;
   };
 
+  // ---------- faturar mês a mês (database/053, decidido em 27/10/2026) ----------
+  // PI de vários meses (contrato de novembro a janeiro) é faturado um mês por vez, cada um com a parte dele:
+  // valores da instrução de faturamento × (mídia do mês ÷ mídia total). O último mês fica com os centavos que sobram.
+  const mesDig = a => String(a.period || a.inicio || '').slice(0, 7);
+  S.mesesDoPi = pi => { const d = pi.dados || {}, set = new Set();
+    (d.grids || []).forEach(g => { if (/^\d{4}-\d{2}$/.test(g.period || '') && (g.items || []).some(it => Object.values(it.days || {}).some(n => num(n) > 0))) set.add(g.period); });
+    (d.digital || []).forEach(a => { const m = mesDig(a); if (/^\d{4}-\d{2}$/.test(m)) set.add(m); });
+    return [...set].sort(); };
+  S.multiMes = pi => S.mesesDoPi(pi).length > 1;
+  // Mídia cobrada de cada mês (itens não bonificados, com o desconto do item, e ações digitais)
+  S.midiaPorMes = pi => { const d = pi.dados || {}, out = {};
+    (d.grids || []).forEach(g => (g.items || []).forEach(it => { if (it.bonus) return; out[g.period] = (out[g.period] || 0) + S.itemCalc(it).sub; }));
+    (d.digital || []).forEach(a => { const m = mesDig(a); out[m] = (out[m] || 0) + S.digCalc(a).sub; });
+    return out; };
+  S.nomeMes = m => { const [y, mm] = m.split('-').map(Number); return new Date(y, mm - 1, 1).toLocaleDateString('pt-BR', { month:'long' }).replace(/^./, c => c.toUpperCase()) + '/' + String(y).slice(2); };
+  S.fatDia = pi => Math.min(28, Math.max(1, parseInt((S.veh(pi.veiculo_id) || {}).fat_dia) || 5));
+  // Meses já faturados (lançamentos do PI com mes_ref)
+  S.mesesFaturados = pi => new Set((S.db.lancamentos || []).filter(l => l.pi_id === pi.id && l.mes_ref).map(l => l.mes_ref));
+  S.lancamentosDoPiMes = (pi, mes, venc) => {
+    const c = S.calc(pi), meses = S.mesesDoPi(pi), por = S.midiaPorMes(pi), tot = meses.reduce((s, m) => s + (por[m] || 0), 0);
+    const idx = meses.indexOf(mes), ultimo = idx === meses.length - 1, out = [];
+    const parte = v => { const cents = Math.round(v * 100);
+      if (!tot) return Math.round(cents / meses.length) / 100;
+      if (!ultimo) return Math.round(cents * (por[mes] || 0) / tot) / 100;
+      const antes = meses.slice(0, -1).reduce((s, m) => s + Math.round(cents * (por[m] || 0) / tot), 0); return (cents - antes) / 100; };
+    S.billingEntries(pi, c).forEach(e => {
+      const sentido = e.para === 'V' ? 'receber' : e.de === 'V' ? 'pagar' : null;
+      if (!sentido || !e.value) return; const valor = parte(e.value); if (!valor) return;
+      out.push({ sentido, descricao:`${S.piNo(pi)} · ${e.what} · ${S.nomeMes(mes)}`, contraparte:sentido === 'receber' ? e.from : e.to, parcela:idx + 1, valor, vencimento:venc || `${mes}-${String(S.fatDia(pi)).padStart(2, '0')}`, forma:pi.dados.billing.method, mes_ref:mes });
+    });
+    return out;
+  };
+
   // ---------- tabelas de preço ----------
   // Situação de uma tabela: rascunho (só se prepara), agendada (publicada, ainda não começou),
   // vigente (a publicada mais recente que já começou) ou encerrada (substituída por outra).

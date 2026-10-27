@@ -165,7 +165,8 @@
     const b = (act, label, extra = '', pri = true, icon = '') => `<button class="btn${pri === true ? ' pri' : pri ? ' ' + pri : ''}" data-act="${act}"${extra}>${icon ? S.svg(icon) : ''}${label}</button>`;
     if (S.EDITABLE.includes(pi.status)) return comercial(pi) ? b('piSend', pi.status === 'devolvido' ? 'Reenviar para a OPEC' : 'Enviar para a OPEC', '', true, 'seta') : '';
     if (pi.status === 'opec') return S.pode('diretor', 'opec') ? b('piReturn', 'Devolver', '', 'warn', 'voltar') + b('piStatus', 'Aprovar PI', ' data-to="aprovado"', true, 'check') : '';
-    const faturar = S.pode('diretor', 'financeiro') ? b('finFaturar', 'Faturar', ` data-id="${pi.id}"`, pi.status === 'programado') : '';
+    const fmes = S.multiMes(pi) ? S.mesesDoPi(pi).find(m => !S.mesesFaturados(pi).has(m)) : '';
+    const faturar = S.pode('diretor', 'financeiro') ? b('finFaturar', fmes ? `Faturar ${S.nomeMes(fmes).toLowerCase()}` : 'Faturar', ` data-id="${pi.id}"${fmes ? ` data-mes="${fmes}"` : ''}`, pi.status === 'programado') : '';
     if (pi.status === 'aprovado') return faturar + (S.pode('diretor', 'opec') ? b('piStatus', 'Marcar como programado', ' data-to="programado"', true, 'check') : '');
     if (pi.status === 'programado') return faturar;
     if (pi.status === 'cancelado') return S.pode('diretor', 'gerente') ? b('piStatus', 'Reabrir como rascunho', ' data-to="rascunho"', false) : '';
@@ -358,13 +359,17 @@
 
   function tabBilling(pi, c, ro) {
     const b = pi.dados.billing, tile = (t, v) => `<div class="tile"><small>${t}</small><b style="font-size:20px">${brl(v)}</b></div>`;
-    const blocks = S.billingEntries(pi, c).map(e => `<div class="card"><h2>${esc(e.from)} paga ${e.what.toLowerCase()} para ${esc(e.to)}</h2><div class="scroll"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Lançamento</th><th class="r">Valor</th><th class="r">Forma</th></tr></thead><tbody>${S.parcels(pi, e.value).map(p => `<tr><td>${p.n}</td><td>${dfmt(p.due)}</td><td>${esc(e.what)}</td><td class="r">${brl(p.value)}</td><td class="r">${esc(b.method)}</td></tr>`).join('')}</tbody></table></div></div>`).join('');
+    // Vários meses: um faturamento por mês veiculado (database/053), no dia do veículo (padrão 5) do próprio mês
+    const mm = S.multiMes(pi) ? S.mesesDoPi(pi) : null, feitos = mm ? S.mesesFaturados(pi) : null;
+    const blocks = mm ? `<div class="card"><h2>Faturamento mês a mês</h2><p class="muted small">Contrato de ${mm.length} meses: cada mês é faturado separado, com o valor do que vai ao ar nele. Vencimento padrão no dia ${S.fatDia(pi)} do mês veiculado (dá para mudar ao faturar).</p><div class="scroll"><table><thead><tr><th>Mês</th><th>Vencimento</th><th>Lançamento</th><th class="r">Valor</th><th class="r">Situação</th></tr></thead><tbody>${mm.flatMap(m => S.lancamentosDoPiMes(pi, m).map(l => { const real = (S.db.lancamentos || []).find(x => x.pi_id === pi.id && x.mes_ref === m && x.sentido === l.sentido);
+      return `<tr><td class="nw">${S.nomeMes(m)}</td><td class="nw">${dfmt(real ? real.vencimento : l.vencimento)}</td><td>${l.sentido === 'pagar' ? 'Pagar a ' + esc(l.contraparte) : 'Receber de ' + esc(l.contraparte)}</td><td class="r">${brl(real ? real.valor : l.valor)}</td><td class="r"><span class="pill ${feitos.has(m) ? 'fn-ok' : 'fn-neutra'}">${feitos.has(m) ? 'Faturado' : 'A faturar'}</span></td></tr>`; })).join('')}</tbody></table></div></div>`
+      : S.billingEntries(pi, c).map(e => `<div class="card"><h2>${esc(e.from)} paga ${e.what.toLowerCase()} para ${esc(e.to)}</h2><div class="scroll"><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Lançamento</th><th class="r">Valor</th><th class="r">Forma</th></tr></thead><tbody>${S.parcels(pi, e.value).map(p => `<tr><td>${p.n}</td><td>${dfmt(p.due)}</td><td>${esc(e.what)}</td><td class="r">${brl(p.value)}</td><td class="r">${esc(b.method)}</td></tr>`).join('')}</tbody></table></div></div>`).join('');
     return `<div class="tiles">${tile('Valor total', c.total)}${tile('Comissão da agência', c.commission)}${tile('Valor líquido da rádio', c.net)}${tile('Bonificação', c.bonus)}</div>
       ${ro ? '<div class="note info">Clique em <b>Editar</b> para alterar as condições de faturamento.</div>' : ''}
       <div class="card"><div class="row">
       ${pi.agencia_id ? `<label class="f grow">Instrução de faturamento<select data-f="dados.billing.type" data-k="int" data-rerender="1"${ro}>${Object.entries(S.BILLING).map(([k, v]) => `<option value="${k}"${+k === +b.type ? ' selected' : ''}>${v}</option>`).join('')}</select></label>` : '<div class="grow muted small">Venda direta: o cliente paga o valor total para a rádio.</div>'}
-      <label class="f">1º vencimento<input type="date" value="${b.firstDue || ''}" data-f="dados.billing.firstDue" data-rerender="1"${ro}></label>
-      <label class="f">Parcelas<input type="number" min="1" max="24" style="width:84px" value="${b.installments}" data-f="dados.billing.installments" data-k="int" data-rerender="1"${ro}></label>
+      ${mm ? '' : `<label class="f">1º vencimento<input type="date" value="${b.firstDue || ''}" data-f="dados.billing.firstDue" data-rerender="1"${ro}></label>
+      <label class="f">Parcelas<input type="number" min="1" max="24" style="width:84px" value="${b.installments}" data-f="dados.billing.installments" data-k="int" data-rerender="1"${ro}></label>`}
       <label class="f">Forma de pagamento<select data-f="dados.billing.method" data-rerender="1"${ro}>${S.opts(['Boleto', 'Pix', 'Transferência', 'Cartão'], b.method)}</select></label></div></div>
       ${notasBoletos(pi)}${blocks}
       <div class="card"><div class="hd"><h2>Observações internas da rádio</h2><span>não saem no PI exportado</span></div><textarea data-f="dados.billing.obsVehicle" placeholder="Anotações só para a equipe da rádio"${ro}>${esc(b.obsVehicle)}</textarea></div>`;
