@@ -209,31 +209,38 @@
   // as inserções/mês de cada item são divididas por igual entre os dias permitidos. O que sobra da divisão vai para dias
   // espalhados ao longo do mês (posição ⌊(i + ½) × dias ÷ sobra⌋), nunca amontoado no começo. Sem limite por dia.
   // Devolve { meses:[{ period:'AAAA-MM', itens:{ índice:{ dia:quantidade } } }], soma, esperado, semDias:[índices], inicio, fim }
+  // Parte da empresa comercial (database/049): percentual sobre o líquido de cada venda, gravado no PI quando nasce
+  S.empCurto = () => String(((S.db && S.db.empresa) || {}).nome || 'Head 14').split('·')[0].trim() || 'Head 14';
+  S.repassePct = pi => { const v = pi && pi.repasse_pct !== undefined && pi.repasse_pct !== null ? pi.repasse_pct : ((S.db && S.db.empresa) || {}).repasse_pct; const n = Number(v); return isNaN(n) || v === undefined || v === null ? 20 : n; };
+  // Meses de calendário (decidido em 27/10/2026): o 1º mês vai do dia do início até o fim do mês e leva a quantidade
+  // proporcional aos dias permitidos que sobram nele; os outros são meses inteiros. Começando no dia 1, todos são inteiros.
   S.distribuir = (itens, inicio, nMeses) => {
-    const [y, m, d] = inicio.split('-').map(Number), dia = (yy, mm, dd) => new Date(yy, mm, Math.min(dd, new Date(yy, mm + 1, 0).getDate()), 12);
-    const porMes = {}, semDias = new Set(); let soma = 0, esperado = 0;
+    const [y, m, d] = inicio.split('-').map(Number);
+    const porMes = {}, semDias = new Set(); let soma = 0, esperado = 0, parcial = null;
     for (let k = 0; k < nMeses; k++) {
-      const ini = dia(y, m - 1 + k, d), prox = dia(y, m + k, d), datas = [];
-      for (const t = new Date(ini); t < prox; t.setDate(t.getDate() + 1)) datas.push(new Date(t));
+      const ano = new Date(y, m - 1 + k, 1, 12), ult = new Date(ano.getFullYear(), ano.getMonth() + 1, 0, 12).getDate();
+      const todas = Array.from({ length:ult }, (_, j) => new Date(ano.getFullYear(), ano.getMonth(), j + 1, 12)), datas = k === 0 ? todas.filter(t => t.getDate() >= d) : todas;
+      if (k === 0 && d > 1) parcial = { dias:datas.length, de:ult };
       itens.forEach((it, i) => {
         if (it.unica && k > 0) return; // produção (lona, adesivo): cobrada uma vez, no primeiro mês
-        const ok = datas.filter(t => (it.dias || []).includes(t.getDay())), n = ok.length;
+        const ok = datas.filter(t => (it.dias || []).includes(t.getDay())), n = ok.length, cheio = todas.filter(t => (it.dias || []).includes(t.getDay())).length;
         const por = (t, q) => { if (!q) return; const per = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`, g = porMes[per] || (porMes[per] = {}), ds = g[i] || (g[i] = {});
           ds[t.getDate()] = (ds[t.getDate()] || 0) + q; soma += q; };
         // Mídia exterior por inserção (LED, DOOH): a mesma quantidade em todos os dias permitidos
         if (parseInt(it.por_dia) > 0) { const q = parseInt(it.por_dia); esperado += q * n; if (!n) { semDias.add(i); return; } ok.forEach(t => por(t, q)); return; }
-        const total = parseInt(it.insercoes) || 0; esperado += total; if (!total) return;
+        const mensal = parseInt(it.insercoes) || 0; if (!mensal) return;
+        // Face (front light, empena) e produção: a quantidade inteira no primeiro dia de veiculação do mês
+        if (it.mensal || it.unica) { esperado += mensal; if (!n) { semDias.add(i); return; } por(ok[0], mensal); return; }
+        const total = n === cheio || !cheio ? mensal : Math.round(mensal * n / cheio); esperado += total; if (!total) return;
         if (!n) { semDias.add(i); return; }
-        // Por mês (face de front light, empena) e produção: tudo no primeiro dia do mês de veiculação
-        if (it.mensal || it.unica) { por(ok[0], total); return; }
         const base = Math.floor(total / n), sobra = total - base * n, extra = new Set();
         for (let j = 0; j < sobra; j++) extra.add(Math.floor((j + 0.5) * n / sobra));
         ok.forEach((t, j) => por(t, base + (extra.has(j) ? 1 : 0)));
       });
     }
-    const fim = new Date(dia(y, m - 1 + nMeses, d)); fim.setDate(fim.getDate() - 1);
+    const fim = new Date(y, m - 1 + nMeses, 0, 12);
     const iso = t => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-    return { meses:Object.keys(porMes).sort().map(period => ({ period, itens:porMes[period] })), soma, esperado, semDias:[...semDias], inicio, fim:iso(fim) };
+    return { meses:Object.keys(porMes).sort().map(period => ({ period, itens:porMes[period] })), soma, esperado, semDias:[...semDias], inicio, fim:iso(fim), parcial };
   };
   // Etiqueta do pagamento do PI (vem de pagamento_dos_pis): pago, em aberto (com o próximo vencimento) ou atrasado
   S.PAG_PI = { pago:['Pago', 'green'], aberto:['Em aberto', 'blue'], atrasado:['Pagamento atrasado', 'red'] };

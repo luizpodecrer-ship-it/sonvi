@@ -134,7 +134,7 @@
     return `<section class="card col-lista">${hd}${linhas}</section>`;
   };
   // Formulário do colaborador: Dados pessoais · Trabalho · Comissão (só consultor) · Pagamento e acesso
-  const formColab = (c = {}) => { const novo = !c.id, vs = S.db.veiculos, marcados = new Set(c.veiculos || []), cv = c.comissao_veiculos || {};
+  const formColab = (c = {}) => { const novo = !c.id, vs = S.db.veiculos, marcados = new Set(c.veiculos || []), cv = c.comissao_veiculos || {}, mt = c.metas || {}, rp = S.repassePct(), emp = S.empCurto();
     const livres = S.db.usuarios.filter(u => !u.diretor && !(S.db.colaboradores || []).some(x => x.usuario_id === u.id && x.id !== c.id));
     const ligado = c.usuario_id && S.db.usuarios.find(u => u.id === c.usuario_id);
     const inp = (k, rot, cls, extra = '') => `<label class="f ${cls}">${rot}<input name="${k}" value="${esc(c[k] ?? '')}"${extra}></label>`;
@@ -150,11 +150,12 @@
           ${inp('inicio', 'Início no grupo', 's3', ' type="date"')}
           <label class="f s3">Forma de contratação<select name="contratacao">${CONTRATOS.map(([k, n]) => `<option value="${k}"${(c.contratacao || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
           <div class="f s6"><span>Veículos em que atua</span><div class="em-opc">${vs.map(v => `<label class="em-op"><input type="checkbox" name="v_${v.id}"${marcados.has(v.id) ? ' checked' : ''}><span>${esc(v.nome)}</span></label>`).join('')}</div></div></div></fieldset>
-        <fieldset class="em-bl col-com-bl" data-so="consultor"${(c.funcao || 'consultor') === 'consultor' ? '' : ' hidden'}><legend>Comissão <span class="muted small" style="font:500 12px var(--font)">sobre o que o cliente pagou, no mês do pagamento</span></legend>
+        <fieldset class="em-bl col-com-bl" data-so="consultor"${(c.funcao || 'consultor') === 'consultor' ? '' : ' hidden'}><legend>Comissão e meta <span class="muted small" style="font:500 12px var(--font)">comissão sobre a parte da ${esc(emp)} (${pct(rp)} do que o cliente pagou), no mês do pagamento</span></legend>
           <div class="col-com-box">
             <div class="col-pad"><label class="f">Percentual padrão<span class="col-pct-in"><input name="comissao" inputmode="decimal" value="${c.comissao === null || c.comissao === undefined ? '' : String(c.comissao).replace('.', ',')}" placeholder="0" autocomplete="off"><b>%</b></span></label>
               <small class="muted">Vale para todos os veículos marcados, menos os que tiverem percentual próprio abaixo.${novo ? '' : ' Mudar o percentual vale só para as vendas novas.'}</small></div>
-            <div class="col-vs">${vs.map(v => `<div class="col-v" data-v="${v.id}"${marcados.has(v.id) ? '' : ' hidden'}>${S.vav(v)}<span>${esc(v.nome)}</span><span class="col-pct-in sm"><input name="cv_${v.id}" inputmode="decimal" value="${cv[v.id] === undefined || cv[v.id] === null ? '' : String(cv[v.id]).replace('.', ',')}" placeholder="padrão" aria-label="Percentual na ${esc(v.nome)}" autocomplete="off"><b>%</b></span></div>`).join('')}</div>
+            <div class="col-vs"><div class="col-v col-v-hd" aria-hidden="true"><span></span><span>Veículo</span><span>Comissão</span><span>Meta de vendas por mês</span></div>${vs.map(v => `<div class="col-v" data-v="${v.id}"${marcados.has(v.id) ? '' : ' hidden'}>${S.vav(v)}<span>${esc(v.nome)}</span><span class="col-pct-in sm"><input name="cv_${v.id}" inputmode="decimal" value="${cv[v.id] === undefined || cv[v.id] === null ? '' : String(cv[v.id]).replace('.', ',')}" placeholder="padrão" aria-label="Percentual na ${esc(v.nome)}" autocomplete="off"><b>%</b></span><span class="col-meta-in"><small class="col-meta-rot">Meta por mês</small><b>R$</b><input name="mt_${v.id}" data-mask="dec" inputmode="decimal" value="${mt[v.id] ? String(Number(mt[v.id]).toFixed(2)).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}" placeholder="sem meta" aria-label="Meta mensal na ${esc(v.nome)}" autocomplete="off"></span></div>`).join('')}</div>
+            <small class="muted">A meta é o valor líquido vendido no mês (PIs enviados para a OPEC em diante). ${novo ? 'Vale já neste mês.' : 'Mudar a meta vale a partir do mês que vem.'}</small>
             <p class="col-ex" id="colEx"></p></div></fieldset>
         <fieldset class="em-bl"><legend>Pagamento e acesso</legend><div class="em-g">
           ${inp('pix', 'Chave Pix', 's3', ' placeholder="CPF, e-mail, celular…"')}${inp('banco', 'Banco · agência · conta', 's3', ' placeholder="Opcional"')}
@@ -172,10 +173,10 @@
       form.querySelector('[data-so=outra]').hidden = fn !== 'outra'; form.querySelector('[data-so=consultor]').hidden = fn !== 'consultor';
       vs.forEach(v => { const r = form.querySelector(`.col-v[data-v="${v.id}"]`); if (r) r.hidden = !form.elements['v_' + v.id].checked; });
       const pad = num(form.elements.comissao.value), ex = document.getElementById('colEx'), mv = vs.filter(v => form.elements['v_' + v.id].checked);
-      if (ex) { const k = mv.slice(0, 2).map((v, i) => { const p = num(form.elements['cv_' + v.id].value) ?? pad, venda = i ? 5000 : 20000; return { v, p, venda, c:p === null ? null : venda * p / 100 }; });
+      if (ex) { const k = mv.slice(0, 2).map((v, i) => { const p = num(form.elements['cv_' + v.id].value) ?? pad, venda = i ? 5000 : 20000; return { v, p, venda, c:p === null ? null : venda * rp / 100 * p / 100 }; });
         ex.innerHTML = pad === null && !k.some(x => x.p !== null) ? 'Digite o percentual para ver um exemplo da conta.'
           : !k.length ? 'Marque os veículos em que ele atua.'
-          : `Exemplo: se no mês os clientes dele pagarem ${k.map(x => `${S.brl(x.venda)} na ${esc(x.v.nome)}`).join(' e ')}, a comissão é de ${k.map(x => x.c === null ? '—' : S.brl(x.c)).join(' + ')}${k.length > 1 && k.every(x => x.c !== null) ? ` = <b>${S.brl(k.reduce((t, x) => t + x.c, 0))}</b>` : ''}.`; }
+          : `Exemplo: se no mês os clientes dele pagarem ${k.map(x => `${S.brl(x.venda)} na ${esc(x.v.nome)}`).join(' e ')}, a parte da ${esc(emp)} é de ${k.map(x => S.brl(x.venda * rp / 100)).join(' + ')} e a comissão, ${k.map(x => x.c === null ? '—' : S.brl(x.c)).join(' + ')}${k.length > 1 && k.every(x => x.c !== null) ? ` = <b>${S.brl(k.reduce((t, x) => t + x.c, 0))}</b>` : ''}.`; }
       const sel = form.elements.usuario_id, dica = document.getElementById('colAcessoDica');
       if (sel && sel.value === '__novo' && dica) dica.textContent = fn === 'outra' ? 'Para criar o acesso, escolha uma função do SONVI (consultor, OPEC, financeiro, programador ou locutor).' : 'O e-mail vira o login. O perfil em cada veículo marcado é o da função; a senha provisória aparece ao salvar.'; };
     form.addEventListener('change', e => { ajusta();
@@ -186,8 +187,10 @@
     const num = v => { const n = parseFloat(String(v || '').replace(',', '.')); return isNaN(n) ? null : Math.round(n * 100) / 100; };
     const veics = S.db.veiculos.filter(v => f['v_' + v.id]).map(v => v.id), consultor = f.funcao === 'consultor';
     const cv = {}; if (consultor) veics.forEach(id => { const n = num(f['cv_' + id]); if (n !== null) cv[id] = n; });
+    const reais = v => { const n = parseFloat(String(v || '').replace(/\./g, '').replace(',', '.')); return isNaN(n) ? null : Math.round(n * 100) / 100; };
+    const metas = {}; if (consultor) veics.forEach(id => { const n = reais(f['mt_' + id]); if (n) metas[id] = n; });
     const comissao = consultor ? num(f.comissao) : null;
-    const reabre = (campo, msg) => { formColab(Object.assign({}, c, f, { veiculos:veics, comissao, comissao_veiculos:cv, usuario_id:c.usuario_id })); S.erroNoCampo(campo, msg); };
+    const reabre = (campo, msg) => { formColab(Object.assign({}, c, f, { veiculos:veics, comissao, comissao_veiculos:cv, metas, usuario_id:c.usuario_id })); S.erroNoCampo(campo, msg); };
     if ([comissao, ...Object.values(cv)].some(n => n !== null && (n < 0 || n > 100))) return reabre('comissao', 'Use um percentual de 0 a 100.');
     const novoAcesso = f.usuario_id === '__novo';
     if (novoAcesso && !String(f.email || '').trim()) return reabre('email', 'Para criar o acesso, informe o e-mail (é com ele que a pessoa entra).');
@@ -197,10 +200,10 @@
       let usuarioId = novoAcesso ? null : (f.usuario_id || null), senha = null;
       if (novoAcesso) { const r = await servidor({ acao:'criar', nome:f.nome.trim(), email:f.email.trim(), celular:f.celular || '', diretor:false, vinculos:veics.map(id => ({ veiculo_id:id, perfil:f.funcao })) }); usuarioId = r.usuario_id; senha = r.senha; }
       const row = { nome:f.nome.trim(), cpf:f.cpf || '', nascimento:f.nascimento || null, celular:f.celular || '', email:String(f.email || '').trim(), funcao:f.funcao || 'consultor', funcao_outra:f.funcao === 'outra' ? (f.funcao_outra || '').trim() : '',
-        inicio:f.inicio || null, contratacao:f.contratacao || '', veiculos:veics, comissao, comissao_veiculos:cv, pix:f.pix || '', banco:f.banco || '', observacoes:f.observacoes || '', usuario_id:usuarioId };
+        inicio:f.inicio || null, contratacao:f.contratacao || '', veiculos:veics, comissao, comissao_veiculos:cv, metas, pix:f.pix || '', banco:f.banco || '', observacoes:f.observacoes || '', usuario_id:usuarioId };
       if (c.id) await S.q(S.sb.from('colaboradores').update(row).eq('id', c.id)); else await S.q(S.sb.from('colaboradores').insert(row));
       if (novoAcesso) await S.carregarBase();
-      S.db.colaboradores = null; await carregarColab();
+      S.db.colaboradores = null; await carregarColab(); S.metasLimpar();
       if (senha) mostrarSenha({ id:usuarioId, nome:row.nome, email:row.email.toLowerCase(), celular:row.celular }, senha, true);
     }, c.id ? 'Colaborador salvo' : 'Colaborador cadastrado');
   };

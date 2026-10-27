@@ -331,6 +331,7 @@
       const fora = itens.some(it => (it.dias || []).length < 7) ? `<span>— dia fora (${itens.length === 1 ? `o item é ${S.diasTexto(itens[0].dias)}` : 'conforme os dias de cada item'})</span>` : '';
       box.innerHTML = `${r.meses.length > 1 ? `<div class="seg pr-meses" role="group" aria-label="Mês">${r.meses.map((x, k) => `<button type="button" class="${k === ver ? 'on' : ''}" data-mes="${k}" aria-pressed="${k === ver}">${mesExt(x.period).replace(/ de \d+$/, '').slice(0, 3)}/${x.period.slice(2, 4)}</button>`).join('')}</div>` : ''}
         <div class="row mid pr-cal-cab"><h3 class="grow">${mesExt(m.period)} · distribuição automática</h3>${ok}</div>
+        ${r.parcial && ver === 0 ? `<div class="note info" style="margin:0 0 10px">Os meses seguem o calendário: ${mesExt(m.period)} começa no dia ${+r.inicio.slice(8)} e leva a quantidade proporcional aos ${r.parcial.dias} dias que sobram no mês. Para o mês cheio, comece no dia 1.</div>` : ''}
         ${r.semDias.length ? `<div class="note">${r.semDias.map(i => esc(resumoItem(itens[i]))).join(', ')}: nenhum dia permitido no período.</div>` : ''}
         <div class="pr-cal"><span class="pr-ws" aria-hidden="true">${['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map(w => `<small>${w}</small>`).join('')}</span>${'<span class="pr-cd vz" aria-hidden="true"></span>'.repeat(vazio)}${cel.join('')}</div>
         <div class="pr-leg">${leg}${fora}</div>`;

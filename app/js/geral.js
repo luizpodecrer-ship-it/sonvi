@@ -51,7 +51,7 @@
     try {
       const desde = `${new Date().getFullYear() - 1}-01-01`;
       const [pis, lanc] = await Promise.all([
-        S.q(S.sb.from('pis').select('id, veiculo_id, status, consultor_id, valor_total, criado_em').in('status', VENDIDO).gte('criado_em', desde)),
+        S.q(S.sb.from('pis').select('id, veiculo_id, status, consultor_id, valor_total, valor_liquido, criado_em').in('status', VENDIDO).gte('criado_em', desde)),
         S.q(S.sb.from('lancamentos').select('id, veiculo_id, valor, vencimento, pi_id').eq('sentido', 'receber').is('pago_em', null))]);
       // Consultor de cada parcela (pelo PI), para o "A receber" filtrar por consultor
       const conhecidos = new Map(pis.map(p => [p.id, p.consultor_id]));
@@ -177,7 +177,8 @@
     painel.corpo = corpo_;
     const corpo = corpo_();
     const lista = `<section class="card gv"><div class="hd gv-hd"><h2>Veículos</h2><span class="muted small gv-at">atualizado às ${S.hora(cache.em)} · <a data-act="geralAtualizar">Atualizar</a></span></div><div id="gv-corpo">${corpo}</div></section>`;
-    return Object.assign(topo, { body:`${intro}<div id="cz-lugar"></div>${lista}` });
+    const metas = S.metasHtml({ mes:S.mesAtual(f.per === 'passado' ? -1 : 0), pis:cache.pis, vazio:'Nenhuma meta cadastrada para este mês. A meta de cada consultor, por veículo, fica em Administração › Colaboradores.' });
+    return Object.assign(topo, { body:`${intro}<div id="cz-lugar"></div>${metas}${lista}` });
   };
 
   Object.assign(S.actions, {
