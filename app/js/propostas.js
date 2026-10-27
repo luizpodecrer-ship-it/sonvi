@@ -594,7 +594,7 @@
     prPdf: d => { const p = ed.id === d.id && ed.p ? ed.p : achar(d.id); if (!p.cliente_id) return S.toast('Escolha o cliente antes.'); baixarPdf(p); },
     prGerar: d => { const p = daLista(d); if (S.propostaComPi(p)) return p.pi_id && piDe(p) ? S.go('/pi/' + p.pi_id) : S.toast('Os PIs desta proposta já foram gerados.'); gerarDlg(p); },
     prAbrirPi: d => { const p = daLista(d); if (!p.pi_id || !piDe(p)) return S.toast('O PI desta proposta não está nesta lista.'); S.ui.tab = 'detalhes'; S.go('/pi/' + p.pi_id); },
-    prOpcoes: (d, botao) => { const p = achar(d.id), s = sitDe(p), dentro = S.route().id === p.id, id = { id:p.id }, it = [];
+    prOpcoes: (d, botao) => { const p = achar(d.id), s = sitDe(p), dentro = S.route().id === p.id, id = { id:p.id }, it = [], tudo = S.me.diretor || (S.pode('consultor') && p.consultor_id === S.me.id);
       if (!dentro) it.push({ label:'Abrir', icon:'abrir', act:'prAbrir', data:id });
       if (!dentro) it.push({ label:'Visualizar', icon:'olho', act:'prVer', data:id });
       it.push({ label:'Baixar PDF', icon:'baixar', act:'prPdf', data:id });
@@ -605,9 +605,9 @@
         if (p.link_token && ['enviada', 'vencida', 'aprovada', 'pi'].includes(s)) it.push({ label:'Copiar link da proposta', icon:'copia', act:'prCopiarLink', data:id });
         if (s === 'enviada' || s === 'vencida') it.push({ label:'Marcar recusada', icon:'bloqueio', act:'prRecusar', data:id });
         if (['enviada', 'vencida', 'recusada'].includes(s) || (s === 'aprovada' && !p.pi_id)) it.push({ label:'Voltar para rascunho', icon:'voltar', act:'prRascunho', data:id });
-        if (s === 'rascunho' && !S.me.diretor) it.push('-', { label:'Excluir', icon:'lixo', act:'prExcluir', data:id, perigo:true });
+        if (s === 'rascunho' && !tudo) it.push('-', { label:'Excluir', icon:'lixo', act:'prExcluir', data:id, perigo:true });
       }
-      if (S.me.diretor) it.push('-', { label:'Excluir proposta', icon:'lixo', act:'prExcluirTudo', data:id, perigo:true });
+      if (tudo) it.push('-', { label:'Excluir proposta', icon:'lixo', act:'prExcluirTudo', data:id, perigo:true });
       S.menu(botao, it); },
     prAbrir: d => S.go('/propostas/' + d.id),
     prSugerir: async () => { const p = atualEd(); if (!p) return; if (!(p.itens || []).some(it => it.insercoes)) return S.toast('Coloque os itens e as inserções antes: o texto sai deles.');

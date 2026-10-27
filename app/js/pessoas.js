@@ -196,7 +196,7 @@
       ] : [{ k:'comissao', label:'Comissão padrão (%)' }]),
       { k:'observacoes', label:'Observações', type:'textarea' },
       ...bloco,
-      ...(!novo && gestor ? [{ html:`<div style="grid-column:1/-1"><button class="btn sm danger" value="excluir" formnovalidate>Excluir cadastro</button></div>` }] : [])];
+      ...(!novo && (gestor || (S.pode('consultor') && (!cliente || p.consultor_id === S.me.id))) ? [{ html:`<div style="grid-column:1/-1"><button class="btn sm danger" value="excluir" formnovalidate>Excluir cadastro</button></div>` }] : [])];
     S.form(novo ? (cliente ? 'Novo cliente' : 'Nova agência') : esc(p.nome), campos, p, v => salvar(p, v, { cliente, gestor, novo, tipo }));
     const d = document.getElementById('dlg'), ok = d.onclose;
     if (bloco.length) d.classList.add('medio');
@@ -207,10 +207,16 @@
   // Excluir cadastro. Cliente com propostas, PIs ou financeiro: só o diretor, por conta e risco dele (decidido em 26/10/2026,
   // database/048): a janela mostra o que vai junto e pede o nome digitado; excluir_cliente_completo apaga tudo de uma vez.
   async function excluirPessoa(p, cliente) {
-    const simples = async () => { if (await S.confirmar('Excluir este cadastro?', { ok:'Excluir cadastro', perigo:true })) S.run(() => S.excluir('pessoas', p.id), 'Cadastro excluído'); };
+    // Consultor (decidido em 27/10/2026, database/052): exclui o que é dele pelas funções do banco (não pode apagar direto na tabela)
+    const consultor = !S.me.diretor && S.pode('consultor'), dono = cliente ? p.consultor_id === S.me.id : true;
+    const simples = async () => { if (!await S.confirmar('Excluir este cadastro?', { ok:'Excluir cadastro', perigo:true })) return;
+      if (consultor) S.run(async () => { await S.q(S.sb.rpc(cliente ? 'excluir_cliente_completo' : 'excluir_agencia_completa', { p_pessoa:p.id, p_nome:p.nome })); await S.carregarVeiculo(); }, 'Cadastro excluído');
+      else S.run(() => S.excluir('pessoas', p.id), 'Cadastro excluído'); };
+    const comTudo = S.me.diretor || (consultor && dono);
+    if (consultor && !dono) return S.toast('Este cliente é de outro consultor. Só o diretor pode excluir.');
     if (!cliente) {
-      if (!S.me.diretor) return simples();
-      // Diretor: agência com PIs ou propostas também sai; eles ficam como venda direta (database/050)
+      if (!comTudo) return simples();
+      // Diretor e consultor: agência com PIs ou propostas também sai; eles ficam como venda direta (database/050 e 052)
       let v; try { v = await S.q(S.sb.rpc('vinculos_da_agencia', { p_pessoa:p.id })); } catch (e) { return S.toast(S.erro(e)); }
       if (!(v.pis || v.propostas)) return simples();
       return S.excluirDigitando({ titulo:`Excluir ${esc(p.nome)}?`,
@@ -219,9 +225,9 @@
         rotulo:'Para confirmar, digite o nome da agência', dica:p.nome, confere:t => t.trim().toLowerCase() === String(p.nome).trim().toLowerCase(), botao:'Excluir agência',
         onOk:f => S.run(async () => { await S.q(S.sb.rpc('excluir_agencia_completa', { p_pessoa:p.id, p_nome:f.ex_conf })); await S.carregarVeiculo(); }, 'Agência excluída') });
     }
-    if (!S.me.diretor) {
+    if (!comTudo) {
       if ((S.db.pis || []).some(x => x.cliente_id === p.id) || (S.db.propostas || []).some(x => x.cliente_id === p.id))
-        return S.toast('Este cliente tem propostas ou PIs. Só o diretor pode excluir.');
+        return S.toast('Este cliente tem propostas ou PIs. Só o diretor ou o consultor dele pode excluir.');
       return simples();
     }
     let v; try { v = await S.q(S.sb.rpc('vinculos_do_cliente', { p_pessoa:p.id })); } catch (e) { return S.toast(S.erro(e)); }
@@ -388,7 +394,7 @@
     pesNovo: () => formulario({ tipo:aba, pessoa:'pj', situacao:'prospect', comissao:20, consultor_id:S.pode('consultor') ? S.me.id : '' }),
     pesEditar: d => { const p = S.pessoa(d.id); if (S.pode('diretor', 'gerente') || (S.pode('consultor') && (p.tipo === 'agencia' || p.consultor_id === S.me.id))) formulario(p); else S.toast('Seu perfil só pode consultar este cadastro.'); },
     pesMenu: (d, botao) => S.menu(botao, [{ label:'Abrir', icon:'abrir', act:'pesEditar', data:{ id:d.id } }, { label:'Levar para outro veículo', icon:'copia', act:'pesLevar', data:{ id:d.id } },
-      ...(S.pode('diretor', 'gerente') ? ['-', { label:'Excluir cadastro', icon:'lixo', act:'pesExcluir', data:{ id:d.id }, perigo:true }] : [])]),
+      ...(S.pode('diretor', 'gerente', 'consultor') ? ['-', { label:'Excluir cadastro', icon:'lixo', act:'pesExcluir', data:{ id:d.id }, perigo:true }] : [])]),
     pesExcluir: d => { const p = S.db.pessoas.find(x => x.id === d.id); if (p) excluirPessoa(p, p.tipo === 'cliente'); },
     pesLevar: d => { const p = S.pessoa(d.id); if (p) levarDialogo(p); },
     pesTrazer: () => { const a = cad.achados[0]; if (!a) return;

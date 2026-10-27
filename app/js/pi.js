@@ -525,7 +525,7 @@
       if (comercial(pi)) itens.push({ label:'Duplicar', icon:'copia', act:'piDuplicar', data:id });
       const fim = [];
       if (gestor && !['cancelado', 'faturado', 'rascunho'].includes(pi.status)) fim.push({ label:'Cancelar PI', icon:'voltar', act:'piCancelarPI', data:id, perigo:true });
-      if (S.me.diretor) fim.push({ label:'Excluir PI', icon:'lixo', act:'piExcluirTudo', data:id, perigo:true });
+      if (S.me.diretor || (S.pode('consultor') && pi.consultor_id === S.me.id)) fim.push({ label:'Excluir PI', icon:'lixo', act:'piExcluirTudo', data:id, perigo:true });
       else if (pi.status === 'rascunho' && comercial(pi)) fim.push({ label:'Excluir', icon:'lixo', act:'piExcluir', data:id, perigo:true });
       S.menu(botao, fim.length ? [...itens, '-', ...fim] : itens);
     },
