@@ -61,7 +61,7 @@
     const linhas = pis.map(p => { const c = S.calc(p), cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id), cons = S.usuario(p.consultor_id), tit = p.titulo || 'Sem título', v = veiculacao(p);
       return `<div class="pl-l click" data-go="/pi/${p.id}" data-flip="${p.id}" role="link" tabindex="0">
         <span class="pl-n">${S.piNo(p)}</span>
-        <span class="pl-t"><b title="${esc(tit)}">${esc(tit)}</b><small>${p.projeto ? esc(p.projeto) + ' · ' : ''}${c.ins} inserç${c.ins === 1 ? 'ão' : 'ões'}${c.pub ? ` + ${c.pub} pub.` : ''}</small></span>
+        <span class="pl-t"><b title="${esc(tit)}">${esc(tit)}</b><small>${[p.projeto ? esc(p.projeto) : '', c.ins || !c.pub ? `${c.ins} inserç${c.ins === 1 ? 'ão' : 'ões'}` : '', c.pub ? `${c.pub} entrega${c.pub === 1 ? '' : 's'} digita${c.pub === 1 ? 'l' : 'is'}` : ''].filter(Boolean).join(' · ')}</small></span>
         <span class="pl-c"><span title="${esc(cli)}">${esc(cli)}</span><small title="${esc(ag || 'Venda direta')}">${ag ? esc(ag) : 'Venda direta'}</small></span>
         <span class="pl-u" title="${esc(cons)}">${cons ? `<span class="av soft" aria-hidden="true">${esc(S.iniciais(cons))}</span><span class="pl-un">${esc(S.celular ? cons : cons.split(' ')[0])}</span>` : '<span class="muted">—</span>'}</span>
         <span class="pl-p"><small>Veiculação</small>${v ? `${dfmt(v[0]).slice(0, 5)} a ${dfmt(v[1]).slice(0, 5)}` : '—'}</span>

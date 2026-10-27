@@ -103,7 +103,7 @@
     const linhas = vis.map(p => { const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id);
       return `<div class="prl-l click" data-go="/propostas/${p.id}" data-flip="${p.id}" role="link" tabindex="0">
         <span class="prl-n">${S.propNo(p)}</span>
-        <span class="prl-c"><b title="${esc(cli)}">${esc(cli)}</b><small>${ag ? esc(ag) : 'Direto'}${p.consultor_id ? ' · ' + esc(S.usuario(p.consultor_id)) : ''}</small></span>
+        <span class="prl-c"><b title="${esc(cli)}">${esc(cli)}</b><small>${[ag ? esc(ag) : 'Direto', esc(S.usuario(p.consultor_id) || '')].filter(Boolean).join(' · ')}</small></span>
         <span class="prl-i" title="${esc(resumo(p))}">${esc(resumo(p))}</span>
         <span class="prl-q">${trilha(p)}</span>
         <span class="prl-v"><small>Investimento mensal</small><b>${brl(p.valor_total)}</b></span>
@@ -448,7 +448,7 @@
     if (!l.length) return '';
     const linhas = l.map(p => { const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id);
       return `<div class="prl-l"><span class="prl-n">${S.propNo(p)}</span>
-        <span class="prl-c"><b title="${esc(cli)}">${esc(cli)}</b><small>${ag ? esc(ag) : 'Direto'} · ${esc(S.usuario(p.consultor_id))}</small></span>
+        <span class="prl-c"><b title="${esc(cli)}">${esc(cli)}</b><small>${[ag ? esc(ag) : 'Direto', esc(S.usuario(p.consultor_id) || '')].filter(Boolean).join(' · ')}</small></span>
         <span class="prl-i" title="${esc(resumo(p))}">${esc(resumo(p))}</span>
         <span class="prl-q"><small>Inserções/mês</small>${qtdMes(p)}</span>
         <span class="prl-v"><small>Investimento mensal</small><b>${brl(p.valor_total)}</b></span>
