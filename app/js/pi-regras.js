@@ -10,6 +10,7 @@
     d.pieces = d.pieces || []; d.grids = d.grids || []; d.digital = d.digital || []; d.briefing = d.briefing || '';
     pi.entregas = pi.entregas && typeof pi.entregas === 'object' ? pi.entregas : {};
     d.billing = Object.assign({ type:10, firstDue:'', installments:1, method:'Boleto', obsClient:'', obsVehicle:'' }, d.billing);
+    if (!d.billing.vencs || typeof d.billing.vencs !== 'object') d.billing.vencs = {}; // vencimento escolhido para cada mês (PI de vários meses)
     pi.resultado = Object.assign({ leads:0, value:0, desc:'' }, pi.resultado);
     return pi;
   };
@@ -114,7 +115,9 @@
   S.mesesFaturados = pi => new Set((S.db.lancamentos || []).filter(l => l.pi_id === pi.id && l.mes_ref).map(l => l.mes_ref));
   // Vencimento de cada mês: com o 1º vencimento escolhido na aba Faturamento, ele vale para o 1º mês e os outros
   // seguem no mesmo dia, um mês depois do outro; sem ele, dia do veículo (5) do próprio mês veiculado
-  S.vencMes = (pi, mes) => { const meses = S.mesesDoPi(pi), k = Math.max(0, meses.indexOf(mes)), f = (pi.dados.billing || {}).firstDue || '';
+  S.vencMes = (pi, mes) => { const b = pi.dados.billing || {}, proprio = (b.vencs || {})[mes];
+    if (/^(19|20)\d{2}-\d{2}-\d{2}$/.test(proprio || '')) return proprio; // escolhido à mão para este mês
+    const meses = S.mesesDoPi(pi), k = Math.max(0, meses.indexOf(mes)), f = b.firstDue || '';
     if (/^(19|20)\d{2}-\d{2}-\d{2}$/.test(f)) { const [y, m, d] = f.split('-').map(Number), dt = new Date(y, m - 1 + k, 1), last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
       return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(Math.min(d, last)).padStart(2, '0')}`; }
     return `${mes}-${String(S.fatDia(pi)).padStart(2, '0')}`; };

@@ -204,6 +204,13 @@
     if (d.ui === 'vehicleId' && pendente()) { el.value = S.ui.vehicleId; return S.toast(pendente()); }
     if (d.ui === 'vehicleId') return S.trocarVeiculo(el.value);
     if (d.ui) { S.ui[d.ui] = el.value; return S.render(); }
+    // Campo de data: enquanto a pessoa digita, o navegador avisa a cada pedaço (dia, mês, cada número do ano), e um ano
+    // pela metade virava "0002" e a tela se redesenhava no meio da digitação (27/10/2026). Só vale ao sair do campo.
+    if (el.type === 'date' && document.activeElement === el) {
+      if (!el.dataset.esperaSair) { el.dataset.esperaSair = '1';
+        el.addEventListener('blur', () => { delete el.dataset.esperaSair; if (el.isConnected) S.changes.some(handler => handler(el, el.dataset)); }, { once:true }); }
+      return;
+    }
     S.changes.some(handler => handler(el, d));
   });
   window.addEventListener('hashchange', () => { if (!S.carregando) S.render(); window.scrollTo(0, 0); });
