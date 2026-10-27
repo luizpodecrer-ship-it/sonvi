@@ -239,7 +239,7 @@
 
   const cabGrade = (g, i, em) => `<div class="g-hd"><h2>Grade ${String.fromCharCode(65 + i)}</h2>
     <label>Período de veiculação ${em ? `<select data-f="period" data-g="${g.id}" data-rerender="1" aria-label="Período de veiculação">${meses(g.period)}</select>` : `<b>${mesExt(g.period)}</b>`}</label>
-    ${em ? `<button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button>` : ''}</div>`;
+    ${em ? `<span class="g-acoes"><button class="btn sm" data-act="piRepetir" data-id="${g.id}" title="Copia esta grade para os meses seguintes">${S.svg('copia')}Repetir nos próximos meses</button><button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button></span>` : ''}</div>`;
   // Desconto da linha: em %, em R$ ou a linha inteira bonificada (sem cobrança)
   const descEdit = (it, a) => `<span class="duo"><input value="${it.bonus ? '' : nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="${it.bonus ? '—' : '0'}" ${a}${it.bonus ? ' disabled' : ''} aria-label="Desconto"><select data-f="disc.type" data-rerender="1" ${a} aria-label="Tipo de desconto"><option value="pct"${!it.bonus && it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${!it.bonus && it.disc.type === 'brl' ? ' selected' : ''}>R$</option><option value="bon"${it.bonus ? ' selected' : ''}>Bonif.</option></select></span>`;
   const descVer = it => it.bonus ? 'Bonificado' : regra(it.disc);
@@ -444,6 +444,17 @@
   document.addEventListener('dragleave', e => { const d = e.target.closest && e.target.closest('.drop'); if (d) d.classList.remove('on'); });
   document.addEventListener('drop', e => { const d = e.target.closest && e.target.closest('.drop'); if (!d) return; e.preventDefault(); d.classList.remove('on'); const pi = cur(); if (pi) enviarArquivos(pi, [...e.dataTransfer.files]); });
 
+  // Dias de um item levados para outro mês: mesma quantidade no mês, nos mesmos dias da semana (S.distribuir)
+  const diasNoMes = (deMes, dias, paraMes) => {
+    const [y, m] = deMes.split('-').map(Number), ent = Object.entries(dias || {}).map(([d, q]) => [+d, parseInt(q) || 0]).filter(([, q]) => q > 0);
+    if (!ent.length) return {};
+    if (ent.length === 1) { const [py, pm] = paraMes.split('-').map(Number), ult = new Date(py, pm, 0).getDate(); return { [Math.min(ent[0][0], ult)]:ent[0][1] }; }
+    const sem = [...new Set(ent.map(([d]) => new Date(y, m - 1, d).getDay()))], qs = new Set(ent.map(([, q]) => q)), total = ent.reduce((t, [, q]) => t + q, 0);
+    const it = qs.size === 1 ? { dias:sem, por_dia:[...qs][0] } : { dias:sem, insercoes:total };
+    const r = S.distribuir([it], `${paraMes}-01`, 1), mes = r.meses.find(x => x.period === paraMes);
+    return mes && mes.itens[0] ? mes.itens[0] : {};
+  };
+
   // ---------- ações ----------
   const mexer = fn => { const pi = cur(); if (!editando(pi)) return; fn(pi, pi.dados); marcarSujo(); S.render(); };
   const criar = (v, dados) => S.q(S.sb.rpc('criar_pi', { p_veiculo:S.ui.vehicleId, p_titulo:v.titulo, p_cliente:v.cliente_id || null, p_agencia:v.agencia_id || null, p_projeto:v.projeto || '', p_dados:dados }));
@@ -550,6 +561,23 @@
     piAddGrid: () => mexer((pi, d) => { const last = d.grids[d.grids.length - 1];
       let period = today().slice(0, 7); if (last) { const [y, m] = last.period.split('-').map(Number), n = new Date(y, m, 1); period = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; }
       d.grids.push({ id:uid(), period, praca:last ? last.praca || '' : (S.veh(pi.veiculo_id).cidade || ''), items:[blankItem()] }); }),
+    // Repetir a grade nos meses seguintes (27/10/2026): mesmos itens, preço e desconto; em cada mês a mesma quantidade,
+    // nos mesmos dias da semana. Quantidade igual todo dia (painel de LED) continua igual por dia; um dia só (face, produção) fica no mesmo dia.
+    piRepetir: x => { const pi = cur(); if (!editando(pi)) return; const g = pi.dados.grids.find(y => y.id === x.id); if (!g) return;
+      if (!g.items.some(it => S.itemCalc(it).ins)) return S.toast('Preencha a grade antes de repetir: ela ainda não tem inserções.');
+      const mais = k => { const [y, m] = g.period.split('-').map(Number), d = new Date(y, m - 1 + k, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+      const tem = per => pi.dados.grids.some(y => y.period === per);
+      S.dialog(`<h2>Repetir a grade de ${mesExt(g.period)}</h2>
+        <p class="muted" style="margin-top:-6px">Cria uma grade igual em cada mês: mesmos programas, formatos, peças, valores e descontos. A quantidade do mês se repete, nos mesmos dias da semana.</p>
+        <label class="f">Repetir até<select name="ate">${Array.from({ length:12 }, (_, k) => mais(k + 1)).map((per, k) => `<option value="${k + 1}"${k === 0 ? ' selected' : ''}>${mesExt(per)} (${k + 1} ${k ? 'meses' : 'mês'} a mais)${tem(per) ? ' · já tem grade' : ''}</option>`).join('')}</select></label>
+        <p class="muted small" style="margin:0">Mês que já tem grade ganha mais uma; dá para ajustar qualquer dia depois. Nada vai para a nuvem até você clicar em Salvar.</p>
+        <div class="row" style="margin-top:16px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Repetir</button></div>`,
+        f => { const n = parseInt(f.ate) || 1;
+          mexer((p2, d) => { const pos = d.grids.indexOf(g) + 1, novas = [];
+            for (let k = 1; k <= n; k++) { const per = mais(k);
+              novas.push({ id:uid(), period:per, praca:g.praca || '', items:g.items.filter(it => S.itemCalc(it).ins).map(it => Object.assign(JSON.parse(JSON.stringify(it)), { id:uid(), days:diasNoMes(g.period, it.days, per) })) }); }
+            d.grids.splice(pos, 0, ...novas); });
+          S.toast(`Grade repetida em ${n} ${n === 1 ? 'mês' : 'meses'}. Confira e clique em Salvar.`); }); },
     piRmGrid: async x => { const pi = cur(), g = pi.dados.grids.find(g => g.id === x.id);
       if (g.items.some(it => S.itemCalc(it).ins) && !await S.confirmar('Remover esta grade com todas as inserções dela?', { ok:'Remover grade', perigo:true })) return;
       mexer((pi, d) => { d.grids = d.grids.filter(g => g.id !== x.id); }); },
