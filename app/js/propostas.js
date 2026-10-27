@@ -574,6 +574,18 @@
     prExcluir: async d => { const p = daLista(d);
       if (!await S.confirmar(`Excluir a proposta ${S.propNo(p)} (${S.nome(p.cliente_id)})? Não dá para desfazer.`, { ok:'Excluir proposta', perigo:true })) return;
       S.run(async () => { if (ed.id === p.id) fechar(); await S.excluir('propostas', p.id); if (S.route().view === 'propostas' && S.route().id) location.hash = '/propostas'; }, 'Proposta excluída'); },
+    // Diretor: exclui a proposta em qualquer situação e, se marcar, os PIs gerados por ela (database/050)
+    prExcluirTudo: async d => { const p = daLista(d); let v;
+      try { v = await S.q(S.sb.rpc('vinculos_da_proposta', { p_proposta:p.id })); } catch (e) { return S.toast(S.erro(e)); }
+      const pis = v.pis || [], pagas = pis.reduce((t, x) => t + (x.pagas || 0), 0);
+      const extra = pis.length ? `<label class="row mid" style="gap:10px;flex-wrap:nowrap;margin:2px 0"><input type="checkbox" name="com_pis">Excluir também ${pis.length === 1 ? 'o PI gerado' : `os ${pis.length} PIs gerados`} (${pis.map(x => esc(x.numero)).join(', ')}), com as parcelas do financeiro${pagas ? `, ${pagas} já ${pagas === 1 ? 'paga' : 'pagas'}` : ''}</label>` : '';
+      S.excluirDigitando({ titulo:`Excluir a proposta ${S.propNo(p)}?`, itens:[v.followups && `${v.followups} follow-up${v.followups === 1 ? '' : 's'} ligado${v.followups === 1 ? '' : 's'} a ela (os automáticos são apagados; os outros ficam sem a proposta)`].filter(Boolean),
+        aviso:`${S.nome(p.cliente_id)} · ${p.situacao === 'rascunho' ? 'rascunho' : p.situacao}. ${pis.length ? 'Sem marcar a opção abaixo, os PIs continuam, só sem a proposta.' : ''} Não dá para desfazer.`, extra,
+        rotulo:'Para confirmar, digite o número da proposta', dica:S.propNo(p), confere:t => t.trim() === S.propNo(p), botao:'Excluir proposta',
+        onOk:f => S.run(async () => { if (ed.id === p.id) fechar();
+          const r = await S.q(S.sb.rpc('excluir_proposta_completa', { p_proposta:p.id, p_conf:f.ex_conf, p_com_pis:!!f.com_pis }));
+          await S.carregarVeiculo(); if (S.route().view === 'propostas' && S.route().id) location.hash = '/propostas';
+          if (r && r.pis) S.toast(`Proposta e ${r.pis} ${r.pis === 1 ? 'PI excluídos' : 'PIs excluídos'}`); }, f.com_pis && pis.length ? null : 'Proposta excluída') }); },
     prDuplicar: d => { const p = daLista(d), v = S.veh();
       S.run(async () => { const r = await S.salvar('propostas', { veiculo_id:v.id, cliente_id:p.cliente_id, agencia_id:p.agencia_id, validade:p.validade, data:today(), consultor_id:p.consultor_id,
         tabela_id:p.tabela_id, condicoes:p.condicoes, texto:p.texto, itens:p.itens, insercoes:p.insercoes, publicacoes:p.publicacoes || 0, valor_tabela:p.valor_tabela, valor_total:p.valor_total });
@@ -593,8 +605,9 @@
         if (p.link_token && ['enviada', 'vencida', 'aprovada', 'pi'].includes(s)) it.push({ label:'Copiar link da proposta', icon:'copia', act:'prCopiarLink', data:id });
         if (s === 'enviada' || s === 'vencida') it.push({ label:'Marcar recusada', icon:'bloqueio', act:'prRecusar', data:id });
         if (['enviada', 'vencida', 'recusada'].includes(s) || (s === 'aprovada' && !p.pi_id)) it.push({ label:'Voltar para rascunho', icon:'voltar', act:'prRascunho', data:id });
-        if (s === 'rascunho') it.push('-', { label:'Excluir', icon:'lixo', act:'prExcluir', data:id, perigo:true });
+        if (s === 'rascunho' && !S.me.diretor) it.push('-', { label:'Excluir', icon:'lixo', act:'prExcluir', data:id, perigo:true });
       }
+      if (S.me.diretor) it.push('-', { label:'Excluir proposta', icon:'lixo', act:'prExcluirTudo', data:id, perigo:true });
       S.menu(botao, it); },
     prAbrir: d => S.go('/propostas/' + d.id),
     prSugerir: async () => { const p = atualEd(); if (!p) return; if (!(p.itens || []).some(it => it.insercoes)) return S.toast('Coloque os itens e as inserções antes: o texto sai deles.');

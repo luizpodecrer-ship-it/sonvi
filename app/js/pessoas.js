@@ -208,7 +208,17 @@
   // database/048): a janela mostra o que vai junto e pede o nome digitado; excluir_cliente_completo apaga tudo de uma vez.
   async function excluirPessoa(p, cliente) {
     const simples = async () => { if (await S.confirmar('Excluir este cadastro?', { ok:'Excluir cadastro', perigo:true })) S.run(() => S.excluir('pessoas', p.id), 'Cadastro excluído'); };
-    if (!cliente) return simples();
+    if (!cliente) {
+      if (!S.me.diretor) return simples();
+      // Diretor: agência com PIs ou propostas também sai; eles ficam como venda direta (database/050)
+      let v; try { v = await S.q(S.sb.rpc('vinculos_da_agencia', { p_pessoa:p.id })); } catch (e) { return S.toast(S.erro(e)); }
+      if (!(v.pis || v.propostas)) return simples();
+      return S.excluirDigitando({ titulo:`Excluir ${esc(p.nome)}?`,
+        itens:[v.pis && `${v.pis} PI${v.pis === 1 ? '' : 's'} passa${v.pis === 1 ? '' : 'm'} a ser venda direta (sem agência)`, v.propostas && `${v.propostas} proposta${v.propostas === 1 ? '' : 's'} também`, v.clientes && `${v.clientes} cliente${v.clientes === 1 ? '' : 's'} fica${v.clientes === 1 ? '' : 'm'} sem agência`].filter(Boolean),
+        aviso:'A comissão e a instrução de faturamento desses PIs deixam de considerar a agência. Não dá para desfazer.',
+        rotulo:'Para confirmar, digite o nome da agência', dica:p.nome, confere:t => t.trim().toLowerCase() === String(p.nome).trim().toLowerCase(), botao:'Excluir agência',
+        onOk:f => S.run(async () => { await S.q(S.sb.rpc('excluir_agencia_completa', { p_pessoa:p.id, p_nome:f.ex_conf })); await S.carregarVeiculo(); }, 'Agência excluída') });
+    }
     if (!S.me.diretor) {
       if ((S.db.pis || []).some(x => x.cliente_id === p.id) || (S.db.propostas || []).some(x => x.cliente_id === p.id))
         return S.toast('Este cliente tem propostas ou PIs. Só o diretor pode excluir.');

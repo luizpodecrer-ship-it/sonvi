@@ -525,7 +525,8 @@
       if (comercial(pi)) itens.push({ label:'Duplicar', icon:'copia', act:'piDuplicar', data:id });
       const fim = [];
       if (gestor && !['cancelado', 'faturado', 'rascunho'].includes(pi.status)) fim.push({ label:'Cancelar PI', icon:'voltar', act:'piCancelarPI', data:id, perigo:true });
-      if (pi.status === 'rascunho' && comercial(pi)) fim.push({ label:'Excluir', icon:'lixo', act:'piExcluir', data:id, perigo:true });
+      if (S.me.diretor) fim.push({ label:'Excluir PI', icon:'lixo', act:'piExcluirTudo', data:id, perigo:true });
+      else if (pi.status === 'rascunho' && comercial(pi)) fim.push({ label:'Excluir', icon:'lixo', act:'piExcluir', data:id, perigo:true });
       S.menu(botao, fim.length ? [...itens, '-', ...fim] : itens);
     },
     piAbrir: d => S.go('/pi/' + d.id),
@@ -548,6 +549,18 @@
       S.run(async () => { if (ed.id === pi.id) sairEdicao(); await S.excluir('pis', pi.id);
         try { const { data } = await S.sb.storage.from(BUCKET).list(pasta(pi)); if (data && data.length) await S.sb.storage.from(BUCKET).remove(data.map(f => `${pasta(pi)}/${f.name}`)); } catch (e) { console.error(e); } /* apaga também as mídias do PI */
         if (S.route().view === 'pi') location.hash = '/pis'; }, 'PI excluído'); },
+    // Diretor: exclui o PI em qualquer situação, com as parcelas do financeiro (database/050)
+    piExcluirTudo: async d => { const pi = S.db.pis.find(p => p.id === d.id); let v;
+      try { v = await S.q(S.sb.rpc('vinculos_do_pi', { p_pi:pi.id })); } catch (e) { return S.toast(S.erro(e)); }
+      const itens = [v.parcelas && `${v.parcelas} ${v.parcelas === 1 ? 'parcela' : 'parcelas'} no financeiro${v.pagas ? `, ${v.pagas} já ${v.pagas === 1 ? 'paga' : 'pagas'} (${brl(v.valor_pago)})` : ''}`,
+        'o histórico, os links e os arquivos de mídia do PI', v.proposta && `a ligação com a proposta ${v.proposta} (a proposta continua)`].filter(Boolean);
+      S.excluirDigitando({ titulo:`Excluir o ${S.piNo(pi)}?`, itens,
+        aviso:`${pi.status === 'rascunho' ? '' : `Ele está "${(S.STATUS[pi.status] || {}).label || pi.status}". `}Some da OPEC, do financeiro, dos dashboards e das comissões. Não dá para desfazer.`,
+        rotulo:'Para confirmar, digite o número do PI', dica:S.piNo(pi), confere:t => (t.replace(/\D/g, '').replace(/^0+/, '') || 'x') === String(pi.numero), botao:'Excluir PI',
+        onOk:f => S.run(async () => { if (ed.id === pi.id) sairEdicao();
+          await S.q(S.sb.rpc('excluir_pi_completo', { p_pi:pi.id, p_conf:f.ex_conf }));
+          try { const { data } = await S.sb.storage.from(BUCKET).list(pasta(pi)); if (data && data.length) await S.sb.storage.from(BUCKET).remove(data.map(x => `${pasta(pi)}/${x.name}`)); } catch (e) { console.error(e); }
+          await S.carregarVeiculo(); if (S.route().view === 'pi') location.hash = '/pis'; }, `${S.piNo(pi)} excluído`) }); },
     piSend: () => { const pi = cur(), probs = S.piProblems(pi); if (probs.length) return S.toast('Antes de enviar: ' + probs[0]); enviarOpec(pi); },
     piStatus: d => { const pi = d.id ? S.db.pis.find(p => p.id === d.id) : cur();
       if (d.to === 'programado' && S.piEntregasPendentes(pi)) { const n = S.piEntregasPendentes(pi);

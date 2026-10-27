@@ -265,6 +265,16 @@ S.confirmar = (texto, { ok = 'Confirmar', voltar = 'Voltar', perigo = false } = 
   c.onclose = () => { fim(c.returnValue === 'sim'); if (dlg && dlg.open) return; setTimeout(() => { if (origem && origem !== document.body && document.contains(origem)) origem.focus(); else if (dlg && dlg._voltar) dlg._voltar(); }, 60); };
   c.showModal(); c.querySelector('button[value="nao"]').focus();
 });
+// Excluir com tudo (diretor, por conta e risco dele; database/048 e 050): mostra o que vai junto e só libera depois de digitar
+// o nome ou número. confere(texto) diz se o digitado vale; onOk recebe os campos da janela (inclui as marcações de `extra`).
+S.excluirDigitando = ({ titulo, itens = [], aviso, rotulo, dica, confere, botao = 'Excluir com tudo', extra = '', onOk }) => {
+  S.dialog(`<h2>${titulo}</h2>
+    ${itens.length ? `<p>Vai junto:</p><ul class="lista-ex">${itens.map(t => `<li>${S.esc(t)}</li>`).join('')}</ul>` : ''}
+    <p class="note aviso" style="margin:0">${aviso || 'Isso some do SONVI de vez e não dá para desfazer.'}</p>${extra}
+    <label class="f">${rotulo}<input name="ex_conf" autocomplete="off" required placeholder="${S.esc(dica || '')}"></label>
+    <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Voltar</button><button class="btn danger" value="ok">${botao}</button></div>`, onOk);
+  const campo = document.querySelector('#dlg [name="ex_conf"]'), v = () => campo.setCustomValidity(confere(campo.value) ? '' : `Digite ${rotulo.replace(/^Para confirmar, digite /, '')}${dica ? ': ' + dica : ''}`);
+  v(); campo.addEventListener('input', v); };
 // Formulário genérico: campos = [{ k, label, type, options, req, full }]
 // Cadastro já existente abre só para consulta, com o botão "Editar"; um novo já abre editável.
 S.form = (title, fields, v, onOk, ok = 'Salvar', opts = {}) => {

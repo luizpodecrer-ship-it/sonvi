@@ -243,7 +243,8 @@
       S.menu(botao, [...(l.pi_id ? [{ label:'Abrir o PI', icon:'pis', act:'finVerPi', data:{ id:l.pi_id } }] : []),
         ...(l.pago_em ? [{ label:'Ver detalhes da baixa', icon:'check', act:'finDetalhe', data:{ id:l.id } }, '-', { label:'Estornar baixa', icon:'voltar', act:'finEstornar', data:{ id:l.id }, perigo:true }]
           : [...(l.sentido === 'receber' ? [{ label:'Enviar cobrança por e-mail', icon:'email', act:'finCobrar', data:{ id:l.id } }, { label:'E-mail de cobrança', icon:'editar', act:'finEmail', data:{ id:l.id } }, '-'] : []),
-            { label:'Mudar vencimento', icon:'relogio', act:'finVenc', data:{ id:l.id } }, { label:'Informar nota fiscal', icon:'editar', act:'finNf', data:{ id:l.id } }, ...(l.pi_id ? [] : ['-', { label:'Excluir lançamento', icon:'lixo', act:'finExcluir', data:{ id:l.id }, perigo:true }])])]); },
+            { label:'Mudar vencimento', icon:'relogio', act:'finVenc', data:{ id:l.id } }, { label:'Informar nota fiscal', icon:'editar', act:'finNf', data:{ id:l.id } }, ...(l.pi_id || S.me.diretor ? [] : ['-', { label:'Excluir lançamento', icon:'lixo', act:'finExcluir', data:{ id:l.id }, perigo:true }])]),
+        ...(S.me.diretor ? ['-', { label:'Excluir lançamento', icon:'lixo', act:'finExcluirTudo', data:{ id:l.id }, perigo:true }] : [])]); },
     finVerPi: d => S.go(`/pi/${d.id}`),
     // Cobrança por e-mail, pelo próprio SONVI (remetente "<rádio> · Financeiro" financeiro@sonvi.com.br; a resposta vem para quem enviou)
     finCobrar: d => { const l = S.db.lancamentos.find(x => x.id === d.id), v = S.veh(), hoje = S.today(), at = atraso(l, hoje), ec = S.emailCobrancaDe(l);
@@ -475,6 +476,10 @@
     finAvulso: () => formAvulso(),
     finExcluir: async d => { const l = S.db.lancamentos.find(x => x.id === d.id); if (!await S.confirmar(`Excluir o lançamento "${l.descricao}" de ${brl(l.valor)}?`, { ok:'Excluir', perigo:true })) return;
       S.run(() => S.excluir('lancamentos', l.id), 'Lançamento excluído'); },
+    // Diretor: exclui qualquer lançamento, pago ou de PI (database/050)
+    finExcluirTudo: async d => { const l = S.db.lancamentos.find(x => x.id === d.id); const pi = l.pi_id && S.db.pis.find(p => p.id === l.pi_id);
+      if (!await S.confirmar(`Excluir o lançamento "${l.descricao}" de ${brl(l.valor)}?\n\n${l.pago_em ? `Ele já foi ${l.sentido === 'receber' ? 'recebido' : 'pago'} em ${S.dfmt(l.pago_em)}: o valor sai do caixa e dos relatórios. ` : ''}${pi ? `É uma parcela do ${S.piNo(pi)}; o PI continua. ` : ''}Não dá para desfazer.`, { ok:'Excluir lançamento', perigo:true })) return;
+      S.run(async () => { await S.q(S.sb.rpc('excluir_lancamento_diretor', { p_lancamento:l.id })); S.db.lancamentos = S.db.lancamentos.filter(x => x.id !== l.id); }, 'Lançamento excluído'); },
     finRelatorios: () => { modo = 'relatorios'; S.render(); window.scrollTo(0, 0); },
     finVoltar: () => { modo = 'lista'; S.render(); },
     finRel: d => { rel.id = d.id; S.render(); },
