@@ -240,7 +240,7 @@
 
   const cabGrade = (g, i, em) => `<div class="g-hd"><h2>Grade ${String.fromCharCode(65 + i)}</h2>
     <label>Período de veiculação ${em ? `<select data-f="period" data-g="${g.id}" data-rerender="1" aria-label="Período de veiculação">${meses(g.period)}</select>` : `<b>${mesExt(g.period)}</b>`}</label>
-    ${em ? `<span class="g-acoes"><button class="btn sm" data-act="piRepetir" data-id="${g.id}" title="Copia esta grade para os meses seguintes">${S.svg('copia')}Repetir nos próximos meses</button><button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button></span>` : ''}</div>`;
+    ${em ? `<span class="g-acoes"><button class="btn sm" data-act="piDistribuir" data-g="${g.id}" title="Escolha a quantidade e os dias da semana; o SONVI preenche o mapa">${S.svg('paineis')}Distribuir inserções</button><button class="btn sm" data-act="piRepetir" data-id="${g.id}" title="Copia esta grade para os meses seguintes">${S.svg('copia')}Repetir nos próximos meses</button><button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button></span>` : ''}</div>`;
   // Desconto da linha: em %, em R$ ou a linha inteira bonificada (sem cobrança)
   const descEdit = (it, a) => `<span class="duo"><input value="${it.bonus ? '' : nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="${it.bonus ? '—' : '0'}" ${a}${it.bonus ? ' disabled' : ''} aria-label="Desconto"><select data-f="disc.type" data-rerender="1" ${a} aria-label="Tipo de desconto"><option value="pct"${!it.bonus && it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${!it.bonus && it.disc.type === 'brl' ? ' selected' : ''}>R$</option><option value="bon"${it.bonus ? ' selected' : ''}>Bonif.</option></select></span>`;
   const descVer = it => it.bonus ? 'Bonificado' : regra(it.disc);
@@ -307,7 +307,7 @@
       M.push(`<div class="ln dias">${days.map(d => em
         ? `<input class="day${it.days[d] ? ' has' : ''}" inputmode="numeric" data-mask="int" value="${it.days[d] || ''}" data-day="${d}" ${a(it)} aria-label="Dia ${d}">`
         : `<span class="day${it.days[d] ? ' has' : ''}">${it.days[d] || ''}</span>`).join('')}</div>`);
-      R.push(`<div class="ln vals"><span class="ins" id="ins-${it.id}">${c.ins}</span>
+      R.push(`<div class="ln vals">${em ? `<button class="ins dist" data-act="piDistribuir" data-g="${g.id}" data-id="${it.id}" title="Distribuir as inserções desta linha" aria-label="Distribuir as inserções de ${esc(it.f1 || 'esta linha')}"><span id="ins-${it.id}">${c.ins}</span></button>` : `<span class="ins" id="ins-${it.id}">${c.ins}</span>`}
         ${em ? `<input class="n" value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)} aria-label="Valor unitário">${descEdit(it, a(it))}`
           : `<span class="n">${brl(num(it.unit))}</span><span class="n">${descVer(it)}</span>`}
         <b class="sub" id="sub-${it.id}">${brl(c.sub)}</b></div>`);
@@ -339,7 +339,7 @@
           ${em ? `<span class="tx"><select data-f="f1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato')}</select></span>` : `<span class="tx"><b>${esc(it.f1) || '—'}</b><small>${esc(it.f2)}</small></span>`}
           <b id="sub-${it.id}">${brl(c.sub)}</b></div>
         <div class="cal">${WD.map((w, k) => `<small class="${k === 0 || k === 6 ? 'we' : ''}">${w}</small>`).join('')}${cal.join('')}</div>
-        ${em ? '<small class="muted" style="text-align:center">Toque no dia e digite quantas inserções</small>' : ''}
+        ${em ? `<small class="muted" style="text-align:center">Toque no dia e digite quantas inserções, ou</small><button class="btn sm" data-act="piDistribuir" data-g="${g.id}" data-id="${it.id}">${S.svg('paineis')}Distribuir automaticamente</button>` : ''}
         <div class="it-vals"><label class="f">Quantidade<span class="ro" id="ins-${it.id}">${c.ins}</span></label>
           <label class="f">Valor unit.${em ? `<input value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)}>` : `<span class="ro">${brl(num(it.unit))}</span>`}</label>
           <label class="f">Desconto${em ? descEdit(it, a(it)) : `<span class="ro">${descVer(it)}</span>`}</label></div>
@@ -459,6 +459,19 @@
     const r = S.distribuir([it], `${paraMes}-01`, 1), mes = r.meses.find(x => x.period === paraMes);
     return mes && mes.itens[0] ? mes.itens[0] : {};
   };
+
+  // Prévia da janela "Distribuir inserções": quantos dias e quantas por dia
+  const distPrevia = g => { const fm = document.querySelector('#dlg form'), el = document.getElementById('dist-res'); if (!fm || !el || !g) return;
+    const [y, m] = g.period.split('-').map(Number), ult = new Date(y, m, 0).getDate(), e = fm.elements;
+    const dias = [0, 1, 2, 3, 4, 5, 6].filter(d => e['wd_' + d] && e['wd_' + d].checked), q = parseInt(e.qtd.value) || 0;
+    const r = S.distribuirMes(g.period, q, dias, parseInt(e.de.value) || 1, parseInt(e.ate.value) || ult, e.modo.value);
+    const vs = Object.values(r.dias), mn = vs.length ? Math.min(...vs) : 0, mx = vs.length ? Math.max(...vs) : 0;
+    el.textContent = !dias.length ? 'Marque ao menos um dia da semana.' : !r.n ? 'Nenhum dia do mês combina com essa escolha.' : !q ? `${r.n} dias no mês combinam com a escolha. Digite a quantidade.`
+      : e.modo.value === 'dia' ? `${q} por dia em ${r.n} dias = ${r.total} inserções no mês.`
+      : `${r.total} inserções em ${r.n} dias: ${mn === mx ? `${mn} por dia` : `${mn} a ${mx} por dia`}${vs.length < r.n ? ` (${r.n - vs.length} dias ficam vazios, porque há menos inserções do que dias)` : ''}.`; };
+  let distGrade = null;
+  document.addEventListener('input', e => { if (e.target.closest && e.target.closest('#dlg') && (e.target.dataset.dist || e.target.closest('[data-dist-dias]'))) distPrevia(distGrade); });
+  document.addEventListener('change', e => { if (e.target.closest && e.target.closest('#dlg') && (e.target.dataset.dist || e.target.closest('[data-dist-dias]'))) distPrevia(distGrade); });
 
   // ---------- ações ----------
   const mexer = fn => { const pi = cur(); if (!editando(pi)) return; fn(pi, pi.dados); marcarSujo(); S.render(); };
@@ -596,6 +609,34 @@
               novas.push({ id:uid(), period:per, praca:g.praca || '', items:g.items.filter(it => S.itemCalc(it).ins).map(it => Object.assign(JSON.parse(JSON.stringify(it)), { id:uid(), days:diasNoMes(g.period, it.days, per) })) }); }
             d.grids.splice(pos, 0, ...novas); });
           S.toast(`Grade repetida em ${n} ${n === 1 ? 'mês' : 'meses'}. Confira e clique em Salvar.`); }); },
+    // Distribuir inserções (27/10/2026): no PI feito à mão, a pessoa diz quantas inserções e em que dias da semana,
+    // e o SONVI preenche o mapa da linha (total do mês dividido por igual, ou a mesma quantidade por dia)
+    piDistribuir: x => { const pi = cur(); if (!editando(pi)) return; const g = pi.dados.grids.find(y => y.id === x.g); if (!g) return;
+      const [y, m] = g.period.split('-').map(Number), ult = new Date(y, m, 0).getDate();
+      const itens = g.items, it0 = itens.find(i => i.id === x.id) || itens.find(i => !S.itemCalc(i).ins) || itens[0];
+      if (!it0) return S.toast('Adicione um item na grade primeiro.');
+      const diasDe = it => { const ds = Object.keys(it.days || {}).filter(d => num(it.days[d]) > 0).map(d => new Date(y, m - 1, +d, 12).getDay());
+        if (ds.length) return [...new Set(ds)];
+        const p = S.db.produtos.find(p => p.tipo === 'programa' && p.nome.trim() === String(it.f1 || '').trim());
+        return (p && S.diasDoTexto(p.detalhe)) || [0, 1, 2, 3, 4, 5, 6]; };
+      const NOMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const chips = ds => S.SEMANA.map(d => `<label class="wd-op"><input type="checkbox" name="wd_${d}"${ds.includes(d) ? ' checked' : ''}>${NOMES[d]}</label>`).join('');
+      S.dialog(`<h2>Distribuir inserções · ${mesExt(g.period)}</h2>
+        <p class="muted" style="margin-top:-6px">Diga quantas inserções e em que dias. O SONVI preenche o mapa; depois dá para ajustar qualquer dia à mão.</p>
+        ${itens.length > 1 ? `<label class="f">Linha<select name="item" data-dist="item">${itens.map(i => `<option value="${i.id}"${i.id === it0.id ? ' selected' : ''}>${esc([i.f1, i.f2].filter(Boolean).join(' · ') || 'Linha sem programa')}${S.itemCalc(i).ins ? ` (${S.itemCalc(i).ins} hoje)` : ''}</option>`).join('')}</select></label>` : `<input type="hidden" name="item" value="${it0.id}">`}
+        <div class="g2"><label class="f">Quantidade<input name="qtd" inputmode="numeric" data-mask="int" data-dist="q" value="${S.itemCalc(it0).ins || ''}" placeholder="Ex.: 90" required autocomplete="off"></label>
+          <label class="f">Como contar<select name="modo" data-dist="q"><option value="mes">Total no mês</option><option value="dia">Por dia</option></select></label></div>
+        <fieldset class="f wd-set"><legend>Dias da semana</legend><div class="wd-ops" data-dist-dias>${chips(diasDe(it0))}</div></fieldset>
+        <div class="g2"><label class="f">Do dia<input name="de" type="number" min="1" max="${ult}" value="1" data-dist="q"></label><label class="f">Até o dia<input name="ate" type="number" min="1" max="${ult}" value="${ult}" data-dist="q"></label></div>
+        <p class="note info" id="dist-res" style="margin:0"></p>
+        <div class="row" style="margin-top:12px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Distribuir</button></div>`,
+        f => { const it = itens.find(i => i.id === f.item) || it0, dias = [0, 1, 2, 3, 4, 5, 6].filter(d => f['wd_' + d] === 'on' || f['wd_' + d] === true);
+          const r = S.distribuirMes(g.period, f.qtd, dias, parseInt(f.de) || 1, parseInt(f.ate) || ult, f.modo);
+          if (!parseInt(f.qtd)) throw new Error('Digite a quantidade de inserções.');
+          if (!r.n) throw new Error('Nenhum dia do mês combina com os dias da semana e o intervalo escolhidos.');
+          mexer(() => { it.days = r.dias; });
+          S.toast(`${r.total} inserções distribuídas em ${r.n} dias. Confira e clique em Salvar.`); });
+      distGrade = g; distPrevia(g); },
     piRmGrid: async x => { const pi = cur(), g = pi.dados.grids.find(g => g.id === x.id);
       if (g.items.some(it => S.itemCalc(it).ins) && !await S.confirmar('Remover esta grade com todas as inserções dela?', { ok:'Remover grade', perigo:true })) return;
       mexer((pi, d) => { d.grids = d.grids.filter(g => g.id !== x.id); }); },

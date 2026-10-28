@@ -284,6 +284,18 @@
     const iso = t => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     return { meses:Object.keys(porMes).sort().map(period => ({ period, itens:porMes[period] })), soma, esperado, semDias:[...semDias], inicio, fim:iso(fim), parcial };
   };
+  // PI feito à mão (27/10/2026): distribui uma quantidade nos dias escolhidos de um mês. modo 'mes' = total do mês dividido
+  // por igual entre os dias (a sobra vai para dias espalhados, como em S.distribuir); 'dia' = a mesma quantidade em cada dia.
+  S.distribuirMes = (period, qtd, dias, de, ate, modo) => {
+    const [y, m] = period.split('-').map(Number), ult = new Date(y, m, 0).getDate(), q = Math.max(0, parseInt(qtd) || 0), out = {};
+    const ok = []; for (let d = Math.max(1, de || 1); d <= Math.min(ult, ate || ult); d++) if ((dias || []).includes(new Date(y, m - 1, d, 12).getDay())) ok.push(d);
+    if (!q || !ok.length) return { dias:out, n:ok.length, total:0 };
+    if (modo === 'dia') { ok.forEach(d => { out[d] = q; }); return { dias:out, n:ok.length, total:q * ok.length }; }
+    const n = ok.length, base = Math.floor(q / n), sobra = q - base * n, extra = new Set();
+    for (let j = 0; j < sobra; j++) extra.add(Math.floor((j + 0.5) * n / sobra));
+    ok.forEach((d, j) => { const v = base + (extra.has(j) ? 1 : 0); if (v) out[d] = v; });
+    return { dias:out, n, total:q };
+  };
   // Etiqueta do pagamento do PI (vem de pagamento_dos_pis): pago, em aberto (com o próximo vencimento) ou atrasado
   S.PAG_PI = { pago:['Pago', 'green'], aberto:['Em aberto', 'blue'], atrasado:['Pagamento atrasado', 'red'] };
   S.pagPi = pi => { const r = ((S.db && S.db.pagPis) || {})[pi.id]; if (!r || !S.PAG_PI[r.situacao]) return '';
