@@ -34,9 +34,7 @@ create policy fat_pedidos_ver on public.fat_pedidos for select using (public.per
 grant select on public.fat_pedidos to authenticated;
 
 -- ---------- pergunta de pagamento por parcela ----------
-alter table public.lancamentos add column if not exists pag_token uuid default gen_random_uuid();
-update public.lancamentos set pag_token = gen_random_uuid() where pag_token is null;
-alter table public.lancamentos alter column pag_token set not null;
+alter table public.lancamentos add column if not exists pag_token uuid not null default gen_random_uuid(); -- cada linha antiga ganha o seu
 create unique index if not exists lancamentos_pag_token on public.lancamentos (pag_token);
 alter table public.lancamentos add column if not exists pag_perguntas int not null default 0;
 alter table public.lancamentos add column if not exists pag_ultima timestamptz;
