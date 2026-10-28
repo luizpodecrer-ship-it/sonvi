@@ -184,6 +184,7 @@
     const notas = `${devol && devol.nota ? `<div class="note"><b>Devolvido pela OPEC:</b> ${esc(devol.nota)}</div>` : ''}
       ${!editavel(pi) && S.EDITABLE.includes(pi.status) ? '<div class="note info">Este PI é de outro consultor ou o seu perfil só pode consultar.</div>' : ''}
       ${!S.EDITABLE.includes(pi.status) && pi.status !== 'cancelado' ? '<div class="note info">Este PI já saiu do rascunho: está somente para consulta.</div>' : ''}`;
+    carregaLeituras(); marcarAbertoOpec(pi);
     const nMid = nMidias(pi);
     const abas = `<nav class="abas" aria-label="Abas do PI">${[['detalhes', 'Detalhes'], ['faturamento', 'Faturamento'], ['midias', `Mídias${nMid ? ` <span class="cont">${nMid}</span>` : ''}`], ['historico', 'Histórico']].map(([t, n]) => `<button class="${S.ui.tab === t ? 'on' : ''}" data-act="piTab" data-tab="${t}">${n}</button>`).join('')}</nav>`;
     const body = S.ui.tab === 'faturamento' ? tabBilling(pi, c, em ? '' : ' disabled') : S.ui.tab === 'historico' ? tabHistory(pi) : S.ui.tab === 'midias' ? tabMidias(pi, em) : tabDetails(pi, c, em);
@@ -191,9 +192,27 @@
     const acoes = em
       ? `<span class="sujo" ${ed.sujo ? '' : 'hidden'}><i></i>Alterações não salvas</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piCancelar">Cancelar</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn pri" data-act="piSalvar">${S.svg('check')}Salvar</button>`
       : `<span class="muted small salvo">${salvoEm(pi)}</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn" data-act="piExport">${S.svg('baixar')}Exportar PI</button>${editavel(pi) ? `<button class="btn" data-act="piEditar">${S.svg('editar')}Editar</button>` : ''}${flow(pi)}`;
-    return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}${S.pagPi(pi)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
+    return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}${recebidoPill(pi)}${S.pagPi(pi)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
       actions:acoes, body:abas + notas + body };
   };
+
+  // A OPEC recebeu o PI (database/057, 27/10/2026): abrir o PI pelo link do e-mail (pi.html) ou, para a OPEC, dentro do SONVI
+  // registra sozinho. Vale a leitura feita depois do último envio ("Na OPEC" do histórico).
+  const leituras = {}, marcados = new Set(); let leitVeic = null, leitBusca = false;
+  const carregaLeituras = () => { const v = S.ui.vehicleId; if (!v || leitVeic === v || leitBusca || !S.sb) return; leitBusca = true;
+    S.q(S.sb.from('pi_leituras').select('*').eq('veiculo_id', v)).then(l => { Object.keys(leituras).forEach(k => delete leituras[k]); (l || []).forEach(x => { leituras[x.pi_id] = x; });
+      leitVeic = v; if (S.route().view === 'pi' && !ed.sujo) S.render(); }).catch(e => console.error(e)).finally(() => { leitBusca = false; }); };
+  window.addEventListener('hashchange', () => { if (/^#\/pi\//.test(location.hash)) leitVeic = null; });
+  S.leiturasUsar = (l) => { Object.keys(leituras).forEach(k => delete leituras[k]); l.forEach(x => { leituras[x.pi_id] = x; }); leitVeic = S.ui.vehicleId; }; // testes
+  const leituraDe = pi => { const x = leituras[pi.id]; if (!x) return null;
+    const envio = (S.db.hist[pi.id] || []).filter(h => h.status === 'opec').map(h => h.em).sort().pop();
+    return envio && new Date(x.aberto_em) < new Date(envio) ? null : x; };
+  const recebidoPill = pi => { if (pi.status !== 'opec') return '';
+    const x = leituraDe(pi), quando = x ? `${dfmt(S.dia(x.aberto_em)).slice(0, 5)} ${S.hora(x.aberto_em)}` : '';
+    return x ? `<span class="pill" style="--tone:var(--green)" title="Aberto por ${esc(x.por)}${x.aberturas > 1 ? ` · ${x.aberturas} vezes` : ''}">${S.svg('check')}Recebido pela OPEC · ${quando}</span>`
+      : `<span class="pill" style="--tone:var(--gray)" title="Fica &quot;Recebido&quot; quando a OPEC abrir o PI pelo e-mail ou no SONVI">OPEC ainda não abriu</span>`; };
+  const marcarAbertoOpec = pi => { if (pi.status !== 'opec' || !S.pode('opec') || marcados.has(pi.id) || !S.sb) return; marcados.add(pi.id);
+    S.q(S.sb.rpc('pi_aberto_opec', { p_pi:pi.id })).then(() => { leitVeic = null; carregaLeituras(); }).catch(e => console.error(e)); };
 
   async function carregarHistorico(pi) {
     S.db.hist[pi.id] = [];
@@ -375,7 +394,7 @@
       <div class="card"><div class="hd"><h2>Observações internas da rádio</h2><span>não saem no PI exportado</span></div><textarea data-f="dados.billing.obsVehicle" placeholder="Anotações só para a equipe da rádio"${ro}>${esc(b.obsVehicle)}</textarea></div>`;
   }
 
-  const tabHistory = pi => `<div class="card"><h2>Histórico do pedido</h2><ul class="hist">${(S.db.hist[pi.id] || []).map(h => `<li><span class="muted">${dfmt(S.dia(h.em))} ${S.hora(h.em)}</span>${S.pill(h.status)}<span>${esc(S.usuario(h.usuario_id))}${h.nota ? ' · ' + esc(h.nota) : ''}</span></li>`).join('') || '<li class="muted">Carregando…</li>'}</ul></div>`;
+  const tabHistory = pi => `<div class="card"><h2>Histórico do pedido</h2><ul class="hist">${(() => { const x = leituraDe(pi); return x && pi.status === 'opec' ? `<li><span class="muted">${dfmt(S.dia(x.aberto_em))} ${S.hora(x.aberto_em)}</span><span class="pill" style="--tone:var(--green)">Recebido pela OPEC</span><span>${esc(x.por)}${x.aberturas > 1 ? ` · aberto ${x.aberturas} vezes` : ''}</span></li>` : ''; })()}${(S.db.hist[pi.id] || []).map(h => `<li><span class="muted">${dfmt(S.dia(h.em))} ${S.hora(h.em)}</span>${S.pill(h.status)}<span>${esc(S.usuario(h.usuario_id))}${h.nota ? ' · ' + esc(h.nota) : ''}</span></li>`).join('') || '<li class="muted">Carregando…</li>'}</ul></div>`;
 
   // ---------- aba Mídias: arquivos do PI (áudios, textos, autorizações) ----------
   const BUCKET = 'midias';

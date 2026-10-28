@@ -59,6 +59,8 @@
       el('titulo').textContent = p.numero; document.title = p.numero;
       el('situacao').textContent = SIT[p.status] || '';
       el('barra').hidden = false;
+      // Avisa o SONVI que a OPEC abriu o PI ("Recebido pela OPEC", database/057)
+      fetch(window.SONVI_CONFIG.url + '/rest/v1/rpc/pi_aberto', { method:'POST', headers:{ apikey:window.SONVI_CONFIG.key, 'Content-Type':'application/json' }, body:JSON.stringify({ p_token:token }) }).catch(() => {});
       requestAnimationFrame(ajusta); window.addEventListener('resize', ajusta);
       (document.fonts ? document.fonts.ready : Promise.resolve()).then(ajusta);
     })
