@@ -3131,3 +3131,7 @@ dialog.em-dlg [hidden] { display:none !important; }
   .vd-t .vd-cort { max-width:100%; } .vd-t td small, .vd-t td.vd-sit small { white-space:normal; max-width:none; } .vd-t td.nw { white-space:normal; }
   .vd-hd-dir { width:100%; min-width:0; } .vd-hd-dir .seg { display:flex; width:100%; min-width:0; }
 }
+
+/* Recebido pela OPEC na lista de PIs (057) */
+.pl-sit .pl-rec { display:inline-flex; align-items:center; gap:4px; color:var(--green); font-weight:600; white-space:nowrap; }
+.pl-sit .pl-rec svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2.6; }

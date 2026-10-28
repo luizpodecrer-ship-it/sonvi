@@ -58,6 +58,7 @@
         : `<p class="muted">Nenhum PI veiculando em ${mesN}.</p>`}</section>`;
     // Lista do mês
     const pis = base.filter(p => !q || [p.titulo, S.nome(p.cliente_id), S.nome(p.agencia_id), S.usuario(p.consultor_id), p.projeto, S.piNo(p)].join(' ').toLowerCase().includes(q)).sort((a, b) => b.numero - a.numero);
+    carregaLeituras(); vigiarLeituras(pis);
     const linhas = pis.map(p => { const c = S.calc(p), cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id), cons = S.usuario(p.consultor_id), tit = p.titulo || 'Sem título', v = veiculacao(p);
       return `<div class="pl-l click" data-go="/pi/${p.id}" data-flip="${p.id}" role="link" tabindex="0">
         <span class="pl-n">${S.piNo(p)}</span>
@@ -65,7 +66,7 @@
         <span class="pl-c"><span title="${esc(cli)}">${esc(cli)}</span><small title="${esc(ag || 'Venda direta')}">${ag ? esc(ag) : 'Venda direta'}</small></span>
         <span class="pl-u" title="${esc(cons)}">${cons ? `<span class="av soft" aria-hidden="true">${esc(S.iniciais(cons))}</span><span class="pl-un">${esc(S.celular ? cons : cons.split(' ')[0])}</span>` : '<span class="muted">—</span>'}</span>
         <span class="pl-p"><small>Veiculação</small>${v ? `${dfmt(v[0]).slice(0, 5)} a ${dfmt(v[1]).slice(0, 5)}` : '—'}</span>
-        <span class="pl-i pl-sit">${etiquetaPi(p)}${pagTom(p)}</span>
+        <span class="pl-i pl-sit">${etiquetaPi(p)}${pagTom(p)}${recebidoMini(p)}</span>
         <span class="pl-v"><b>${brl(c.total)}</b>${c.commission ? `<small>Líquido ${brl(c.net)}</small>` : ''}</span>
         <span class="pl-m"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
     const vazio = `<div class="empty"><b>Nenhum PI</b>${q ? `Nada com essa busca em ${mesN}.` : sel ? `Nenhum PI nesta etapa em ${mesN}.` : S.db.pis.length ? `Nenhum PI criado em ${mesN}.` : 'Os pedidos desta rádio aparecem aqui.'}</div>`;
@@ -184,7 +185,7 @@
     const notas = `${devol && devol.nota ? `<div class="note"><b>Devolvido pela OPEC:</b> ${esc(devol.nota)}</div>` : ''}
       ${!editavel(pi) && S.EDITABLE.includes(pi.status) ? '<div class="note info">Este PI é de outro consultor ou o seu perfil só pode consultar.</div>' : ''}
       ${!S.EDITABLE.includes(pi.status) && pi.status !== 'cancelado' ? '<div class="note info">Este PI já saiu do rascunho: está somente para consulta.</div>' : ''}`;
-    carregaLeituras(); marcarAbertoOpec(pi);
+    carregaLeituras(); marcarAbertoOpec(pi); vigiarLeituras([pi]);
     const nMid = nMidias(pi);
     const abas = `<nav class="abas" aria-label="Abas do PI">${[['detalhes', 'Detalhes'], ['faturamento', 'Faturamento'], ['midias', `Mídias${nMid ? ` <span class="cont">${nMid}</span>` : ''}`], ['historico', 'Histórico']].map(([t, n]) => `<button class="${S.ui.tab === t ? 'on' : ''}" data-act="piTab" data-tab="${t}">${n}</button>`).join('')}</nav>`;
     const body = S.ui.tab === 'faturamento' ? tabBilling(pi, c, em ? '' : ' disabled') : S.ui.tab === 'historico' ? tabHistory(pi) : S.ui.tab === 'midias' ? tabMidias(pi, em) : tabDetails(pi, c, em);
@@ -201,8 +202,8 @@
   const leituras = {}, marcados = new Set(); let leitVeic = null, leitBusca = false;
   const carregaLeituras = () => { const v = S.ui.vehicleId; if (!v || leitVeic === v || leitBusca || !S.sb) return; leitBusca = true;
     S.q(S.sb.from('pi_leituras').select('*').eq('veiculo_id', v)).then(l => { Object.keys(leituras).forEach(k => delete leituras[k]); (l || []).forEach(x => { leituras[x.pi_id] = x; });
-      leitVeic = v; if (S.route().view === 'pi' && !ed.sujo) S.render(); }).catch(e => console.error(e)).finally(() => { leitBusca = false; }); };
-  window.addEventListener('hashchange', () => { if (/^#\/pi\//.test(location.hash)) leitVeic = null; });
+      leitVeic = v; const vw = S.route().view; if ((vw === 'pi' && !ed.sujo) || vw === 'pis') S.render(); }).catch(e => console.error(e)).finally(() => { leitBusca = false; }); };
+  window.addEventListener('hashchange', () => { if (/^#\/pis?(\/|$)/.test(location.hash)) leitVeic = null; });
   S.leiturasUsar = (l) => { Object.keys(leituras).forEach(k => delete leituras[k]); l.forEach(x => { leituras[x.pi_id] = x; }); leitVeic = S.ui.vehicleId; }; // testes
   const leituraDe = pi => { const x = leituras[pi.id]; if (!x) return null;
     const envio = (S.db.hist[pi.id] || []).filter(h => h.status === 'opec').map(h => h.em).sort().pop();
@@ -211,6 +212,12 @@
     const x = leituraDe(pi), quando = x ? `${dfmt(S.dia(x.aberto_em)).slice(0, 5)} ${S.hora(x.aberto_em)}` : '';
     return x ? `<span class="pill" style="--tone:var(--green)" title="Aberto por ${esc(x.por)}${x.aberturas > 1 ? ` · ${x.aberturas} vezes` : ''}">${S.svg('check')}Recebido pela OPEC · ${quando}</span>`
       : `<span class="pill" style="--tone:var(--gray)" title="Fica &quot;Recebido&quot; quando a OPEC abrir o PI pelo e-mail ou no SONVI">OPEC ainda não abriu</span>`; };
+  // Enquanto algum PI "Na OPEC" ainda não foi aberto, confere de novo a cada 20 s (a OPEC pode abrir com a tela aberta aqui)
+  let releTimer = 0;
+  const vigiarLeituras = lista => { if (releTimer || !lista.some(p => p.status === 'opec' && !leituraDe(p))) return;
+    releTimer = setTimeout(() => { releTimer = 0; if (['pi', 'pis'].includes(S.route().view) && !document.hidden) { leitVeic = null; carregaLeituras(); } }, 20000); };
+  const recebidoMini = p => { if (p.status !== 'opec') return ''; const x = leituraDe(p);
+    return x ? `<small class="pl-rec">${S.svg('check')}Recebido ${dfmt(S.dia(x.aberto_em)).slice(0, 5)} ${S.hora(x.aberto_em)}</small>` : '<small class="muted">OPEC ainda não abriu</small>'; };
   const marcarAbertoOpec = pi => { if (pi.status !== 'opec' || !S.pode('opec') || marcados.has(pi.id) || !S.sb) return; marcados.add(pi.id);
     S.q(S.sb.rpc('pi_aberto_opec', { p_pi:pi.id })).then(() => { leitVeic = null; carregaLeituras(); }).catch(e => console.error(e)); };
 
