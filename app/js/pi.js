@@ -166,7 +166,7 @@
     if (S.EDITABLE.includes(pi.status)) return comercial(pi) ? b('piSend', pi.status === 'devolvido' ? 'Reenviar para a OPEC' : 'Enviar para a OPEC', '', true, 'seta') : '';
     if (pi.status === 'opec') return S.pode('diretor', 'opec') ? b('piReturn', 'Devolver', '', 'warn', 'voltar') + b('piStatus', 'Aprovar PI', ' data-to="aprovado"', true, 'check') : '';
     const fmes = S.multiMes(pi) ? S.mesesDoPi(pi).find(m => !S.mesesFaturados(pi).has(m)) : '';
-    const faturar = S.pode('diretor', 'financeiro') ? b('finFaturar', fmes ? `Faturar ${S.nomeMes(fmes).toLowerCase()}` : 'Faturar', ` data-id="${pi.id}"${fmes ? ` data-mes="${fmes}"` : ''}`, pi.status === 'programado') : '';
+    const faturar = S.pode('diretor', 'financeiro') ? b('vdEnviar', fmes ? `Enviar para faturar ${S.nomeMes(fmes).toLowerCase()}` : 'Enviar para faturar', ` data-id="${pi.id}"${fmes ? ` data-mes="${fmes}"` : ''}`, pi.status === 'programado') : '';
     if (pi.status === 'aprovado') return faturar + (S.pode('diretor', 'opec') ? b('piStatus', 'Marcar como programado', ' data-to="programado"', true, 'check') : '');
     if (pi.status === 'programado') return faturar;
     if (pi.status === 'cancelado') return S.pode('diretor', 'gerente') ? b('piStatus', 'Reabrir como rascunho', ' data-to="rascunho"', false) : '';

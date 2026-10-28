@@ -66,7 +66,7 @@
     const venc = aberto_.filter(l => l.vencimento && l.vencimento < hoje), inad = val(rec) ? val(venc) / val(rec) * 100 : 0, p = previsto ? recebido / previsto * 100 : 0;
     return { tipo:'anel', titulo, icone:'relatorio', pct:p, numero:reais(recebido), apoio:previsto ? `de ${reais(previsto)} que vencem em ${MESL[new Date().getMonth()]}` : `nada vence em ${MESL[new Date().getMonth()]}`,
       linhas:[['A receber (em aberto)', reais(val(aberto_))], ['Vencido', reais(val(venc)), venc.length ? 'ruim' : 'bom'], ['Inadimplência', pctTxt(inad), inad ? 'ruim' : ''], ['Parcelas em aberto', String(aberto_.length)]],
-      link:{ rota:'/financeiro', texto:'Financeiro' }, rotulo:`${titulo}: ${Math.round(p)}%, ${reais(recebido)} de ${reais(previsto)}` };
+      link:{ rota:'/vendas', texto:'Vendas' }, rotulo:`${titulo}: ${Math.round(p)}%, ${reais(recebido)} de ${reais(previsto)}` };
   }
   function followup(ag, titulo, rotNota) {
     const agora = new Date(), atras = ag.filter(a => aberto(a) && new Date(a.quando) < agora && S.dia(a.quando) < S.today()), d30 = dias30();
@@ -169,17 +169,17 @@
     const inadG = val(rec.filter(l => l.vencimento && l.vencimento < hoje)) ? val(venc) / val(rec.filter(l => l.vencimento && l.vencimento < hoje)) * 100 : 0;
     return [
       { id:'a', tipo:'valor', titulo:'A receber', icone:'relatorio', valor:reais(val(aberto_)), delta:venc.length ? { txt:`${reais(val(venc))} vencido`, tom:'ruim' } : { txt:'nada vencido', tom:'bom' },
-        barras:porMes, rotulos:prox.map(rotMes), link:{ rota:'/financeiro', texto:'Financeiro' }, rotulo:`A receber: ${reais(val(aberto_))} em ${plural(aberto_.length, 'parcela', 'parcelas')}; ${reais(val(venc))} vencido` },
+        barras:porMes, rotulos:prox.map(rotMes), link:{ rota:'/vendas', texto:'Vendas' }, rotulo:`A receber: ${reais(val(aberto_))} em ${plural(aberto_.length, 'parcela', 'parcelas')}; ${reais(val(venc))} vencido` },
       { id:'b', tipo:'fila', titulo:'Vencidas', vivo:venc.length ? 'alerta' : false, icone:'relogio', numero:String(venc.length), apoio:venc.length ? `${reais(val(venc))} em atraso` : 'Nada vencido',
         itens:venc.slice(0, 5).map(l => ({ tx:quem(l), sub:`venceu ${S.dfmt(l.vencimento).slice(0, 5)}`, vl:brl(l.valor), tag:`${diasDesde(l.vencimento + 'T12:00')} dias`, tom:'alerta' })), vazio:'Nenhuma parcela vencida.',
-        link:{ rota:'/financeiro', texto:'Cobrar' }, rotulo:`Vencidas: ${plural(venc.length, 'parcela', 'parcelas')}, ${reais(val(venc))}` },
+        link:{ rota:'/vendas', texto:'Vendas' }, rotulo:`Vencidas: ${plural(venc.length, 'parcela', 'parcelas')}, ${reais(val(venc))}` },
       filaPis(aFaturar, { id:'c', titulo:'Prontos para faturar', icone:'pis', apoio:aFaturar.length ? `${reais(soma(aFaturar))} aprovados` : 'Nada para faturar', vazio:'Nenhum PI aguardando faturamento.',
-        tag:p => S.STATUS[p.status].label, tom:() => '', link:{ rota:'/financeiro', texto:'Faturar' }, rotulo:`Prontos para faturar: ${plural(aFaturar.length, 'PI', 'PIs')}` }),
+        tag:p => S.STATUS[p.status].label, tom:() => '', link:{ rota:'/vendas', texto:'Faturar' }, rotulo:`Prontos para faturar: ${plural(aFaturar.length, 'PI', 'PIs')}` }),
       Object.assign(recebidoNoMes('Recebido no mês'), { id:'d' }),
-      { id:'e', tipo:'tira', titulo:'Recebimentos', icone:'financeiro', titular:mil(tot30), tom:tot30 ? 'bom' : '', dias:baixas, nota:'recebido nos últimos 30 dias', link:{ rota:'/financeiro', texto:'Financeiro' },
+      { id:'e', tipo:'tira', titulo:'Recebimentos', icone:'financeiro', titular:mil(tot30), tom:tot30 ? 'bom' : '', dias:baixas, nota:'recebido nos últimos 30 dias', link:{ rota:'/vendas', texto:'Vendas' },
         rotulo:`Recebimentos: ${reais(tot30)} nos últimos 30 dias` },
       { id:'f', tipo:'pessoas', titulo:'Notas fiscais pendentes', icone:'doc', cuenta:plural(nf.length, 'PI', 'PIs'), vazio:'Nenhuma nota fiscal pendente.',
-        itens:nf.map(x => ({ nome:cliente(x.pi), sub:S.piNo(x.pi), vl:mil(x.v) })), link:{ rota:'/financeiro', texto:'Financeiro' }, rotulo:`Notas fiscais pendentes: ${plural(nf.length, 'PI faturado', 'PIs faturados')}` },
+        itens:nf.map(x => ({ nome:cliente(x.pi), sub:S.piNo(x.pi), vl:mil(x.v) })), link:{ rota:'/vendas', texto:'Vendas' }, rotulo:`Notas fiscais pendentes: ${plural(nf.length, 'PI faturado', 'PIs faturados')}` },
       { id:'g', tipo:'colunas', titulo:'Inadimplência', icone:'relatorio', numero:pctTxt(inadG), nota:'do que já venceu · por mês', barras:inad, rotulos:m6.map(rotMes),
         link:{ rota:'/financeiro', texto:'Relatórios' }, rotulo:`Inadimplência: ${pctTxt(inadG)} do que já venceu` } ];
   }

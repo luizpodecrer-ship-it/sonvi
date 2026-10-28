@@ -13,7 +13,7 @@
     ['propostas', 'Propostas', ['diretor', 'gerente', 'consultor']],
     ['pis', 'PIs', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['opec', 'OPEC', ['diretor', 'opec']],
-    ['financeiro', 'Financeiro', ['diretor', 'financeiro']],
+    ['vendas', 'Vendas', ['diretor', 'financeiro']],  // no lugar do Financeiro (27/10/2026): quem fatura e recebe é o financeiro de cada veículo
     ['produtos', 'Produtos', ['diretor', 'gerente', 'consultor']],
     ['music', 'Sonvi Music', S.MUSIC_PERFIS, 'music/'],
     ['admin', 'Administração', ['diretor']],

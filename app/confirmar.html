@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="noindex, nofollow">
+<title>Confirmar · SONVI</title>
+<link rel="icon" type="image/svg+xml" href="img/simbolo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/sonvi.css?v=20261027-2029">
+<!-- Página que o financeiro do veículo abre pelo e-mail (database/055): ?f=<token> confirma o faturamento (nº da nota);
+     ?p=<token> responde se o cliente pagou. Sem login: só o que o link permite. Nada muda só por abrir. -->
+<style>
+  body { display:block; min-height:100%; background:var(--bg); }
+  .cf { max-width:640px; margin:0 auto; padding:24px 16px 48px; display:flex; flex-direction:column; gap:16px; }
+  .cf-top { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .cf-top img { height:22px; width:auto; } .cf-top small { color:var(--ink-3); font-size:12px; }
+  .cf .card { display:flex; flex-direction:column; gap:18px; padding:28px; }
+  .cf-cab { display:flex; align-items:center; gap:12px; }
+  .cf-selo { width:44px; height:44px; border-radius:50%; display:grid; place-items:center; font:700 12px var(--font); color:#fff; flex:none; overflow:hidden; }
+  .cf-selo img { width:100%; height:100%; object-fit:cover; }
+  .cf-cab h1 { margin:0; font:600 24px/1.2 var(--display); letter-spacing:-.01em; }
+  .cf-cab small { color:var(--ink-2); font-size:13px; display:block; }
+  .cf-dl { display:grid; grid-template-columns:minmax(120px, max-content) 1fr; gap:10px 16px; margin:0; padding:16px 18px; border:1px solid var(--line); border-radius:var(--radius-m); font-size:14px; }
+  .cf-dl dt { color:var(--ink-3); } .cf-dl dd { margin:0; font-weight:600; min-width:0; overflow-wrap:anywhere; }
+  .cf-g2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; }
+  .cf-op { display:flex; align-items:center; gap:12px; min-height:52px; padding:0 14px; border:1px solid var(--line); border-radius:var(--radius-m); font-size:15px; font-weight:600; cursor:pointer; }
+  .cf-op:has(input:checked) { border:2px solid var(--accent); background:var(--accent-soft); padding:0 13px; }
+  .cf-op input { width:20px; height:20px; margin:0; accent-color:var(--accent); }
+  .cf-sub { display:flex; flex-direction:column; gap:14px; padding-left:14px; }
+  .cf-sub[hidden] { display:none; }
+  .cf .btn.pri { height:50px; justify-content:center; }
+  .cf-ok { text-align:center; align-items:center; }
+  .cf-ok .ic { width:56px; height:56px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; }
+  .cf-ok .ic svg { width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:2.2; }
+  .cf-nota { color:var(--ink-2); font-size:13px; line-height:1.6; margin:0; }
+  .cf-erro { color:var(--red); font-size:13px; margin:0; }
+  @media (max-width:520px) { .cf .card { padding:20px; } .cf-g2 { grid-template-columns:1fr; } .cf-dl { grid-template-columns:1fr; gap:2px; } .cf-dl dd { margin-bottom:8px; } }
+</style>
+</head>
+<body>
+<div class="cf">
+  <div class="cf-top"><img src="img/sonvi.svg" alt="SONVI" width="96" height="22"><small>Página segura · sem login · vale só para este link</small></div>
+  <main class="card" id="caixa" aria-live="polite"><b>Abrindo…</b></main>
+</div>
+<script src="js/config.js?v=20261027-2029"></script>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search), tf = qs.get('f') || '', tp = qs.get('p') || '';
+  const token = tf || tp, modo = tf ? 'fat' : 'pag', caixa = document.getElementById('caixa');
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  const brl = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  const dfmt = d => d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '';
+  const hoje = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const num = s => { const t = String(s || '').replace(/[^\d,.-]/g, ''); return Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t) || 0; };
+  const rpc = (fn, corpo) => fetch(window.SONVI_CONFIG.url + '/rest/v1/rpc/' + fn, { method:'POST', headers:{ apikey:window.SONVI_CONFIG.key, 'Content-Type':'application/json' }, body:JSON.stringify(corpo) })
+    .then(async r => { const j = await r.json().catch(() => null); if (!r.ok) throw new Error((j && (j.message || j.hint)) || 'Não foi possível concluir. Tente de novo.'); return j; });
+  const estado = (titulo, texto) => { caixa.innerHTML = `<b style="font-size:17px">${titulo}</b><p class="cf-nota">${texto}</p>`; };
+  const nomeSalvo = '', lembrarNome = () => {};
+  const tema = v => { if (v && /^#[0-9a-f]{6}$/i.test(v.cor || '')) { document.documentElement.style.setProperty('--accent', v.cor); document.documentElement.style.setProperty('--accent-soft', v.cor + '1f'); } };
+  const cab = (v, rot, titulo) => `<div class="cf-cab"><span class="cf-selo" style="background:${esc(v.cor || '#0055ff')}">${v.logo ? `<img src="${esc(v.logo)}" alt="" width="44" height="44">` : esc(v.sigla || '')}</span><div><small>${esc(v.nome || '')} · ${rot}</small><h1>${titulo}</h1></div></div>`;
+  const pronto = (v, titulo, texto) => { caixa.classList.add('cf-ok'); caixa.innerHTML = `<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><h1 style="margin:0;font:600 22px var(--display)">${titulo}</h1><p class="cf-nota">${texto}</p><p class="cf-nota">${esc(v.nome || '')} · pode fechar esta página.</p>`; caixa.focus(); };
+  const ativa = (form, fn) => form.addEventListener('submit', async e => { e.preventDefault(); const b = form.querySelector('button[type=submit]'), er = form.querySelector('.cf-erro');
+    er.textContent = ''; b.disabled = true; try { await fn(new FormData(form)); } catch (x) { er.textContent = x.message; b.disabled = false; } });
+
+  if (!/^[0-9a-f-]{36}$/i.test(token)) return estado('Link incompleto', 'Confira se o link foi copiado inteiro ou responda o e-mail para pedir um novo.');
+
+  if (modo === 'fat') rpc('pedido_por_token', { p_token:token }).then(p => {
+    if (!p) return estado('Link inválido', 'Este pedido não existe mais. Responda o e-mail para falar com quem enviou.');
+    const v = p.veiculo || {}, d = p.dados || {}, parc = p.parcelas || [], um = parc.length <= 1; tema(v);
+    if (p.situacao === 'faturado') return pronto(v, 'Faturamento já confirmado', `Nota ${esc(p.nota_fiscal)} · confirmado por ${esc(p.confirmado_por)} em ${dfmt(String(p.confirmado_em || '').slice(0, 10))}.`);
+    caixa.innerHTML = `${cab(v, 'pedido de faturamento', 'Confirmar faturamento')}
+      <dl class="cf-dl"><dt>PI</dt><dd>${esc([d.pi_no, d.titulo].filter(Boolean).join(' · '))}</dd><dt>Cliente</dt><dd>${esc([d.cliente, d.documento].filter(Boolean).join(' · '))}</dd>
+        ${d.mes_nome ? `<dt>Mês veiculado</dt><dd>${esc(d.mes_nome)}</dd>` : ''}<dt>Valor</dt><dd>${brl(d.valor)}</dd>
+        ${parc.length > 1 ? `<dt>Parcelas</dt><dd>${parc.map(x => `${x.parcela}ª ${brl(x.valor)} · ${x.vencimento ? dfmt(x.vencimento) : 'a combinar'}`).join('<br>')}</dd>` : ''}
+        ${d.email_nota ? `<dt>Nota e boleto para</dt><dd>${esc(d.email_nota)}</dd>` : ''}</dl>
+      <form id="fm" novalidate style="display:flex;flex-direction:column;gap:14px">
+        <div class="cf-g2"><label class="f">Número da nota fiscal<input name="nf" required autocomplete="off" inputmode="numeric" placeholder="Ex.: 1.287"></label>
+          ${um ? `<label class="f">Vencimento do boleto<input name="venc" type="date" value="${esc((parc[0] || {}).vencimento || d.vencimento || '')}"></label>` : ''}</div>
+        <label class="f">Observação (opcional)<textarea name="obs" rows="2" placeholder="Ex.: boleto enviado ao cliente junto com a nota"></textarea></label>
+        <label class="f">Seu nome<input name="nome" required autocomplete="name" value="${esc(nomeSalvo)}" placeholder="Ex.: Carla · Financeiro"></label>
+        <p class="cf-erro" role="alert"></p>
+        <button class="btn pri" type="submit">Confirmar faturamento</button>
+        <p class="cf-nota">Ao confirmar, quem pediu vê "Faturado" com o número da nota na hora. Dúvidas? Responda o e-mail.</p></form>`;
+    ativa(document.getElementById('fm'), async f => { const nf = String(f.get('nf') || '').trim(), nome = String(f.get('nome') || '').trim();
+      if (!nf) throw new Error('Informe o número da nota fiscal.'); if (!nome) throw new Error('Informe o seu nome.');
+      await rpc('confirmar_faturamento', { p_token:token, p_nf:nf, p_venc:f.get('venc') || null, p_obs:String(f.get('obs') || ''), p_nome:nome });
+      lembrarNome(nome); pronto(v, 'Faturamento confirmado', `Nota ${esc(nf)} registrada. Obrigado!`); });
+  }).catch(e => estado('Não foi possível abrir', esc(e.message)));
+
+  if (modo === 'pag') rpc('parcela_por_token', { p_token:token }).then(l => {
+    if (!l) return estado('Link inválido', 'Esta parcela não existe mais. Responda o e-mail para falar com quem enviou.');
+    const v = l.veiculo || {}; tema(v);
+    if (l.pago_em) return pronto(v, 'Esta parcela já está paga', `Baixa em ${dfmt(l.pago_em)}${l.respondido_por ? ` · informada por ${esc(l.respondido_por)}` : ''}.`);
+    caixa.innerHTML = `${cab(v, l.perguntas > 1 ? `${l.perguntas}ª pergunta` : 'recebimento', 'O cliente pagou esta parcela?')}
+      <dl class="cf-dl"><dt>Cliente</dt><dd>${esc(l.contraparte)}</dd>${l.pi ? `<dt>PI</dt><dd>${esc(l.pi)}</dd>` : ''}${l.nota_fiscal ? `<dt>Nota fiscal</dt><dd>${esc(l.nota_fiscal)}</dd>` : ''}
+        <dt>Vencimento</dt><dd>${l.vencimento ? dfmt(l.vencimento) : 'a combinar'}</dd><dt>Valor</dt><dd>${brl(l.valor)}</dd></dl>
+      ${l.resposta === 'ainda_nao' ? `<p class="cf-nota">Última resposta: "Ainda não", em ${dfmt(String(l.respondido_em || '').slice(0, 10))}${l.respondido_por ? ` (${esc(l.respondido_por)})` : ''}.</p>` : ''}
+      <form id="fm" novalidate style="display:flex;flex-direction:column;gap:12px">
+        <fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:10px"><legend class="f" style="margin-bottom:8px;font-weight:600">Resposta</legend>
+          <label class="cf-op"><input type="radio" name="r" value="sim" checked>Sim, pagou</label>
+          <div class="cf-sub" id="sub"><div class="cf-g2"><label class="f">Data em que o dinheiro entrou<input name="data" type="date" value="${hoje()}" max="${hoje()}"></label>
+            <label class="f">Valor recebido (R$)<input name="valor" inputmode="decimal" value="${Number(l.valor).toLocaleString('pt-BR', { minimumFractionDigits:2 })}"></label></div></div>
+          <label class="cf-op"><input type="radio" name="r" value="nao">Ainda não</label></fieldset>
+        <label class="f">Seu nome<input name="nome" required autocomplete="name" value="${esc(nomeSalvo)}" placeholder="Ex.: Carla · Financeiro"></label>
+        <p class="cf-erro" role="alert"></p>
+        <button class="btn pri" type="submit">Enviar resposta</button>
+        <p class="cf-nota">"Ainda não": perguntamos de novo em 7 dias. Valor menor que o da parcela fica como pago em parte, e o restante continua em aberto.</p></form>`;
+    const fm = document.getElementById('fm');
+    fm.addEventListener('change', () => { document.getElementById('sub').hidden = fm.r.value !== 'sim'; });
+    ativa(fm, async f => { const sim = f.get('r') === 'sim', nome = String(f.get('nome') || '').trim();
+      if (!nome) throw new Error('Informe o seu nome.');
+      const valor = sim ? num(f.get('valor')) : null, data = sim ? String(f.get('data') || '') : null;
+      if (sim && !data) throw new Error('Informe a data em que o dinheiro entrou.');
+      if (sim && !(valor > 0)) throw new Error('Informe o valor recebido.');
+      const r = await rpc('responder_pagamento', { p_token:token, p_pagou:sim, p_data:data, p_valor:valor, p_nome:nome });
+      lembrarNome(nome);
+      if (!sim) pronto(v, 'Resposta registrada', 'Obrigado! Perguntamos de novo em 7 dias.');
+      else pronto(v, 'Pagamento registrado', r && r.resto > 0 ? `Recebido ${brl(valor)}. Ficam ${brl(r.resto)} em aberto, com o mesmo vencimento.` : `Recebido ${brl(valor)} em ${dfmt(data)}. Obrigado!`); });
+  }).catch(e => estado('Não foi possível abrir', esc(e.message)));
+})();
+</script>
+</body>
+</html>

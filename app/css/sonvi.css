@@ -2879,11 +2879,11 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 /* Menu fluido dentro dos veículos (25/10/2026): mesmas regras; cor do ícone de cada item (claro / escuro) */
 #side nav [data-ico="dashboard"] { --c:#0055FF; } #side nav [data-ico="followup"] { --c:#0284C7; } #side nav [data-ico="clientes"] { --c:#7C3AED; }
 #side nav [data-ico="propostas"] { --c:#C026D3; } #side nav [data-ico="pis"] { --c:#4F46E5; } #side nav [data-ico="opec"] { --c:#E0701B; }
-#side nav [data-ico="financeiro"] { --c:#16A34A; } #side nav [data-ico="produtos"] { --c:#D97706; }
+#side nav [data-ico="financeiro"], #side nav [data-ico="vendas"] { --c:#16A34A; } #side nav [data-ico="produtos"] { --c:#D97706; }
 @media (prefers-color-scheme: dark) {
   #side nav [data-ico="dashboard"] { --c:#4C9DFF; } #side nav [data-ico="followup"] { --c:#38BDF8; } #side nav [data-ico="clientes"] { --c:#B69CFF; }
   #side nav [data-ico="propostas"] { --c:#E879F9; } #side nav [data-ico="pis"] { --c:#A5B4FC; } #side nav [data-ico="opec"] { --c:#F2A65A; }
-  #side nav [data-ico="financeiro"] { --c:#4ADE80; } #side nav [data-ico="produtos"] { --c:#FBBF24; }
+  #side nav [data-ico="financeiro"], #side nav [data-ico="vendas"] { --c:#4ADE80; } #side nav [data-ico="produtos"] { --c:#FBBF24; }
 }
 /* Administração › Veículos em lista enxuta (aprovada em 25/10/2026): colunas fixas, uma linha por veículo, cor do veículo só no selo e na barrinha */
 .adv-lista .hd { margin-bottom:0; }
@@ -3098,3 +3098,36 @@ dialog.em-dlg [hidden] { display:none !important; }
 .wd-op:has(input:checked) { border-color:var(--accent); background:var(--accent-soft); color:var(--ink); font-weight:600; }
 .wd-op input { margin:0; accent-color:var(--accent); }
 @media (max-width:820px) { .wd-op { min-height:44px; } .it-ab > .btn.sm { align-self:center; } }
+
+/* Vendas (27/10/2026, vendas.js): a Head 14 acompanha; quem fatura e recebe é o financeiro do veículo */
+.vd-nav { display:flex; align-items:center; gap:10px; } .vd-nav b { font:600 15px var(--display); min-width:132px; text-align:center; }
+.vd-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+.vd-tile { border:1px solid var(--line); border-radius:var(--radius-m); padding:16px; display:flex; flex-direction:column; gap:6px; min-width:0; }
+.vd-tile.vd-h14 { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.vd-rot { font-size:13px; font-weight:600; color:var(--ink-2); } .vd-val { font:600 26px/1.15 var(--display); letter-spacing:-.01em; white-space:nowrap; }
+.vd-tile .prog { margin:2px 0; } .vd-tile .prog i { background:var(--accent); }
+.vd-pills { display:flex; gap:6px; flex-wrap:wrap; }
+.vd-hd-dir { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.vd-hd-dir .seg .cont { font-size:11px; color:var(--ink-3); margin-left:2px; }
+.vd-nota { margin:-6px 0 14px; } .vd-alerta { color:var(--orange); }
+.vd-t td small { display:block; color:var(--ink-3); font-size:12px; margin-top:2px; white-space:nowrap; }
+.vd-t td { vertical-align:middle; } .vd-t td.nw, .vd-t td.r { white-space:nowrap; }
+.vd-t .vd-cort { display:block; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vd-aviso { font-size:13px; }
+.vd-t td.vd-sit small { white-space:normal; max-width:230px; }
+.vd-hd-dir .seg { max-width:100%; overflow-x:auto; scrollbar-width:none; }
+.vd-t td .btn { white-space:nowrap; }
+.vd-bar { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; } .vd-bar-t { display:flex; justify-content:space-between; gap:12px; font-size:14px; }
+.vd-bar .prog { height:8px; }
+.vd-reps { display:flex; flex-direction:column; gap:4px; font-size:13px; margin:-4px 0 12px; } .vd-reps span { display:flex; align-items:center; gap:8px; } .vd-reps .btn { height:26px; width:26px; padding:0; }
+.vd-pe { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding-top:16px; border-top:1px solid var(--line); font-size:13px; }
+.vd-cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 600px), 1fr)); gap:20px; } .vd-cols > .card { min-width:0; }
+.vd-t .vd-cort { max-width:220px; } .vd-t td small.vd-cort { max-width:220px; }
+@media (max-width:820px) {
+  .vd-val { font-size:22px; } .vd-nav b { min-width:0; }
+  .vd-t thead { display:none; } .vd-t, .vd-t tbody, .vd-t tr, .vd-t td { display:block; width:100%; }
+  .vd-t tr { padding:12px 0; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:4px; }
+  .vd-t td { padding:0; border:0; min-width:0; } .vd-t td.r { text-align:left; } .vd-t td:empty { display:none; } .vd-t td .btn { margin-top:4px; }
+  .vd-t .vd-cort { max-width:100%; } .vd-t td small, .vd-t td.vd-sit small { white-space:normal; max-width:none; } .vd-t td.nw { white-space:normal; }
+  .vd-hd-dir { width:100%; min-width:0; } .vd-hd-dir .seg { display:flex; width:100%; min-width:0; }
+}
