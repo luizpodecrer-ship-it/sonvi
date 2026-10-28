@@ -35,6 +35,16 @@
   const recarregar = async () => { S.db.lancamentos = await S.q(S.sb.from('lancamentos').select('*').eq('veiculo_id', S.ui.vehicleId)); dados.ok = false; await carregar(true); };
   S.vendasUsar = (d) => Object.assign(dados, { veic:S.ui.vehicleId, ok:true }, d); // testes
 
+  // ---------- números que contam até o valor (2 s, desacelerando no fim); só quando o valor muda, não a cada desenho ----------
+  const contados = {};
+  const contar = () => { const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.querySelectorAll('[data-vd-num]').forEach(el => { const k = el.dataset.vdNum, ate = Number(el.dataset.v) || 0, de = contados[k] ?? 0;
+      if (de === ate) { el.textContent = brl(ate); return; }
+      contados[k] = ate; if (quieto) { el.textContent = brl(ate); return; }
+      const t0 = performance.now(), dur = 2000, passo = t => { if (!el.isConnected) return; const x = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - x, 4);
+        el.textContent = brl(de + (ate - de) * e); if (x < 1) requestAnimationFrame(passo); };
+      requestAnimationFrame(passo); }); };
+
   // ---------- regras ----------
   const mesesDe = p => { const m = S.mesesDoPi(p); return m.length ? m : [String(p.criado_em || S.today()).slice(0, 7)]; };
   const pedidoDe = (pi, mesRef) => dados.fat.find(f => f.pi_id === pi.id && f.mes_ref === mesRef);
@@ -101,14 +111,27 @@
     const emp = S.empCurto ? S.empCurto() : 'Head 14', pct = Math.round(pctH14());
     const pctW = (a, b) => b ? Math.max(0, Math.min(100, Math.round(a / b * 100))) : 0;
 
-    const tile = (rot, val, linhas, cls = '') => `<div class="vd-tile${cls}"><span class="vd-rot">${rot}</span><b class="vd-val">${val}</b>${linhas}</div>`;
+    // Mês anterior, para a variação de cada número (cartões que contam até o valor, adaptados de um "StatCard" em React)
+    const ant = somaMes(ym, -1), mesAnt = MESES[+ant.slice(5) - 1];
+    const vendAnt = pis.filter(p => VENDIDO.includes(p.status)).reduce((s, p) => s + S.valorNoMes(p, ant), 0);
+    const fatAnt = linhasFaturar(ant).filter(x => x.sit === 'faturado' || x.sit === 'antigo').reduce((s, x) => s + x.valor, 0);
+    const recAnt = S.db.lancamentos.filter(l => l.sentido === 'receber' && l.pi_id && l.pago_em && (l.vencimento || '').slice(0, 7) === ant).reduce((s, l) => s + pago(l), 0);
+    const devAnt = S.db.lancamentos.filter(l => l.sentido === 'receber' && l.pi_id && l.pago_em && l.pago_em.slice(0, 7) === ant && piDe(l.pi_id)).reduce((s, l) => s + parteDe(l), 0);
+    const tile = (chave, rot, val, antes, linhas, cls = '') => {
+      const d = antes ? Math.round((val - antes) / antes * 100) : null, sobe = d === null || d >= 0;
+      const seta = sobe ? '<path d="M7 17 17 7M9 7h8v8"/>' : '<path d="M7 7l10 10M17 9v8H9"/>';
+      const variacao = d === null ? (val ? `<span class="vd-var"><span class="vd-var-ic vd-up"><svg viewBox="0 0 24 24" aria-hidden="true">${seta}</svg></span><span><b class="vd-up-t">novo</b> sem base em ${mesAnt}</span></span>` : '')
+        : `<span class="vd-var"><span class="vd-var-ic ${sobe ? 'vd-up' : 'vd-down'}"><svg viewBox="0 0 24 24" aria-hidden="true">${seta}</svg></span><span><b class="${sobe ? 'vd-up-t' : 'vd-down-t'}">${d > 0 ? '+' : ''}${d}%</b> em relação a ${mesAnt}</span></span>`;
+      const fala = `${rot.replace(/<[^>]+>/g, '')}: ${brl(val)}${d === null ? '' : `, ${d > 0 ? 'mais' : d < 0 ? 'menos' : 'igual'} ${Math.abs(d)}% em relação a ${mesAnt}`}`;
+      return `<div class="vd-tile${cls}" role="group" aria-label="${esc(fala)}"><span class="vd-rot">${rot}</span><b class="vd-val" aria-hidden="true" data-vd-num="${chave}|${ym}" data-v="${val}">${brl(contados[`${chave}|${ym}`] ?? 0)}</b>${variacao}${linhas}</div>`; };
+    queueMicrotask(contar);
     const resumo = `<section class="card vd-mes" aria-label="Resumo do mês"><div class="hd"><h2>Vendas do mês</h2>
         <div class="vd-nav"><button class="btn sm" data-act="vdMes" data-d="-1" aria-label="Mês anterior">‹</button><b>${nomeMesLongo(ym)}</b><button class="btn sm" data-act="vdMes" data-d="1" aria-label="Próximo mês">›</button>${st.mes ? '<button class="btn sm" data-act="vdMes" data-d="0">Hoje</button>' : ''}</div></div>
       <div class="vd-tiles">
-        ${tile('Vendido no mês', brl(vendido), `<span class="muted small">${vendidos.length} ${vendidos.length === 1 ? 'PI no ar' : 'PIs no ar'} em ${mesNome}</span>${meta ? `<div class="prog" role="progressbar" aria-valuenow="${pctW(vendido, meta)}" aria-valuemin="0" aria-valuemax="100" aria-label="Meta do mês"><i style="width:${pctW(vendido, meta)}%"></i></div><span class="muted small">${pctW(vendido, meta)}% da meta da equipe (${brl(meta)})</span>` : ''}`)}
-        ${tile('Faturado pelo veículo', brl(vFat), `<span class="muted small">${faturado.length} de ${fats.length} confirmados</span><span class="vd-pills">${cont('aguardando') ? `<span class="pill fn-neutra">${cont('aguardando')} aguardando o financeiro</span>` : ''}${cont('enviar') ? `<span class="pill fn-forte">${cont('enviar')} a enviar</span>` : ''}</span>`)}
-        ${tile('Recebido dos clientes', brl(recebido), `<span class="muted small">do que venceu em ${mesNome} (${brl(venceu)})</span>${atrasadas.length ? `<span class="vd-pills"><span class="pill fn-forte">${atrasadas.length} ${atrasadas.length === 1 ? 'atrasada' : 'atrasadas'} · ${brl(vAtr)}</span></span>` : ''}`)}
-        ${tile(`Parte da ${esc(emp)} (${pct}%)`, brl(devida), `<span class="muted small">devida pelo que os clientes pagaram</span><span class="muted small">Prevista: ${brl(prevista)} · repasse vence ${vencRep}</span>`, ' vd-h14')}
+        ${tile('vend', 'Vendido no mês', vendido, vendAnt, `<span class="muted small">${vendidos.length} ${vendidos.length === 1 ? 'PI no ar' : 'PIs no ar'} em ${mesNome}</span>${meta ? `<div class="prog" role="progressbar" aria-valuenow="${pctW(vendido, meta)}" aria-valuemin="0" aria-valuemax="100" aria-label="Meta do mês"><i style="width:${pctW(vendido, meta)}%"></i></div><span class="muted small">${pctW(vendido, meta)}% da meta da equipe (${brl(meta)})</span>` : ''}`)}
+        ${tile('fat', 'Faturado pelo veículo', vFat, fatAnt, `<span class="muted small">${faturado.length} de ${fats.length} confirmados</span><span class="vd-pills">${cont('aguardando') ? `<span class="pill fn-neutra">${cont('aguardando')} aguardando o financeiro</span>` : ''}${cont('enviar') ? `<span class="pill fn-forte">${cont('enviar')} a enviar</span>` : ''}</span>`)}
+        ${tile('rec', 'Recebido dos clientes', recebido, recAnt, `<span class="muted small">do que venceu em ${mesNome} (${brl(venceu)})</span>${atrasadas.length ? `<span class="vd-pills"><span class="pill fn-forte">${atrasadas.length} ${atrasadas.length === 1 ? 'atrasada' : 'atrasadas'} · ${brl(vAtr)}</span></span>` : ''}`)}
+        ${tile('h14', `Parte da ${esc(emp)} (${pct}%)`, devida, devAnt, `<span class="muted small">devida pelo que os clientes pagaram</span><span class="muted small">Prevista: ${brl(prevista)} · repasse vence ${vencRep}</span>`, ' vd-h14')}
       </div></section>`;
 
     // Para faturar
