@@ -197,7 +197,7 @@
     queueMicrotask(() => { const el = document.querySelector('#content [data-casillero]'); if (!el || el.dataset.ligado) return; el.dataset.ligado = '1';
       S.casillero(el, { semEntrada:!document.getElementById('content').classList.contains('entra'), aoEscolher:id => { S.ui.cxEscolha[perfil] = id; } }); });
     return { title:`<span class="sub">${hojeExtenso()}</span>${saudacao()}${nome ? ', ' + esc(nome) : ''}`,
-      actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="piNew">${S.svg('mais')}Novo PI</button>` : '',
+      actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="prNova">${S.svg('mais')}Nova proposta</button>` : '',
       body:`${metas}<p class="cx-dica">Clique num bloco para ver o detalhe.</p>${S.cxHtml(blocos, escolhido, 'Resumo da ' + (veh ? veh.nome : 'rádio'))}` };
   };
 })();

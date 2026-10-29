@@ -78,7 +78,7 @@
       ${pis.length ? `<div class="pl"><div class="pl-l pl-cab"><span class="pl-n">Nº</span><span class="pl-t">Título</span><span class="pl-c">Cliente · agência</span><span class="pl-u">Consultor</span><span class="pl-p">Veiculação</span><span class="pl-i">Situação</span><span class="pl-v">Total</span><span class="pl-m"><span class="sr">Ações</span></span></div>${linhas}</div>` : vazio}
       <p class="fn-dica"><kbd>←</kbd> <kbd>→</kbd> trocam o mês · clique numa etapa da régua para filtrar · <kbd>Esc</kbd> tira o filtro</p></section>`;
     queueMicrotask(animaPis);
-    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="piNew">${S.svg('mais')}Novo PI</button>` : '',
+    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn" data-act="piNew" title="Para casos sem proposta">PI sem proposta</button><button class="btn pri" data-act="prNova">${S.svg('mais')}Nova proposta</button>` : '',   // a venda começa pela proposta (29/10/2026)
       body:topo + (S.propostasParaPi ? S.propostasParaPi() : '') + noArCard + listaCard };
   };
   // A régua cresce com mola (do zero na entrada; depois, da fatia anterior até a nova) e o nome do mês desliza
@@ -537,7 +537,7 @@
         <label class="f">CNPJ / CPF<input name="novo_doc" data-mask="doc" inputmode="numeric" autocomplete="off" placeholder="00.000.000/0000-00" disabled></label>
         <label class="f">Telefone<input name="novo_tel" data-mask="tel" inputmode="tel" autocomplete="off" placeholder="(65) 99999-9999" disabled></label></div>
         <p class="muted small" style="margin-top:10px">O cliente fica salvo nesta rádio. Os demais dados você completa depois em Clientes.</p></div>`;
-      S.form(`Novo PI · ${esc(S.veh().nome)}`, [
+      S.form(`PI sem proposta · ${esc(S.veh().nome)}`, [
         { k:'titulo', label:'Título', req:true, full:true },
         { k:'cliente_id', label:'Cliente', type:'select', req:true, options:[['', 'Escolha o cliente'], ...clientes.map(p => [p.id, p.nome]), [NOVO, '+ Cadastrar novo cliente']] },
         { k:'agencia_id', label:'Agência', type:'select', options:[['', 'Venda direta'], ...S.pessoas('agencia').map(p => [p.id, p.nome])] },
