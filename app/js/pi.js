@@ -122,7 +122,7 @@
   };
   const salvar = async pi => {
     const b = document.querySelector('[data-act="piSalvar"]'); if (b) b.disabled = true;
-    try { await gravar(pi); sairEdicao(); S.toast('PI salvo'); S.render(); return true; }
+    try { await gravar(pi); sairEdicao(); S.salvo('PI salvo', { sub:S.piNo(pi) + (pi.titulo ? ' · ' + pi.titulo : '') }); S.render(); return true; }
     catch (e) { console.error(e); S.toast(S.erro(e)); if (b) b.disabled = false; return false; }
   };
 

@@ -424,6 +424,33 @@ S.toast = (msg, op) => { const t = document.getElementById('toast'), comAcao = !
     b.onclick = () => { clearTimeout(S._toast); t.classList.remove('on', 'com-acao'); op.fn(); }; t.appendChild(b); }
   t.classList.add('on'); clearTimeout(S._toast); S._toast = setTimeout(() => t.classList.remove('on'), comAcao ? 7000 : 3200); };
 
+// Salvo no meio da tela (aprovado em 29/10/2026, quadro "SONVI · Agências, controle e metas", tela 9): cartão com o ✓ se desenhando,
+// título e uma linha do que foi feito; some em 1,8 s (6 s com Desfazer); clicar fora ou Esc fecha antes. Fica na camada do topo
+// (popover), por cima de janela aberta. S.salvo('Cliente salvo', { sub, fn, acao }) ou S.salvo('Ficha salva. As regras já valem…').
+(() => {
+  let el, tempo, fnAcao;
+  const fechar = () => { clearTimeout(tempo); if (!el || !el.classList.contains('on')) return; el.classList.remove('on'); el.classList.add('sai');
+    setTimeout(() => { if (el.classList.contains('on')) return; el.classList.remove('sai'); try { el.hidePopover && el.matches(':popover-open') && el.hidePopover(); } catch (e) {} el.hidden = true; }, 220); };
+  const montar = () => { if (el) return; el = document.createElement('div'); el.id = 'salvo'; el.hidden = true; if ('popover' in el) el.popover = 'manual';
+    el.innerHTML = `<div class="sv2-card" role="status" aria-live="polite"><span class="sv2-ok" aria-hidden="true"><svg viewBox="0 0 24 24" width="34" height="34"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      <b class="sv2-t"></b><span class="sv2-s"></span><button type="button" class="btn sm sv2-desf" hidden>Desfazer</button><span class="sv2-tempo" aria-hidden="true"><i></i></span></div>`;
+    document.body.appendChild(el);
+    el.addEventListener('click', e => { const b = e.target.closest('.sv2-desf'); if (b) { const f = fnAcao; fnAcao = null; fechar(); if (f) f(); return; } if (!e.target.closest('.sv2-card')) fechar(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && el.classList.contains('on')) { e.preventDefault(); e.stopPropagation(); fechar(); } }, true); };
+  S.salvo = (titulo, op = {}) => {
+    montar(); let t = String(titulo || 'Salvo'), sub = op.sub || '';
+    if (!sub) { const m = t.match(/^(.{3,60}?)(?::\s+|\.\s+)(.+)$/); if (m) { t = m[1]; sub = m[2]; } }
+    el.querySelector('.sv2-t').textContent = t.replace(/\.$/, '');
+    const s = el.querySelector('.sv2-s'); s.textContent = sub; s.hidden = !sub;
+    const b = el.querySelector('.sv2-desf'); fnAcao = op.fn || null; b.hidden = !fnAcao; b.textContent = op.acao || 'Desfazer';
+    const dur = fnAcao ? 6000 : (op.tempo || 1800); el.style.setProperty('--sv2-dur', dur + 'ms');
+    clearTimeout(tempo); const casa = [...document.querySelectorAll('dialog[open]')].pop() || document.body; if (el.parentNode !== casa) { try { if (el.matches(':popover-open')) el.hidePopover(); } catch (e) {} casa.appendChild(el); }
+    el.hidden = false; el.classList.remove('on', 'sai'); try { if (el.showPopover) { if (el.matches(':popover-open')) el.hidePopover(); el.showPopover(); } } catch (e) {}
+    el.offsetHeight; el.classList.add('on'); if (fnAcao) b.focus({ preventScroll:true });
+    tempo = setTimeout(fechar, dur);
+  };
+})();
+
 // Abas que deslizam (adaptado do "SegmentedControl" da Halaska UI, licença MIT): num .seg.desliza a marca branca da aba
 // escolhida é uma peça só que escorrega até a aba nova (posição com curva enfatizada, largura suave). Como a tela é
 // redesenhada a cada clique, a última posição fica guardada pela chave do grupo (data-seg) e a peça nasce ali.

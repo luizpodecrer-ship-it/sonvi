@@ -368,7 +368,7 @@
         feitos[vid] = pi.id; n++;
         if (proprio) { S.db.pis.push(pi); v.pi_seq = Math.max(Number(v.pi_seq) || 0, pi.numero); meu = pi; } }
       const atual = achar(p.id); if (atual) { atual.pis_veiculos = feitos; atual.pi_id = atual.pi_id || meu && meu.id || Object.values(feitos)[0]; if (ed.id === atual.id) abrir(atual); }
-      S.toast(`${n} ${n === 1 ? 'PI gerado' : 'PIs gerados'}: ${vs.map(x => (S.veh(x) || {}).sigla).filter(Boolean).join(', ')}. Cada veículo vê o seu na tela de PIs.`);
+      S.salvo(`${n} ${n === 1 ? 'PI gerado' : 'PIs gerados'}: ${vs.map(x => (S.veh(x) || {}).sigla).filter(Boolean).join(', ')}. Cada veículo vê o seu na tela de PIs.`);
       if (meu) { S.ui.tab = 'detalhes'; location.hash = '/pi/' + meu.id; }
       return;
     }
@@ -378,7 +378,7 @@
     S.db.pis.push(pi); v.pi_seq = Math.max(Number(v.pi_seq) || 0, pi.numero);
     const atual = achar(p.id); if (atual) { atual.pi_id = pi.id; if (ed.id === atual.id) abrir(atual); }
     S.ui.tab = 'detalhes'; location.hash = '/pi/' + pi.id;
-    S.toast('PI gerado com as inserções distribuídas');
+    S.salvo('PI gerado', { sub:'Com as inserções distribuídas nos dias do mês.' });
   });
 
   // ---------- enviar ao cliente: link da proposta pelo WhatsApp ou e-mail ----------
@@ -585,7 +585,7 @@
         onOk:f => S.run(async () => { if (ed.id === p.id) fechar();
           const r = await S.q(S.sb.rpc('excluir_proposta_completa', { p_proposta:p.id, p_conf:f.ex_conf, p_com_pis:!!f.com_pis }));
           await S.carregarVeiculo(); if (S.route().view === 'propostas' && S.route().id) location.hash = '/propostas';
-          if (r && r.pis) S.toast(`Proposta e ${r.pis} ${r.pis === 1 ? 'PI excluídos' : 'PIs excluídos'}`); }, f.com_pis && pis.length ? null : 'Proposta excluída') }); },
+          if (r && r.pis) S.salvo(`Proposta e ${r.pis} ${r.pis === 1 ? 'PI excluídos' : 'PIs excluídos'}`); }, f.com_pis && pis.length ? null : 'Proposta excluída') }); },
     prDuplicar: d => { const p = daLista(d), v = S.veh();
       S.run(async () => { const r = await S.salvar('propostas', { veiculo_id:v.id, cliente_id:p.cliente_id, agencia_id:p.agencia_id, validade:p.validade, data:today(), consultor_id:p.consultor_id,
         tabela_id:p.tabela_id, condicoes:p.condicoes, texto:p.texto, itens:p.itens, insercoes:p.insercoes, publicacoes:p.publicacoes || 0, valor_tabela:p.valor_tabela, valor_total:p.valor_total });

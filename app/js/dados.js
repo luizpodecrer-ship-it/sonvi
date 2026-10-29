@@ -42,7 +42,7 @@
 
   // Executa uma ação na nuvem, avisa o resultado e redesenha a tela
   S.run = async (fn, ok) => {
-    try { const r = await fn(); if (ok) S.toast(ok); S.render(); return r === undefined ? true : r; }
+    try { const r = await fn(); if (ok) (S.salvo ? S.salvo(ok.titulo || ok, ok.titulo ? ok : {}) : S.toast(ok)); S.render(); return r === undefined ? true : r; }
     catch (e) { console.error(e); S.toast(S.erro(e)); S.render(); return null; }
   };
 

@@ -108,7 +108,7 @@
       if (tipo === 'esqueci') { await S.contaServidor({ acao:'esqueci', email:f.email }); S.esqueci = 'enviado'; return S.render(); }
       if (tipo === 'senha') {
         await S.contaServidor({ acao:'minha_senha', senha:f.senha });
-        S.definirSenha = false; S.me.trocar_senha = false; S.toast(`Senha criada. Bem-vindo ao ${S.APP === 'music' ? 'Sonvi Music' : 'SONVI'}!`);
+        S.definirSenha = false; S.me.trocar_senha = false; S.salvo(`Senha criada. Bem-vindo ao ${S.APP === 'music' ? 'Sonvi Music' : 'SONVI'}!`);
       } else {
         const { error } = await S.sb.auth.signInWithPassword({ email:f.email, password:f.senha });
         if (error) throw error;

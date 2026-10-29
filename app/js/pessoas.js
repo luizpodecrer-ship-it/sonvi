@@ -259,17 +259,17 @@
     if (p.id) row.id = p.id; else Object.assign(row, { veiculo_id:S.ui.vehicleId, tipo });
     if (novo && cad.trazido) row.cadastro_id = cad.trazido;
     const mudou = !novo ? CADASTRAIS.filter(([k]) => k in v && String(v[k] ?? '') !== String(p[k] ?? '')) : [];
-    let irmaos = [], aviso = 'Cadastro salvo';
+    let irmaos = [], aviso = '';
     const ok = await S.run(async () => {
       // As cópias nas outras rádios são procuradas antes de gravar (o CNPJ pode estar mudando)
       if (mudou.length) { try { irmaos = (await buscarIrmaos(tipo, grupoDe(p), soNumeros(p.documento))).filter(podeAlterarLa); } catch (e) { console.error(e); } }
       const r = await S.salvar('pessoas', row);
       const destinos = novo ? destinosMarcados(extras) : [];
-      if (destinos.length) { const res = await levar(r.id, destinos); const t = resumo(res); if (t) aviso = 'Cadastro salvo: ' + t + '.';
+      if (destinos.length) { const res = await levar(r.id, destinos); const t = resumo(res); if (t) aviso = t;
         const atual = await S.q(S.sb.from('pessoas').select('*').eq('id', r.id).single()); Object.assign(r, atual); }
     }, null);
     if (!ok) return;
-    S.toast(aviso);
+    S.salvo(`${tipo === 'agencia' ? 'Agência' : 'Cliente'} ${novo ? 'cadastrad' : 'salv'}${tipo === 'agencia' ? 'a' : 'o'}`, { sub:(row.nome || p.nome || '') + (aviso ? ' · ' + aviso : '') });
     if (irmaos.length) perguntarAtualizar(p, mudou, irmaos);
   }
 
@@ -285,7 +285,7 @@
       <small class="muted">Só os dados cadastrais vão para os outros veículos. Consultor, situação, agência e observações de cada veículo continuam como estão.</small>
       <div class="row cad-acoes"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Só em ${esc(S.veh().nome)}</button><button class="btn pri" value="ok" data-cad-total>Atualizar nos ${total} veículos</button></div>`,
     f => { const ids = irmaos.filter(r => f['x_' + r.id] === 'on').map(r => r.id); if (!ids.length) return;
-      S.run(async () => { const n = await S.q(S.sb.rpc('atualizar_cadastros_irmaos', { p_origem:p.id, p_ids:ids })); S.toast(`Atualizado em ${n} outro${n === 1 ? '' : 's'} veículo${n === 1 ? '' : 's'}.`); }, null); });
+      S.run(async () => { const n = await S.q(S.sb.rpc('atualizar_cadastros_irmaos', { p_origem:p.id, p_ids:ids })); S.salvo(`Atualizado em ${n} outro${n === 1 ? '' : 's'} veículo${n === 1 ? '' : 's'}.`); }, null); });
   }
 
   // ---------- menu ⋯ › Levar para outro veículo ----------
@@ -301,7 +301,7 @@
       <div class="row cad-acoes"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>${livres.length ? 'Cancelar' : 'Fechar'}</button>${livres.length ? '<button class="btn pri" value="ok" data-cad-levar>Cadastrar</button>' : ''}</div>`,
     f => { const destinos = destinosMarcados(f); if (!destinos.length) return S.toast('Marque pelo menos um veículo.');
       S.run(async () => { const r = await levar(p.id, destinos); const atual = await S.q(S.sb.from('pessoas').select('*').eq('id', p.id).single()); Object.assign(S.pessoa(p.id) || {}, atual);
-        S.toast(('Pronto: ' + resumo(r) + '.').replace('Pronto: .', 'Nada para cadastrar.')); }, null); });
+        { const t = resumo(r); t ? S.salvo('Cadastro levado', { sub:t[0].toUpperCase() + t.slice(1) + '.' }) : S.toast('Nada para cadastrar.'); } }, null); });
     document.getElementById('dlg').classList.add('medio');
     const dlg = document.getElementById('dlg'), fim = dlg.onclose; dlg.onclose = () => { dlg.classList.remove('medio'); if (fim) fim(); };
     contarRadios();

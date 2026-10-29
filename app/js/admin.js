@@ -200,7 +200,7 @@
       if (novoAcesso) await S.carregarBase();
       S.db.colaboradores = null; await carregarColab(); S.metasLimpar();
       if (senha) mostrarSenha({ id:usuarioId, nome:row.nome, email:row.email.toLowerCase(), celular:row.celular }, senha, true);
-    }, c.id ? 'Colaborador salvo' : 'Colaborador cadastrado');
+    }, { titulo:c.id ? 'Colaborador salvo' : 'Colaborador cadastrado', sub:f.nome.trim() });
   };
 
   // Prévia ao vivo do modelo A4 dentro da janela da empresa: monta a proposta de exemplo com o que está na tela
@@ -474,8 +474,8 @@
         { para:S.me.id },
         f => S.run(async () => { const r = await servidor({ acao:'excluir', usuario_id:u.id, para:f.para || null }); await S.recarregar();
           const p = r.passou || {}, n = (p.clientes || 0) + (p.propostas || 0) + (p.pis || 0);
-          if (n && f.para) S.toast(`Usuário ${nome} excluído. ${p.clientes || 0} cliente(s), ${p.propostas || 0} proposta(s) e ${p.pis || 0} PI(s) passaram para ${(S.db.usuarios.find(x => x.id === f.para) || {}).nome || 'o novo responsável'}.`);
-          else S.toast(`Usuário ${nome} excluído.`); }), 'Excluir usuário', { editar:true });
+          if (n && f.para) S.salvo(`Usuário ${nome} excluído. ${p.clientes || 0} cliente(s), ${p.propostas || 0} proposta(s) e ${p.pis || 0} PI(s) passaram para ${(S.db.usuarios.find(x => x.id === f.para) || {}).nome || 'o novo responsável'}.`);
+          else S.salvo('Usuário excluído', { sub:nome }); }), 'Excluir usuário', { editar:true });
       const ok = document.querySelector('#dlg button[value=ok]'); if (ok) ok.classList.add('perigo'); },
     admUsuarioEditar: d => formUsuario(S.db.usuarios.find(x => x.id === d.id), true),
     admSenha: async d => { const u = S.db.usuarios.find(x => x.id === d.id);

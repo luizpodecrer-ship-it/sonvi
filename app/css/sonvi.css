@@ -3296,3 +3296,28 @@ dialog.em-dlg [hidden] { display:none !important; }
   nav.menu-desliza .ad-menu-i.quente .ad-menu-ic svg, nav.menu-desliza .ad-menu-i.on .ad-menu-ic svg { transform:scale(1.18); }
 }
 @media (prefers-reduced-motion: reduce) { nav.menu-desliza .realce, nav.menu-desliza .ad-menu-ic, nav.menu-desliza .ad-menu-ic svg { transition:none; } }
+
+/* Salvo no meio da tela (29/10/2026, S.salvo em core.js): véu leve, cartão com o ✓ se desenhando, barrinha do tempo. */
+#salvo { position:fixed; inset:0; margin:0; padding:16px; width:auto; height:auto; max-width:none; max-height:none; border:0; background:rgba(24,24,27,.22); display:grid; place-items:center; z-index:60; opacity:0; transition:opacity .2s; color:var(--ink); }
+#salvo[hidden] { display:none; }
+#salvo::backdrop { display:none; }
+#salvo.on { opacity:1; } #salvo.sai { opacity:0; }
+.sv2-card { width:min(320px, 100%); box-sizing:border-box; background:var(--surface); border-radius:16px; padding:30px 26px 22px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; box-shadow:0 24px 60px rgba(0,0,0,.22); transform:scale(.86); }
+#salvo.on .sv2-card { animation:sv2-in .45s cubic-bezier(.34,1.4,.5,1) forwards; }
+#salvo.sai .sv2-card { transform:scale(.96); transition:transform .2s; }
+.sv2-ok { width:64px; height:64px; border-radius:50%; background:#E3F6EC; display:grid; place-items:center; margin-bottom:4px; }
+.sv2-ok svg { fill:none; stroke:#14804A; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; }
+.sv2-ok path { stroke-dasharray:30; stroke-dashoffset:30; }
+#salvo.on .sv2-ok path { animation:sv2-tr .4s .22s ease-out forwards; }
+.sv2-t { font-family:var(--display); font-size:20px; font-weight:600; line-height:1.25; }
+.sv2-s { font-size:14px; color:var(--ink-2); line-height:1.45; overflow-wrap:anywhere; }
+.sv2-desf { margin-top:6px; } .sv2-desf[hidden], .sv2-s[hidden] { display:none; }
+.sv2-tempo { width:100%; height:3px; border-radius:3px; background:var(--line-2); margin-top:10px; overflow:hidden; }
+.sv2-tempo i { display:block; height:100%; width:100%; background:#14804A; transform-origin:left; }
+#salvo.on .sv2-tempo i { animation:sv2-tempo var(--sv2-dur, 1800ms) linear forwards; }
+@keyframes sv2-in { 0% { opacity:0; transform:scale(.86); } 60% { opacity:1; transform:scale(1.03); } 100% { opacity:1; transform:scale(1); } }
+@keyframes sv2-tr { to { stroke-dashoffset:0; } }
+@keyframes sv2-tempo { from { transform:scaleX(1); } to { transform:scaleX(0); } }
+@media (prefers-color-scheme: dark) { #salvo { background:rgba(0,0,0,.5); } .sv2-ok { background:#123524; } .sv2-ok svg, .sv2-tempo i { stroke:#3DDC97; } .sv2-tempo i { background:#3DDC97; } .sv2-card { background:#1F1F23; } }
+@media (prefers-reduced-motion: reduce) { #salvo, #salvo.on .sv2-card, #salvo.sai .sv2-card { animation:none; transition:none; transform:none; } .sv2-ok path { stroke-dashoffset:0; } #salvo.on .sv2-ok path { animation:none; } }
+@media print { #salvo { display:none !important; } }

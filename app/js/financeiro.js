@@ -214,7 +214,7 @@
     const ok = await S.run(async () => { await S.q(S.sb.rpc('baixar_lancamentos', { p_itens:itens })); sel.clear(); await recarregar(); });
     if (!ok) return;
     const pagar = itens.length && (S.db.lancamentos.find(l => l.id === itens[0].id) || {}).sentido === 'pagar';
-    S.toast(itens.length > 1 ? `Baixa feita em ${itens.length} parcelas` : pagar ? 'Pagamento registrado' : 'Baixa registrada', { fn:() => S.run(async () => {
+    S.salvo(itens.length > 1 ? `Baixa feita em ${itens.length} parcelas` : pagar ? 'Pagamento registrado' : 'Baixa registrada', { fn:() => S.run(async () => {
       for (const it of itens) await S.q(S.sb.rpc('estornar_baixa', { p_id:it.id })); await recarregar(); }, itens.length > 1 ? 'Baixas desfeitas' : 'Baixa desfeita') });
   };
 
@@ -344,7 +344,7 @@
       return S.run(async () => { criados = await S.q(S.sb.from('lancamentos').insert(rows).select()); S.db.lancamentos.push(...criados);
         const m = rows[0].vencimento.slice(0, 7); f.tipo = v.sentido; f.sit = ''; f.mes = m === S.today().slice(0, 7) ? '' : m; }).then(ok => { if (!ok || !criados.length) return;
         const ids = criados.map(l => l.id);
-        S.toast(n > 1 ? `${n} lançamentos criados` : 'Lançamento criado', { fn:() => S.run(async () => { await S.q(S.sb.from('lancamentos').delete().in('id', ids));
+        S.salvo(n > 1 ? `${n} lançamentos criados` : 'Lançamento criado', { fn:() => S.run(async () => { await S.q(S.sb.from('lancamentos').delete().in('id', ids));
           S.db.lancamentos = S.db.lancamentos.filter(l => !ids.includes(l.id)); }, n > 1 ? 'Lançamentos desfeitos' : 'Lançamento desfeito') }); }); }, 'Criar', { editar:true });
 
   // ---------- relatórios ----------
