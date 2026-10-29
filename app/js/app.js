@@ -15,7 +15,6 @@
     ['opec', 'OPEC', ['diretor', 'opec']],
     ['vendas', 'Vendas', ['diretor', 'financeiro']],  // no lugar do Financeiro (27/10/2026): quem fatura e recebe é o financeiro de cada veículo
     ['produtos', 'Produtos', ['diretor', 'gerente', 'consultor']],
-    ['agencias', 'Agências', ['diretor']],       // cadastro único de agências do grupo, só no Dashboard geral (29/10/2026)
     ['admin', 'Administração', ['diretor']],
     ['chamados', 'Suporte', ['diretor']],        // chamados e acessos da equipe SONVI, só no Dashboard geral (25/10/2026)
     ['admin', 'Usuários', ['gerente']]]; // o gerente cadastra a equipe das rádios dele

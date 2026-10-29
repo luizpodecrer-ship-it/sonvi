@@ -7,16 +7,19 @@
   const st = { lista:null, carregando:false, q:'' };
   const carregar = async () => { if (st.carregando) return; st.carregando = true;
     try { st.lista = await S.q(S.sb.rpc('agencias_grupo')) || []; } catch (e) { console.error(e); S.toast(S.erro(e)); st.lista = st.lista || []; }
-    st.carregando = false; if (S.ui.view === 'agencias') S.render(); };
+    st.carregando = false; if (['agencias', 'admin'].includes(S.ui.view)) S.render(); };
   S.agenciasUsar = l => { st.lista = l; };   // testes
   S.agenciasLimpar = () => { st.lista = null; };
-  addEventListener('hashchange', () => { if (/^#\/agencias/.test(location.hash)) st.lista = null; });   // dados novos a cada entrada
+
   const curto = v => v >= 1e6 ? `R$ ${(v / 1e6).toFixed(1).replace('.', ',')} mi` : v >= 1e4 ? `R$ ${Math.round(v / 1e3)} mil` : S.brl(v);
-  const pct = v => `${S.nfmt(Number(v) || 0)}%`;
+  const pct = v => `${String(Number(v) || 0).replace(".", ",")}%`;
   const selos = a => { const vs = (a.veiculos || []).map(id => S.veh(id)).filter(Boolean);
     return vs.length ? `<span class="ag-selos">${vs.map(v => `<span title="${esc(v.nome)}">${S.vav(v)}</span>`).join('')}</span>` : '<span class="muted">—</span>'; };
 
-  S.views.agencias = () => {
+  // Desde 29/10/2026 a tela fica em Administração, na aba "Agências" (admin.js chama S.agenciasTela); #/agencias leva para lá
+  S.views.agencias = () => { queueMicrotask(() => S.admAbrir && S.admAbrir('agencias')); return { title:'<span class="sub">Grupo</span>Administração', actions:'', body:'' }; };
+  S.agenciasRecarregar = () => { st.lista = null; };
+  S.agenciasTela = () => {
     const titulo = '<span class="sub">Grupo</span>Agências', acoes = `<button class="btn pri" data-act="agNova">${S.svg('mais')}Nova agência</button>`;
     if (!st.lista) { carregar(); return { title:titulo, actions:acoes, body:'<div class="card empty"><b>Carregando as agências…</b></div>' }; }
     const q = st.q.trim().toLowerCase(), qn = q.replace(/\D/g, '');
