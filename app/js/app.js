@@ -116,7 +116,8 @@
     bar.innerHTML = `<h1>${v.title}</h1>${v.actions}`;
     content.innerHTML = v.body;
     if (S.poeRolos) S.poeRolos();
-    if (S.segDesliza) S.segDesliza(content);   // números que rolam e ficam montados entre desenhos (S.roloFixo)
+    if (S.segDesliza) S.segDesliza(content);
+    if (S.menuDesliza) S.menuDesliza(content);   // números que rolam e ficam montados entre desenhos (S.roloFixo)
     requestAnimationFrame(() => content.querySelectorAll('.scroll').forEach(sc => { if (sc.scrollWidth > sc.clientWidth + 2 && !sc.querySelector('a[href], button, input, select, textarea, [tabindex]')) { const t = sc.closest('.card') && sc.closest('.card').querySelector('h2'); sc.tabIndex = 0; sc.setAttribute('role', 'region'); sc.setAttribute('aria-label', (t ? t.textContent.trim() + ': ' : '') + 'tabela, role para o lado para ver tudo'); } }));
     document.title = (MUSIC ? 'Sonvi Music' : 'SONVI') + (view === 'geral' ? ' · Dashboard geral' : semVeiculo || geral ? '' : ' · ' + veh.nome);
   };

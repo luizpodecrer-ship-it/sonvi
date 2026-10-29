@@ -452,3 +452,28 @@ S.toast = (msg, op) => { const t = document.getElementById('toast'), comAcao = !
   });
   window.addEventListener('resize', () => S.segDesliza());
 })();
+
+// Menu de seções com o efeito do menu do Dashboard geral (29/10/2026, Administração): o realce desliza com mola até o item sob o mouse ou o foco,
+// volta ao item aberto, o ícone cresce e ganha a cor do item (data-cor). A tela é redesenhada a cada clique: a posição fica guardada pela chave
+// (data-menu) e o realce nasce ali e vai até o item novo. Só no computador.
+(() => {
+  const S = window.SONVI, ultimo = {};
+  S.menuDesliza = (raiz = document) => raiz.querySelectorAll('nav.menu-desliza').forEach(nav => {
+    if (nav.dataset.ok || !matchMedia('(min-width:821px)').matches) return; nav.dataset.ok = '1';
+    const chave = nav.dataset.menu || 'menu', itens = [...nav.querySelectorAll('a')];
+    const r = document.createElement('span'); r.className = 'realce'; r.setAttribute('aria-hidden', 'true'); nav.prepend(r);
+    const on = () => nav.querySelector('a.on');
+    const ir = (a, sem) => { if (!a) { r.style.opacity = 0; return; } if (sem) r.style.transition = 'none';
+      r.style.opacity = 1; r.style.transform = `translateY(${a.offsetTop}px)`; r.style.height = a.offsetHeight + 'px'; if (sem) { r.offsetHeight; r.style.transition = ''; }
+      itens.forEach(x => x.classList.toggle('quente', x === a && !x.classList.contains('on'))); r.classList.toggle('no-on', a === on());
+      if (a === on()) ultimo[chave] = a.offsetTop; };
+    const a0 = on(), y = ultimo[chave];
+    if (y !== undefined && a0 && y !== a0.offsetTop) { r.style.transition = 'none'; r.style.opacity = 1; r.style.height = a0.offsetHeight + 'px'; r.style.transform = `translateY(${y}px)`; r.offsetHeight; r.style.transition = ''; requestAnimationFrame(() => ir(a0)); }
+    else ir(a0, true);
+    const volta = () => { ir(on()); itens.forEach(x => x.classList.remove('quente')); };
+    nav.addEventListener('mouseover', e => { const a = e.target.closest('a'); if (a) ir(a); });
+    nav.addEventListener('focusin', e => { const a = e.target.closest('a'); if (a) ir(a); });
+    nav.addEventListener('mouseleave', volta);
+    nav.addEventListener('focusout', e => { if (!nav.contains(e.relatedTarget)) volta(); });
+  });
+})();

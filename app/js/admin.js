@@ -222,8 +222,8 @@
       ['Cadastros', [['agencias', 'Agências', 'Vale em todos os veículos', 'agencias', S.agenciasN ? S.agenciasN() : null]]]];
     if (!ehGer()) { if (!S.db.colaboradores) carregarColab(); if (S.agenciasN && S.agenciasN() === null) S.agenciasTela(); }   // contadores do menu
     const naCel = !ehGer() && S.celular && celLista;
-    const menuAd = ehGer() ? '' : `<nav class="ad-menu" aria-label="Seções da administração">${SECOES.map(([g, its]) => `<span class="ad-menu-g">${g}</span>${its.map(([k, n, sub, ic, q]) =>
-      `<a href="#/admin" class="ad-menu-i${aba === k && !naCel ? ' on' : ''}" data-act="admAba" data-tab="${k}"${aba === k && !naCel ? ' aria-current="page"' : ''}><span class="ad-menu-ic" aria-hidden="true">${S.svg(ic)}</span><span class="ad-menu-tx"><b>${n}</b><small>${sub}</small></span>${q !== null && q !== undefined ? `<span class="ad-menu-n">${q}</span>` : ''}${S.celular ? `<span class="ad-menu-seta" aria-hidden="true">${S.svg('seta', 16)}</span>` : ''}</a>`).join('')}`).join('')}</nav>`;
+    const menuAd = ehGer() ? '' : `<nav class="ad-menu menu-desliza" data-menu="admin" aria-label="Seções da administração">${SECOES.map(([g, its]) => `<span class="ad-menu-g">${g}</span>${its.map(([k, n, sub, ic, q]) =>
+      `<a href="#/admin" data-cor="${k}" class="ad-menu-i${aba === k && !naCel ? ' on' : ''}" data-act="admAba" data-tab="${k}"${aba === k && !naCel ? ' aria-current="page"' : ''}><span class="ad-menu-ic" aria-hidden="true">${S.svg(ic)}</span><span class="ad-menu-tx"><b>${n}</b><small>${sub}</small></span>${q !== null && q !== undefined ? `<span class="ad-menu-n">${q}</span>` : ''}${S.celular ? `<span class="ad-menu-seta" aria-hidden="true">${S.svg('seta', 16)}</span>` : ''}</a>`).join('')}`).join('')}</nav>`;
     if (naCel) return { title:'<span class="sub">Grupo</span>Administração', actions:'', body:menuAd };
     let body;
     if (aba === 'veiculos') {
