@@ -238,7 +238,7 @@
     geralMes: d => { f2.mes = d.v === S.mesAtual() ? null : d.v; S.render(); },
     geralCat: d => { f.cat = d.v; S.render(); },
     ctrlCsv: () => ctrlCsv(),
-    geralAtualizar: () => { S.carregarGeral(true).then(() => S.toast('Números atualizados')); },
+    geralAtualizar: () => { if (S.metasLimpar) S.metasLimpar(); S.carregarGeral(true).then(() => S.toast('Números atualizados')); },
     geralAbrir: d => S.abrirVeiculo(d.id)
   });
   let tBusca;

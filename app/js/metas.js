@@ -9,16 +9,21 @@
   const brl0 = v => 'R$ ' + Math.round(Number(v) || 0).toLocaleString('pt-BR');
   S.mesAtual = (desloca = 0) => { const d = new Date(); const n = new Date(d.getFullYear(), d.getMonth() + desloca, 1); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; };
 
-  // Busca as metas do mês uma vez por mês (e de novo a cada entrada no SONVI); redesenha quando chegam
+  // Busca as metas do mês e guarda por 2 minutos (29/10/2026: o Dashboard já abre com as metas, sem precisar de clique; depois de
+  // 2 minutos busca de novo, mostrando as de antes enquanto isso). Quando chegam, redesenha a tela que está esperando por elas.
+  const TTL = 120000, em = {};
   S.metasDoMes = mes => {
-    if (cache[mes]) return cache[mes];
-    if (!buscando[mes] && S.sb) { buscando[mes] = true;
-      S.q(S.sb.rpc('metas_do_mes', { p_mes:mes + '-01' })).then(l => { cache[mes] = l || []; }).catch(e => { console.error(e); cache[mes] = []; })
-        .finally(() => { buscando[mes] = false; if (['dashboard', 'geral'].includes(S.route().view)) S.render(); }); }
-    return null;
+    const tem = cache[mes], velho = !em[mes] || Date.now() - em[mes] > TTL;
+    if ((!tem || velho) && !buscando[mes] && S.sb) { buscando[mes] = true;
+      S.q(S.sb.rpc('metas_do_mes', { p_mes:mes + '-01' })).then(l => { cache[mes] = l || []; em[mes] = Date.now(); })
+        .catch(e => { console.error(e); if (!cache[mes]) { cache[mes] = []; em[mes] = Date.now() - TTL + 15000; } })
+        .finally(() => { buscando[mes] = false; if (!S.carregando && (document.querySelector('[data-metas-espera]') || ['dashboard', 'geral', 'vendas'].includes(S.route().view))) S.render(); }); }
+    return tem || null;
   };
-  S.metasUsar = (mes, l) => { cache[mes] = l; };          // testes
-  S.metasLimpar = () => { Object.keys(cache).forEach(k => delete cache[k]); };
+  // Enquanto as metas não chegam: o lugar do cartão já aparece, com o aviso
+  S.metasEspera = titulo => `<section class="card mta" data-metas-espera aria-busy="true"><div class="hd"><h2>${titulo}</h2></div><p class="muted" style="margin:0">Buscando as metas e o andamento de cada consultor…</p></section>`;
+  S.metasUsar = (mes, l) => { cache[mes] = l; em[mes] = Date.now(); };          // testes
+  S.metasLimpar = () => { Object.keys(cache).forEach(k => delete cache[k]); Object.keys(em).forEach(k => delete em[k]); };
 
   // Só o valor do mês (decidido em 27/10/2026): um PI de 3 meses conta em cada mês só a grade daquele mês (e a ação digital do mês),
   // no valor líquido (a mesma proporção do PI inteiro: desconto geral e comissão da agência). Sem grades, conta o PI no mês em que nasceu.
@@ -76,7 +81,7 @@
   // O diretor e o gerente veem o veículo inteiro e uma linha por consultor; o consultor vê só a dele. Números rolam (S.roloFixo).
   const diasUteis = (de, ate) => { let n = 0; for (let d = new Date(de); d <= ate; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) n++; return n; };
   S.metaFaixa = ({ mes, pis, veiculo, meu = false }) => {
-    const l = S.metasDoMes(mes); if (!l) return '';
+    const l = S.metasDoMes(mes); if (!l) return S.metasEspera(`${meu ? 'Minha meta' : 'Meta'} de ${MESES[+mes.slice(5) - 1]}`);
     const doV = l.filter(x => x.veiculo_id === veiculo && (!meu || x.usuario_id === S.me.id));
     const vend = pis.filter(p => VENDIDO.includes(p.status) && p.veiculo_id === veiculo && (!meu || p.consultor_id === S.me.id));
     const realizado = vend.reduce((t, p) => t + valorNoMes(p, mes), 0), meta = doV.reduce((t, x) => t + Number(x.meta || 0), 0);
@@ -114,8 +119,8 @@
   const anelAntes = {};
   const diasUteisM = (de, ate) => { let n = 0; for (let d = new Date(de); d <= ate; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) n++; return n; };
   S.metasAneis = ({ mes, pis, vazio = '' }) => {
-    const l = S.metasDoMes(mes); if (!l) return '';
-    const nomeMes = MESES[+mes.slice(5) - 1], cab = `Metas dos consultores · ${nomeMes[0].toUpperCase() + nomeMes.slice(1)}/${mes.slice(2, 4)}`;
+    const l = S.metasDoMes(mes), nomeMes = MESES[+mes.slice(5) - 1], cab = `Metas dos consultores · ${nomeMes[0].toUpperCase() + nomeMes.slice(1)}/${mes.slice(2, 4)}`;
+    if (!l) return S.metasEspera(cab);
     if (!l.length) return vazio ? `<section class="card mta"><div class="hd"><h2>${cab}</h2></div><p class="muted" style="margin:0">${vazio}</p></section>` : '';
     const [y, m] = mes.split('-').map(Number), ini = new Date(y, m - 1, 1), fim = new Date(y, m, 0), hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const ritmo = mes === S.mesAtual() ? hoje.getDate() / fim.getDate() : mes < S.mesAtual() ? 1 : 0;
