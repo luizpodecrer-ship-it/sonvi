@@ -103,25 +103,24 @@
   S.rolo = Rolo;   // também usado pelo Dashboard do veículo (casillero.js)
 
   // ---------- o HTML do painel (os gráficos são desenhados pelo script) ----------
-  S.cruzadoHtml = ({ unidadeT = 'dia' } = {}) => `<section class="cz-painel" aria-label="Vendas de todos os veículos, com filtro cruzado" data-cruzado>
+  // kpis: [{ k, ic, titulo, sub }] (sem = os quatro de vendas); rotulo: o que as barras, a linha e o anel somam
+  const KPIS_PADRAO = [{ k:'vendido', ic:'financeiro', titulo:'Vendido' }, { k:'pis', ic:'pis', titulo:'PIs fechados' }, { k:'ticket', ic:'propostas', titulo:'Ticket médio' }, { k:'receber', ic:'relatorio', titulo:'A receber' }];
+  S.cruzadoHtml = ({ unidadeT = 'dia', kpis = KPIS_PADRAO, rotulo = 'vendido' } = {}) => `<section class="cz-painel" aria-label="Vendas de todos os veículos, com filtro cruzado" data-cruzado>
     <div class="cz-filtros" data-filtros><p class="cz-vazio" data-vazio>Clique numa barra ou numa fatia, ou arraste sobre a linha para filtrar</p><ul class="cz-chips" data-chips aria-label="Filtros ativos"></ul><button class="cz-limpar" type="button" data-limpar hidden>Limpar</button></div>
-    <div class="cz-kpis">
-      <article class="cz-kpi" data-kpi="vendido"><div class="gk-top"><span class="gk-ic" aria-hidden="true">${S.svg('financeiro')}</span><h2>Vendido</h2></div><p class="cz-kpi-n" data-rolo></p><p class="cz-kpi-p"><span class="cz-pill" data-pill></span></p></article>
-      <article class="cz-kpi" data-kpi="pis"><div class="gk-top"><span class="gk-ic" aria-hidden="true">${S.svg('pis')}</span><h2>PIs fechados</h2></div><p class="cz-kpi-n" data-rolo></p><p class="cz-kpi-p"><span class="cz-pill" data-pill></span></p></article>
-      <article class="cz-kpi" data-kpi="ticket"><div class="gk-top"><span class="gk-ic" aria-hidden="true">${S.svg('propostas')}</span><h2>Ticket médio</h2></div><p class="cz-kpi-n" data-rolo></p><p class="cz-kpi-p"><span class="cz-pill" data-pill></span></p></article>
-      <article class="cz-kpi" data-kpi="receber"><div class="gk-top"><span class="gk-ic" aria-hidden="true">${S.svg('relatorio')}</span><h2>A receber</h2></div><p class="cz-kpi-n" data-rolo></p><p class="cz-kpi-p"><span class="cz-pill" data-pill></span></p></article>
+    <div class="cz-kpis cz-n${kpis.length}">
+      ${kpis.map(x => `<article class="cz-kpi${x.cls ? ' ' + x.cls : ''}" data-kpi="${x.k}"><div class="gk-top"><span class="gk-ic" aria-hidden="true">${S.svg(x.ic)}</span><h2>${x.titulo}</h2></div><p class="cz-kpi-n" data-rolo></p>${x.sub ? '<p class="cz-kpi-s" data-sub></p>' : ''}<p class="cz-kpi-p"><span class="cz-pill" data-pill></span></p></article>`).join('')}
     </div>
     <div class="cz-graficos">
-      <section class="card cz-card cz-veics" aria-labelledby="cz-t-v"><div class="cz-card-cab"><h2 id="cz-t-v">Por veículo</h2><span class="cz-sub">vendido</span></div><ul class="cz-barras" data-barras></ul></section>
+      <section class="card cz-card cz-veics" aria-labelledby="cz-t-v"><div class="cz-card-cab"><h2 id="cz-t-v">Por veículo</h2><span class="cz-sub">${rotulo}</span></div><ul class="cz-barras" data-barras></ul></section>
       <section class="card cz-card cz-dias" aria-labelledby="cz-t-d"><div class="cz-card-cab"><h2 id="cz-t-d">Por ${unidadeT}</h2><span class="cz-sub">arraste para escolher ${unidadeT === 'mês' ? 'os meses' : 'os dias'}</span></div>
-        <div class="cz-plot" data-plot tabindex="0" role="group" aria-label="Vendido por ${unidadeT}. Setas: mover o cursor. Shift e setas: escolher um intervalo. Enter: escolher. Esc: tirar os filtros.">
+        <div class="cz-plot" data-plot tabindex="0" role="group" aria-label="${rotulo[0].toUpperCase() + rotulo.slice(1)} por ${unidadeT}. Setas: mover o cursor. Shift e setas: escolher um intervalo. Enter: escolher. Esc: tirar os filtros.">
           <svg class="cz-svg" data-svg aria-hidden="true" focusable="false"><defs><linearGradient id="cz-g-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".22"/><stop offset=".75" stop-color="var(--accent)" stop-opacity=".04"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient><clipPath id="cz-c-rango"><rect data-clip x="0" y="0" width="0" height="10"/></clipPath></defs>
             <g data-rej></g><rect class="cz-banda" data-banda x="0" y="0" width="0" height="0" rx="8"/><path class="cz-fantasma-area" data-fant-area/><path class="cz-fantasma" data-fant/><path class="cz-area" data-area fill="url(#cz-g-area)"/><path class="cz-linha cz-linha-tenue" data-linha-tenue/><g clip-path="url(#cz-c-rango)"><path class="cz-linha" data-linha/></g>
             <g class="cz-cursor" data-cursor><line class="cz-guia" data-guia y1="0" y2="0"/><circle class="cz-ponto-aro" r="9"/><circle class="cz-ponto" r="4.5"/></g>
             <g class="cz-asas" data-asas><rect class="cz-asa" data-asa-a rx="3" width="6" height="26"/><rect class="cz-asa" data-asa-b rx="3" width="6" height="26"/></g></svg>
           <div class="cz-ejex" data-ejex aria-hidden="true"></div><div class="cz-etq-rango" data-etq-rango aria-hidden="true"></div><div class="cz-tip" data-tip aria-hidden="true"><b data-tip-valor>0</b><span data-tip-data>—</span></div></div></section>
-      <section class="card cz-card cz-cons" aria-labelledby="cz-t-c"><div class="cz-card-cab"><h2 id="cz-t-c">Por consultor</h2><span class="cz-sub">vendido</span></div>
-        <div class="cz-anel" data-anel><svg viewBox="0 0 220 220" class="cz-anel-svg" aria-hidden="true" focusable="false"><g data-anel-g transform="rotate(-90 110 110)"></g></svg><div class="cz-anel-centro"><p class="cz-anel-n" data-rolo data-centro></p><p class="cz-anel-t">vendido</p></div></div>
+      <section class="card cz-card cz-cons" aria-labelledby="cz-t-c"><div class="cz-card-cab"><h2 id="cz-t-c">Por consultor</h2><span class="cz-sub">${rotulo}</span></div>
+        <div class="cz-anel" data-anel><svg viewBox="0 0 220 220" class="cz-anel-svg" aria-hidden="true" focusable="false"><g data-anel-g transform="rotate(-90 110 110)"></g></svg><div class="cz-anel-centro"><p class="cz-anel-n" data-rolo data-centro></p><p class="cz-anel-t">${rotulo}</p></div></div>
         <ul class="cz-legenda" data-legenda></ul></section>
     </div>
     <p class="sr" role="status" aria-live="polite" data-vivo></p></section>`;
@@ -240,7 +239,7 @@
     plot.addEventListener('keydown', e => { const salto = { ArrowLeft:-1, ArrowRight:1, ArrowDown:-1, ArrowUp:1 }[e.key];
       if (salto || e.key === 'Home' || e.key === 'End') { e.preventDefault(); const antes_ = cur.dia, n = e.key === 'Home' ? 0 : e.key === 'End' ? NT - 1 : lim(cur.dia + salto, 0, NT - 1);
         if (e.shiftKey) { if (kAncora == null) kAncora = antes_; muda({ r:[Math.min(kAncora, n), Math.max(kAncora, n)] }, { rapido:true }); } else kAncora = null;
-        poeCursor(n); if (!e.shiftKey) anuncia(longo(n) + ': ' + reais(aT[n].s) + ' vendidos.'); }
+        poeCursor(n); if (!e.shiftKey) anuncia(longo(n) + ': ' + reais(aT[n].s) + ' ' + (D.rotulo || 'vendidos') + '.'); }
       else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); muda({ r:f.r && f.r[0] === cur.dia && f.r[1] === cur.dia ? null : [cur.dia, cur.dia] }); } });
     plot.addEventListener('keyup', e => { if (e.key === 'Shift') kAncora = null; });
     plot.addEventListener('blur', () => { kAncora = null; if (!arraste) { lanca(cur.on, 0, 0); acorda(passoLinha); } });
@@ -277,12 +276,16 @@
     const centro = Rolo($('[data-centro]'));
 
     // ---------- os quatro números ----------
-    const kpis = {}; $$('[data-kpi]').forEach(el => { kpis[el.dataset.kpi] = { el, rolo:Rolo(el.querySelector('[data-rolo]')), pill:el.querySelector('[data-pill]') }; });
+    const kpis = {}; $$('[data-kpi]').forEach(el => { kpis[el.dataset.kpi] = { el, rolo:Rolo(el.querySelector('[data-rolo]')), pill:el.querySelector('[data-pill]'), sub:el.querySelector('[data-sub]') }; });
     const variacao = p => p == null ? 'sem base para comparar' : `${p > 0 ? '▲ +' : p < 0 ? '▼ ' : ''}${p}% ${D.variacao.rot}`;
     function pintaKpis(t, inicial) {
       const parte = v => dec(v * 100, 1) + '% do total';
       const pill = (k, txt, tom) => { if (k.pill.textContent === txt && k.pill.dataset.tom === (tom || '')) return; k.pill.textContent = txt; k.pill.dataset.tom = tom || '';
         k.pill.classList.remove('cz-muda'); void k.pill.offsetWidth; if (!quieto() && !inicial) k.pill.classList.add('cz-muda'); };
+      // Números próprios de quem montou o painel (Dashboard geral, 29/10/2026): D.kpiValores(filtros, temFiltro, total) → { k: { texto, sub, pill, tom } }
+      if (D.kpiValores) { const vals = D.kpiValores({ c:f.c, d:f.d, r:f.r && f.r.slice() }, temFiltro(), t);
+        Object.keys(kpis).forEach(k => { const x = vals[k]; if (!x) return; kpis[k].rolo.poe(x.texto, inicial); pill(kpis[k], x.pill || '', x.tom || ''); if (kpis[k].sub) kpis[k].sub.textContent = x.sub || ''; });
+        return; }
       const vv = D.variacao || {}, tomVar = p => p == null ? '' : p > 0 ? 'bom' : p < 0 ? 'ruim' : '';
       kpis.vendido.rolo.poe(reais(t.s), inicial); pill(kpis.vendido, temFiltro() ? parte(gTot.s ? t.s / gTot.s : 0) : variacao(vv.vendido), temFiltro() ? '' : tomVar(vv.vendido));
       kpis.pis.rolo.poe(milhar(t.o), inicial); pill(kpis.pis, temFiltro() ? parte(gTot.o ? t.o / gTot.o : 0) : variacao(vv.pis), temFiltro() ? '' : tomVar(vv.pis));

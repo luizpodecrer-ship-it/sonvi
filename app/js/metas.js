@@ -107,4 +107,38 @@
     return `<section class="card mf" aria-labelledby="mf-t"><div class="hd"><h2 id="mf-t">${meu ? 'Minha meta' : 'Meta'} de ${nomeMes}</h2><span class="muted small">valor líquido do que vai ao ar no mês</span></div>
       <div class="mf-cards">${t1}${t2}${t3}${t4}</div>${por}</section>`;
   };
+
+  // Metas dos consultores com anel de % (Dashboard geral, aprovado em 29/10/2026, tela 10): equipe no alto (números rolam) e um
+  // quadro por consultor com o anel da meta, vendido de meta, quanto falta e a situação (batida / no ritmo / atrasado no ritmo).
+  // O anel cresce do valor anterior até o novo (S.metasAnima, depois do desenho); o % rola como os outros números.
+  const anelAntes = {};
+  const diasUteisM = (de, ate) => { let n = 0; for (let d = new Date(de); d <= ate; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) n++; return n; };
+  S.metasAneis = ({ mes, pis, vazio = '' }) => {
+    const l = S.metasDoMes(mes); if (!l) return '';
+    const nomeMes = MESES[+mes.slice(5) - 1], cab = `Metas dos consultores · ${nomeMes[0].toUpperCase() + nomeMes.slice(1)}/${mes.slice(2, 4)}`;
+    if (!l.length) return vazio ? `<section class="card mta"><div class="hd"><h2>${cab}</h2></div><p class="muted" style="margin:0">${vazio}</p></section>` : '';
+    const [y, m] = mes.split('-').map(Number), ini = new Date(y, m - 1, 1), fim = new Date(y, m, 0), hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const ritmo = mes === S.mesAtual() ? hoje.getDate() / fim.getDate() : mes < S.mesAtual() ? 1 : 0;
+    const uFalta = mes === S.mesAtual() ? diasUteisM(hoje, fim) : mes > S.mesAtual() ? diasUteisM(ini, fim) : 0;
+    const pessoas = {}; l.forEach(x => { const p = pessoas[x.colaborador_id] || (pessoas[x.colaborador_id] = { id:x.colaborador_id, nome:x.nome, usuario:x.usuario_id, meta:0, vend:0, vs:[] });
+      const v = vendidoDe(pis, mes, x.usuario_id, x.veiculo_id); p.meta += Number(x.meta); p.vend += v; p.vs.push({ v:S.veh(x.veiculo_id), meta:Number(x.meta), vend:v }); });
+    const lista = Object.values(pessoas).sort((a, b) => b.vend / b.meta - a.vend / a.meta || a.nome.localeCompare(b.nome));
+    const pct = (v, t) => t ? Math.round(v / t * 100) : 0;
+    const sit = p => p.vend >= p.meta ? ['ok', 'Meta batida'] : !ritmo ? ['', 'Mês ainda não começou'] : p.vend / p.meta < ritmo - 0.15 ? ['atr', 'Atrasado no ritmo'] : ['rit', 'No ritmo'];
+    const meta = lista.reduce((t, p) => t + p.meta, 0), vend = lista.reduce((t, p) => t + p.vend, 0), pe = pct(vend, meta);
+    const R = 40, C = 2 * Math.PI * R;
+    const anel = (k, p, cls) => { const a = anelAntes[k] ?? 0, off = v => (C * (1 - Math.min(100, v) / 100)).toFixed(2);
+      return `<svg class="mta-anel ${cls}" viewBox="0 0 92 92" aria-hidden="true"><circle class="mta-pista" cx="46" cy="46" r="${R}"/><circle class="mta-arco" cx="46" cy="46" r="${R}" stroke-dasharray="${C.toFixed(2)}" style="stroke-dashoffset:${off(a)}" data-mta="${k}" data-off="${off(p)}" data-pct="${p}"/></svg>`; };
+    const quadro = p => { const pp = pct(p.vend, p.meta), [c, t] = sit(p), falta = p.meta - p.vend;
+      const porV = p.vs.length > 1 ? `<small class="mta-vs">${p.vs.map(x => `${esc((x.v || {}).nome || '')} ${pct(x.vend, x.meta)}%`).join(' · ')}</small>` : '';
+      return `<div class="mta-p mta-${c || 'fut'}" role="group" aria-label="${esc(p.nome)}: ${pp}% da meta, ${brl0(p.vend)} de ${brl0(p.meta)}. ${t}.">
+        <span class="mta-roda">${anel('p' + p.id, pp, c)}<b class="mta-pct">${S.roloFixo('mta-p-' + p.id, pp + '%')}</b></span>
+        <span class="mta-tx"><b>${esc(p.nome)}</b><span><b>${brl0(p.vend)}</b> de ${brl0(p.meta)}</span><small>${falta <= 0 ? `Bateu: +${brl0(-falta)}` : `Falta ${brl0(falta)}`}</small>${porV}<span class="mta-sit">${t}</span></span></div>`; };
+    return `<section class="card mta" aria-labelledby="mta-t"><div class="mta-cab"><div><h2 id="mta-t">${cab}</h2><span class="muted small">Venda que vai ao ar no mês, contra a meta de cada um.${uFalta ? ` Faltam ${uFalta} dia${uFalta === 1 ? '' : 's'} út${uFalta === 1 ? 'il' : 'eis'}.` : ''}</span></div>
+      <div class="mta-eq"><span class="muted small">Equipe</span><b>${S.roloFixo('mta-eq-v', brl0(vend))}</b><span class="muted small">de ${brl0(meta)}</span><span class="mta-eq-p mta-${pe >= 100 ? 'ok' : ritmo && pe / 100 < ritmo - 0.15 ? 'atr' : 'rit'}">${pe}%</span></div></div>
+      <div class="mta-grade">${lista.map(quadro).join('')}</div></section>`;
+  };
+  // Depois do desenho: cada anel sai de onde estava e vai até o valor novo
+  S.metasAnima = () => requestAnimationFrame(() => document.querySelectorAll('.mta-arco[data-mta]').forEach(c => {
+    anelAntes[c.dataset.mta] = +c.dataset.pct; if (parseFloat(c.style.strokeDashoffset).toFixed(2) !== c.dataset.off) { c.getBoundingClientRect(); c.style.strokeDashoffset = c.dataset.off; } }));
 })();
