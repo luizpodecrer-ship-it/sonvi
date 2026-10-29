@@ -3246,3 +3246,31 @@ dialog.em-dlg [hidden] { display:none !important; }
 .mf, .hc, .ag-card { grid-template-columns:minmax(0, 1fr); min-width:0; }
 .col-pct-fixo { font:600 14px var(--display); color:var(--ink-2); }
 .ag-txt { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Administração com menu vertical (aprovado em 29/10/2026, admin.js): seções em grupos à esquerda do conteúdo; no celular, a lista é a primeira tela */
+.ad-lay { display:grid; grid-template-columns:260px minmax(0, 1fr); gap:24px; align-items:start; }
+.ad-corpo { min-width:0; display:grid; gap:16px; align-content:start; }
+.ad-menu { background:var(--surface); border-radius:var(--radius); padding:10px; display:flex; flex-direction:column; gap:2px; position:sticky; top:16px; }
+.ad-menu-g { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); padding:12px 12px 6px; }
+.ad-menu-i { display:flex; align-items:center; gap:12px; padding:9px 10px; border-radius:var(--radius-m); color:var(--ink); text-decoration:none; min-height:44px; transition:background .2s; }
+.ad-menu-i:hover { background:var(--fill); color:var(--ink); }
+.ad-menu-i:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.ad-menu-ic { width:34px; height:34px; flex:none; border-radius:var(--radius-s); background:var(--fill); color:var(--ink-2); display:grid; place-items:center; transition:background .2s, color .2s; }
+.ad-menu-ic svg { width:18px; height:18px; }
+.ad-menu-tx { display:grid; gap:1px; min-width:0; flex:1 1 auto; } .ad-menu-tx b { font-size:14px; font-weight:600; } .ad-menu-tx small { font-size:12px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ad-menu-n { font-size:12px; font-weight:700; color:var(--ink-2); background:var(--fill); border-radius:6px; padding:2px 7px; font-variant-numeric:tabular-nums; }
+.ad-menu-i.on { background:var(--accent-soft); } .ad-menu-i.on .ad-menu-tx b { color:var(--accent-text); font-weight:700; }
+.ad-menu-i.on .ad-menu-ic { background:var(--accent); color:var(--accent-ink); }
+.ad-menu-seta { color:var(--ink-3); display:grid; }
+.ad-voltar { display:inline-flex; align-items:center; gap:4px; min-height:44px; color:var(--accent-text); font-weight:600; margin:-8px 0 4px; }
+@media (max-width:1100px) { .ad-lay { grid-template-columns:220px minmax(0, 1fr); gap:16px; } .ad-menu-tx small { display:none; } }
+@media (max-width:820px) { .ad-menu { position:static; padding:6px 0; background:none; } .ad-menu-g { padding:14px 4px 6px; } .ad-menu-i { background:var(--surface); border-radius:0; padding:10px 14px; min-height:60px; }
+  .ad-menu-g + .ad-menu-i { border-radius:var(--radius) var(--radius) 0 0; } .ad-menu-i:has(+ .ad-menu-g), .ad-menu-i:last-child { border-radius:0 0 var(--radius) var(--radius); }
+  .ad-menu-g + .ad-menu-i:has(+ .ad-menu-g), .ad-menu-g + .ad-menu-i:last-child { border-radius:var(--radius); }
+  .ad-menu-i + .ad-menu-i { border-top:1px solid var(--line-2); } .ad-menu-tx small { display:block; } }
+.ad-menu-ic svg, .ad-menu-seta svg, .ad-voltar svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.ad-menu-seta svg, .ad-voltar svg { width:16px; height:16px; }
+.ag-w-doc { width:160px; } .ag-w-cid { width:14%; } .ag-w-tel { width:130px; } .ag-w-mail { width:20%; } .ag-w-ac { width:124px; }
+@media (max-width:1600px) { .ag-c-mail { display:none; } }
+@media (max-width:1366px) { .ag-c-tel { display:none; } }
+.ad-corpo { grid-template-columns:minmax(0, 1fr); } .ad-corpo .adv-l th { white-space:normal; }

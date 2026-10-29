@@ -213,6 +213,8 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - **A venda começa pela proposta** (29/10/2026): o botão principal do Dashboard do veículo e da tela de PIs é **Nova proposta** (`prNova`). Na tela de PIs fica também, como secundário, "PI sem proposta" (`piNew`, o PI feito à mão).
 
+- **Administração com menu vertical** (aprovado em 29/10/2026, telas 7 e 8 do quadro; `admin.js`, estilos `.ad-menu*`, `.ad-lay`, `.ad-corpo`, `.ad-voltar`): no lugar das abas, um menu à esquerda do conteúdo em três grupos: **Grupo** (Empresa comercial, Veículos), **Pessoas** (Colaboradores, Usuários e acessos), **Cadastros** (Agências); cada item com ícone, nome, linha de apoio e quantidade; a seção aberta em azul. No celular a lista de seções é a primeira tela (`celLista`) e cada seção abre com "‹ Administração" (`admVoltar`). A lista de agências esconde E-mail abaixo de 1600 px e Telefone abaixo de 1366 px.
+
 ## Suporte do grupo (aprovado em 25/10/2026, `app/js/chamados.js`, estilos `.cs2-*` e `.pag*` no fim de `sonvi.css`)
 
 - Item **Suporte** no menu do Dashboard geral (só o diretor), rota `#/chamados` (`#/suporte/<id>` continua sendo o link que abre o chat). Botão "Falar com o suporte" (`irSuporte`) abre o chat; o chamado aberto ali entra na lista da tela na hora (`S.chamadosAtualizar`) e chega ao Console › Suporte. No acesso de suporte (equipe SONVI) o chat do cliente não abre: o botão vira "Responder no Console" (`/console/#/suporte`) e clicar num chamado abre `/console/#/suporte/<id>`. Faixa preta quando a equipe SONVI está dentro (motivo e até que horas). Quatro números: chamados abertos (e com resposta nova), aguardando você, resolvidos no mês (e quantos avaliados "Resolveu"), tempo médio da 1ª resposta.

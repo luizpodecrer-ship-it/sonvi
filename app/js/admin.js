@@ -3,7 +3,7 @@
 // Quem garante é o banco (salvar_usuario, pode_gerenciar_usuario) e a função usuarios; aqui a tela só acompanha.
 (() => {
   const { esc } = S;
-  let aba = 'veiculos';
+  let aba = 'veiculos', celLista = true;   // no celular, Administração abre pela lista de seções (29/10/2026)
   const PERFIS_VINCULO = [['', 'Sem acesso'], ['gerente', 'Gerente comercial'], ['consultor', 'Consultor'], ['opec', 'OPEC'], ['financeiro', 'Financeiro'], ['programador', 'Programador musical'], ['locutor', 'Locutor']];
 
   const vinculosDe = u => S.db.vinculos.filter(x => x.usuario_id === u.id && S.veh(x.veiculo_id));
@@ -212,10 +212,19 @@
     S.db.empresa = rascunho; try { box.innerHTML = S.htmlProposta(amostraProposta(el.m_condicoes.value.trim() || S.PROP_CONDICOES_PADRAO)); } finally { S.db.empresa = real; }
     const doc = box.querySelector('.prdoc'), k = Math.min(1, (box.parentElement.clientWidth - 28) / doc.offsetWidth); box.style.transform = `scale(${k})`; box.style.width = doc.offsetWidth * k + 'px'; box.style.height = doc.offsetHeight * k + 'px'; };
 
-  S.admAbrir = k => { aba = k; if (k === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); if (S.route().view !== 'admin') S.go('/admin'); else S.render(); };
+  S.admAbrir = k => { aba = k; celLista = false; if (k === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); if (S.route().view !== 'admin') S.go('/admin'); else S.render(); };
   S.views.admin = () => {
     if (ehGer()) aba = 'usuarios';
-    const seg = ehGer() ? '' : `<div class="seg desliza" data-seg="admin" role="group" aria-label="Seções da administração">${[['veiculos', 'Veículos'], ['empresa', 'Empresa comercial'], ['colaboradores', 'Colaboradores'], ['agencias', 'Agências'], ['usuarios', 'Usuários']].map(([k, n]) => `<button class="${aba === k ? 'on' : ''}" data-act="admAba" data-tab="${k}">${n}</button>`).join('')}</div>`;
+    // Menu vertical de seções (aprovado em 29/10/2026, quadro "SONVI · Agências, controle e metas", telas 7 e 8): grupos Grupo,
+    // Pessoas e Cadastros, cada item com ícone, nome, uma linha de apoio e a quantidade. No celular, a lista é a primeira tela.
+    const SECOES = [['Grupo', [['empresa', 'Empresa comercial', 'Dados e modelo da proposta', 'empresa', null], ['veiculos', 'Veículos', 'Quem fatura, OPEC e financeiro', 'veiculos', S.db.veiculos.length]]],
+      ['Pessoas', [['colaboradores', 'Colaboradores', 'Equipe, metas e comissão', 'clientes', S.db.colaboradores ? S.db.colaboradores.filter(c => c.ativo).length : null], ['usuarios', 'Usuários e acessos', 'Quem entra e o que vê', 'chave', S.db.usuarios.length]]],
+      ['Cadastros', [['agencias', 'Agências', 'Vale em todos os veículos', 'agencias', S.agenciasN ? S.agenciasN() : null]]]];
+    if (!ehGer()) { if (!S.db.colaboradores) carregarColab(); if (S.agenciasN && S.agenciasN() === null) S.agenciasTela(); }   // contadores do menu
+    const naCel = !ehGer() && S.celular && celLista;
+    const menuAd = ehGer() ? '' : `<nav class="ad-menu" aria-label="Seções da administração">${SECOES.map(([g, its]) => `<span class="ad-menu-g">${g}</span>${its.map(([k, n, sub, ic, q]) =>
+      `<a href="#/admin" class="ad-menu-i${aba === k && !naCel ? ' on' : ''}" data-act="admAba" data-tab="${k}"${aba === k && !naCel ? ' aria-current="page"' : ''}><span class="ad-menu-ic" aria-hidden="true">${S.svg(ic)}</span><span class="ad-menu-tx"><b>${n}</b><small>${sub}</small></span>${q !== null && q !== undefined ? `<span class="ad-menu-n">${q}</span>` : ''}${S.celular ? `<span class="ad-menu-seta" aria-hidden="true">${S.svg('seta', 16)}</span>` : ''}</a>`).join('')}`).join('')}</nav>`;
+    if (naCel) return { title:'<span class="sub">Grupo</span>Administração', actions:'', body:menuAd };
     let body;
     if (aba === 'veiculos') {
       // Lista enxuta (aprovada em 25/10/2026): resumo numa linha, uma linha por veículo (selo, nome e razão social, categorias, sigla,
@@ -291,7 +300,7 @@
     // Os acessos da equipe SONVI saíram daqui em 25/10/2026: ficam no Dashboard geral › Suporte (chamados.js)
     if (ehGer()) return { title:`<span class="sub">${esc(minhas().map(v => v.nome).join(' · '))}</span>Usuários`, actions:`<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`,
       body:`<p class="muted small" style="margin:0 0 14px">Você cadastra e edita consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente. Gerentes e diretores ficam com o diretor.</p>${body}` };
-    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'agencias' ? `<button class="btn pri" data-act="agNova">${S.svg('mais')}Nova agência</button>` : aba === 'empresa' ? `<button class="btn pri" data-act="admEmpresa">${S.svg('editar')}Editar dados</button>` : aba === 'colaboradores' ? `<button class="btn pri" data-act="colNovo">${S.svg('mais')}Novo colaborador</button>` : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:seg + body };
+    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'agencias' ? `<button class="btn pri" data-act="agNova">${S.svg('mais')}Nova agência</button>` : aba === 'empresa' ? `<button class="btn pri" data-act="admEmpresa">${S.svg('editar')}Editar dados</button>` : aba === 'colaboradores' ? `<button class="btn pri" data-act="colNovo">${S.svg('mais')}Novo colaborador</button>` : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:S.celular ? `<a href="#/admin" class="ad-voltar" data-act="admVoltar">${S.svg('esq', 16)}Administração</a>${body}` : `<div class="ad-lay">${menuAd}<div class="ad-corpo">${body}</div></div>` };
   };
 
   // Categoria do veículo no formulário: Frequência e Rede afiliada só aparecem para rádio
@@ -314,7 +323,8 @@
     admVeiculoMenu: (d, botao) => S.menu(botao, [{ label:'Editar veículo', icon:'editar', act:'admVeiculo', data:{ id:d.id, editar:'1' } },
       ...(() => { const v = S.veh(d.id) || {}, f = k => !String(v[k] || '').trim(); return f('logo') || f('cnpj') || f('razao_social') || f('opec_email') || f('dados_bancarios') || f('endereco') || f('telefone') ? [{ label:'Completar cadastro', icon:'check', act:'admVeiculo', data:{ id:d.id, editar:'1' } }] : []; })(),
       { label:'Propostas e PI', icon:'propostas', act:'admPropostas', data:{ id:d.id } }, { label:'Textos do PI', icon:'pis', act:'admTextosPI', data:{ id:d.id } }]),
-    admAba: d => { aba = d.tab; if (aba === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); S.render(); },
+    admVoltar: () => { celLista = true; S.render(); },
+    admAba: d => { aba = d.tab; celLista = false; if (aba === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); S.render(); },
     admVeiculo: d => { const v = d.id ? S.veh(d.id) : {};
       S.form(v.id ? esc(v.nome) : 'Novo veículo', [
         { html:campoCategoria(v, !!v.id && !d.editar) },

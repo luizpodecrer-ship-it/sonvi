@@ -10,6 +10,7 @@
     st.carregando = false; if (['agencias', 'admin'].includes(S.ui.view)) S.render(); };
   S.agenciasUsar = l => { st.lista = l; };   // testes
   S.agenciasLimpar = () => { st.lista = null; };
+  S.agenciasN = () => st.lista ? st.lista.length : null;   // contador no menu de Administração
 
   const curto = v => v >= 1e6 ? `R$ ${(v / 1e6).toFixed(1).replace('.', ',')} mi` : v >= 1e4 ? `R$ ${Math.round(v / 1e3)} mil` : S.brl(v);
   const pct = v => `${String(Number(v) || 0).replace(".", ",")}%`;
@@ -29,8 +30,8 @@
     const linha = a => { const d = a.dados || {};
       return `<tr class="click" data-act="agEditar" data-id="${a.grupo}">
         <td><div class="ag-nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(d.nome))}</span><span><b class="clamp2" title="${esc(d.nome)}">${esc(d.nome)}</b>${d.razao_social && d.razao_social !== d.nome ? `<small title="${esc(d.razao_social)}">${esc(d.razao_social)}</small>` : ''}</span></div></td>
-        <td class="nw">${esc(d.documento) || '—'}</td><td class="nw ag-txt" title="${esc(d.cidade)}">${esc(d.cidade) || '—'}</td><td class="nw">${esc(d.telefone || d.whatsapp) || '—'}</td>
-        <td class="ag-txt" title="${esc(d.email)}">${esc(d.email) || '—'}</td>
+        <td class="nw">${esc(d.documento) || '—'}</td><td class="nw ag-txt" title="${esc(d.cidade)}">${esc(d.cidade) || '—'}</td><td class="nw ag-c-tel">${esc(d.telefone || d.whatsapp) || '—'}</td>
+        <td class="ag-txt ag-c-mail" title="${esc(d.email)}">${esc(d.email) || '—'}</td>
         <td class="r"><div class="lin-acoes"><button class="btn sm" data-act="agEditar" data-id="${a.grupo}">Editar</button><button class="btn tres" data-act="agMenu" data-id="${a.grupo}" aria-label="Opções de ${esc(d.nome)}">${S.svg('mais3')}</button></div></td></tr>`; };
     const cel = a => { const d = a.dados || {};
       return `<div class="ag-cel" data-act="agEditar" data-id="${a.grupo}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(d.nome))}</span>
@@ -40,8 +41,8 @@
       <div class="ag-cab"><div><h2 id="ag-t">Cadastro único do grupo</h2><p>${resumo}</p></div>
         <label class="fin-busca ag-busca">${S.svg('busca')}<input value="${esc(st.q)}" data-ag="q" placeholder="Buscar agência ou CNPJ" aria-label="Buscar agências"></label></div>
       ${!lista.length ? vazio : S.celular ? `<div class="ag-lista">${lista.map(cel).join('')}</div>`
-        : `<div class="scroll"><table class="ag-tab"><colgroup><col><col style="width:160px"><col style="width:12%"><col style="width:130px"><col style="width:18%"><col style="width:124px"></colgroup>
-          <thead><tr><th>Agência</th><th>CNPJ</th><th>Cidade</th><th>Telefone</th><th>E-mail</th><th><span class="sr">Ações</span></th></tr></thead>
+        : `<div class="scroll"><table class="ag-tab">
+          <thead><tr><th>Agência</th><th class="ag-w-doc">CNPJ</th><th class="ag-w-cid">Cidade</th><th class="ag-w-tel ag-c-tel">Telefone</th><th class="ag-w-mail ag-c-mail">E-mail</th><th class="ag-w-ac"><span class="sr">Ações</span></th></tr></thead>
           <tbody>${lista.map(linha).join('')}</tbody></table></div>`}
       <p class="ag-nota">Dentro de cada veículo, o cliente, a proposta e o PI escolhem a agência desta lista.</p></section>`;
     return { title:titulo, actions:acoes, body:card };
