@@ -127,32 +127,36 @@
       ${fs.length ? `<div class="pdt-precos">${fs.map(f => `<label class="f">${esc(f.nome)}<input name="pr_${f.id}" data-mask="dec" inputmode="decimal" value="${precoDe(p, f) ? S.nfmt(precoDe(p, f)) : ''}" placeholder="não vende"></label>`).join('')}</div>` : '<p class="muted small">Cadastre antes as durações em "Durações e variações".</p>'}
       <small class="muted">Vazio = não vende essa variação. Para criar outra (ex.: Citação 5"), use "Durações e variações".</small>
       <label class="chk"><input type="checkbox" name="ativo"${p.ativo ? ' checked' : ''}>Aparece nas novas propostas</label>
-      <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar produto</button></div>`,
+      <div class="ed-rod">${S.rodapeEdicao('Salvar produto', p.id ? 'Descartar' : 'Cancelar')}</div>`,
       f => { const faixas_ = lerFaixas(f);
         if (faixas_.some(x => !!x.ini !== !!x.fim)) return S.toast('Preencha o começo e o fim de cada faixa de horário (ou deixe os dois vazios).');
         const detalhe = faixas_.map(S.faixaTexto).join('\n');
         const dados = Object.assign({}, d, { local:f.local === 'on', obs:(f.obs || '').trim() });
         const precos = fs.map(x => ({ formato_id:x.id, preco:S.num(f['pr_' + x.id]) }));
-        S.run(async () => { await S.q(S.sb.rpc('salvar_produto_radio', { p_veiculo:S.ui.vehicleId, p_produto:{ id:p.id || null, nome:f.nome.trim(), detalhe, secao:f.secao, ativo:f.ativo === 'on', dados }, p_precos:precos })); await recarregar(); }, 'Produto salvo'); });
+        S.run(async () => { await S.q(S.sb.rpc('salvar_produto_radio', { p_veiculo:S.ui.vehicleId, p_produto:{ id:p.id || null, nome:f.nome.trim(), detalhe, secao:f.secao, ativo:f.ativo === 'on', dados }, p_precos:precos })); await recarregar(); }, 'Produto salvo'); }, { consulta:!!p.id });
     medio();
   };
 
-  // Durações e variações (formatos de rádio): nome, como cobra, ativo
-  const linhaVariacao = (f, i) => `<div class="pdt-row pdt-row-var" data-linha="${i}"><input name="vn_${i}" value="${esc(f.nome)}" placeholder='Ex.: Spot 30" ou Citação 5"' aria-label="Nome da variação"${f.id ? '' : ' data-nova="1"'}>
-      <select name="vc_${i}" aria-label="Como é cobrada"><option value="duracao"${f.cobranca !== 'unico' ? ' selected' : ''}>Duração</option><option value="unico"${f.cobranca === 'unico' ? ' selected' : ''}>Preço único</option></select>
-      <label class="chk"><input type="checkbox" name="va_${i}"${f.ativo !== false ? ' checked' : ''}>Ativa</label><input type="hidden" name="vi_${i}" value="${f.id || ''}"></div>`;
-  const formVariacoes = () => { const fs = formatos(true), linha = linhaVariacao;
-    S.dialog(`<h2>Durações e variações</h2><p class="muted small" style="margin-top:-6px">São as colunas de preço dos produtos da rádio. "Preço único" aparece em laranja (testemunhal, flash).</p>
-      <div id="pdVars" class="pdt-rows">${fs.map(linha).join('')}</div>
-      <button type="button" class="btn sm" data-act="pdVarMais" data-pd-add="1">${S.svg('mais')}Nova variação</button>
-      <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar</button></div>`,
-      f => S.run(async () => { const idx = Object.keys(f).filter(k => k.startsWith('vn_')).map(k => k.slice(3));
-        let ord = fs.length;
-        for (const i of idx) { const nome = (f['vn_' + i] || '').trim(), id = f['vi_' + i], ativo = f['va_' + i] === 'on', cobranca = f['vc_' + i] || 'duracao';
-          if (!nome) continue; const atual = id && prod(id);
-          if (atual && atual.nome === nome && atual.ativo === ativo && (atual.cobranca || 'duracao') === cobranca) continue;
-          await S.salvar('produtos', Object.assign({ nome, ativo, cobranca }, atual ? { id } : { veiculo_id:S.ui.vehicleId, tipo:'formato', secao:'programa', ordem:ord++ })); } }, 'Variações salvas'));
-    medio();
+  // Durações e variações (formatos de rádio): abre para consulta; Editar libera nome, cobrança, ativa, ordem e excluir (só a que não é usada)
+  const usoVariacao = f => radioProds().filter(p => precoDe(p, f) > 0 || (dadosDe(p).incluido || []).some(x => x.formato_id === f.id && Number(x.qtd) > 0)).length;
+  const formVariacoes = () => {
+    S.listaEditavel({ titulo:'Durações e variações', nomeItem:['variação', 'variações'], pode:pode(), okTitulo:'Variações salvas',
+      sub:'As colunas de preço dos produtos da rádio. Duração tem um preço por segundagem; preço único é um valor só (testemunhal, banner).',
+      subEdit:'Arraste pela alça para mudar a ordem das colunas. Nada vai para a nuvem até Salvar.',
+      itens:formatos(true).map(f => ({ id:f.id, nome:f.nome, cobranca:f.cobranca === 'unico' ? 'unico' : 'duracao', ativo:f.ativo !== false, ordem:f.ordem || 0 })),
+      campos:[{ k:'nome', tipo:'texto', rot:'Nome', ph:'Ex.: Spot 30" ou Citação 5"' }, { k:'cobranca', tipo:'opcoes', rot:'Cobrança', ops:[['duracao', 'Duração'], ['unico', 'Preço único', 'laranja']] }, { k:'ativo', tipo:'chave', rot:'Ativa' }],
+      uso:x => usoVariacao(x), usoTxt:n => n === 1 ? '1 produto' : `${n} produtos`,
+      novo:() => ({ nome:'', cobranca:'duracao', ativo:true }),
+      resumo:ls => `${ls.length} ${ls.length === 1 ? 'variação' : 'variações'} · ${ls.filter(x => x.ativo !== false).length} ativa${ls.filter(x => x.ativo !== false).length === 1 ? '' : 's'}`,
+      aviso:'A lixeira só funciona para a variação que ainda não tem preço em nenhum produto. As que já são usadas se desativam: somem das propostas novas, e propostas e PIs antigos continuam com elas.',
+      salvar:async dif => {
+        for (const id of dif.excluidos) await S.excluir('produtos', id);
+        const alt = new Map(dif.alterados.map(x => [x.id, x]));
+        for (let i = 0; i < dif.ordem.length; i++) { const o = dif.ordem[i];
+          if (o.novo) { await S.salvar('produtos', Object.assign({}, o.novo, { veiculo_id:S.ui.vehicleId, tipo:'formato', secao:'programa', ordem:i })); continue; }
+          const atual = prod(o.id), mud = alt.get(o.id);
+          if (mud || (atual && (atual.ordem || 0) !== i)) await S.salvar('produtos', Object.assign({ id:o.id, ordem:i }, mud ? { nome:mud.nome, cobranca:mud.cobranca, ativo:mud.ativo } : {})); }
+        await recarregar(); } });
   };
 
   // ---------- rádio: cotas de patrocínio ----------
@@ -196,14 +200,14 @@
       <div class="g2"><label class="f">Valor da cota por mês (R$)<input name="valor" data-mask="dec" inputmode="decimal" required value="${d.valor ? S.nfmt(d.valor) : ''}"></label>
         <label class="chk pdt-chk-alto"><input type="checkbox" name="ativo"${p.ativo ? ' checked' : ''}>Aparece nas novas propostas</label></div>
       <p class="muted small">Na proposta: uma cota com o valor do mês. No PI: as inserções do pacote distribuídas nos dias de cada faixa.</p>
-      <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar cota</button></div>`,
+      <div class="ed-rod">${S.rodapeEdicao('Salvar cota', p.id ? 'Descartar' : 'Cancelar')}</div>`,
       f => { const faixas_ = lerFaixas(f);
         if (faixas_.some(x => !!x.ini !== !!x.fim)) return S.toast('Preencha o começo e o fim de cada faixa de horário.');
         const incluido = Object.keys(f).filter(k => k.startsWith('in_f_')).map(k => k.slice(5)).map(i => ({ formato_id:f['in_f_' + i], qtd:parseInt(f['in_q_' + i]) || 0, faixa:f['in_r_' + i] || 'todas' })).filter(x => x.formato_id && x.qtd > 0);
         if (!incluido.length) return S.toast('Inclua ao menos uma inserção na cota.');
         const valor = S.num(f.valor); if (!(valor > 0)) return S.toast('Informe o valor da cota.');
         const dados = Object.assign({}, d, { local:f.local === 'on', incluido, valor });
-        S.run(async () => { await S.q(S.sb.rpc('salvar_produto_radio', { p_veiculo:S.ui.vehicleId, p_produto:{ id:p.id || null, nome:f.nome.trim(), detalhe:faixas_.map(S.faixaTexto).join('\n'), secao:'patrocinio', ativo:f.ativo === 'on', dados }, p_precos:[] })); await recarregar(); }, 'Cota salva'); });
+        S.run(async () => { await S.q(S.sb.rpc('salvar_produto_radio', { p_veiculo:S.ui.vehicleId, p_produto:{ id:p.id || null, nome:f.nome.trim(), detalhe:faixas_.map(S.faixaTexto).join('\n'), secao:'patrocinio', ativo:f.ativo === 'on', dados }, p_precos:[] })); await recarregar(); }, 'Cota salva'); }, { consulta:!!p.id });
     medio();
   };
   // As opções de "Roda em" acompanham as faixas digitadas
@@ -332,7 +336,7 @@
         <div class="form-sec pdt-fsec">Produção (cobrada uma vez)</div>
         <div class="g2">${campo('pr_nome', 'O que é produzido', pr.nome, 'Lona alta resolução')}<label class="f">Valor por face (R$)<input name="pr_valor" data-mask="dec" inputmode="decimal" value="${Number(pr.valor) ? S.nfmt(pr.valor) : ''}"></label></div></div>
       <label class="chk"><input type="checkbox" name="ativo"${p.ativo ? ' checked' : ''}>Aparece nas novas propostas</label>
-      <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar produto</button></div>`,
+      <div class="ed-rod">${S.rodapeEdicao('Salvar produto', p.id ? 'Descartar' : 'Cancelar')}</div>`,
       f => { const k = f.categoria, cobranca = COBRA[k] || 'mes';
         const vars = (pre, face) => Object.keys(f).filter(x => x.startsWith(pre + 'n_')).map(x => x.slice(pre.length + 2)).map(i => ({ nome:(f[pre + 'n_' + i] || '').trim(), obs:face ? (f[pre + 'o_' + i] || '').trim() : undefined, valor:S.num(f[pre + 'v_' + i]) })).filter(x => x.nome);
         const base = Object.assign({}, d, { cobranca });
@@ -341,14 +345,16 @@
           ponto:Object.assign({}, pt, { codigo:(f.pt_codigo || '').trim(), formato:(f.pt_formato || '').trim(), endereco:(f.pt_endereco || '').trim(), cidade:(f.pt_cidade || '').trim(), impacto:(f.pt_impacto || '').trim(), impacto_mes:(f.pt_impacto_mes || '').trim(), coords:(f.pt_coords || '').trim(), maps:(f.pt_maps || '').trim(), foto:f.foto || '' }) });
         S.run(async () => { const r = await S.salvar('produtos', Object.assign({ nome:f.nome.trim(), ativo:f.ativo === 'on', categoria:k, secao:'ooh', dados:base, detalhe:cobranca === 'mes' ? (f.pt_endereco || '').trim() : (f.funcionamento || '').trim() },
           p.id ? { id:p.id } : { veiculo_id:S.ui.vehicleId, tipo:'programa', ordem:oohProds().length }));
-          if (!p.id && cobranca === 'insercao' && r) location.hash = '/produtos/' + r.id; }, 'Produto salvo'); });
+          if (!p.id && cobranca === 'insercao' && r) location.hash = '/produtos/' + r.id; }, 'Produto salvo'); }, { consulta:!!p.id });
     medio();
     alternarBloco();
   };
   // Mostra só os campos do jeito de cobrar da categoria escolhida; os escondidos não contam no envio
   const alternarBloco = () => { const d = document.getElementById('dlg'), f = d && d.querySelector('form'); if (!f || !f.querySelector('.pdt-bloco')) return;
     const k = (f.querySelector('[name="categoria"]:checked') || f.querySelector('[name="categoria"]')).value, c = COBRA[k] || 'mes';
-    f.querySelectorAll('.pdt-bloco').forEach(b => { const on = b.dataset.cobra === c; b.hidden = !on; b.querySelectorAll('input, select, textarea, button').forEach(el => { el.disabled = !on; }); }); };
+    const ver = f.classList.contains('ver');
+    f.querySelectorAll('.pdt-bloco').forEach(b => { const on = b.dataset.cobra === c; b.hidden = !on; b.querySelectorAll('input, select, textarea, button').forEach(el => {
+      if (!on) { el.disabled = true; delete el.dataset.trava; } else if (ver && el.tagName !== 'BUTTON' && el.type !== 'hidden') { el.disabled = true; el.dataset.trava = '1'; } else el.disabled = false; }); }); };
   document.addEventListener('change', e => { if (e.target.name === 'categoria' && e.target.closest('#dlg')) alternarBloco(); });
 
   // Foto do ponto: reduzida no navegador (até 1000 px, JPEG) e guardada junto do produto
@@ -373,10 +379,10 @@
         ${campo('formato', 'Formato', '5,12 × 2,88 m')}${campo('arquivo', 'Especificação do arquivo', d.arquivo || 'MP4 · 1024 × 768 px')}
         ${campo('coords', 'Coordenadas', '15°36\'05"S 56°05\'16"W')}${campo('maps', 'Link do Google Maps', 'https://goo.gl/maps/…')}</div>
       ${campoFoto(x.foto)}
-      <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Salvar ponto</button></div>`,
+      <div class="ed-rod">${S.rodapeEdicao('Salvar ponto', i !== undefined ? 'Descartar' : 'Cancelar')}</div>`,
       f => { const novo = Object.assign({}, x, ...['codigo', 'cidade', 'endereco', 'impacto', 'obs', 'formato', 'arquivo', 'coords', 'maps', 'foto'].map(k => ({ [k]:(f[k] || '').trim() })));
         const lista = [...pts]; if (i === undefined) lista.push(novo); else lista[i] = novo;
-        S.run(() => S.salvar('produtos', { id:p.id, dados:Object.assign({}, d, { pontos:lista }) }), 'Ponto salvo'); });
+        S.run(() => S.salvar('produtos', { id:p.id, dados:Object.assign({}, d, { pontos:lista }) }), 'Ponto salvo'); }, { consulta:i !== undefined });
     medio();
   };
 
@@ -404,7 +410,6 @@
     pdNovoOoh: () => formOoh(null),
     pdEditarOoh: d => formOoh(prod(d.id)),
     pdVariacoes: () => formVariacoes(),
-    pdVarMais: () => novaLinha('pdVars', linhaVariacao({ nome:'', cobranca:'duracao', ativo:true }, nLinha++)),
     pdFaixaMais: () => { novaLinha('pdFaixas', linhaFaixa({ dias:'1,2,3,4,5', ini:'', fim:'' }, nLinha++)); atualizaRoda(); },
     pdIncMais: () => { const fs = [...document.querySelectorAll('#pdFaixas .pdt-faixa')].map(r => ({ dias:r.querySelector('select').value, ini:r.querySelectorAll('input')[0].value, fim:r.querySelectorAll('input')[1].value }));
       novaLinha('pdInc', linhaInc({ formato_id:'', qtd:'', faixa:'todas' }, nLinha++, fs)); },

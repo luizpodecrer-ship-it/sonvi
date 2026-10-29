@@ -3381,3 +3381,61 @@ dialog.em-dlg [hidden] { display:none !important; }
 @media (max-width:1240px) { .gc-grade { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 @media (max-width:700px) { .gc-grade { grid-template-columns:minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .mta-arco, .gc, .gc-barra i { transition:none; } }
+
+/* ---------- Consulta → Editar → Salvar (29/10/2026): etiqueta, contador e lista editável ---------- */
+.ed-tag { display:inline-block; vertical-align:middle; margin-left:8px; padding:3px 8px; border-radius:6px; background:var(--accent-soft); color:var(--accent-text); font:700 11px/1.3 var(--font); letter-spacing:.06em; text-transform:uppercase; }
+.ed-pend { font-size:13px; font-weight:600; color:var(--orange); display:inline-flex; align-items:center; gap:7px; }
+.ed-pend.on::before { content:""; width:8px; height:8px; border-radius:50%; background:currentColor; flex:none; }
+.ed-pend:empty { display:none; }
+.ed-rod { margin-top:18px; }
+.ed-rod .row + .row { margin-top:0; }
+form.ver .so-ed, form.ver [data-pd-add], form.ver [data-act="pdFaixaMais"], form.ver [data-act="pdTirarLinha"], form.ver .pdt-foto-campo .row { display:none; }
+.le-topo { display:flex; align-items:flex-start; gap:12px; margin-bottom:14px; } .le-topo h2 { margin:0; } .le-topo p { margin:6px 0 0; }
+.le-tab { border:1px solid var(--line); border-radius:var(--radius-m); overflow:hidden; }
+.le-cab, .le-lin { display:grid; grid-template-columns:var(--le-cols); gap:14px; align-items:center; padding:10px 16px; }
+.le-editor .le-cab, .le-editor .le-lin { grid-template-columns:24px var(--le-cols) 34px; gap:12px; padding:8px 14px; }
+.le-cab { background:var(--fill); font-size:12px; font-weight:600; color:var(--ink-2); }
+.le-lin { border-top:1px solid var(--line-2); background:var(--surface); transition:background .2s; }
+.le-consulta .le-lin { padding:13px 16px; }
+.le-nome { font-weight:600; min-width:0; overflow-wrap:anywhere; }
+.le-uso { font-size:14px; white-space:nowrap; }
+.le-vazio { padding:18px 16px; border-top:1px solid var(--line-2); }
+.pill.le-op { --tone:var(--ink-2); } .pill.le-op.le-laranja { --tone:var(--orange); }
+.le-sit { display:inline-flex; align-items:center; gap:7px; font-size:14px; color:var(--ink-2); white-space:nowrap; } .le-sit i { width:8px; height:8px; border-radius:50%; background:var(--ink-3); }
+.le-sit.on { color:var(--ink); } .le-sit.on i { background:var(--green); }
+.le-lin.alt { background:color-mix(in srgb, var(--orange) 5%, var(--surface)); } .le-lin.nova { background:color-mix(in srgb, var(--green) 5%, var(--surface)); }
+.le-lin.arrasta { position:relative; z-index:2; box-shadow:0 12px 30px -12px rgba(10,20,60,.35); background:var(--surface); }
+.le-alca { width:24px; height:32px; border:0; padding:0; background:transparent; color:var(--ink-3); cursor:grab; display:flex; align-items:center; justify-content:center; border-radius:6px; touch-action:none; }
+.le-alca svg { width:14px; height:18px; fill:currentColor; } .le-alca:hover, .le-alca:focus-visible { color:var(--ink); background:var(--fill); }
+.le-lin.arrasta .le-alca { cursor:grabbing; }
+.le-sobe { width:32px; height:44px; border:0; border-radius:8px; background:var(--fill); color:var(--ink-2); display:flex; align-items:center; justify-content:center; }
+.le-sobe svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2.2; transform:rotate(-90deg); } .le-sobe:disabled { opacity:.35; }
+.le-campo { display:flex; align-items:center; gap:8px; min-width:0; } .le-campo input { flex:1; min-width:0; }
+.le-tag { padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
+.le-tag.alt { background:color-mix(in srgb, var(--orange) 14%, transparent); color:var(--orange); } .le-tag.nova { background:color-mix(in srgb, var(--green) 14%, transparent); color:var(--green); }
+.le-seg { display:flex; gap:2px; padding:3px; border-radius:8px; background:var(--fill-2); }
+.le-seg button { flex:1; min-height:32px; border:0; border-radius:6px; background:transparent; color:var(--ink-2); font:600 13px/1.2 var(--font); cursor:pointer; transition:background .2s, color .2s; white-space:nowrap; padding:0 8px; }
+.le-seg button.on { background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(10,20,60,.14); } .le-seg button.on.le-laranja { color:var(--orange); }
+.le-chave { display:flex; align-items:center; gap:8px; } .le-chave small { font-size:13px; color:var(--ink-2); }
+.le-chave button { position:relative; width:40px; height:24px; border:0; border-radius:999px; padding:0; background:var(--ink-3); cursor:pointer; transition:background .25s; flex:none; }
+.le-chave button i { position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .25s var(--ease); }
+.le-chave button[aria-checked="true"] { background:var(--green); } .le-chave button[aria-checked="true"] i { left:19px; }
+.le-lixo { width:32px; height:32px; border:0; border-radius:8px; background:transparent; color:var(--red); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.le-lixo svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2; } .le-lixo:hover:not(:disabled) { background:color-mix(in srgb, var(--red) 10%, transparent); }
+.le-lixo:disabled { color:var(--ink-3); opacity:.45; cursor:not-allowed; }
+.le-mais { margin-top:12px; border-style:dashed; }
+.le-aviso { margin:12px 0 0; }
+.le-rodape { margin-top:18px; padding-top:14px; border-top:1px solid var(--line-2); align-items:center; gap:10px; }
+@media (prefers-reduced-motion: reduce) { .le-chave button, .le-chave button i, .le-lin { transition:none; } }
+@media (max-width:720px) {
+  .le-cab { display:none; }
+  .le-consulta .le-lin { grid-template-columns:1fr auto; grid-auto-flow:row; gap:6px 10px; }
+  .le-consulta .le-lin > :first-child { grid-column:1 / -1; }
+  .le-editor .le-lin { grid-template-columns:32px minmax(0, 1fr); gap:10px; padding:12px; border-radius:0; }
+  .le-editor .le-lin > .le-campo { grid-column:2; } .le-editor .le-lin > .le-seg { grid-column:1 / -1; } .le-editor .le-lin > .le-chave { grid-column:1 / 2; grid-row:3; }
+  .le-editor .le-lin > .le-lixo { grid-column:2; grid-row:3; justify-self:end; }
+  .le-campo input { min-height:44px; } .le-seg button { min-height:40px; }
+  .le-rodape { position:sticky; bottom:-28px; background:var(--surface); margin:18px -28px -28px; padding:12px 28px 20px; flex-wrap:wrap; }
+  .le-rodape .btn { flex:1; } .le-rodape .grow { display:none; } .le-rodape .ed-pend, .le-rodape > .muted { flex-basis:100%; }
+}
+.cat-op input, .cat-op input:disabled { opacity:0 !important; }

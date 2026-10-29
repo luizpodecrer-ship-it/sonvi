@@ -188,7 +188,7 @@ S.go = path => { if (location.hash === '#' + path) S.render(); else location.has
 // ---------- diálogo, formulário e aviso ----------
 // Janela por cima da tela. Ao abrir: título ligado à janela (leitores de tela) e cursor no primeiro campo.
 // Ao fechar: o foco volta para o botão que abriu (ou o equivalente, se a tela foi redesenhada).
-S.dialog = (html, onOk) => {
+S.dialog = (html, onOk, opts = {}) => {
   const d = document.getElementById('dlg'), origem = document.activeElement;
   const alvo = origem && origem.dataset && (origem.dataset.act || origem.dataset.go) ? ['act', 'id', 'go'].filter(k => origem.dataset[k]).map(k => `[data-${k}="${CSS.escape(origem.dataset[k])}"]`).join('') : '';
   d.innerHTML = `<form method="dialog">${html}</form>`;
@@ -215,8 +215,28 @@ S.dialog = (html, onOk) => {
     delete d.dataset.sujo; d.close(v);
   });
   d._volta = { origem, alvo };
+  d._edBase = null; delete d.dataset.edExtra;
+  if (opts.consulta) S.travarForm(form);
   S.mascarar(d); d.showModal(); S.focarPrimeiro(d);
 };
+// ---------- consulta → Editar → Descartar / Salvar (padrão de todas as janelas de cadastro) ----------
+// Rodapé das duas fases: na consulta, Fechar + Editar; editando, "N alterações não salvas" + Descartar + Salvar.
+S.rodapeEdicao = (ok = 'Salvar', cancelar = 'Descartar') => `<div class="row so-ver"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Fechar</button><button type="button" class="btn pri" data-act="formEditar">${S.svg('editar')}Editar</button></div>
+    <div class="row so-editar"><span class="ed-pend" aria-live="polite"></span><span class="grow"></span><button class="btn" value="cancel" formnovalidate>${cancelar}</button><button class="btn pri" value="ok">${ok}</button></div>`;
+// Trava a janela para consulta: campos desabilitados (marcados para voltar), botões de edição escondidos (.so-ed, por CSS)
+S.travarForm = form => { form.classList.add('ver');
+  form.querySelectorAll('input, select, textarea').forEach(el => { if (!el.disabled && el.type !== 'hidden') { el.disabled = true; el.dataset.trava = '1'; } }); };
+// Conta o que mudou desde o começo da edição: um campo, ou uma linha inteira (campos terminados em _<n>), conta como uma alteração
+const edFoto = form => { const m = new Map(); for (const [k, v] of new FormData(form)) { if (/^(ex_conf)$/.test(k)) continue; const g = (/_(\d+)$/.exec(k) || [])[1]; const ch = g ? 'linha:' + g : k; m.set(ch, (m.get(ch) || '') + '\u0001' + k + '=' + (v instanceof File ? v.name : v)); } return m; };
+S.edicaoInicio = d => { const form = d.querySelector('form'); if (!form || form.classList.contains('ver') || !form.querySelector('.ed-pend')) return; d._edBase = edFoto(form); S.edicaoConta(d); };
+S.edicaoConta = d => { const form = d && d.querySelector('form'), el = form && form.querySelector('.ed-pend'); if (!el || !d._edBase || form.classList.contains('ver')) return;
+  const agora = edFoto(form), chaves = new Set([...d._edBase.keys(), ...agora.keys()]); let n = 0; chaves.forEach(k => { if (d._edBase.get(k) !== agora.get(k)) n++; });
+  n += Number(d.dataset.edExtra || 0);
+  el.textContent = n ? `${n} ${n === 1 ? 'alteração não salva' : 'alterações não salvas'}` : ''; el.classList.toggle('on', !!n); };
+(() => { const d = document.getElementById('dlg'); if (!d) return; let t;
+  const conta = () => { clearTimeout(t); t = setTimeout(() => S.edicaoConta(d), 60); };
+  d.addEventListener('input', conta); d.addEventListener('change', conta); d.addEventListener('sonvi:mudou', conta);
+  new MutationObserver(conta).observe(d, { childList:true, subtree:true }); })();
 S.focarPrimeiro = d => { const c = d.querySelector('form:not(.ver) :is(input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea):not([disabled])') || d.querySelector('.so-ver .btn.pri, button.pri, button:not([disabled])'); if (c) c.focus(); };
 (() => {
   const d = document.getElementById('dlg'); if (!d) return;
@@ -291,9 +311,9 @@ S.form = (title, fields, v, onOk, ok = 'Salvar', opts = {}) => {
     return `<input type="${f.type || 'text'}" ${a} value="${S.esc(val)}"${f.id ? ` id="${f.id}"` : ''}>`; };
   const row = f => f.html || `<label class="f${f.type === 'checkbox' ? ' chk' : ''}"${f.full || f.type === 'textarea' ? ' style="grid-column:1/-1"' : ''}>${f.type === 'checkbox' ? inp(f) + S.esc(f.label) : S.esc(f.label) + inp(f)}</label>`;
   S.dialog(`<h2>${title}</h2><div class="g2">${fields.map(row).join('')}</div>
-    <div class="row so-ver"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Fechar</button><button type="button" class="btn pri" data-act="formEditar">${S.svg('editar')}Editar</button></div>
-    <div class="row so-editar"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${ok}</button></div>`, onOk);
+    ${S.rodapeEdicao(ok, v.id ? 'Descartar' : 'Cancelar')}`, onOk);
   if (ver) document.querySelector('#dlg form').classList.add('ver');
+  else if (v.id) { S.marcaEditando(document.getElementById('dlg')); S.edicaoInicio(document.getElementById('dlg')); }
   document.getElementById('dlg').dataset.guarda = '1'; // formulário: pergunta antes de descartar o que foi digitado
 };
 // Menu de opções (os "três pontinhos"): abre junto do botão e fecha ao clicar fora ou apertar Esc.
@@ -316,9 +336,108 @@ window.addEventListener('scroll', () => S.fecharMenu(), true);
 
 // Libera os campos do cadastro aberto para edição
 S.actions.formEditar = () => {
-  const f = document.querySelector('#dlg form'); f.classList.remove('ver');
+  const d = document.getElementById('dlg'), f = d.querySelector('form'); f.classList.remove('ver');
   f.querySelectorAll('[data-trava]').forEach(el => { el.disabled = false; el.removeAttribute('data-trava'); });
-  const p = f.querySelector('input:not([type=checkbox]), select, textarea'); if (p) p.focus();
+  S.marcaEditando(d); S.edicaoInicio(d); d.dataset.guarda = '1';
+  const p = f.querySelector('input:not([type=checkbox]):not([type=hidden]):not([type=radio]):not([disabled]), select:not([disabled]), textarea:not([disabled])'); if (p) p.focus();
+};
+// Etiqueta "Editando" ao lado do título da janela
+S.marcaEditando = d => { const h = d && d.querySelector('h2'); if (!h || h.querySelector('.ed-tag')) return; h.insertAdjacentHTML('beforeend', ' <span class="ed-tag">Editando</span>'); };
+
+// ---------- lista editável (Durações e variações e outras listas curtas de cadastro) ----------
+// Abre para consulta (tabela com nome, etiquetas, uso e situação); "Editar" troca cada linha por campos: alça para arrastar
+// (ou ↑ no celular / Alt+↑↓ no teclado), texto, botões de escolha, chave liga/desliga e lixeira (só para o que não é usado).
+// Linhas novas e alteradas ganham etiqueta; o rodapé conta as alterações; nada vai para a nuvem até Salvar.
+// cfg = { titulo, sub, subEdit, nomeItem:['variação','variações'], itens:[{ id, ... }], campos:[{ k, tipo:'texto'|'opcoes'|'chave', rot, ph, req, ops:[[v, texto, tom]] }],
+//         uso:item => n, usoTxt:n => '3 produtos', novo:() => item, aviso, pode, resumo:itens => texto, salvar:async ({ novos, alterados, excluidos, ordem }) }
+S.listaEditavel = cfg => {
+  const C = cfg.campos, kNome = (C.find(c => c.tipo === 'texto') || {}).k, nomes = cfg.nomeItem || ['item', 'itens'];
+  const copia = x => JSON.parse(JSON.stringify(x));
+  let linhas, excluidos, edit = false, seq = 0;
+  const comecar = () => { linhas = cfg.itens.map(x => ({ _k:'k' + (seq++), _orig:copia(x), ...copia(x) })); excluidos = []; };
+  comecar();
+  const igual = l => !l._orig || C.every(c => String(l[c.k] ?? '') === String(l._orig[c.k] ?? ''));
+  const ordemMudou = () => { const ids = linhas.filter(l => l._orig).map(l => l.id), orig = cfg.itens.map(x => x.id).filter(id => ids.includes(id)); return ids.join() !== orig.join(); };
+  const pendentes = () => linhas.filter(l => !l._orig).length + linhas.filter(l => l._orig && !igual(l)).length + excluidos.length + (ordemMudou() ? 1 : 0);
+  const uso = l => l._orig && cfg.uso ? cfg.uso(l._orig) : 0;
+  const tom = (c, v) => ((c.ops || []).find(o => o[0] === v) || [])[2] || '';
+  const txtOp = (c, v) => ((c.ops || []).find(o => o[0] === v) || [])[1] || v;
+  const pillOp = (c, v) => `<span class="pill le-op${tom(c, v) ? ' le-' + tom(c, v) : ''}">${S.esc(txtOp(c, v))}</span>`;
+  const consulta = () => {
+    const cab = C.map(c => `<span>${S.esc(c.tipo === 'chave' ? 'Situação' : c.rot)}</span>`).join('') + (cfg.uso ? '<span>Usada em</span>' : '');
+    const lin = l => `<div class="le-lin">${C.map(c => c.tipo === 'texto' ? `<b class="le-nome">${S.esc(l[c.k])}</b>` : c.tipo === 'opcoes' ? `<span>${pillOp(c, l[c.k])}</span>`
+        : `<span class="le-sit${l[c.k] === false ? '' : ' on'}"><i aria-hidden="true"></i>${l[c.k] === false ? 'Inativa' : 'Ativa'}</span>`).join('')}${cfg.uso ? `<span class="muted le-uso">${S.esc(uso(l) ? cfg.usoTxt(uso(l)) : 'não usada')}</span>` : ''}</div>`;
+    return `<div class="le-tab le-consulta" style="--le-cols:${C.map(c => c.tipo === 'texto' ? 'minmax(0, 1fr)' : c.tipo === 'opcoes' ? '150px' : '110px').join(' ')}${cfg.uso ? ' 150px' : ''}">
+      <div class="le-cab">${cab}</div>${linhas.length ? linhas.map(lin).join('') : `<div class="le-vazio muted">Nenhum${nomes[0].endsWith('a') ? 'a' : ''} ${nomes[0]} ainda.</div>`}</div>`; };
+  const editor = () => {
+    const linha = (l, i) => { const tag = !l._orig ? '<span class="le-tag nova">Nova</span>' : !igual(l) ? '<span class="le-tag alt">Alterada</span>' : '';
+      const usada = uso(l) > 0;
+      return `<div class="le-lin${!l._orig ? ' nova' : !igual(l) ? ' alt' : ''}" data-le="${l._k}">
+        ${S.celular ? `<button type="button" class="le-sobe" data-le-acao="sobe" aria-label="Subir ${S.esc(l[kNome] || '')}"${i ? '' : ' disabled'}>${S.svg('seta')}</button>` : `<button type="button" class="le-alca" data-le-acao="alca" aria-label="Mover ${S.esc(l[kNome] || '')} (Alt + setas)" title="Arraste para mudar a ordem"><svg viewBox="0 0 14 18" aria-hidden="true"><circle cx="4" cy="3" r="1.6"/><circle cx="10" cy="3" r="1.6"/><circle cx="4" cy="9" r="1.6"/><circle cx="10" cy="9" r="1.6"/><circle cx="4" cy="15" r="1.6"/><circle cx="10" cy="15" r="1.6"/></svg></button>`}
+        ${C.map(c => c.tipo === 'texto' ? `<span class="le-campo"><input data-le-k="${c.k}" value="${S.esc(l[c.k] ?? '')}" placeholder="${S.esc(c.ph || '')}" aria-label="${S.esc(c.rot)}" autocomplete="off">${tag}</span>`
+          : c.tipo === 'opcoes' ? `<span class="le-seg" role="group" aria-label="${S.esc(c.rot)}">${c.ops.map(([v, t, tm]) => `<button type="button" data-le-k="${c.k}" data-le-v="${S.esc(v)}" aria-pressed="${l[c.k] === v}" class="${l[c.k] === v ? 'on' : ''}${tm ? ' le-' + tm : ''}">${S.esc(t)}</button>`).join('')}</span>`
+          : `<span class="le-chave"><button type="button" role="switch" data-le-k="${c.k}" aria-checked="${l[c.k] !== false}" aria-label="${S.esc(c.rot)}"><i aria-hidden="true"></i></button><small>${l[c.k] !== false ? 'Sim' : 'Não'}</small></span>`).join('')}
+        <button type="button" class="le-lixo" data-le-acao="tira" aria-label="Excluir ${S.esc(l[kNome] || '')}"${usada ? ` disabled title="Usada em ${S.esc(cfg.usoTxt(uso(l)))}: desative em vez de excluir"` : ''}>${S.svg('lixo')}</button></div>`; };
+    return `<div class="le-tab le-editor" style="--le-cols:${C.map(c => c.tipo === 'texto' ? 'minmax(0, 1fr)' : c.tipo === 'opcoes' ? '236px' : '96px').join(' ')}">
+      <div class="le-cab"><span></span>${C.map(c => `<span>${S.esc(c.rot)}</span>`).join('')}<span></span></div>
+      <div class="le-linhas">${linhas.map(linha).join('')}</div></div>
+      <button type="button" class="btn sm le-mais" data-le-acao="mais">${S.svg('mais')}${cfg.maisRot || `Nov${/(a|ção)$/.test(nomes[0]) ? 'a' : 'o'} ${nomes[0]}`}</button>
+      ${cfg.aviso ? `<p class="note info le-aviso">${cfg.aviso}</p>` : ''}`; };
+  const rodape = () => edit
+    ? `<span class="ed-pend${pendentes() ? ' on' : ''}" aria-live="polite">${pendentes() ? `${pendentes()} ${pendentes() === 1 ? 'alteração não salva' : 'alterações não salvas'}` : ''}</span><span class="grow"></span><button type="button" class="btn" data-le-acao="descartar">Descartar</button><button type="button" class="btn pri" data-le-acao="salvar">Salvar</button>`
+    : `<span class="muted small">${S.esc(cfg.resumo ? cfg.resumo(linhas) : `${linhas.length} ${linhas.length === 1 ? nomes[0] : nomes[1]}`)}</span><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Fechar</button>`;
+  const cabeca = () => `<div class="le-topo"><div class="grow"><h2>${S.esc(cfg.titulo)}${edit ? ' <span class="ed-tag">Editando</span>' : ''}</h2><p class="muted small">${edit ? (cfg.subEdit || cfg.sub || '') : (cfg.sub || '')}</p></div>
+    ${!edit && cfg.pode !== false ? `<button type="button" class="btn" data-le-acao="editar">${S.svg('editar')}Editar</button>` : ''}</div>`;
+  S.dialog(`<div id="leCab"></div><div id="leCorpo" class="le"></div><div class="row le-rodape" id="leRod"></div>`);
+  const d = document.getElementById('dlg'), form = d.querySelector('form');
+  d.classList.add('medio'); const antes = d.onclose; d.onclose = e => { d.classList.remove('medio'); if (antes) antes(e); };
+  const desenha = foco => { form.querySelector('#leCab').innerHTML = cabeca(); form.querySelector('#leCorpo').innerHTML = edit ? editor() : consulta(); rodar();
+    const h = form.querySelector('h2'); if (h) { h.id = 'dlgTitulo'; d.setAttribute('aria-labelledby', 'dlgTitulo'); }
+    if (foco) { const el = form.querySelector(foco); if (el) el.focus(); } };
+  const rodar = () => { form.querySelector('#leRod').innerHTML = rodape(); if (edit) d.dataset.sujo = pendentes() ? '1' : ''; if (!pendentes()) delete d.dataset.sujo; };
+  const daLinha = el => { const r = el.closest('[data-le]'); return r && linhas.find(l => l._k === r.dataset.le); };
+  const marcaLinha = l => { const r = form.querySelector(`[data-le="${l._k}"]`); if (!r) return; const alt = l._orig && !igual(l);
+    r.classList.toggle('alt', !!alt); const c = r.querySelector('.le-campo'), t = c && c.querySelector('.le-tag');
+    if (l._orig) { if (alt && !t) c.insertAdjacentHTML('beforeend', '<span class="le-tag alt">Alterada</span>'); if (!alt && t) t.remove(); } };
+  const mover = (l, para) => { const i = linhas.indexOf(l); if (para < 0 || para >= linhas.length || para === i) return; linhas.splice(i, 1); linhas.splice(para, 0, l); };
+  form.addEventListener('input', e => { const k = e.target.dataset.leK; if (!k) return; const l = daLinha(e.target); if (!l) return; l[k] = e.target.value; marcaLinha(l); rodar(); });
+  form.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.leK) { e.preventDefault(); return; }
+    const a = e.target.closest && e.target.closest('[data-le-acao="alca"]'); if (!a || !['ArrowUp', 'ArrowDown'].includes(e.key)) return;
+    e.preventDefault(); const l = daLinha(a); mover(l, linhas.indexOf(l) + (e.key === 'ArrowUp' ? -1 : 1)); desenha(`[data-le="${l._k}"] [data-le-acao="alca"]`); });
+  form.addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b || !form.contains(b)) return;
+    const k = b.dataset.leK, acao = b.dataset.leAcao;
+    if (k) { const l = daLinha(b); if (!l) return; const c = C.find(x => x.k === k); l[k] = c.tipo === 'chave' ? l[k] === false : b.dataset.leV; desenha(`[data-le="${l._k}"] [data-le-k="${k}"]${c.tipo === 'opcoes' ? `[data-le-v="${CSS.escape(b.dataset.leV)}"]` : ''}`); return; }
+    if (!acao) return;
+    if (acao === 'editar') { edit = true; d.dataset.guarda = '1'; desenha('[data-le-k]'); return; }
+    if (acao === 'mais') { const n = Object.assign({ _k:'k' + (seq++) }, cfg.novo ? cfg.novo() : {}); linhas.push(n); desenha(`[data-le="${n._k}"] input`); return; }
+    if (acao === 'sobe') { const l = daLinha(b); mover(l, linhas.indexOf(l) - 1); desenha(`[data-le="${l._k}"] [data-le-acao="sobe"]`); return; }
+    if (acao === 'tira') { const l = daLinha(b); if (!l || uso(l) > 0) return; linhas.splice(linhas.indexOf(l), 1); if (l._orig) excluidos.push(l._orig); desenha('.le-mais'); return; }
+    if (acao === 'descartar') { if (pendentes() && !(await S.confirmar('Descartar as alterações? O que você mudou nesta lista não foi salvo.', { ok:'Descartar', voltar:'Continuar editando', perigo:true }))) return;
+      edit = false; comecar(); delete d.dataset.sujo; delete d.dataset.guarda; desenha('[data-le-acao="editar"]'); return; }
+    if (acao === 'salvar') {
+      const vaz = linhas.find(l => !String(l[kNome] || '').trim()); if (vaz) { const el = form.querySelector(`[data-le="${vaz._k}"] input`); return S.erroNoCampo(el, 'Escreva o nome ou tire a linha.'); }
+      const vistos = new Set(), rep = linhas.find(l => { const n = String(l[kNome]).trim().toLowerCase(); if (vistos.has(n)) return true; vistos.add(n); return false; });
+      if (rep) { const el = form.querySelector(`[data-le="${rep._k}"] input`); return S.erroNoCampo(el, 'Já existe outra com esse nome.'); }
+      if (!pendentes()) { edit = false; desenha(); return; }
+      const limpa = l => { const o = {}; C.forEach(c => { o[c.k] = c.tipo === 'texto' ? String(l[c.k] || '').trim() : l[c.k]; }); if (l.id) o.id = l.id; return o; };
+      const dif = { novos:linhas.filter(l => !l._orig).map(limpa), alterados:linhas.filter(l => l._orig && !igual(l)).map(limpa), excluidos:excluidos.map(x => x.id), ordem:linhas.map(l => (l._orig ? { id:l.id } : { novo:limpa(l) })) };
+      b.disabled = true; b.textContent = 'Salvando…';
+      const n = pendentes();
+      const r = await S.run(async () => { await cfg.salvar(dif); delete d.dataset.sujo; delete d.dataset.guarda; d.close('salvo'); }, { titulo:cfg.okTitulo || `${cfg.titulo}: salvo`, sub:`${n} ${n === 1 ? 'alteração' : 'alterações'}` });
+      if (r === null && d.open) { b.disabled = false; b.textContent = 'Salvar'; } return; }
+  });
+  // Arrastar pela alça: a linha acompanha o ponteiro e as outras abrem espaço
+  form.addEventListener('pointerdown', e => { const a = e.target.closest('[data-le-acao="alca"]'); if (!a || e.button) return; e.preventDefault();
+    const box = form.querySelector('.le-linhas'), row = a.closest('.le-lin'), l = daLinha(a); if (!box || !row) return;
+    row.classList.add('arrasta'); a.setPointerCapture(e.pointerId);
+    const move = ev => { const rs = [...box.children].filter(x => x !== row); const alvo = rs.find(x => { const r = x.getBoundingClientRect(); return ev.clientY < r.top + r.height / 2; });
+      if (alvo) box.insertBefore(row, alvo); else box.appendChild(row); };
+    const fim = () => { a.removeEventListener('pointermove', move); a.removeEventListener('pointerup', fim); a.removeEventListener('pointercancel', fim); row.classList.remove('arrasta');
+      const ks = [...box.children].map(x => x.dataset.le); linhas.sort((x, y) => ks.indexOf(x._k) - ks.indexOf(y._k)); desenha(`[data-le="${l._k}"] [data-le-acao="alca"]`); };
+    a.addEventListener('pointermove', move); a.addEventListener('pointerup', fim); a.addEventListener('pointercancel', fim); });
+  desenha();
+  if (cfg.editar) { edit = true; d.dataset.guarda = '1'; desenha('[data-le-k]'); }
 };
 // ---------- máscaras dos campos ----------
 // Cada campo com data-mask é formatado enquanto a pessoa digita e mostra o exemplo em cinza (placeholder).
