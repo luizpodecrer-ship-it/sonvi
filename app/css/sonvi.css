@@ -3245,3 +3245,4 @@ dialog.em-dlg [hidden] { display:none !important; }
 @media (max-width:640px) { .mf-cards { gap:8px; } .mf-c { padding:12px; } .mf-falta, .mf-ok { padding:11px; } .mf-c > b, .mf-c > b .cz-rod { font-size:18px; --cz-dh:24px; } }
 .mf, .hc, .ag-card { grid-template-columns:minmax(0, 1fr); min-width:0; }
 .col-pct-fixo { font:600 14px var(--display); color:var(--ink-2); }
+.ag-txt { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

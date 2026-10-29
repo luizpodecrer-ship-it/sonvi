@@ -24,25 +24,24 @@
     if (!st.lista) { carregar(); return { title:titulo, actions:acoes, body:'<div class="card empty"><b>Carregando as agências…</b></div>' }; }
     const q = st.q.trim().toLowerCase(), qn = q.replace(/\D/g, '');
     const lista = st.lista.filter(a => { const d = a.dados || {}; return !q || [d.nome, d.razao_social, d.cidade].join(' ').toLowerCase().includes(q) || (qn.length > 2 && String(d.documento || '').replace(/\D/g, '').includes(qn)); });
-    const total = st.lista.reduce((s, a) => s + Number(a.pis_valor || 0), 0), nv = (S.db.veiculos || []).length;
-    const resumo = `<b>${st.lista.length} ${st.lista.length === 1 ? 'agência' : 'agências'}</b> · cadastra uma vez e vale nos ${nv} veículos · ${curto(total)} em PIs com agência em 12 meses`;
+    // Cadastro de empresa (29/10/2026, pedido do Luiz): nome e razão social, CNPJ, cidade, telefone e e-mail; nada de números de venda
+    const resumo = `<b>${st.lista.length} ${st.lista.length === 1 ? 'agência' : 'agências'}</b> · cadastra uma vez e vale em todos os veículos`;
     const linha = a => { const d = a.dados || {};
       return `<tr class="click" data-act="agEditar" data-id="${a.grupo}">
-        <td><div class="ag-nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(d.nome))}</span><span><b class="clamp2" title="${esc(d.nome)}">${esc(d.nome)}</b><small>${esc([d.documento, d.cidade].filter(Boolean).join(' · ')) || '—'}</small></span></div></td>
-        <td class="r nw">${pct(d.comissao)}</td><td>${selos(a)}</td><td class="r nw">${a.clientes || 0}</td>
-        <td class="r nw"><b>${a.pis_valor ? curto(Number(a.pis_valor)) : '—'}</b>${a.pis ? `<small class="ag-sub">${a.pis} PI${a.pis === 1 ? '' : 's'}</small>` : ''}</td>
+        <td><div class="ag-nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(d.nome))}</span><span><b class="clamp2" title="${esc(d.nome)}">${esc(d.nome)}</b>${d.razao_social && d.razao_social !== d.nome ? `<small title="${esc(d.razao_social)}">${esc(d.razao_social)}</small>` : ''}</span></div></td>
+        <td class="nw">${esc(d.documento) || '—'}</td><td class="nw ag-txt" title="${esc(d.cidade)}">${esc(d.cidade) || '—'}</td><td class="nw">${esc(d.telefone || d.whatsapp) || '—'}</td>
+        <td class="ag-txt" title="${esc(d.email)}">${esc(d.email) || '—'}</td>
         <td class="r"><div class="lin-acoes"><button class="btn sm" data-act="agEditar" data-id="${a.grupo}">Editar</button><button class="btn tres" data-act="agMenu" data-id="${a.grupo}" aria-label="Opções de ${esc(d.nome)}">${S.svg('mais3')}</button></div></td></tr>`; };
     const cel = a => { const d = a.dados || {};
       return `<div class="ag-cel" data-act="agEditar" data-id="${a.grupo}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(d.nome))}</span>
-        <span class="ag-cel-tx"><b>${esc(d.nome)}</b><small>Comissão ${pct(d.comissao)} · ${a.clientes || 0} cliente${a.clientes === 1 ? '' : 's'}</small></span>
-        <span class="ag-cel-v"><b>${a.pis_valor ? curto(Number(a.pis_valor)) : '—'}</b><small>12 meses</small></span></div>`; };
+        <span class="ag-cel-tx"><b>${esc(d.nome)}</b><small>${esc([d.documento, d.cidade].filter(Boolean).join(' · ')) || '—'}</small></span></div>`; };
     const vazio = `<div class="empty"><b>${q ? 'Nenhuma agência encontrada' : 'Nenhuma agência cadastrada'}</b>${q ? 'Experimente outra busca.' : 'Cadastre a primeira pelo botão "Nova agência". Ela passa a valer em todos os veículos.'}</div>`;
     const card = `<section class="card ag-card" aria-labelledby="ag-t">
       <div class="ag-cab"><div><h2 id="ag-t">Cadastro único do grupo</h2><p>${resumo}</p></div>
         <label class="fin-busca ag-busca">${S.svg('busca')}<input value="${esc(st.q)}" data-ag="q" placeholder="Buscar agência ou CNPJ" aria-label="Buscar agências"></label></div>
       ${!lista.length ? vazio : S.celular ? `<div class="ag-lista">${lista.map(cel).join('')}</div>`
-        : `<div class="scroll"><table class="ag-tab"><colgroup><col><col style="width:110px"><col style="width:22%"><col style="width:96px"><col style="width:150px"><col style="width:150px"></colgroup>
-          <thead><tr><th>Agência</th><th class="r">Comissão</th><th>Comprou de</th><th class="r">Clientes</th><th class="r">PIs em 12 meses</th><th><span class="sr">Ações</span></th></tr></thead>
+        : `<div class="scroll"><table class="ag-tab"><colgroup><col><col style="width:160px"><col style="width:12%"><col style="width:130px"><col style="width:18%"><col style="width:124px"></colgroup>
+          <thead><tr><th>Agência</th><th>CNPJ</th><th>Cidade</th><th>Telefone</th><th>E-mail</th><th><span class="sr">Ações</span></th></tr></thead>
           <tbody>${lista.map(linha).join('')}</tbody></table></div>`}
       <p class="ag-nota">Dentro de cada veículo, o cliente, a proposta e o PI escolhem a agência desta lista.</p></section>`;
     return { title:titulo, actions:acoes, body:card };

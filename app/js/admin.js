@@ -219,25 +219,25 @@
     let body;
     if (aba === 'veiculos') {
       // Lista enxuta (aprovada em 25/10/2026): resumo numa linha, uma linha por veículo (selo, nome e razão social, categorias, sigla,
-      // frequência ou praça, PIs, cadastro em 5 partes com o que falta, Editar e ⋯). A cor do veículo só no selo e na barrinha. No celular, linhas compactas.
+      // frequência ou praça, cadastro em 5 partes (29/10/2026: sem PIs e sem dados bancários) com o que falta, Editar e ⋯). A cor do veículo só no selo e na barrinha. No celular, linhas compactas.
       const vs = [...S.db.veiculos].sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR')), ok = (v, k) => !!String(v[k] || '').trim();
-      const PARTES = [['logo', 'logo', v => ok(v, 'logo')], ['cnpj', 'CNPJ e razão social', v => ok(v, 'cnpj') && ok(v, 'razao_social')], ['opec', 'e-mail da OPEC', v => ok(v, 'opec_email')], ['banco', 'dados bancários', v => ok(v, 'dados_bancarios')], ['end', 'endereço e telefone', v => ok(v, 'endereco') && ok(v, 'telefone')]];
-      const completos = vs.filter(v => PARTES.every(p => p[2](v))).length, pis = vs.reduce((t, v) => t + (Number(v.pi_seq) || 0), 0);
+      const PARTES = [['logo', 'logo', v => ok(v, 'logo')], ['cnpj', 'CNPJ e razão social', v => ok(v, 'cnpj') && ok(v, 'razao_social')], ['opec', 'e-mail da OPEC', v => ok(v, 'opec_email')], ['fin', 'e-mail do financeiro', v => ok(v, 'financeiro_email')], ['end', 'endereço e telefone', v => ok(v, 'endereco') && ok(v, 'telefone')]];
+      const completos = vs.filter(v => PARTES.every(p => p[2](v))).length;
       const cor = v => /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : S.COR_PADRAO;
       const barra = v => `<span class="adv-l-bar" style="--v:${cor(v)}" aria-hidden="true">${PARTES.map(p => `<i class="${p[2](v) ? 'ok' : ''}"></i>`).join('')}</span>`;
       const onde = v => S.temCategoria(v, 'radio') ? v.frequencia : v.cidade;
-      const resumo = `<b>${vs.length} veículo${vs.length === 1 ? '' : 's'}</b> · ${completos} com cadastro completo · ${pis} PI${pis === 1 ? '' : 's'} no grupo`;
+      const resumo = `<b>${vs.length} veículo${vs.length === 1 ? '' : 's'}</b> · ${completos} com cadastro completo`;
       const linhas = S.celular
         ? `<div class="adv-l-cel">${vs.map(v => { const falta = PARTES.filter(p => !p[2](v)).length;
             return `<div class="adv-l-c" data-act="admVeiculo" data-id="${v.id}" data-editar="1" aria-label="Editar ${esc(v.nome)}">${S.vav(v)}<span class="adv-l-tx"><b>${esc(v.nome)}</b><small>${S.categorias(v).map(k => esc(S.nomeCategoria(k))).join(' · ')}${v.sigla ? ' · ' + esc(v.sigla) : ''}</small></span>
               <span class="adv-l-dir">${barra(v)}<small>${falta ? `${falta} faltando` : 'Completo'}</small></span></div>`; }).join('')}</div>`
-        : `<div class="scroll"><table class="adv-l"><colgroup><col style="width:26%"><col style="width:18%"><col style="width:64px"><col style="width:13%"><col style="width:52px"><col style="width:25%"><col style="width:124px"></colgroup>
-            <thead><tr><th>Veículo</th><th>Categorias</th><th>Sigla</th><th>Frequência / praça</th><th class="r">PIs</th><th>Cadastro</th><th><span class="sr">Ações</span></th></tr></thead><tbody>
+        : `<div class="scroll"><table class="adv-l"><colgroup><col style="width:26%"><col style="width:18%"><col style="width:64px"><col style="width:14%"><col style="width:28%"><col style="width:124px"></colgroup>
+            <thead><tr><th>Veículo</th><th>Categorias</th><th>Sigla</th><th>Frequência / praça</th><th>Cadastro</th><th><span class="sr">Ações</span></th></tr></thead><tbody>
             ${vs.map(v => { const falta = PARTES.filter(p => !p[2](v)), txt = falta.length ? 'Falta: ' + falta.map(p => p[1]).join(', ') : 'Completo';
               return `<tr class="click" data-act="admVeiculo" data-id="${v.id}" data-editar="1">
                 <td><span class="adv-l-v">${S.vav(v)}<span class="adv-l-tx"><b title="${esc(v.nome)}">${esc(v.nome)}</b><small title="${esc(v.razao_social)}">${esc(v.razao_social) || 'Razão social não informada'}</small></span></span></td>
                 <td><span class="adv-l-cats">${S.categorias(v).map(k => `<span class="pill fn-neutra">${esc(S.nomeCategoria(k))}</span>`).join('')}</span></td>
-                <td class="nw adv-l-sig">${esc(v.sigla) || '—'}</td><td class="nw adv-l-onde" title="${esc(onde(v))}">${esc(onde(v)) || '—'}</td><td class="r nw">${Number(v.pi_seq) || 0}</td>
+                <td class="nw adv-l-sig">${esc(v.sigla) || '—'}</td><td class="nw adv-l-onde" title="${esc(onde(v))}">${esc(onde(v)) || '—'}</td>
                 <td><span class="adv-l-cad">${barra(v)}<small class="${falta.length ? 'falta' : ''}" title="${esc(txt)}">${esc(txt)}</small></span></td>
                 <td><span class="lin-acoes"><button class="btn sm" data-act="admVeiculo" data-id="${v.id}" data-editar="1">Editar</button><button class="btn tres" data-act="admVeiculoMenu" data-id="${v.id}" aria-label="Mais opções de ${esc(v.nome)}">${S.svg('mais3')}</button></span></td></tr>`; }).join('')}
             </tbody></table></div>`;
@@ -327,7 +327,7 @@
         { k:'razao_social', label:'Razão social', ph:'Como consta no CNPJ' }, { k:'cnpj', label:'CNPJ' }, { k:'inscricao_estadual', label:'Inscrição estadual' }, { k:'cep', label:'CEP' },
         { k:'endereco', label:'Endereço', full:true }, { k:'telefone', label:'Telefone' },
         // Só dois e-mails no veículo (29/10/2026): o da OPEC e o do financeiro (o e-mail geral saiu; o PI impresso mostra o do financeiro)
-        { k:'opec_email', label:'E-mail da OPEC (recebe os PIs)', type:'email', full:true, ph:'opec@empresa.com.br' }, { k:'financeiro_email', label:'E-mail do financeiro (recebe os pedidos de faturamento e confirma os pagamentos; sai no PI impresso)', type:'email', full:true, ph:'financeiro@empresa.com.br' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
+        { k:'opec_email', label:'E-mail da OPEC (recebe os PIs)', type:'email', full:true, ph:'opec@empresa.com.br' }, { k:'financeiro_email', label:'E-mail do financeiro (recebe os pedidos de faturamento e confirma os pagamentos; sai no PI impresso)', type:'email', full:true, ph:'financeiro@empresa.com.br' }], v,
         f => { const cats = String(f.categorias || '').split(',').filter(k => S.CATEGORIAS.some(c => c[0] === k));
           if (!cats.length) throw new Error('Marque ao menos uma categoria do veículo.');
           return S.run(async () => { const row = Object.assign({}, f, { categorias:cats, sigla:f.sigla.toUpperCase().trim(), logo:f.logo || null, cor:(f.cor || S.COR_PADRAO).toLowerCase() });
