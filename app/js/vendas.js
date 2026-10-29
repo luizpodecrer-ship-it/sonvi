@@ -186,15 +186,14 @@
     const porCons = {};
     const pc = uid => porCons[uid || ''] || (porCons[uid || ''] = { uid, vend:0, rec:0, com:0, semPct:false });
     vendidos.forEach(x => { pc(x.p.consultor_id).vend += x.v; });
-    pagosMes.forEach(l => { const pi = piDe(l.pi_id), c = col(pi.consultor_id), p = c ? num((c.comissao_veiculos || {})[S.ui.vehicleId] ?? c.comissao) : 0, o = pc(pi.consultor_id);
-      o.rec += pago(l); o.com += parteDe(l) * p / 100; if (!c) o.semPct = true; });
+    // Comissão (29/10/2026): sempre 5% do líquido que o cliente pagou (S.COMISSAO_PCT), igual para todos os consultores
+    pagosMes.forEach(l => { const pi = piDe(l.pi_id), o = pc(pi.consultor_id); o.rec += pago(l); if (pi.consultor_id) o.com += pago(l) * fatorLiquido(pi) * S.COMISSAO_PCT / 100; });
     const consList = Object.values(porCons).sort((a, b) => b.vend - a.vend);
-    const pctDe = uid => { const c = col(uid); return c ? num((c.comissao_veiculos || {})[S.ui.vehicleId] ?? c.comissao) : null; };
     const comissoes = `<section class="card vd-com" aria-label="Comissões"><div class="hd"><h2>Comissões · ${mesNome}</h2><span class="muted small">fechamento no mês seguinte</span></div>
       ${consList.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>Consultor</th><th class="r">Vendido</th><th class="r">Recebido</th><th class="r">Comissão</th></tr></thead><tbody>
-        ${consList.map(o => `<tr><td><b>${esc(o.uid ? S.usuario(o.uid) || 'Consultor' : 'Sem responsável')}</b><small>${pctDe(o.uid) === null ? 'sem percentual cadastrado' : `${String(pctDe(o.uid)).replace('.', ',')}% da parte da ${esc(emp)}`}</small></td><td class="r nw">${brl(o.vend)}</td><td class="r nw">${brl(o.rec)}</td><td class="r nw"><b>${brl(o.com)}</b></td></tr>`).join('')}</tbody></table></div>`
+        ${consList.map(o => `<tr><td><b>${esc(o.uid ? S.usuario(o.uid) || 'Consultor' : 'Sem responsável')}</b><small>${o.uid ? `${S.COMISSAO_PCT}% do líquido pago` : 'PIs sem consultor'}</small></td><td class="r nw">${brl(o.vend)}</td><td class="r nw">${brl(o.rec)}</td><td class="r nw"><b>${brl(o.com)}</b></td></tr>`).join('')}</tbody></table></div>`
         : `<p class="muted" style="margin:0">Sem vendas nem recebimentos em ${mesNome}.</p>`}
-      <p class="muted small" style="margin:12px 0 0">A comissão cresce conforme os clientes pagam: ${pct}% do líquido recebido é da ${esc(emp)}, e o consultor recebe o percentual dele sobre essa parte.</p></section>`;
+      <p class="muted small" style="margin:12px 0 0">A comissão cresce conforme os clientes pagam: o consultor recebe ${S.COMISSAO_PCT}% do valor líquido que o cliente pagou no mês.</p></section>`;
 
     return { title:`<span class="sub">${esc(v.nome)}</span>Vendas`,
       actions:`<button class="btn" data-act="vdRelatorios">${S.svg('relatorio')}Relatórios</button>`,

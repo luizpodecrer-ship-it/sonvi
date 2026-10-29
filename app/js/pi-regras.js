@@ -253,6 +253,8 @@
   // Devolve { meses:[{ period:'AAAA-MM', itens:{ índice:{ dia:quantidade } } }], soma, esperado, semDias:[índices], inicio, fim }
   // Parte da empresa comercial (database/049): percentual sobre o líquido de cada venda, gravado no PI quando nasce
   S.empCurto = () => String(((S.db && S.db.empresa) || {}).nome || 'Head 14').split('·')[0].trim() || 'Head 14';
+  // Comissão do consultor (decidido em 29/10/2026): sempre 5% do valor líquido que o cliente pagou, igual para todos
+  S.COMISSAO_PCT = 5;
   S.repassePct = pi => { const v = pi && pi.repasse_pct !== undefined && pi.repasse_pct !== null ? pi.repasse_pct : ((S.db && S.db.empresa) || {}).repasse_pct; const n = Number(v); return isNaN(n) || v === undefined || v === null ? 20 : n; };
   // Meses de calendário (decidido em 27/10/2026): o 1º mês vai do dia do início até o fim do mês e leva a quantidade
   // proporcional aos dias permitidos que sobram nele; os outros são meses inteiros. Começando no dia 1, todos são inteiros.
