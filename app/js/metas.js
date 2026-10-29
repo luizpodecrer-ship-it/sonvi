@@ -22,11 +22,24 @@
 
   // Só o valor do mês (decidido em 27/10/2026): um PI de 3 meses conta em cada mês só a grade daquele mês (e a ação digital do mês),
   // no valor líquido (a mesma proporção do PI inteiro: desconto geral e comissão da agência). Sem grades, conta o PI no mês em que nasceu.
-  const valorNoMes = (p, mes) => { const liq = Number(p.valor_liquido ?? p.valor_total ?? 0), d = p.dados || {}; let tot = 0, m = 0;
-    (d.grids || []).forEach(g => (g.items || []).forEach(it => { const v = S.itemCalc(it).sub; tot += v; if (g.period === mes) m += v; }));
-    (d.digital || []).forEach(a => { const v = S.digCalc(a).sub; tot += v; if (a.period === mes || String(a.inicio || '').slice(0, 7) === mes && !a.period) m += v; });
-    if (!tot) return String(p.criado_em || '').slice(0, 7) === mes ? liq : 0;
-    return m * liq / tot; };
+  // S.fatiaMes(pi, 'AAAA-MM'): quanto do PI (0 a 1) vai ao ar no mês. É a regra de "venda do mês" em todo o SONVI
+  // (29/10/2026: PIs, Dashboards, Controle, Vendas e metas contam pelo mês de veiculação, não pelo dia em que o PI foi criado).
+  const fatias = new WeakMap();
+  const fatiaMes = (p, mes) => { const d = p.dados || {}; let f = fatias.get(p);
+    if (!f || f.d !== d) { let tot = 0; const m = {};
+      (d.grids || []).forEach(g => (g.items || []).forEach(it => { const v = S.itemCalc(it).sub; tot += v; if (g.period) m[g.period] = (m[g.period] || 0) + v; }));
+      (d.digital || []).forEach(a => { const v = S.digCalc(a).sub, k = a.period || String(a.inicio || '').slice(0, 7); tot += v; if (k) m[k] = (m[k] || 0) + v; });
+      f = { d, tot, m }; fatias.set(p, f); }
+    if (!f.tot) return String(p.criado_em || '').slice(0, 7) === mes ? 1 : 0;
+    return (f.m[mes] || 0) / f.tot; };
+  S.fatiaMes = fatiaMes;
+  // Primeiro dia com veiculação no mês (para os gráficos por dia); sem grade, o dia em que o PI foi criado
+  S.diaNoMes = (p, mes) => { const d = p.dados || {}; let dia = 99;
+    (d.grids || []).filter(g => g.period === mes).forEach(g => (g.items || []).forEach(it => Object.entries(it.days || {}).forEach(([k, n]) => { if (Number(n) > 0 && +k < dia) dia = +k; })));
+    (d.digital || []).forEach(a => { const i = String(a.inicio || ''); if ((a.period || i.slice(0, 7)) === mes && i.slice(0, 7) === mes) dia = Math.min(dia, +i.slice(8, 10)); else if ((a.period || i.slice(0, 7)) === mes) dia = Math.min(dia, 1); });
+    if (dia === 99) { const c = S.dia ? S.dia(p.criado_em) : String(p.criado_em || '').slice(0, 10); dia = c.slice(0, 7) === mes ? +c.slice(8, 10) : 1; }
+    return dia; };
+  const valorNoMes = (p, mes) => Number(p.valor_liquido ?? p.valor_total ?? 0) * fatiaMes(p, mes);
   S.valorNoMes = valorNoMes;
   const vendidoDe = (pis, mes, usuario, veiculo) => pis.filter(p => VENDIDO.includes(p.status) && p.consultor_id === usuario && (!veiculo || p.veiculo_id === veiculo))
     .reduce((t, p) => t + valorNoMes(p, mes), 0);

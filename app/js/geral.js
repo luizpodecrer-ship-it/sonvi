@@ -18,7 +18,7 @@
   const intervalo = (per, hoje = new Date()) => {
     const y = hoje.getFullYear(), m = hoje.getMonth();
     if (per === 'passado') { const [de, ate] = mes(y, m - 1), [ade, aate] = mes(y, m - 2); return { de, ate, ade, aate, rot:'vs. o mês anterior' }; }
-    if (per === 'ano') { const a = new Date(y - 1, m, hoje.getDate()); return { de:`${y}-01-01`, ate:iso(hoje), ade:`${y - 1}-01-01`, aate:iso(a), rot:'vs. o mesmo período de ' + (y - 1) }; }
+    if (per === 'ano') return { de:`${y}-01-01`, ate:`${y}-12-31`, ade:`${y - 1}-01-01`, aate:`${y - 1}-12-31`, rot:'vs. ' + (y - 1) };   // o ano todo, pelo mês de veiculação
     const [de, ate] = mes(y, m), [ade, aate] = mes(y, m - 1); return { de, ate, ade, aate, rot:'vs. o mês passado' };
   };
   const entre = (d, de, ate) => !!d && d >= de && d <= ate;
@@ -26,21 +26,25 @@
   // Últimos 6 meses (ou os próximos 6, para o que vai vencer)
   const meses = (n0, hoje = new Date()) => Array.from({ length:6 }, (_, i) => iso(new Date(hoje.getFullYear(), hoje.getMonth() + n0 + i, 1)).slice(0, 7));
   const variacao = (agora, antes) => antes ? Math.round((agora - antes) / antes * 100) : null;
+  // Venda do período = a parte de cada PI que vai ao ar nos meses do período (mês de veiculação, 29/10/2026)
+  const mesesEntre = (de, ate) => { const r = []; let m = de.slice(0, 7); while (m <= ate.slice(0, 7)) { r.push(m); const [y, n] = m.split('-').map(Number); m = iso(new Date(y, n, 1)).slice(0, 7); } return r; };
+  const noPer = (p, de, ate) => mesesEntre(de, ate).reduce((t, m) => t + Number(p.valor_total || 0) * S.fatiaMes(p, m), 0);
   S.geralCalc = (dados, veiculos, per, hoje = new Date()) => {
-    const I = intervalo(per, hoje), dHoje = iso(hoje), dia = p => S.dia(p.criado_em);
+    const I = intervalo(per, hoje), dHoje = iso(hoje);
     const pis = dados.pis.filter(p => VENDIDO.includes(p.status)), lanc = dados.lanc;
-    const doPer = pis.filter(p => entre(dia(p), I.de, I.ate)), doAnt = pis.filter(p => entre(dia(p), I.ade, I.aate));
+    const doPer = pis.map(p => ({ p, v:noPer(p, I.de, I.ate) })).filter(x => x.v > 0), doAnt = pis.map(p => ({ p, v:noPer(p, I.ade, I.aate) })).filter(x => x.v > 0);
+    const somaV = l => l.reduce((t, x) => t + x.v, 0), doMesV = m => pis.reduce((t, p) => t + Number(p.valor_total || 0) * S.fatiaMes(p, m), 0);
     const ult = meses(-5, hoje), prox = meses(0, hoje);
     const vencido = lanc.filter(l => l.vencimento && l.vencimento < dHoje);
-    const total = soma(doPer, 'valor_total');
+    const total = somaV(doPer);
     const linhas = veiculos.map(v => {
-      const vp = doPer.filter(p => p.veiculo_id === v.id), vl = lanc.filter(l => l.veiculo_id === v.id), vv = vl.filter(l => l.vencimento && l.vencimento < dHoje);
-      return { v, vendido:soma(vp, 'valor_total'), pis:vp.length, opec:pis.filter(p => p.veiculo_id === v.id && p.status === 'opec').length,
+      const vp = doPer.filter(x => x.p.veiculo_id === v.id), vl = lanc.filter(l => l.veiculo_id === v.id), vv = vl.filter(l => l.vencimento && l.vencimento < dHoje);
+      return { v, vendido:somaV(vp), pis:vp.length, opec:pis.filter(p => p.veiculo_id === v.id && p.status === 'opec').length,
         receber:soma(vl, 'valor'), vencido:soma(vv, 'valor'), parcVenc:vv.length };
     });
     return { I, total, linhas,
-      vendido:{ v:total, var:variacao(total, soma(doAnt, 'valor_total')), serie:ult.map(m => soma(pis.filter(p => dia(p).startsWith(m)), 'valor_total')), meses:ult },
-      fechados:{ v:doPer.length, var:variacao(doPer.length, doAnt.length), serie:ult.map(m => pis.filter(p => dia(p).startsWith(m)).length), meses:ult },
+      vendido:{ v:total, var:variacao(total, somaV(doAnt)), serie:ult.map(doMesV), meses:ult },
+      fechados:{ v:doPer.length, var:variacao(doPer.length, doAnt.length), serie:ult.map(m => pis.filter(p => S.fatiaMes(p, m) > 0).length), meses:ult },
       receber:{ v:soma(lanc, 'valor'), vencido:soma(vencido, 'valor'), parcelas:lanc.length, serie:prox.map(m => soma(lanc.filter(l => (l.vencimento || '').startsWith(m)), 'valor')), meses:prox } };
   };
 
@@ -103,12 +107,15 @@
   S.geralCubo = (dados, veiculos, per, hoje = new Date()) => {
     const I = intervalo(per, hoje), ano = per === 'ano';
     const [y, m] = I.de.split('-').map(Number);
-    const NT = ano ? hoje.getMonth() + 1 : per === 'mes' ? hoje.getDate() : new Date(y, m, 0).getDate();
+    const NT = ano ? 12 : new Date(y, m, 0).getDate();   // mês inteiro e ano inteiro: vendas para os próximos dias/meses aparecem
     const MESL = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
     const rotulos = Array.from({ length:NT }, (_, t) => ano ? MES3[t] : String(t + 1));
     const longos = rotulos.map((r, t) => ano ? MESL[t] : `${t + 1} de ${MES3[m - 1]}`);
-    const pis = dados.pis.filter(p => VENDIDO.includes(p.status) && entre(S.dia(p.criado_em), I.de, I.ate));
-    const porC = {}; pis.forEach(p => { const k = p.consultor_id || ''; porC[k] = (porC[k] || 0) + Number(p.valor_total || 0); });
+    // Cada PI entra em cada mês em que vai ao ar, com a parte daquele mês, no primeiro dia de veiculação do mês (ou no mês, no ano)
+    const mesesC = ano ? Array.from({ length:12 }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`) : [I.de.slice(0, 7)];
+    const partes = []; dados.pis.filter(p => VENDIDO.includes(p.status)).forEach(p => mesesC.forEach(mm => { const v = Number(p.valor_total || 0) * S.fatiaMes(p, mm);
+      if (v > 0) partes.push({ p, v, t:ano ? +mm.slice(5) - 1 : S.diaNoMes(p, mm) - 1 }); }));
+    const porC = {}; partes.forEach(x => { const k = x.p.consultor_id || ''; porC[k] = (porC[k] || 0) + x.v; });
     const ordem = Object.keys(porC).sort((a, b) => porC[b] - porC[a]);
     const top = ordem.length > 6 ? ordem.slice(0, 5) : ordem, temOutros = ordem.length > top.length;
     const nomeC = k => k ? S.usuario(k) || 'Sem nome' : 'Sem responsável';
@@ -117,8 +124,8 @@
     const idxC = new Map(veiculos.map((v, i) => [v.id, i])), ND = Math.max(1, consultores.length);
     if (!consultores.length) consultores.push('Sem vendas');
     const V = veiculos.map(() => Array.from({ length:ND }, () => new Array(NT).fill(0))), N = veiculos.map(() => Array.from({ length:ND }, () => new Array(NT).fill(0)));
-    pis.forEach(p => { const c = idxC.get(p.veiculo_id), d = idxD(p.consultor_id), dt = S.dia(p.criado_em), t = ano ? +dt.slice(5, 7) - 1 : +dt.slice(8, 10) - 1;
-      if (c == null || d < 0 || t < 0 || t >= NT) return; V[c][d][t] += Number(p.valor_total || 0); N[c][d][t]++; });
+    partes.forEach(({ p, v, t }) => { const c = idxC.get(p.veiculo_id), d = idxD(p.consultor_id);
+      if (c == null || d < 0 || t < 0 || t >= NT) return; V[c][d][t] += v; N[c][d][t]++; });
     const dHoje = iso(hoje);
     const lanc = dados.lanc.map(l => ({ c:idxC.get(l.veiculo_id), d:l.consultor_id === undefined ? null : idxD(l.consultor_id), valor:Number(l.valor || 0), venc:!!l.vencimento && l.vencimento < dHoje }));
     const receber = (fc, cFixo) => { const r = { valor:0, vencido:0, parcelas:0 }; const cc = cFixo != null ? cFixo : fc.c;

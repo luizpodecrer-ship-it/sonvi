@@ -11,6 +11,8 @@
   const VENDIDO = ['opec', 'aprovado', 'programado', 'faturado'];          // PI que saiu do comercial conta como venda
   const ANDAMENTO = ['rascunho', 'opec', 'devolvido', 'aprovado', 'programado'];
   const soma = list => list.reduce((s, p) => s + Number(p.valor_total || 0), 0);
+  // Vendido no mês = a parte de cada PI que vai ao ar no mês (mês de veiculação, 29/10/2026)
+  const somaMes = (list, m) => list.reduce((s, p) => s + Number(p.valor_total || 0) * S.fatiaMes(p, m), 0);
   const val = list => list.reduce((s, x) => s + Number(x.valor || 0), 0);
   const pago = l => Number(l.valor_pago != null && l.valor_pago !== '' ? l.valor_pago : l.valor || 0);
   const mesDe = iso => String(iso || '').slice(0, 7);
@@ -47,7 +49,7 @@
 
   // ---------- blocos que mais de um perfil usa ----------
   function vendido(pis, titulo, link) {
-    const m6 = meses6(-5), por = m6.map(m => soma(pis.filter(p => VENDIDO.includes(p.status) && mesDe(p.criado_em) === m))), v = por[5], d = variacao(v, por[4], 'vs. ' + MESL[+m6[4].slice(5) - 1]);
+    const m6 = meses6(-5), por = m6.map(m => somaMes(pis.filter(p => VENDIDO.includes(p.status)), m)), v = por[5], d = variacao(v, por[4], 'vs. ' + MESL[+m6[4].slice(5) - 1]);
     return { tipo:'valor', titulo, icone:'financeiro', valor:reais(v), delta:d, barras:por, rotulos:m6.map(rotMes), link,
       rotulo:`${titulo}: ${reais(v)}. ${d.txt}` };
   }
@@ -87,8 +89,8 @@
     const m = mesDe(S.today()), opec = pis.filter(p => p.status === 'opec').sort((a, b) => String(a.atualizado_em || a.criado_em).localeCompare(String(b.atualizado_em || b.criado_em)));
     const dir = S.pode('diretor'), neg = pis.filter(p => ['rascunho', 'devolvido'].includes(p.status)).sort((a, b) => b.numero - a.numero);
     const cons = S.consultores().map(u => {
-      const meus = pis.filter(p => p.consultor_id === u.id && VENDIDO.includes(p.status) && mesDe(p.criado_em) === m), ag = S.db.agenda.filter(a => a.consultor_id === u.id && mesDe(a.quando) === m);
-      return { u, v:soma(meus), n:meus.length, feitas:ag.filter(a => S.fuFeito(a)).length, plan:ag.length }; }).sort((a, b) => b.v - a.v);
+      const meus = pis.filter(p => p.consultor_id === u.id && VENDIDO.includes(p.status) && S.fatiaMes(p, m) > 0), ag = S.db.agenda.filter(a => a.consultor_id === u.id && mesDe(a.quando) === m);
+      return { u, v:somaMes(meus, m), n:meus.length, feitas:ag.filter(a => S.fuFeito(a)).length, plan:ag.length }; }).sort((a, b) => b.v - a.v);
     return [
       Object.assign(vendido(pis, 'Vendido no mês', { rota:'/pis', texto:'Ver PIs' }), { id:'a' }),
       filaPis(opec, { id:'b', titulo:'Na OPEC', vivo:opec.length ? true : false, icone:'opec', apoio:opec.length ? `${reais(soma(opec))} aguardando` : 'Nenhum PI aguardando', vazio:'Nenhum PI aguardando conferência.',

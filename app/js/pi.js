@@ -30,8 +30,10 @@
       : `<span class="pill fn-neutra">Em aberto${r.proximo ? ` · vence ${S.dfmt(r.proximo).slice(0, 5)}` : ''}</span>`; };
   S.views.pis = () => {
     const hoje = today(), ym = pm.mes || hoje.slice(0, 7), mesN = MESES_PI[+ym.slice(5) - 1], q = (S.ui.q || '').toLowerCase();
-    const doMes = S.db.pis.filter(p => S.dia(p.criado_em).slice(0, 7) === ym && p.status !== 'cancelado');
-    const totDe = l => l.reduce((s, p) => s + S.calc(p).total, 0);
+    // PIs do mês = os que vão ao ar no mês, com a parte daquele mês (29/10/2026: antes era pelo dia em que o PI foi criado,
+    // e uma venda fechada em outubro para novembro deixava novembro zerado). PI de vários meses aparece em cada um.
+    const doMes = S.db.pis.filter(p => p.status !== 'cancelado' && S.fatiaMes(p, ym) > 0);
+    const totDe = l => l.reduce((s, p) => s + S.calc(p).total * S.fatiaMes(p, ym), 0);
     const et = ETAPAS_PI.map(k => { const xs = doMes.filter(p => p.status === k); return { k, nome:S.STATUS[k].label, xs, v:totDe(xs) }; });
     const sel = et.find(e => e.k === pm.et), base = sel ? sel.xs : doMes, tot = totDe(base);
     const atrasados = S.db.pis.filter(p => (((S.db.pagPis || {})[p.id]) || {}).situacao === 'atrasado').length, devolvidos = S.db.pis.filter(p => p.status === 'devolvido').length, naOpec = S.db.pis.filter(p => p.status === 'opec').length;
@@ -67,9 +69,9 @@
         <span class="pl-u" title="${esc(cons)}">${cons ? `<span class="av soft" aria-hidden="true">${esc(S.iniciais(cons))}</span><span class="pl-un">${esc(S.celular ? cons : cons.split(' ')[0])}</span>` : '<span class="muted">—</span>'}</span>
         <span class="pl-p"><small>Veiculação</small>${v ? `${dfmt(v[0]).slice(0, 5)} a ${dfmt(v[1]).slice(0, 5)}` : '—'}</span>
         <span class="pl-i pl-sit">${etiquetaPi(p)}${pagTom(p)}${recebidoMini(p)}</span>
-        <span class="pl-v"><b>${brl(c.total)}</b>${c.commission ? `<small>Líquido ${brl(c.net)}</small>` : ''}</span>
+        <span class="pl-v"><b>${brl(c.total)}</b>${S.fatiaMes(p, ym) < 0.9999 ? `<small>${brl(c.total * S.fatiaMes(p, ym))} em ${mesN}</small>` : c.commission ? `<small>Líquido ${brl(c.net)}</small>` : ''}</span>
         <span class="pl-m"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></span></div>`; }).join('');
-    const vazio = `<div class="empty"><b>Nenhum PI</b>${q ? `Nada com essa busca em ${mesN}.` : sel ? `Nenhum PI nesta etapa em ${mesN}.` : S.db.pis.length ? `Nenhum PI criado em ${mesN}.` : 'Os pedidos desta rádio aparecem aqui.'}</div>`;
+    const vazio = `<div class="empty"><b>Nenhum PI</b>${q ? `Nada com essa busca em ${mesN}.` : sel ? `Nenhum PI nesta etapa em ${mesN}.` : S.db.pis.length ? `Nenhum PI no ar em ${mesN}.` : 'Os pedidos desta rádio aparecem aqui.'}</div>`;
     const listaCard = `<section class="card pl-card" aria-labelledby="pr-tl"><div class="hd fn-par-hd"><h2 id="pr-tl">PIs de ${mesN}</h2><span>${pis.length} · ${brl(totDe(pis))}</span></div>
       <div class="fn-filtros">${sel ? `<button class="fn-chip pr-chip pr-et-${sel.k}" data-act="piEtapa" data-v="${sel.k}" aria-label="Tirar o filtro ${sel.nome}"><i aria-hidden="true"></i>${sel.nome}${S.svg('fechar', 14)}</button>` : ''}
         <label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por número, título, cliente, agência ou consultor" aria-label="Buscar PIs"></label></div>
