@@ -326,8 +326,9 @@
         { k:'cidade', label:'Cidade / praça', full:true, ph:'Ex.: Cuiabá / MT' },
         { html:'<b class="form-sec">Quem fatura</b>' },
         { k:'razao_social', label:'Razão social', ph:'Como consta no CNPJ' }, { k:'cnpj', label:'CNPJ' }, { k:'inscricao_estadual', label:'Inscrição estadual' }, { k:'cep', label:'CEP' },
-        { k:'endereco', label:'Endereço', full:true }, { k:'telefone', label:'Telefone' }, { k:'email', label:'E-mail', type:'email' },
-        { k:'opec_email', label:'E-mail da OPEC (recebe os PIs)', type:'email', full:true, ph:'opec@empresa.com.br' }, { k:'financeiro_email', label:'E-mail do financeiro (recebe os pedidos de faturamento e confirma os pagamentos)', type:'email', full:true, ph:'financeiro@empresa.com.br' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
+        { k:'endereco', label:'Endereço', full:true }, { k:'telefone', label:'Telefone' },
+        // Só dois e-mails no veículo (29/10/2026): o da OPEC e o do financeiro (o e-mail geral saiu; o PI impresso mostra o do financeiro)
+        { k:'opec_email', label:'E-mail da OPEC (recebe os PIs)', type:'email', full:true, ph:'opec@empresa.com.br' }, { k:'financeiro_email', label:'E-mail do financeiro (recebe os pedidos de faturamento e confirma os pagamentos; sai no PI impresso)', type:'email', full:true, ph:'financeiro@empresa.com.br' }, { k:'dados_bancarios', label:'Dados bancários', type:'textarea' }], v,
         f => { const cats = String(f.categorias || '').split(',').filter(k => S.CATEGORIAS.some(c => c[0] === k));
           if (!cats.length) throw new Error('Marque ao menos uma categoria do veículo.');
           return S.run(async () => { const row = Object.assign({}, f, { categorias:cats, sigla:f.sigla.toUpperCase().trim(), logo:f.logo || null, cor:(f.cor || S.COR_PADRAO).toLowerCase() });

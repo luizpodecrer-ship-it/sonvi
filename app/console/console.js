@@ -288,7 +288,7 @@
     const kv = (k, v) => `<div><small>${k}</small><span>${v ? esc(v) : '<span class="muted">—</span>'}</span></div>`;
     return { titulo:esc(c.nome), sub:'<a href="#/clientes">Clientes</a> › ' + esc(c.nome),
       acoes:`${pode('proprietario') ? `<button class="btn perigo" data-act="excluirCliente" data-id="${c.id}">${S.svg('lixo')}Excluir</button><button class="btn" data-act="situacao" data-id="${c.id}">${susp ? 'Reativar' : 'Suspender'}</button>` : ''}${pode('proprietario', 'suporte') ? `<a class="btn pri" href="${esc(link)}" target="_blank" rel="noopener">${ICONE.escudo}Entrar como suporte</a>` : ''}`,
-      corpo:`<div class="c-topo">${logoCli(c, 'cli-logo grande')}<span class="tx"><span>${sitPill(c)}</span><a href="${esc(link)}" target="_blank" rel="noopener">${esc(endereco(c.slug))} ↗</a><small class="muted">Sonvi Music: ${esc(endereco(c.slug))}/music · cliente desde ${S.dfmt(c.criado_em)}</small></span></div>
+      corpo:`<div class="c-topo">${logoCli(c, 'cli-logo grande')}<span class="tx"><span>${sitPill(c)}</span><a href="${esc(link)}" target="_blank" rel="noopener">${esc(endereco(c.slug))} ↗</a><small class="muted">Cliente desde ${S.dfmt(c.criado_em)}</small></span></div>
       <div class="c-minis"><div><small>Clientes cadastrados</small><b>${c.clientes}</b><small>${plural(c.radios.length, 'rádio', 'rádios')}</small></div>
         <div><small>Propostas no mês</small><b>${c.propostas_mes}</b><small>&nbsp;</small></div>
         <div><small>PIs no mês</small><b>${c.pis_mes}</b><small>${esc(c.radios.filter(r => r.pis_mes).map(r => `${r.pis_mes} ${r.sigla}`).join(' · ') || '—')}</small></div>
@@ -325,7 +325,7 @@
           <label class="f">CNPJ<input name="cnpj" data-mask="cnpj" inputmode="numeric" value="${esc(n.cnpj)}" placeholder="00.000.000/0000-00"></label>
           <label class="f">Cidade / UF<input name="cidade" value="${esc(n.cidade)}" placeholder="Ex.: Rondonópolis / MT"></label></div>
           <label class="f">Endereço no SONVI<span class="c-slug${n.slugMsg ? ' ruim' : livre ? ' bom' : ''}"><span>sonvi.com.br/</span><input name="slug" value="${esc(n.slug)}" aria-label="Final do endereço" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="slugAviso">${livre ? '<span class="pill" style="--tone:var(--green)">✓ disponível</span>' : ''}</span>
-            <small id="slugAviso" class="${n.slugMsg ? 'erro-campo' : 'muted'}">${n.slugMsg ? esc(n.slugMsg) : 'Só letras minúsculas, números e hífen. Sugerido a partir do nome; dá para mudar.' + (n.slug ? ` Sonvi Music: ${esc(endereco(n.slug))}/music` : '')}</small></label>
+            <small id="slugAviso" class="${n.slugMsg ? 'erro-campo' : 'muted'}">${n.slugMsg ? esc(n.slugMsg) : 'Só letras minúsculas, números e hífen. Sugerido a partir do nome; dá para mudar.'}</small></label>
           <div class="c-logo-campo"><span class="c-logo-prev">${n.logo ? `<img src="${n.logo}" width="600" height="122" alt="Logo escolhida">` : '<span class="muted small">Sem logo</span>'}</span>
             <span class="tx"><b>Logo</b><small class="muted">Horizontal, PNG ou JPG. Aparece na tela de entrada do cliente e nas propostas.</small><span class="row"><button type="button" class="btn sm" data-act="logoEscolher">Escolher imagem</button>${n.logo ? '<button type="button" class="btn sm" data-act="logoTirar">Tirar</button>' : ''}</span></span>
             <input type="file" id="logoArq" accept="image/png,image/jpeg,image/webp" hidden></div></fieldset>
@@ -356,7 +356,7 @@
     caixa.classList.toggle('ruim', !!novo.slugMsg); caixa.classList.toggle('bom', !!livre);
     const p = caixa.querySelector('.pill'); if (livre && !p) caixa.insertAdjacentHTML('beforeend', '<span class="pill" style="--tone:var(--green)">✓ disponível</span>'); if (!livre && p) p.remove();
     aviso.className = novo.slugMsg ? 'erro-campo' : 'muted';
-    aviso.textContent = novo.slugMsg || 'Só letras minúsculas, números e hífen. Sugerido a partir do nome; dá para mudar.' + (novo.slug ? ` Sonvi Music: ${endereco(novo.slug)}/music` : ''); };
+    aviso.textContent = novo.slugMsg || 'Só letras minúsculas, números e hífen. Sugerido a partir do nome; dá para mudar.'; };
 
   // ---------- Financeiro ----------
   const fin = { mes:null, filtro:'todas', cliente:'' };

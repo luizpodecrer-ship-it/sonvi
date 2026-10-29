@@ -355,7 +355,7 @@
       <table><thead><tr><th>Entrega</th>${canais.map(c => `<th style="text-align:right">${esc(c.nome)}${c.detalhe ? ' ' + esc(c.detalhe) : ''}</th>`).join('')}</tr></thead>
       <tbody>${ents.map(f => `<tr><td><b>${esc(f.nome)}</b>${f.detalhe ? ` · ${esc(f.detalhe)}` : ''}</td>${canais.map(c => { const x = vis.cel[chave(c.id, f.id)]; return `<td style="text-align:right">${x ? brl(x.preco) : '—'}</td>`; }).join('')}</tr>`).join('')}</tbody></table>
       ${pks ? `<h2 style="margin:18px 0 6px;font-size:15px">Pacotes</h2><table><thead><tr><th>Pacote</th><th>Canal</th><th>Entregas</th><th style="text-align:right">Preço</th></tr></thead><tbody>${pks}</tbody></table>` : ''}
-      <p>Valores por publicação; "—" = não oferece. A produção do conteúdo está incluída; as datas de publicação são combinadas com a rádio. ${esc([v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, v.telefone, v.email].filter(Boolean).join(' · '))}</p>`;
+      <p>Valores por publicação; "—" = não oferece. A produção do conteúdo está incluída; as datas de publicação são combinadas com a rádio. ${esc([v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, v.telefone, v.financeiro_email || v.email].filter(Boolean).join(' · '))}</p>`;
     setTimeout(() => window.print(), 60);
   };
   const imprimir = t => {
@@ -367,7 +367,7 @@
     document.getElementById('print').innerHTML = `<div class="cab">${v.logo ? `<img src="${v.logo}" alt="">` : ''}<div><h1 style="border-left:6px solid ${v.cor || S.COR_PADRAO};padding-left:8px">${esc(v.nome)} · ${esc(t.nome)}</h1><div>${quando}${desc !== null ? ` · desconto máximo ${desc}%` : ''}</div></div></div>
       <table><thead><tr><th>Onde vai ao ar</th><th>Dias e horário</th>${forms.map(f => `<th style="text-align:right">${esc(f.nome)}</th>`).join('')}</tr></thead>
       <tbody>${SECOES.map(([k, ti]) => { const l = progs.filter(p => secaoDe(p) === k); return l.length ? `<tr><th colspan="${n}" style="text-align:left">${esc(ti)}</th></tr>${l.map(linha).join('')}` : ''; }).join('')}</tbody></table>
-      <p>Valores por inserção; "—" = não é vendido. ${esc([v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, v.telefone, v.email].filter(Boolean).join(' · '))}</p>`;
+      <p>Valores por inserção; "—" = não é vendido. ${esc([v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, v.telefone, v.financeiro_email || v.email].filter(Boolean).join(' · '))}</p>`;
     setTimeout(() => window.print(), 60);
   };
 

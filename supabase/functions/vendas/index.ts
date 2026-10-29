@@ -1,6 +1,6 @@
 // SONVI · função de borda "vendas" (database/055, aprovado em 27/10/2026): a Head 14 faz a gestão comercial e o
-// financeiro de cada veículo fatura e recebe. Os e-mails saem com o nome do consultor do PI ("João Victor · Head 14"
-// <faturamento@sonvi.com.br>) e a resposta vai para o e-mail dele.
+// financeiro de cada veículo fatura e recebe. Os e-mails saem com o nome do consultor do PI e do veículo ("João Victor · Nativa FM"
+// <faturamento@sonvi.com.br>, nunca "SONVI", 29/10/2026) e a resposta vai para o e-mail dele.
 //   { acao: "pedido", id }        → (diretor/financeiro logado) manda o pedido de faturamento ao financeiro do veículo,
 //                                   com o link seguro confirmar.html?f=<token>. Também serve para reenviar.
 //   { acao: "perguntar", id }     → (diretor/financeiro logado) pergunta agora se o cliente pagou a parcela (confirmar.html?p=<token>).
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
       const { data: c } = id ? await adm.from('colaboradores').select('celular').eq('usuario_id', id).limit(1).maybeSingle() : { data: null };
       const p = u || reserva || {}; return { nome: nomeLimpo(p.nome || ''), email: String(p.email || '').toLowerCase(), celular: String(c?.celular || '') };
     };
-    const assinatura = (c: any, emp: string) => `<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eef0f3;font-size:14px">${c.nome ? `<b>${esc(c.nome)}</b><br>` : ''}<span style="color:#6b6b74">Consultor comercial · ${esc(emp)}${c.celular ? ` · ${esc(c.celular)}` : ''}</span><br><span style="color:#9a9aa3;font-size:12px">Enviado pelo SONVI</span></div>`;
+    const assinatura = (c: any, emp: string) => `<div style="margin-top:28px;padding-top:14px;border-top:1px solid #eef0f3;font-size:14px">${c.nome ? `<b>${esc(c.nome)}</b><br>` : ''}<span style="color:#6b6b74">Consultor comercial · ${esc(emp)}${c.celular ? ` · ${esc(c.celular)}` : ''}</span></div>`;
     const casca = (veic: any, titulo: string, intro: string, quadro: [string, string][], botao: string, link: string, rodape: string, c: any, emp: string) =>
       `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:560px">
         <p style="margin:0 0 6px;font-weight:700">${esc(veic.nome)} · ${esc(titulo)}</p>
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
         : `Olá! A ${esc(emp)} pede o faturamento abaixo. Depois de emitir a nota, confirme pelo botão: o SONVI fica atualizado na hora.`,
         quadro, 'Confirmar faturamento', link, `O botão abre uma página do SONVI; nada é confirmado só por abrir. O link vale só para este pedido. Dúvidas? Responda este e-mail${c.nome ? `: a resposta vai direto para ${esc(c.nome.split(' ')[0])}` : ''}.`, c, emp);
       const texto = `${v.nome} · pedido de faturamento\n\n${quadro.map(([k, x]) => `${k}: ${x}`).join('\n')}\n\nConfirmar faturamento: ${link}\n\n${c.nome}\nConsultor comercial · ${emp}${c.celular ? ' · ' + c.celular : ''}`;
-      await envia(`${c.nome ? c.nome + ' · ' : ''}${emp} <faturamento@sonvi.com.br>`, para, c.email || eu?.email || '', assunto, html, texto);
+      await envia(`${nomeLimpo(c.nome ? c.nome + ' · ' + v.nome : v.nome)} <faturamento@sonvi.com.br>`, para, c.email || eu?.email || '', assunto, html, texto);
       await adm.from('fat_pedidos').update({ enviado_em: new Date().toISOString(), envios: (f.envios || 0) + 1, para }).eq('id', f.id);
     };
 
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       const html = casca(v, 'o cliente pagou?', n > 1 ? `Perguntamos antes e ainda não temos a resposta (esta é a ${n}ª vez). O cliente já pagou a parcela abaixo?` : 'O cliente já pagou a parcela abaixo?',
         quadro, 'Responder', link, 'Um clique: "Sim, pagou" (com a data e o valor) ou "Ainda não". Se ainda não pagou, perguntamos de novo em 7 dias. Nada é registrado só por abrir o link.', c, emp);
       const texto = `${v.nome} · o cliente pagou?\n\n${quadro.map(([k, x]) => `${k}: ${x}`).join('\n')}\n\nResponder: ${link}\n\n${c.nome}\nConsultor comercial · ${emp}`;
-      await envia(`${c.nome ? c.nome + ' · ' : ''}${emp} <faturamento@sonvi.com.br>`, para, c.email || eu?.email || '', assunto, html, texto);
+      await envia(`${nomeLimpo(c.nome ? c.nome + ' · ' + v.nome : v.nome)} <faturamento@sonvi.com.br>`, para, c.email || eu?.email || '', assunto, html, texto);
       await adm.from('lancamentos').update({ pag_perguntas: n, pag_ultima: new Date().toISOString() }).eq('id', l.id);
     };
 

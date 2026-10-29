@@ -854,7 +854,7 @@
       ${o.vehicleData ? [e.razao_social, e.cnpj && 'CNPJ ' + e.cnpj, [e.endereco, e.cidade].filter(Boolean).join(' · '), e.telefone && 'Fone ' + e.telefone, e.email].filter(Boolean).map(x => `<div>${esc(x)}</div>`).join('') : ''}
       <div>Veiculação e faturamento: ${esc(v.nome)}</div></div></div>` : '';
     const radio = empresa || `<div class="pd-radio">${v.logo ? `<img src="${v.logo}" alt="">` : `<span class="pd-selo" style="background:${cor}">${esc(v.sigla)}</span>`}<div><b class="pd-nome">${esc(v.nome)}</b>
-      ${o.vehicleData ? [v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, [v.endereco, v.cidade].filter(Boolean).join(' · '), [v.cep && 'CEP ' + v.cep, v.telefone && 'Fone ' + v.telefone].filter(Boolean).join(' · '), v.email].filter(Boolean).map(x => `<div>${esc(x)}</div>`).join('') : ''}</div></div>`;
+      ${o.vehicleData ? [v.razao_social, v.cnpj && 'CNPJ ' + v.cnpj, [v.endereco, v.cidade].filter(Boolean).join(' · '), [v.cep && 'CEP ' + v.cep, v.telefone && 'Fone ' + v.telefone].filter(Boolean).join(' · '), v.financeiro_email || v.email].filter(Boolean).map(x => `<div>${esc(x)}</div>`).join('') : ''}</div></div>`;
     const corNo = empresa ? e.cor || '#2b5fb5' : cor;
     const numero = `<div class="pd-num" style="border-color:${corNo}"><div class="pd-no" style="color:${corNo}">${S.piNo(pi)}</div><div class="pd-kv">
       <span>Veículo</span><b>${esc(v.nome)}${v.frequencia ? ' ' + esc(v.frequencia) : ''}</b><span>Período</span><b>${periodo}</b><span>Campanha</span><b>${esc(pi.titulo)}</b>${pi.projeto ? `<span>Projeto</span><b>${esc(pi.projeto)}</b>` : ''}${pi.dados.proposta ? `<span>Proposta</span><b>${esc(pi.dados.proposta.numero)}</b>` : ''}<span>Emitido em</span><b>${dfmt(o.date)}</b></div></div>`;

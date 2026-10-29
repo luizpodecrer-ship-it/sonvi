@@ -51,7 +51,7 @@
     try {
       const desde = `${new Date().getFullYear() - 1}-01-01`;
       const [pis, lanc] = await Promise.all([
-        S.q(S.sb.from('pis').select('id, veiculo_id, status, consultor_id, valor_total, valor_liquido, criado_em, dados').in('status', VENDIDO).gte('criado_em', desde)),
+        S.q(S.sb.from('pis').select('id, veiculo_id, status, consultor_id, valor_total, valor_liquido, repasse_pct, criado_em, dados').in('status', VENDIDO).gte('criado_em', desde)),
         S.q(S.sb.from('lancamentos').select('id, veiculo_id, valor, vencimento, pi_id').eq('sentido', 'receber').is('pago_em', null))]);
       // Consultor de cada parcela (pelo PI), para o "A receber" filtrar por consultor
       const conhecidos = new Map(pis.map(p => [p.id, p.consultor_id]));
@@ -128,6 +128,53 @@
   };
   const fc0 = () => ({ c:null, d:null, r:null });
 
+  // ---------- Controle da Head 14 (aprovado em 29/10/2026, mockup "SONVI · Agências, controle e metas") ----------
+  // Como a planilha "Controle PI Head 14": pelo mês de veiculação, o líquido de cada PI só na parte que vai ao ar naquele mês
+  // (S.valorNoMes), a parte da Head 14 (repasse_pct do PI, 20%), o acumulado do mês em diante e o que vence no mês e não foi pago.
+  const ctrl = { mes:null };
+  const somaMes = (ym, n) => { const [y, m] = ym.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  const MESL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const nomeM = ym => `${MESL[+ym.slice(5) - 1]}/${ym.slice(2, 4)}`;
+  const mesesDoPi = p => { const d = p.dados || {}, set = new Set(); (d.grids || []).forEach(g => g.period && set.add(g.period));
+    (d.digital || []).forEach(a => { const m = a.period || String(a.inicio || '').slice(0, 7); if (m) set.add(m); });
+    if (!set.size) set.add(String(p.criado_em || '').slice(0, 7)); return [...set]; };
+  S.controleHead = (dados, veiculos) => {
+    const M = {}, idV = new Set(veiculos.map(v => v.id));
+    dados.pis.filter(p => VENDIDO.includes(p.status) && idV.has(p.veiculo_id)).forEach(p => mesesDoPi(p).forEach(m => {
+      const v = S.valorNoMes(p, m); if (!(v > 0)) return; const x = M[m] || (M[m] = { liq:0, head:0, pis:0, porV:{} });
+      x.liq += v; x.head += v * S.repassePct(p) / 100; x.pis++; x.porV[p.veiculo_id] = (x.porV[p.veiculo_id] || 0) + v; }));
+    return M; };
+  const controleHtml = () => {
+    const veiculos = S.db.veiculos, M = S.controleHead(cache, veiculos), hoje = S.mesAtual(), ym = ctrl.mes || hoje, ant = somaMes(ym, -1);
+    const z = { liq:0, head:0, pis:0, porV:{} }, A = M[ym] || z, B = M[ant] || z;
+    const depois = k => Object.keys(M).filter(m => m >= ym).reduce((t, m) => t + M[m][k], 0), depoisAnt = k => Object.keys(M).filter(m => m >= ant).reduce((t, m) => t + M[m][k], 0);
+    const aReceber = cache.lanc.filter(l => (l.vencimento || hoje + '-01').slice(0, 7) === ym), ar = soma(aReceber, 'valor');
+    const card = (k, rot, val, sub, vr, cls) => `<div class="hc-c${cls ? ' ' + cls : ''}"><small>${rot}</small><b>${S.roloFixo('hc-' + k, brl(val))}</b><span class="hc-sub">${sub}</span>${vr}</div>`;
+    const vs = (a, b) => `<span class="hc-var">${seta(variacao(a, b))}<span>em relação a ${MESL[+ant.slice(5) - 1].toLowerCase()}</span></span>`;
+    const pct = S.repassePct();
+    const cards = [card('liq', 'Líquido do mês', A.liq, `${nomeM(ym)} · ${A.pis} PI${A.pis === 1 ? '' : 's'}`, vs(A.liq, B.liq), 'hc-on'),
+      card('acu', 'Acumulado (mês + seguintes)', depois('liq'), `Líquido contratado de ${MESL[+ym.slice(5) - 1].toLowerCase()} em diante`, vs(depois('liq'), depoisAnt('liq'))),
+      card('head', 'Parte da Head 14 no mês', A.head, `${String(pct).replace(".", ",")}% do líquido de ${MESL[+ym.slice(5) - 1].toLowerCase()}`, vs(A.head, B.head), 'hc-head'),
+      card('heada', 'Parte da Head 14 acumulada', depois('head'), `De ${MESL[+ym.slice(5) - 1].toLowerCase()} em diante`, vs(depois('head'), depoisAnt('head')), 'hc-head'),
+      card('rec', 'A faturar / receber', ar, `${aReceber.length} parcela${aReceber.length === 1 ? '' : 's'} do mês ainda não paga${aReceber.length === 1 ? '' : 's'}`, '')].join('');
+    // Mês a mês: do primeiro mês com venda deste ano (ou o escolhido, se for antes) até o último com veiculação; acumulado corre
+    const ini = [ym, ...Object.keys(M).filter(m => m >= `${hoje.slice(0, 4)}-01`)].sort()[0], fim = [ym, ...Object.keys(M)].sort().pop();
+    const linhas = []; let corre = Object.keys(M).filter(m => m < ini).reduce((t, m) => t + M[m].liq, 0);
+    for (let m = ini; m <= fim; m = somaMes(m, 1)) { const x = M[m] || z; corre += x.liq; linhas.push({ m, x, acu:corre }); }
+    const barraV = x => { const t = x.liq || 0; return `<span class="hc-bv" aria-hidden="true">${t ? veiculos.filter(v => x.porV[v.id]).map(v => `<i style="width:${(x.porV[v.id] / t * 100).toFixed(2)}%;background:${esc(v.cor || 'var(--accent)')}" title="${esc(v.nome)}"></i>`).join('') : ''}</span>`; };
+    const porVtxt = x => veiculos.filter(v => x.porV[v.id]).map(v => `${v.nome} ${Math.round(x.porV[v.id] / x.liq * 100)}%`).join(', ');
+    const tabela = `<div class="scroll"><table class="hc-tab"><thead><tr><th>Mês</th><th class="r">PIs</th><th class="r">Líquido do mês</th><th class="r">Parte Head 14</th><th class="r">Acumulado</th><th class="hc-pv">Por veículo</th></tr></thead><tbody>
+      ${linhas.map(({ m, x, acu }) => `<tr class="click${m === ym ? ' hc-sel' : ''}" data-act="ctrlMes" data-v="${m}"${m === ym ? ' aria-current="true"' : ''}><td class="nw"><b>${nomeM(m)}</b></td><td class="r nw">${x.pis || '—'}</td><td class="r nw">${x.liq ? brl(x.liq) : '—'}</td><td class="r nw">${x.head ? brl(x.head) : '—'}</td><td class="r nw muted">${brl(acu)}</td><td class="hc-pv">${barraV(x)}${x.liq ? `<span class="sr">${esc(porVtxt(x))}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+    return `<section class="card hc" aria-labelledby="hc-t"><div class="hc-cab"><div><h2 id="hc-t">Controle da Head 14</h2><p>PIs por mês de veiculação, com o acumulado dos meses seguintes.</p></div>
+      <div class="hc-acoes"><div class="hc-mes" role="group" aria-label="Mês de veiculação"><button type="button" class="hc-seta" data-act="ctrlMes" data-v="${ant}" aria-label="Mês anterior">${S.svg('esq', 16)}</button><b aria-live="polite">${nomeM(ym)}</b><button type="button" class="hc-seta" data-act="ctrlMes" data-v="${somaMes(ym, 1)}" aria-label="Próximo mês">${S.svg('seta', 16)}</button></div>
+      ${ym !== hoje ? `<button type="button" class="btn sm" data-act="ctrlMes" data-v="${hoje}">Hoje</button>` : ''}<button type="button" class="btn sm" data-act="ctrlCsv">Baixar planilha</button></div></div>
+      <div class="hc-cards">${cards}</div><h3 class="hc-h3">Mês a mês</h3>${tabela}</section>`;
+  };
+  const ctrlCsv = () => { const M = S.controleHead(cache, S.db.veiculos), ms = Object.keys(M).sort(), n = v => (Math.round(v * 100) / 100).toFixed(2).replace('.', ',');
+    let corre = 0; const linhas = [['Mês', 'PIs', 'Líquido do mês', 'Parte Head 14', 'Acumulado', ...S.db.veiculos.map(v => v.nome)].join(';')];
+    ms.forEach(m => { const x = M[m]; corre += x.liq; linhas.push([nomeM(m), x.pis, n(x.liq), n(x.head), n(corre), ...S.db.veiculos.map(v => n(x.porV[v.id] || 0))].join(';')); });
+    const b = new Blob(['﻿' + linhas.join('\n')], { type:'text/csv;charset=utf-8' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'controle-head14.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+
   S.views.geral = () => {
     const nome = String(S.me.nome || S.me.email || '').trim().split(/[\s@]+/)[0];
     const per = `<div class="seg" role="group" aria-label="Período">${[['mes', 'Este mês'], ['passado', 'Mês passado'], ['ano', 'Este ano']].map(([k, n]) => `<button class="${f.per === k ? 'on' : ''}" data-act="geralPer" data-v="${k}"${f.per === k ? ' aria-pressed="true"' : ' aria-pressed="false"'}>${n}</button>`).join('')}</div>`;
@@ -178,12 +225,14 @@
     const corpo = corpo_();
     const lista = `<section class="card gv"><div class="hd gv-hd"><h2>Veículos</h2><span class="muted small gv-at">atualizado às ${S.hora(cache.em)} · <a data-act="geralAtualizar">Atualizar</a></span></div><div id="gv-corpo">${corpo}</div></section>`;
     const metas = S.metasHtml({ mes:S.mesAtual(f.per === 'passado' ? -1 : 0), pis:cache.pis, vazio:'Nenhuma meta cadastrada para este mês. A meta de cada consultor, por veículo, fica em Administração › Colaboradores.' });
-    return Object.assign(topo, { body:`${intro}<div id="cz-lugar"></div>${metas}${lista}` });
+    return Object.assign(topo, { body:`${intro}${controleHtml()}<div id="cz-lugar"></div>${metas}${lista}` });
   };
 
   Object.assign(S.actions, {
     geralPer: d => { f.per = d.v; S.render(); },
     geralCat: d => { f.cat = d.v; S.render(); },
+    ctrlMes: d => { ctrl.mes = d.v; S.render(); },
+    ctrlCsv: () => ctrlCsv(),
     geralAtualizar: () => { S.carregarGeral(true).then(() => S.toast('Números atualizados')); },
     geralAbrir: d => S.abrirVeiculo(d.id)
   });

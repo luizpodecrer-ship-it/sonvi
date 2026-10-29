@@ -120,7 +120,8 @@
   };
 
   S.views.clientes = id => {
-    aba = id === 'agencias' ? 'agencia' : 'cliente';
+    // Agências saíram de dentro do veículo (29/10/2026): o cadastro é único do grupo, no Dashboard geral (agencias.js)
+    aba = 'cliente'; if (id === 'agencias' && S.me.diretor) queueMicrotask(() => S.go('/agencias'));
     const cli = aba === 'cliente', q = S.ui.q.toLowerCase(), todas = S.pessoas(aba), cp = compras(cli ? 'cliente_id' : 'agencia_id');
     const gestor = S.pode('diretor', 'gerente'), podeCriar = S.pode('diretor', 'gerente', 'consultor'), outras = radiosDestino().length > 0;
     const cols = colunas(cli); if (!cols.some(c => c[0] === cf.por)) { cf.por = 'comprado'; cf.sentido = 'desc'; }
@@ -164,7 +165,7 @@
         : `<div class="cl-tab ${cli ? 'cl-cli' : 'cl-ag'}" role="table" aria-labelledby="cl-t" data-por="${cf.por}">${cab}<div class="cl-corpo" role="rowgroup">${lista.map(linha).join('')}</div></div>`}</section>`;
     queueMicrotask(() => poePilula(true));
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>${cli ? 'Clientes' : 'Agências'}`, actions:podeCriar ? `<button class="btn pri" data-act="pesNovo">${S.svg('mais')}${cli ? 'Novo cliente' : 'Nova agência'}</button>` : '',
-      body:`<div class="seg ct-abas" role="tablist" aria-label="Cadastros">${[['cliente', 'Clientes', S.pessoas('cliente').length], ['agencia', 'Agências', S.pessoas('agencia').length]].map(([k, n, c]) => `<button role="tab" aria-selected="${aba === k}" class="${aba === k ? 'on' : ''}" data-act="pesAba" data-tab="${k}">${n} <span>${c}</span></button>`).join('')}</div>${card}` };
+      body:card };
   };
   S.actions.cliOrdem = d => { const k = d.v; cf.sentido = cf.por === k ? (cf.sentido === 'asc' ? 'desc' : 'asc') : d.sentido; cf.por = k; viaja(); };
   document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-clif]'); if (!s) return; cf[s.dataset.clif] = s.value; S.flip(S.render); });

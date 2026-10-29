@@ -190,11 +190,12 @@
     const pis = S.db.pis, nome = primeiro(S.me.nome) || '', perfil = S.pode('consultor') ? 'consultor' : S.pode('opec') ? 'opec' : S.pode('financeiro') ? 'financeiro' : 'gestao';
     const blocos = { consultor, opec, financeiro, gestao }[perfil](pis), escolhido = S.ui.cxEscolha[perfil] || 'a', veh = S.veh();
     // Metas do mês (database/049): o diretor vê as da equipe neste veículo; o consultor, a própria
-    const metas = perfil === 'gestao' ? S.metasHtml({ mes:S.mesAtual(), pis, veiculo:S.ui.vehicleId }) : perfil === 'consultor' ? S.metasHtml({ mes:S.mesAtual(), pis, veiculo:S.ui.vehicleId, meu:true }) : '';
+    // Meta do mês no alto (29/10/2026): meta, realizado, quanto falta e 5% do realizado; diretor/gerente com a linha de cada consultor
+    const metas = perfil === 'gestao' ? S.metaFaixa({ mes:S.mesAtual(), pis, veiculo:S.ui.vehicleId }) : perfil === 'consultor' ? S.metaFaixa({ mes:S.mesAtual(), pis, veiculo:S.ui.vehicleId, meu:true }) : '';
     queueMicrotask(() => { const el = document.querySelector('#content [data-casillero]'); if (!el || el.dataset.ligado) return; el.dataset.ligado = '1';
       S.casillero(el, { semEntrada:!document.getElementById('content').classList.contains('entra'), aoEscolher:id => { S.ui.cxEscolha[perfil] = id; } }); });
     return { title:`<span class="sub">${hojeExtenso()}</span>${saudacao()}${nome ? ', ' + esc(nome) : ''}`,
       actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="piNew">${S.svg('mais')}Novo PI</button>` : '',
-      body:`<p class="cx-dica">Clique num bloco para ver o detalhe.</p>${S.cxHtml(blocos, escolhido, 'Resumo da ' + (veh ? veh.nome : 'rádio'))}${metas}` };
+      body:`${metas}<p class="cx-dica">Clique num bloco para ver o detalhe.</p>${S.cxHtml(blocos, escolhido, 'Resumo da ' + (veh ? veh.nome : 'rádio'))}` };
   };
 })();

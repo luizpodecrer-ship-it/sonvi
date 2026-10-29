@@ -2870,10 +2870,10 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 @media (max-width:820px) { #side nav .realce, #side nav .div { display:none; } }
 @media (prefers-reduced-motion: reduce) { #side nav.fluido .realce, #side nav.fluido a svg { transition:none; } }
 /* Cores dos ícones do menu do Dashboard geral (claro / escuro, como no Console) */
-#side nav [data-ico="geral"] { --c:#0055FF; } #side nav [data-ico="combos"] { --c:#7C3AED; } #side nav [data-ico="music"] { --c:#D9367A; }
+#side nav [data-ico="geral"] { --c:#0055FF; } #side nav [data-ico="combos"] { --c:#7C3AED; } #side nav [data-ico="agencias"] { --c:#D9367A; }
 #side nav [data-ico="admin"] { --c:#0D8F82; } #side nav [data-ico="chamados"] { --c:#E0701B; }
 @media (prefers-color-scheme: dark) {
-  #side nav [data-ico="geral"] { --c:#4C9DFF; } #side nav [data-ico="combos"] { --c:#B69CFF; } #side nav [data-ico="music"] { --c:#F47BB0; }
+  #side nav [data-ico="geral"] { --c:#4C9DFF; } #side nav [data-ico="combos"] { --c:#B69CFF; } #side nav [data-ico="agencias"] { --c:#F47BB0; }
   #side nav [data-ico="admin"] { --c:#3DDC97; } #side nav [data-ico="chamados"] { --c:#F2A65A; }
 }
 /* Menu fluido dentro dos veículos (25/10/2026): mesmas regras; cor do ícone de cada item (claro / escuro) */
@@ -3144,3 +3144,103 @@ dialog.em-dlg [hidden] { display:none !important; }
 .vd-up { background:color-mix(in srgb, var(--green) 16%, transparent); color:var(--green); }
 .vd-down { background:color-mix(in srgb, var(--red) 14%, transparent); color:var(--red); }
 .vd-up-t { color:var(--green); } .vd-down-t { color:var(--red); }
+
+/* Campo de data do SONVI (29/10/2026, js/data.js): texto dd/mm/aaaa + botão do calendário; o <input type="date"> fica escondido */
+.dt-campo { position:relative; display:block; min-width:0; }
+.dt-campo > .dt-tx { width:100%; box-sizing:border-box; padding-right:44px; font-variant-numeric:tabular-nums; }
+.dt-campo > .dt-bt { position:absolute; right:4px; top:4px; bottom:4px; width:34px; min-height:0; border:0; border-radius:6px; background:transparent; color:var(--ink-2); display:grid; place-items:center; cursor:pointer; padding:0; }
+.dt-campo > .dt-bt:hover, .dt-campo > .dt-bt[aria-expanded="true"] { background:var(--accent-soft); color:var(--accent-text); }
+.dt-campo > .dt-bt:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.dt-campo.so-ler > .dt-bt { display:none; } .dt-campo.so-ler > .dt-tx { padding-right:12px; }
+.dt-campo > .dt-tx[aria-invalid] { border-color:var(--red); }
+.dt-aviso { display:block; margin-top:4px; color:var(--red); font-size:12px; font-weight:600; white-space:normal; }
+.dt-painel { position:fixed; z-index:130; inset:auto; margin:0; width:292px; box-sizing:border-box; padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--ink);
+  box-shadow:0 18px 40px rgba(10,11,13,.16); opacity:0; transform:translateY(-4px) scale(.98); transform-origin:top left; transition:opacity .18s, transform .22s cubic-bezier(.2,.8,.2,1.1); font-size:14px; }
+.dt-painel.on { opacity:1; transform:none; }
+.dt-cab { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+.dt-cab select { padding:6px 8px; font-weight:600; font-size:14px; background:var(--fill); }
+.dt-cab .dt-sm { flex:1 1 auto; } .dt-cab .dt-sa { flex:0 0 78px; }
+.dt-seta { width:34px; height:34px; border:0; border-radius:8px; background:transparent; font-size:20px; line-height:1; cursor:pointer; color:var(--ink-2); flex:0 0 auto; }
+.dt-seta:hover { background:var(--fill); color:var(--ink); }
+.dt-sem, .dt-grade { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:2px; text-align:center; }
+.dt-sem span { font-size:12px; color:var(--ink-3); padding:4px 0; }
+.dt-dia { height:34px; border:0; border-radius:8px; background:transparent; cursor:pointer; font-size:14px; font-variant-numeric:tabular-nums; color:var(--ink); padding:0; }
+.dt-dia:hover { background:var(--fill); }
+.dt-dia.hj { box-shadow:inset 0 0 0 1.5px var(--accent); font-weight:700; }
+.dt-dia.sel { background:var(--accent); color:var(--accent-ink); font-weight:700; }
+.dt-dia:disabled { color:var(--ink-3); opacity:.45; cursor:default; background:transparent; }
+.dt-dia:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.dt-pe { display:flex; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px solid var(--line-2); }
+.dt-pe button { border:0; background:transparent; color:var(--accent-text); font-weight:600; cursor:pointer; padding:8px 6px; border-radius:6px; }
+.dt-pe button:hover { background:var(--accent-soft); }
+@media (prefers-reduced-motion: reduce) { .dt-painel { transition:none; } }
+
+/* Agências do grupo (29/10/2026, js/agencias.js): cadastro único no Dashboard geral */
+.ag-card { display:grid; gap:14px; }
+.ag-cab { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.ag-cab h2 { margin:0; } .ag-cab p { margin:4px 0 0; color:var(--ink-2); font-size:13px; } .ag-cab p b { color:var(--ink); }
+.ag-busca { flex:0 1 300px; }
+.ag-tab { table-layout:fixed; } .ag-tab td { height:40px; }
+.ag-nome { display:flex; align-items:center; gap:12px; min-width:0; } .ag-nome > span:last-child { display:grid; min-width:0; }
+.ag-nome small, .ag-sub { display:block; color:var(--ink-3); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ag-selos { display:flex; flex-wrap:wrap; gap:4px; } .ag-selos .vav { width:26px; height:26px; font-size:9px; }
+.ag-nota { margin:0; color:var(--ink-3); font-size:13px; }
+.ag-lista { display:grid; }
+.ag-cel { display:flex; align-items:center; gap:12px; padding:12px 2px; border-bottom:1px solid var(--line-2); min-height:44px; cursor:pointer; }
+.ag-cel-tx { flex:1 1 auto; min-width:0; display:grid; } .ag-cel-tx b { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .ag-cel-tx small, .ag-cel-v small { color:var(--ink-3); font-size:12px; }
+.ag-cel-v { display:grid; text-align:right; white-space:nowrap; }
+
+/* Controle da Head 14 no Dashboard geral (29/10/2026, geral.js): cinco quadros que rolam até o valor + mês a mês */
+.hc { display:grid; gap:16px; margin-bottom:16px; }
+.hc-cab { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.hc-cab h2 { margin:0; } .hc-cab p { margin:4px 0 0; color:var(--ink-2); font-size:13px; }
+.hc-acoes { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.hc-mes { display:flex; align-items:center; gap:2px; background:var(--fill); border-radius:var(--radius-s); padding:3px; }
+.hc-mes b { font:600 14px/1 var(--display); min-width:118px; text-align:center; }
+.hc-seta { width:36px; height:36px; border:0; border-radius:6px; background:transparent; color:var(--ink-2); display:grid; place-items:center; cursor:pointer; }
+.hc-seta:hover { background:var(--surface); color:var(--ink); } .hc-seta svg { width:16px; height:16px; }
+.hc-cards { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:12px; }
+.hc-c { border:1px solid var(--line); border-radius:var(--radius-m); padding:14px 16px; display:grid; gap:6px; align-content:start; min-width:0; }
+.hc-c small { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-2); min-height:2.6em; }
+.hc-c > b { font:600 19px/1.2 var(--display); white-space:nowrap; letter-spacing:-.01em; }
+.hc-c.hc-on { border:2px solid var(--accent); padding:13px 15px; }
+.hc-c.hc-head > b { color:var(--accent-text); }
+.hc-sub { font-size:12px; color:var(--ink-2); line-height:1.4; }
+.hc-var { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--ink-3); }
+.hc-h3 { margin:4px 0 -6px; font:600 16px/1.2 var(--display); }
+.hc-tab tr.click { cursor:pointer; } .hc-tab td { padding:10px; }
+.hc-tab tr.hc-sel td { background:var(--accent-soft); } .hc-tab tr.hc-sel td:first-child { border-radius:8px 0 0 8px; } .hc-tab tr.hc-sel td:last-child { border-radius:0 8px 8px 0; }
+.hc-tab .hc-pv { width:28%; }
+.hc-bv { display:flex; height:10px; border-radius:5px; overflow:hidden; background:var(--fill); }
+.hc-bv i { display:block; height:100%; }
+@media (max-width:1300px) { .hc-cards { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+@media (max-width:820px) { .hc-cards { grid-template-columns:repeat(2, minmax(0, 1fr)); } .hc-c > b { font-size:18px; } .hc-tab .hc-pv { display:none; } }
+@media (max-width:420px) { .hc-cards { gap:8px; } .hc-c { padding:12px; } .hc-c.hc-on { padding:11px; } .hc-c > b, .hc-c > b .cz-rod { font-size:15px; --cz-dh:22px; } .hc-c small { font-size:10px; } .hc-var > span:last-child { display:none; } }
+
+/* Meta do mês no Dashboard do veículo (29/10/2026, metas.js S.metaFaixa) */
+.mf { display:grid; gap:14px; margin-bottom:16px; }
+.mf-cards { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
+.mf-c { border:1px solid var(--line); border-radius:var(--radius-m); padding:14px 16px; display:grid; gap:6px; align-content:start; min-width:0; }
+.mf-c small { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-2); }
+.mf-c > b { font:600 26px/1.1 var(--display); white-space:nowrap; }
+.mf-c > span { font-size:12px; color:var(--ink-2); line-height:1.4; }
+.mf-c em { font-style:normal; font-size:12px; font-weight:600; color:color-mix(in srgb, var(--orange) 75%, #000); }
+.mf-real > b { color:var(--accent-text); }
+.mf-falta { border:2px solid var(--orange); padding:13px 15px; } .mf-falta > b { color:color-mix(in srgb, var(--orange) 75%, #000); }
+.mf-ok { border:2px solid var(--green); padding:13px 15px; } .mf-ok > b { color:color-mix(in srgb, var(--green) 70%, #000); }
+.mf-prog { display:block; height:8px; border-radius:999px; background:var(--accent-soft); overflow:hidden; } .mf-prog i { display:block; height:100%; background:var(--accent); border-radius:inherit; transition:width .8s cubic-bezier(.2,.8,.2,1); }
+.mf-prog.ok i { background:var(--green); }
+.mf-por h3 { margin:0 0 6px; font:600 15px/1.2 var(--display); }
+.mf-pes { display:flex; align-items:center; gap:10px; } .mf-and { display:flex; align-items:center; gap:10px; } .mf-and .mf-prog { flex:1 1 auto; min-width:80px; } .mf-and small { width:40px; text-align:right; color:var(--ink-2); }
+.mf-bom { color:color-mix(in srgb, var(--green) 70%, #000); font-weight:600; } .mf-ruim { color:color-mix(in srgb, var(--orange) 75%, #000); font-weight:600; }
+@media (prefers-color-scheme: dark) { .mf-c em, .mf-falta > b, .mf-ruim { color:var(--orange); } .mf-ok > b, .mf-bom { color:var(--green); } }
+@media (max-width:1100px) { .mf-cards { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+@media (max-width:640px) { .mf-c > b { font-size:22px; } .mf-tab th:nth-child(2), .mf-tab td:nth-child(2), .mf-tab th:nth-child(4), .mf-tab td:nth-child(4), .mf-tab th:nth-child(6), .mf-tab td:nth-child(6) { display:none; } }
+@media (prefers-reduced-motion: reduce) { .mf-prog i { transition:none; } }
+.hc-c > b .cz-rod { font-size:19px; --cz-dh:26px; letter-spacing:-.01em; }
+.mf-c > b .cz-rod { font-size:26px; --cz-dh:32px; }
+@media (max-width:640px) { .mf-c > b .cz-rod { font-size:22px; --cz-dh:28px; } }
+.mf-real > b .cz-rod { color:var(--accent-text); } .mf-falta > b .cz-rod { color:inherit; } .mf-ok > b .cz-rod { color:inherit; } .hc-head > b .cz-rod { color:var(--accent-text); }
+.mf .hd { flex-wrap:wrap; gap:4px 12px; } .mf-c, .hc-c { overflow:hidden; }
+@media (max-width:640px) { .mf-cards { gap:8px; } .mf-c { padding:12px; } .mf-falta, .mf-ok { padding:11px; } .mf-c > b, .mf-c > b .cz-rod { font-size:18px; --cz-dh:24px; } }
+.mf, .hc, .ag-card { grid-template-columns:minmax(0, 1fr); min-width:0; }

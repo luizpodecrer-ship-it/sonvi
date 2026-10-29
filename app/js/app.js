@@ -15,15 +15,16 @@
     ['opec', 'OPEC', ['diretor', 'opec']],
     ['vendas', 'Vendas', ['diretor', 'financeiro']],  // no lugar do Financeiro (27/10/2026): quem fatura e recebe é o financeiro de cada veículo
     ['produtos', 'Produtos', ['diretor', 'gerente', 'consultor']],
-    ['music', 'Sonvi Music', S.MUSIC_PERFIS, 'music/'],
+    ['agencias', 'Agências', ['diretor']],       // cadastro único de agências do grupo, só no Dashboard geral (29/10/2026)
     ['admin', 'Administração', ['diretor']],
     ['chamados', 'Suporte', ['diretor']],        // chamados e acessos da equipe SONVI, só no Dashboard geral (25/10/2026)
     ['admin', 'Usuários', ['gerente']]]; // o gerente cadastra a equipe das rádios dele
   const SOON = [];
 
-  // No SONVI, quem só trabalha com a programação musical vê o caminho para o Sonvi Music
+  // Quem só tem perfil da programação musical (programador, locutor) não tem tela no SONVI. O Sonvi Music está parado
+  // desde 29/10/2026 e não tem mais link dentro do SONVI.
   S.views.soMusic = () => ({ title:`<span class="sub">${esc(S.veh() ? S.veh().nome : '')}</span>Olá, ${esc((S.me.nome || S.me.email).split(' ')[0])}`, actions:'',
-    body:`<div class="card empty"><b>O seu trabalho fica no Sonvi Music</b>A programação musical e o estúdio ficam num sistema à parte, com login próprio.<div style="margin-top:18px"><a class="btn pri" href="music/">Abrir o Sonvi Music</a></div></div>` });
+    body:`<div class="card empty"><b>Nada para você aqui por enquanto</b>O seu acesso é da programação musical, que está parada no momento. Fale com o diretor se precisar de outro acesso.</div>` });
 
   let ultima = ''; // última tela desenhada: a animação de entrada só roda quando a tela muda
   let ultimoSide = ''; // barra lateral desenhada (sem o item marcado)
@@ -79,11 +80,11 @@
     let { view, id } = S.route();
     if (DIR && !bruto) view = 'geral';
     // Administração e Combos do diretor vivem no Dashboard geral (24/10/2026): abrir qualquer uma delas leva o menu para lá
-    if (['geral', 'admin', 'combos', 'chamados'].includes(view)) S.ui.emGeral = DIR; else S.ui.emGeral = false;
+    if (['geral', 'admin', 'combos', 'chamados', 'agencias'].includes(view)) S.ui.emGeral = DIR; else S.ui.emGeral = false;
     const geral = DIR && S.ui.emGeral, semVeiculo = !S.ui.vehicleId;
-    const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral', 'combos', 'chamados'].includes(n[0])) && (!geral || ['geral', 'combos', 'music', 'admin', 'chamados'].includes(n[0])) && !(n[0] === 'combos' && !geral) && !(n[0] === 'chamados' && !geral) && !(n[0] === 'geral' && !geral && !semVeiculo) && !(n[0] === 'admin' && DIR && !geral && !semVeiculo)), telas = itens.filter(n => !n[3]);
+    const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral', 'combos', 'chamados', 'agencias'].includes(n[0])) && (!geral || ['geral', 'combos', 'agencias', 'admin', 'chamados'].includes(n[0])) && !(n[0] === 'combos' && !geral) && !(n[0] === 'agencias' && !geral) && !(n[0] === 'chamados' && !geral) && !(n[0] === 'geral' && !geral && !semVeiculo) && !(n[0] === 'admin' && DIR && !geral && !semVeiculo)), telas = itens.filter(n => !n[3]);
     if (!telas.some(n => n[0] === view) && view !== 'pi') view = telas.length ? telas[0][0] : 'soMusic';
-    if (semVeiculo && !(DIR && ['geral', 'admin', 'combos', 'chamados'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
+    if (semVeiculo && !(DIR && ['geral', 'admin', 'combos', 'chamados', 'agencias'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
     S.ui.view = view;   // tela realmente desenhada (com o hash vazio, o diretor vê o Dashboard geral)
     S.temaRadio(semVeiculo || geral ? null : S.veh());
     const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, atrasos = !MUSIC && S.fuAtrasados && !semVeiculo ? S.fuAtrasados() : 0, veh = semVeiculo ? null : S.veh();
