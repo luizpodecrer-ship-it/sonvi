@@ -3439,3 +3439,49 @@ form.ver .so-ed, form.ver [data-pd-add], form.ver [data-act="pdFaixaMais"], form
   .le-rodape .btn { flex:1; } .le-rodape .grow { display:none; } .le-rodape .ed-pend, .le-rodape > .muted { flex-basis:100%; }
 }
 .cat-op input, .cat-op input:disabled { opacity:0 !important; }
+
+/* ---------- Importar PI da agência (31/10/2026, importar.js) ---------- */
+.ip-solta { margin-top:16px; border:1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius:var(--radius); background:color-mix(in srgb, var(--accent-soft) 45%, var(--surface)); padding:28px 18px; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; cursor:pointer; transition:background .2s, border-color .2s; }
+.ip-solta.on, .ip-solta:hover { border-color:var(--accent); background:var(--accent-soft); }
+.ip-solta:focus-within { outline:2px solid var(--accent); outline-offset:2px; }
+.ip-ic svg { width:34px; height:34px; color:var(--accent); }
+.ip-tipos { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+.ip-tipos span { padding:3px 8px; border-radius:6px; background:var(--surface); border:1px solid var(--line); font-size:12px; font-weight:600; color:var(--ink-2); }
+.ip-arq { display:flex; align-items:center; gap:14px; margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:var(--radius-m); }
+.ip-arq > span:last-child { min-width:0; display:flex; flex-direction:column; } .ip-arq b { overflow-wrap:anywhere; }
+.ip-ext { width:42px; height:50px; flex:none; border-radius:6px; background:var(--red); color:#fff; display:grid; place-items:center; font:700 11px/1 var(--font); }
+.ip-etapas { list-style:none; margin:16px 0 8px; padding:0; display:flex; flex-direction:column; gap:10px; }
+.ip-etapas li { display:flex; align-items:center; gap:10px; font-size:14px; }
+.ip-etapas i { width:20px; height:20px; border-radius:50%; flex:none; display:grid; place-items:center; }
+.ip-etapas .feito i { background:var(--green); } .ip-etapas .feito i::after { content:"✓"; color:#fff; font-size:12px; font-weight:700; font-style:normal; }
+.ip-etapas .agora i { border:2px solid var(--accent); border-right-color:transparent; animation:ipGira 1s linear infinite; }
+.ip-etapas .depois { color:var(--ink-3); } .ip-etapas .depois i { border:2px solid var(--line); }
+@keyframes ipGira { to { transform:rotate(360deg); } }
+.ip-conf { display:grid; grid-template-columns:minmax(0, 340px) minmax(0, 1fr); gap:20px; align-items:start; margin-top:4px; }
+.ip-doc { position:sticky; top:16px; display:flex; flex-direction:column; gap:10px; padding:14px; }
+.ip-pdf { width:100%; height:62vh; border:1px solid var(--line); border-radius:8px; background:var(--fill); }
+.ip-img { width:100%; height:auto; border-radius:8px; border:1px solid var(--line); }
+.ip-blocos { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.ip-campos { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:1px; background:var(--line-2); border:1px solid var(--line-2); border-radius:var(--radius-m); overflow:hidden; }
+.ip-c { background:var(--surface); padding:12px 14px; display:flex; flex-direction:column; gap:4px; min-width:0; position:relative; }
+.ip-c > label { font-size:12px; color:var(--ink-3); }
+.ip-c.alerta { background:color-mix(in srgb, var(--orange) 7%, var(--surface)); }
+.ip-c.ip-full { grid-column:1 / -1; }
+.ip-v { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-weight:600; } .ip-v b { overflow-wrap:anywhere; }
+.ip-acoes { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; } .ip-acoes select { flex:1; min-width:160px; }
+.ip-troca { position:absolute; top:10px; right:12px; border:0; background:none; color:var(--accent-text); font:600 12px var(--font); cursor:pointer; }
+.ip-tab { width:100%; min-width:680px; } .ip-tab td { vertical-align:top; } .ip-tab td small { display:block; }
+.ip-tab td select { width:100%; margin-bottom:6px; }
+.ip-tab tr.alerta td { background:color-mix(in srgb, var(--orange) 6%, var(--surface)); }
+.ip-seta { color:var(--ink-3); width:20px; padding-top:14px !important; }
+.ip-ok { color:var(--green); font-weight:600; } .ip-al { color:var(--orange); font-weight:600; }
+.ip-soma { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; }
+.ip-soma small { display:block; color:var(--ink-3); font-size:12px; } .ip-soma b { font:600 20px/1.3 var(--display); font-variant-numeric:tabular-nums; }
+.ip-confere { margin-top:14px; padding:12px 14px; border-radius:var(--radius-m); font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px; }
+.ip-confere svg { width:18px; height:18px; } .ip-confere.ok { background:color-mix(in srgb, var(--green) 12%, var(--surface)); color:var(--green); }
+.ip-confere.nao { background:color-mix(in srgb, var(--orange) 12%, var(--surface)); color:var(--orange); }
+.ip-rod { position:sticky; bottom:12px; z-index:3; margin-top:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 18px; box-shadow:0 10px 30px -12px rgba(10,20,60,.25); }
+.ip-falta { color:var(--orange); font-weight:600; font-size:14px; } .ip-pronto { color:var(--green); font-weight:600; font-size:14px; }
+@media (max-width:980px) { .ip-conf { grid-template-columns:1fr; } .ip-doc { position:static; } .ip-pdf { height:50vh; } }
+@media (max-width:560px) { .ip-campos { grid-template-columns:1fr; } .ip-rod { position:static; } .ip-rod .btn { flex:1; } .ip-rod .grow { display:none; } }
+@media (prefers-reduced-motion: reduce) { .ip-etapas .agora i { animation:none; } }

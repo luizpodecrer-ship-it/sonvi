@@ -82,11 +82,11 @@
     if (['geral', 'admin', 'combos', 'chamados', 'agencias'].includes(view)) S.ui.emGeral = DIR; else S.ui.emGeral = false;
     const geral = DIR && S.ui.emGeral, semVeiculo = !S.ui.vehicleId;
     const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral', 'combos', 'chamados', 'agencias'].includes(n[0])) && (!geral || ['geral', 'combos', 'agencias', 'admin', 'chamados'].includes(n[0])) && !(n[0] === 'combos' && !geral) && !(n[0] === 'agencias' && !geral) && !(n[0] === 'chamados' && !geral) && !(n[0] === 'geral' && !geral && !semVeiculo) && !(n[0] === 'admin' && DIR && !geral && !semVeiculo)), telas = itens.filter(n => !n[3]);
-    if (!telas.some(n => n[0] === view) && view !== 'pi') view = telas.length ? telas[0][0] : 'soMusic';
+    if (!telas.some(n => n[0] === view) && view !== 'pi' && !(view === 'importar' && telas.some(n => n[0] === 'pis') && S.pode('diretor', 'gerente', 'consultor'))) view = telas.length ? telas[0][0] : 'soMusic';
     if (semVeiculo && !(DIR && ['geral', 'admin', 'combos', 'chamados', 'agencias'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
     S.ui.view = view;   // tela realmente desenhada (com o hash vazio, o diretor vê o Dashboard geral)
     S.temaRadio(semVeiculo || geral ? null : S.veh());
-    const active = view === 'pi' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, atrasos = !MUSIC && S.fuAtrasados && !semVeiculo ? S.fuAtrasados() : 0, veh = semVeiculo ? null : S.veh();
+    const active = view === 'pi' || view === 'importar' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, atrasos = !MUSIC && S.fuAtrasados && !semVeiculo ? S.fuAtrasados() : 0, veh = semVeiculo ? null : S.veh();
     const inicio = MUSIC ? 'hoje' : DIR ? 'geral' : 'dashboard';
     const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${inicio}" data-go="/${inicio}" aria-label="${MUSIC ? 'Sonvi Music' : DIR ? 'SONVI · Dashboard geral' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
       <button type="button" class="recolher" data-act="menuRecolher" aria-controls="side">${S.svg('recolher')}${S.svg('expandir')}<span class="sr">Recolher menu</span></button>

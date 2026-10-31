@@ -78,7 +78,7 @@
       ${pis.length ? `<div class="pl"><div class="pl-l pl-cab"><span class="pl-n">Nº</span><span class="pl-t">Título</span><span class="pl-c">Cliente · agência</span><span class="pl-u">Consultor</span><span class="pl-p">Veiculação</span><span class="pl-i">Situação</span><span class="pl-v">Total</span><span class="pl-m"><span class="sr">Ações</span></span></div>${linhas}</div>` : vazio}
       <p class="fn-dica"><kbd>←</kbd> <kbd>→</kbd> trocam o mês · clique numa etapa da régua para filtrar · <kbd>Esc</kbd> tira o filtro</p></section>`;
     queueMicrotask(animaPis);
-    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn" data-act="piNew" title="Para casos sem proposta">PI sem proposta</button><button class="btn pri" data-act="prNova">${S.svg('mais')}Nova proposta</button>` : '',   // a venda começa pela proposta (29/10/2026)
+    return { title:`<span class="sub">${esc(S.veh().nome)}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn" data-act="piNew" title="Para casos sem proposta">PI sem proposta</button><button class="btn" data-act="piImportar" title="PI pronto que o cliente ou a agência mandou (PDF, foto ou planilha)">${S.svg('baixar')}Importar PI</button><button class="btn pri" data-act="prNova">${S.svg('mais')}Nova proposta</button>` : '',   // a venda começa pela proposta (29/10/2026)
       body:topo + (S.propostasParaPi ? S.propostasParaPi() : '') + noArCard + listaCard };
   };
   // A régua cresce com mola (do zero na entrada; depois, da fatia anterior até a nova) e o nome do mês desliza
