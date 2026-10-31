@@ -4,6 +4,9 @@
 //     permanente do veículo (tabelas_preco.permanente) e vale na hora para as propostas novas. Grava por salvar_produto_radio.
 //   Patrocínios (/produtos/patrocinios): cota = programa vendido por mês com um pacote fixo (secao patrocinio,
 //     dados = { local, incluido:[{ formato_id, qtd, faixa }], valor }). Na proposta vira os itens do pacote (propostas.js).
+//   Projetos especiais (/produtos/projetos, 31/10/2026, database/071): secao 'projeto', vendido por mês, horário rotativo,
+//     dados = { dias:[1..5], valor, online:[{qtd,titulo,sub}], dial:[{qtd,titulo,sub}], rodape }. O modelo do veículo
+//     (secao 'projeto_modelo', ativo false) é o que todo projeto novo traz. Na proposta vira um bloco (propostas.js).
 //   Digital (/produtos/digital, /produtos/canais): continua em cadastros.js, como antes.
 //   Mídia exterior (LED, DOOH, front light, empena, outdoor): secao 'ooh', tudo em produtos.dados:
 //     por inserção (LED, DOOH): { cobranca:'insercao', unidade, funcionamento, arquivo, variacoes:[{nome, valor}], pontos:[ponto] }
@@ -17,7 +20,9 @@
   const dadosDe = p => (p && p.dados && typeof p.dados === 'object' ? p.dados : {});
   const tabProd = () => (S.db.tabelas || []).find(t => S.tipoTabela(t) === 'radio' && t.permanente) || null;
   const formatos = (todos) => S.db.produtos.filter(p => p.tipo === 'formato' && p.secao !== 'digital' && (todos || p.ativo)).sort(ordem);
-  const radioProds = () => S.db.produtos.filter(p => p.tipo === 'programa' && !['digital', 'ooh'].includes(p.secao)).sort(ordem);
+  const radioProds = () => S.db.produtos.filter(p => p.tipo === 'programa' && !['digital', 'ooh', 'projeto', 'projeto_modelo'].includes(p.secao)).sort(ordem);
+  const projProds = () => S.db.produtos.filter(p => p.tipo === 'programa' && p.secao === 'projeto').sort(ordem);
+  const modeloProj = () => S.db.produtos.find(p => p.tipo === 'programa' && p.secao === 'projeto_modelo') || null;
   const oohProds = () => S.db.produtos.filter(p => p.tipo === 'programa' && p.secao === 'ooh').sort(ordem);
   const precoDe = (p, f) => { const t = tabProd(), x = t && S.precoNaTabela(t.id, p.id, f.id); return x ? Number(x.preco) : 0; };
   const ehRadio = () => S.temCategoria(S.veh(), 'radio');
@@ -69,7 +74,7 @@
   S.produtosAbas = on => {
     const r = ehRadio(), oo = catsOoh().length; if (!r) return '';
     const n1 = radioProds().filter(p => p.secao !== 'patrocinio' && (p.ativo || pode())).length, n2 = radioProds().filter(p => p.secao === 'patrocinio' && (p.ativo || pode())).length;
-    const it = [['produtos', '/produtos', 'Produtos', n1], ['patrocinios', '/produtos/patrocinios', 'Patrocínios', n2], ...(oo ? [['ooh', '/produtos/ooh', 'Mídia exterior', oohProds().length]] : []), ['digital', '/produtos/digital', 'Digital', null]];
+    const it = [['produtos', '/produtos', 'Produtos', n1], ['patrocinios', '/produtos/patrocinios', 'Patrocínios', n2], ['projetos', '/produtos/projetos', 'Projetos especiais', projProds().filter(p => p.ativo || pode()).length], ...(oo ? [['ooh', '/produtos/ooh', 'Mídia exterior', oohProds().length]] : []), ['digital', '/produtos/digital', 'Digital', null]];
     return `<nav class="seg tp-abas" aria-label="Produtos">${it.map(([k, rota, nome, q]) => `<button class="${k === on ? 'on' : ''}" data-go="${rota}"${k === on ? ' aria-current="page"' : ''}>${nome}${q !== null ? ` <small>${q}</small>` : ''}</button>`).join('')}</nav>`;
   };
 
@@ -215,6 +220,65 @@
     const fs = [...d.querySelectorAll('#pdFaixas .pdt-faixa')].map(r => ({ dias:r.querySelector('select').value, ini:r.querySelectorAll('input')[0].value.trim(), fim:r.querySelectorAll('input')[1].value.trim() }));
     d.querySelectorAll('[data-roda]').forEach(s => { const v = s.value; s.innerHTML = opRoda(fs, v === 'todas' || +v < fs.length ? v : 'todas'); }); };
   ['input', 'change'].forEach(ev => document.addEventListener(ev, e => { if (e.target.closest && e.target.closest('#pdFaixas')) atualizaRoda(); }));
+
+  // ---------- rádio: projetos especiais (31/10/2026; layout aprovado no artifact "Projetos especiais · CBN") ----------
+  // Online e Dial lado a lado, valor por mês, dias do quadro e horário rotativo. Estilos .pj-* no fim de sonvi.css.
+  const DIAS_SEM = [1, 2, 3, 4, 5, 6, 0], DIA_CURTO = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const diasDe = p => { const d = dadosDe(p).dias; return Array.isArray(d) && d.length ? d.map(Number) : [1, 2, 3, 4, 5]; };
+  const diasLetras = dias => `<span class="pj-dias" aria-label="${esc(S.diasTexto(dias))}">${DIAS_SEM.map(k => `<span class="${dias.includes(k) ? 'on' : ''}" aria-hidden="true">${S.DIA_LETRA[k]}</span>`).join('')}</span>`;
+  const entTxt = x => `${Number(x.qtd) > 0 ? `<b>${Number(x.qtd)}</b> ` : ''}${esc(x.titulo)}${x.sub ? ` <span class="muted">${esc(x.sub)}</span>` : ''}`;
+  const entLista = xs => (xs || []).length ? `<ul>${xs.map(x => `<li>${entTxt(x)}</li>`).join('')}</ul>` : '<p class="muted small">Nenhuma entrega.</p>';
+  const chaveEnt = d => JSON.stringify([(d.online || []).map(x => [x.qtd || null, x.titulo, x.sub || '']), (d.dial || []).map(x => [x.qtd || null, x.titulo, x.sub || '']), d.rodape || '']);
+  S.projetoEntregasHtml = (d, cls = '') => `<div class="pj-ent ${cls}"><div><b class="pj-lado">Online</b>${entLista(d.online)}</div><div><b class="pj-lado">Dial</b>${entLista(d.dial)}</div></div>`;
+  const vistaProjetos = () => {
+    const ps = projProds().filter(p => p.ativo || pode()), at = ps.filter(p => p.ativo), m = modeloProj(), md = dadosDe(m), vals = at.map(p => Number(dadosDe(p).valor) || 0).filter(v => v > 0);
+    const igual = p => m && chaveEnt(dadosDe(p)) === chaveEnt(md);
+    const cards = ps.map(p => { const d = dadosDe(p);
+      return `<article class="card pj${p.ativo ? '' : ' off'}" data-flip="${p.id}"><div class="pj-top"><h3>${esc(p.nome)}${p.ativo ? '' : ' <span class="pill fn-neutra">Fora das propostas</span>'}</h3>${diasLetras(diasDe(p))}
+        <div class="pj-valor"><b>${brl(d.valor)}</b><span>por mês</span></div>${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
+        ${S.projetoEntregasHtml(d)}
+        <div class="pj-pe"><span class="muted small">${p.ativo ? (m ? (igual(p) ? 'Igual ao modelo' : '<span class="pill fn-ok">Entregas próprias</span>') : 'Rotativo · por mês') : 'Não aparece nas propostas'}</span>${pode() ? `<button class="btn sm" data-act="pdEditar" data-id="${p.id}">Editar</button>` : ''}</div></article>`; }).join('');
+    const novo = pode() ? `<button type="button" class="pj pj-novo" data-act="pjNovo"><i aria-hidden="true">+</i><b>Novo projeto</b><span>${m ? 'já vem com as entregas do modelo' : 'Online e Dial, valor por mês'}</span></button>` : '';
+    const topo = `<section class="card"><div class="hd"><h2>Projetos especiais da ${esc(S.veh().nome)}</h2><span>Online + Dial, valor por mês, horário rotativo</span></div>
+      <div class="pj-resumo"><div><small>Projetos ativos</small><b>${at.length}</b></div><div><small>Menor valor</small><b>${vals.length ? brl(Math.min(...vals)) : '—'}</b></div><div><small>Maior valor</small><b>${vals.length ? brl(Math.max(...vals)) : '—'}</b></div>
+        <div><small>Entregas do modelo</small><b>${m ? `${(md.online || []).length} online · ${(md.dial || []).length} dial` : 'sem modelo'}</b></div></div></section>`;
+    const vazio = !ps.length && !pode() ? '<div class="card empty"><b>Nenhum projeto especial</b>Quando o diretor cadastrar, os projetos aparecem aqui.</div>' : '';
+    return { title:titulo('Produtos'), actions:pode() ? `<button class="btn" data-act="pjModelo">${m ? 'Editar modelo' : 'Criar modelo'}</button><button class="btn pri" data-act="pjNovo">${S.svg('mais')}Novo projeto</button>` : '',
+      body:S.produtosAbas('projetos') + topo + (vazio || `<div class="pj-grade">${cards}${novo}</div>`)
+        + '<p class="muted small pdt-nota">Na proposta o projeto entra pelo botão "Projeto especial", como um bloco fechado. No PI, o Dial vira linhas da grade nos dias do projeto (rotativo) e o Online vai nas observações.</p>' };
+  };
+  const linhaEnt = (lado, x, i) => `<div class="pdt-row pj-row" data-linha="${i}"><input name="pj_${lado}_q_${i}" data-mask="int" inputmode="numeric" value="${Number(x.qtd) > 0 ? Number(x.qtd) : ''}" placeholder="—" aria-label="Quantidade por mês (vazio = o mês todo)"${lado === 'dial' ? ' required' : ''}>
+    <span class="pj-txt"><input name="pj_${lado}_t_${i}" value="${esc(x.titulo || '')}" placeholder="${lado === 'dial' ? 'Spots de 30&quot;' : 'Full banner 730x72px'}" aria-label="Entrega" required><input name="pj_${lado}_s_${i}" value="${esc(x.sub || '')}" placeholder="${lado === 'dial' ? 'rotativo' : 'no portal'}" aria-label="Complemento"></span>
+    <button type="button" class="btn tres" data-act="pdTirarLinha" aria-label="Tirar esta entrega">×</button></div>`;
+  const lerEnt = (f, lado) => Object.keys(f).filter(k => k.startsWith(`pj_${lado}_t_`)).map(k => k.slice(`pj_${lado}_t_`.length)).sort((a, b) => a - b)
+    .map(i => ({ qtd:parseInt(f[`pj_${lado}_q_${i}`]) || null, titulo:String(f[`pj_${lado}_t_${i}`] || '').trim(), sub:String(f[`pj_${lado}_s_${i}`] || '').trim() })).filter(x => x.titulo);
+  const formProjeto = (p, ehModelo) => {
+    const m = modeloProj(), md = dadosDe(m);
+    p = p || { ativo:true, secao:'projeto', nome:'', dados:{ dias:[1, 2, 3, 4, 5], online:md.online || [{}], dial:md.dial || [{}], rodape:md.rodape || '' } };
+    const d = dadosDe(p), dias = diasDe(p);
+    S.dialog(`<div class="row mid"><h2 class="grow">${ehModelo ? 'Modelo dos projetos especiais' : p.id ? esc(p.nome) : 'Novo projeto especial'}</h2><span class="pill fn-neutra">${esc(S.veh().nome)}</span></div>
+      ${ehModelo ? '<p class="muted small">O que todo projeto novo traz. Os projetos já cadastrados não mudam sozinhos.</p>' : `<div class="g2"><label class="f">Nome do projeto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Jornal da CBN"></label>
+        <label class="f">Valor por mês (R$)<input name="valor" data-mask="dec" inputmode="decimal" required value="${d.valor ? S.nfmt(d.valor) : ''}" placeholder="0,00"></label></div>
+      <fieldset class="pj-diasf"><legend class="form-sec">Dias da semana do quadro</legend><div class="pj-chips">${DIAS_SEM.map(k => `<label class="pj-chip"><input type="checkbox" name="dia_${k}"${dias.includes(k) ? ' checked' : ''}><span>${DIA_CURTO[k]}</span></label>`).join('')}</div>
+        <small class="muted">As inserções do Dial vão para esses dias no PI, em horário rotativo.</small></fieldset>`}
+      <div class="row mid pj-leg"><span class="form-sec grow">Entregas por mês</span>${!ehModelo && m ? '<button type="button" class="btn sm so-ed" data-act="pjVoltarModelo" data-pd-add="1">Voltar para o modelo</button>' : ''}</div>
+      <div class="pj-duo"><div class="pj-col"><b class="pj-lado">Online</b><div class="pdt-rows" id="pjOnline">${(d.online || []).map((x, i) => linhaEnt('online', x, i)).join('')}</div>
+          <button type="button" class="btn sm" data-act="pjLinhaMais" data-lado="online" data-pd-add="1">${S.svg('mais')}Entrega online</button></div>
+        <div class="pj-col"><b class="pj-lado">Dial</b><div class="pdt-rows" id="pjDial">${(d.dial || []).map((x, i) => linhaEnt('dial', x, 50 + i)).join('')}</div>
+          <button type="button" class="btn sm" data-act="pjLinhaMais" data-lado="dial" data-pd-add="1">${S.svg('mais')}Entrega no dial</button></div></div>
+      <label class="f">Texto do rodapé (sai na proposta)<textarea name="rodape" rows="2" placeholder="Valor incluindo produção e veiculação do material.">${esc(d.rodape || '')}</textarea></label>
+      ${ehModelo ? '' : `<label class="chk"><input type="checkbox" name="ativo"${p.ativo ? ' checked' : ''}>Aparece nas novas propostas</label>`}
+      <p class="muted small">Quantidade vazia (—) = entrega o mês todo. No Dial, a quantidade é por mês e vira as inserções do PI.</p>
+      <div class="ed-rod">${S.rodapeEdicao(ehModelo ? 'Salvar modelo' : 'Salvar projeto', p.id ? 'Descartar' : 'Cancelar')}</div>`,
+      f => { const online = lerEnt(f, 'online'), dial = lerEnt(f, 'dial');
+        if (!ehModelo && !dial.some(x => x.qtd > 0)) return S.toast('Coloque ao menos uma entrega no Dial, com a quantidade por mês.');
+        const ds = ehModelo ? [] : DIAS_SEM.filter(k => f['dia_' + k] === 'on'); if (!ehModelo && !ds.length) return S.toast('Marque ao menos um dia da semana.');
+        const valor = ehModelo ? 0 : S.num(f.valor); if (!ehModelo && !(valor > 0)) return S.toast('Informe o valor do projeto por mês.');
+        const dados = ehModelo ? { online, dial, rodape:String(f.rodape || '').trim() } : Object.assign({}, d, { dias:ds, valor, online, dial, rodape:String(f.rodape || '').trim() });
+        S.run(async () => { await S.q(S.sb.rpc('salvar_produto_radio', { p_veiculo:S.ui.vehicleId, p_produto:{ id:p.id || null, nome:ehModelo ? 'Modelo dos projetos especiais' : f.nome.trim(), detalhe:ehModelo ? '' : S.diasTexto(ds), secao:ehModelo ? 'projeto_modelo' : 'projeto', ativo:ehModelo ? false : f.ativo === 'on', dados }, p_precos:[] })); await recarregar(); },
+          ehModelo ? 'Modelo salvo' : { titulo:'Projeto salvo', sub:`${f.nome.trim()} · ${brl(valor)} por mês` }); }, { consulta:!!p.id });
+    medio();
+  };
 
   // ---------- mídia exterior ----------
   const ehInsercao = p => (dadosDe(p).cobranca || COBRA[p.categoria]) === 'insercao';
@@ -391,6 +455,7 @@
     if (['digital', 'canais'].includes(id) || (id && (S.db.tabelas || []).some(t => t.id === id && S.tipoTabela(t) === 'digital'))) return S.views.cadastros(id);
     if (!ehRadio()) { const p = id && prod(id); return p && p.secao === 'ooh' && ehInsercao(p) ? vistaPontos(p) : vistaOoh(); }
     if (id === 'patrocinios') return vistaCotas();
+    if (id === 'projetos') return vistaProjetos();
     if (id === 'ooh' && catsOoh().length) return vistaOoh();
     const p = id && prod(id); if (p && p.secao === 'ooh' && ehInsercao(p)) return vistaPontos(p);
     return vistaRadio();
@@ -424,7 +489,15 @@
     pdMenuOoh: (d, b) => { const p = prod(d.id); if (!p) return;
       S.menu(b, [...(ehInsercao(p) ? [{ label:'Ver pontos', act:'pdAbrir', data:{ id:p.id } }] : []), { label:'Editar', icon:'editar', act:'pdEditarOoh', data:{ id:p.id } }, { label:p.ativo ? 'Tirar das novas propostas' : 'Voltar às novas propostas', act:'pdAtivo', data:{ id:p.id } }, '-', { label:'Excluir', act:'pdExcluir', data:{ id:p.id }, perigo:true }]); },
     pdAbrir: d => { location.hash = '/produtos/' + d.id; },
-    pdEditar: d => { const p = prod(d.id); if (!p) return; if (p.secao === 'patrocinio') formCota(p); else formRadio(p); },
+    pdEditar: d => { const p = prod(d.id); if (!p) return; if (p.secao === 'patrocinio') formCota(p); else if (p.secao === 'projeto') formProjeto(p); else formRadio(p); },
+    pjNovo: () => formProjeto(null),
+    pjModelo: () => formProjeto(modeloProj() || { secao:'projeto_modelo', nome:'Modelo dos projetos especiais', ativo:false, dados:{ online:[], dial:[] } }, true),
+    pjLinhaMais: d => novaLinha(d.lado === 'dial' ? 'pjDial' : 'pjOnline', linhaEnt(d.lado, {}, nLinha++)),
+    pjVoltarModelo: async () => { const m = modeloProj(); if (!m) return; const dd = document.getElementById('dlg'); if (!dd) return;
+      if (!await S.confirmar('Trocar as entregas e o rodapé deste projeto pelos do modelo?', { ok:'Voltar para o modelo' })) return;
+      const md = dadosDe(m); dd.querySelector('#pjOnline').innerHTML = (md.online || []).map((x, i) => linhaEnt('online', x, nLinha + i)).join(''); nLinha += 50;
+      dd.querySelector('#pjDial').innerHTML = (md.dial || []).map((x, i) => linhaEnt('dial', x, nLinha + i)).join(''); nLinha += 50;
+      const r = dd.querySelector('[name="rodape"]'); if (r) r.value = md.rodape || ''; dd.dataset.sujo = '1'; },
     pdAtivo: d => { const p = prod(d.id); if (p) S.run(() => S.salvar('produtos', { id:p.id, ativo:!p.ativo }), p.ativo ? 'Fora das novas propostas' : 'De volta às novas propostas'); },
     pdExcluir: async d => { const p = prod(d.id); if (!p) return;
       if (!await S.confirmar(`Excluir "${p.nome}"?\n\nPropostas e PIs já feitos continuam com o nome e o valor que tinham. Se for só para parar de vender, prefira "Tirar das novas propostas".`, { ok:'Excluir produto', perigo:true })) return;
@@ -515,5 +588,18 @@
     form.addEventListener('change', e => { if (e.target.name === 'veiculo') { form.produto.innerHTML = opsProd(form.veiculo.value); detalhe(); } else if (e.target.name === 'produto') detalhe(); S.mascarar(dl); total(); });
     form.addEventListener('input', total);
   };
+  // Para a proposta: projetos ativos e os itens de um projeto (Dial nos dias escolhidos, rotativo; o valor do mês dividido
+  // pelas inserções, como a cota). o = { dias, valor } da proposta (sem eles, os do cadastro); grupo mantém o bloco ao ajustar.
+  S.projetosAtivos = () => projProds().filter(p => p.ativo && (dadosDe(p).dial || []).some(x => Number(x.qtd) > 0));
+  S.projetoDias = diasDe;
+  S.itensDoProjeto = (p, o = {}) => { const d = dadosDe(p), dial = (d.dial || []).filter(x => Number(x.qtd) > 0), tab = Number(d.valor) || 0;
+    const valor = o.valor !== undefined ? Number(o.valor) || 0 : tab, dias = (o.dias && o.dias.length ? o.dias : diasDe(p)).slice().sort((a, b) => a - b), grupo = o.grupo || S.uid();
+    const totalQ = dial.reduce((a, x) => a + Number(x.qtd), 0), unit = totalQ ? valor / totalQ : 0, unitT = totalQ ? tab / totalQ : 0;
+    const projeto = { id:p.id, nome:p.nome.trim(), valor:r2(valor), valor_tabela:r2(tab), grupo, dias, online:(d.online || []).map(x => ({ qtd:x.qtd || null, titulo:x.titulo, sub:x.sub || '' })),
+      dial:dial.map(x => ({ qtd:Number(x.qtd), titulo:x.titulo, sub:x.sub || '' })), rodape:d.rodape || '' };
+    let resto = r2(valor);
+    return dial.map((x, k) => { const q = Number(x.qtd), total = k === dial.length - 1 ? resto : r2(q * unit); resto = r2(resto - total);
+      return { id:S.uid(), programa_id:p.id, formato_id:null, programa:x.sub ? `${p.nome.trim()} · ${x.sub}` : p.nome.trim(), formato:x.titulo, secao:'projeto', detalhe:x.sub || '',
+        dias, faixa:'', insercoes:q, preco_tabela:unitT, preco:unit, total, projeto }; }); };
   S.cotasAtivas = () => radioProds().filter(p => p.secao === 'patrocinio' && p.ativo && (dadosDe(p).incluido || []).length);
 })();

@@ -94,6 +94,14 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - **Etapa 3:** mídia kit em PDF gerado pelo SONVI (fichas dos pontos) e controle de ocupação de faces e pontos.
 
+## Projetos especiais (31/10/2026; layout aprovado no artifact "Projetos especiais · CBN"; `database/071_projetos_especiais.sql`, estilos `.pj-*` e `.prd-pe-*` no fim de `sonvi.css`)
+
+- Aba **Projetos especiais** em Produtos (rota `#/produtos/projetos`, entre Patrocínios e Mídia exterior/Digital), em todo veículo de rádio. Projeto = `produtos` tipo programa com `secao` 'projeto', vendido por mês, horário sempre rotativo: `detalhe` = dias ("Seg a Sex"), `dados = { dias:[1..5], valor, online:[{qtd,titulo,sub}], dial:[{qtd,titulo,sub}], rodape }` (qtd vazia = o mês todo). Sem preços em `precos`. Grava por `salvar_produto_radio` (diretor e gerente; o consultor só vê e usa na proposta).
+- **Modelo** do veículo: uma linha `secao` 'projeto_modelo' (ativo false, um por veículo; `salvar_produto_radio` acha o existente). "Editar modelo" muda o que os projetos novos trazem; "Voltar para o modelo" dentro do projeto copia de novo. A CBN começa com o modelo da página do mídia kit (4 online, 3 dial, rodapé). `radioProds()` não inclui projeto nem modelo; `importar.js` também os ignora.
+- Tela: resumo (ativos, menor e maior valor, entregas do modelo) e cartões com dias, valor/mês, Online e Dial lado a lado, "Igual ao modelo" / "Entregas próprias", Editar e ⋯; "Novo projeto" como último cartão. Formulário: nome, valor por mês, dias em botões, entregas Online e Dial (quantidade, entrega, complemento), rodapé, "Aparece nas novas propostas".
+- **Proposta:** botão "Projeto especial" (`prAddProjeto`; `S.projetosAtivos`, `S.itensDoProjeto(p, { dias, valor, grupo })` em produtos.js): escolhe o projeto e pode mudar os dias e o valor só nesta proposta (desconto). Vira itens normais do Dial (programa "<projeto> · <complemento>", formato = a entrega, nos dias escolhidos, sem faixa; valor do mês dividido pelas inserções, como a cota) com `projeto:{ id, nome, valor, valor_tabela, grupo, dias, online, dial, rodape }`. No editor é um bloco fechado (Ajustar · Tirar projeto, `prAjProjeto`/`prRmProjeto`); no PDF, o bloco destacado com Online e Dial lado a lado, dias e valor (`.prd-pe-*`).
+- **PI:** o Dial vira linhas da grade distribuídas nos dias do projeto (`S.distribuir`); o **Online vai nas observações do PI** ("Projeto especial <nome> · Online (por mês): …"), e não como ação digital, porque a ação digital trava "Programado" até cada entrega ter data e a OPEC marca programado pelo link.
+
 ## Acesso do consultor (decidido em 17/10/2026, `database/022_acesso_do_consultor.sql`)
 
 - Menu: Dashboard, Follow-up, Clientes, Propostas, PIs e Produtos (só consulta: sem botões de cadastro; o banco só entrega tabelas e preços publicados para quem não é diretor/gerente). Sem OPEC, Financeiro e Administração (bloqueado no banco).

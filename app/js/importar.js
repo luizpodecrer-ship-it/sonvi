@@ -85,7 +85,7 @@
   const acha = (tipo, dados) => { if (!dados) return null; const doc = digitos(dados.cnpj), n = sem(dados.nome), r = sem(dados.razao_social);
     const ps = S.pessoas(tipo);
     return (doc && ps.find(p => digitos(p.documento) === doc)) || (n && ps.find(p => sem(p.nome) === n || sem(p.razao_social) === n)) || (r && ps.find(p => sem(p.razao_social) === r || sem(p.nome) === r)) || null; };
-  const programas = () => S.db.produtos.filter(p => p.tipo === 'programa' && !['digital', 'ooh', 'patrocinio'].includes(p.secao) && p.ativo !== false);
+  const programas = () => S.db.produtos.filter(p => p.tipo === 'programa' && !['digital', 'ooh', 'patrocinio', 'projeto', 'projeto_modelo'].includes(p.secao) && p.ativo !== false);
   const formatos = () => S.db.produtos.filter(p => p.tipo === 'formato' && p.secao !== 'digital' && p.ativo !== false);
   const textoLinha = l => sem(`${l.programa || ''} ${l.duracao || ''}`);
 
