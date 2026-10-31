@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       else return resposta({ erro: 'Formato não aceito. Envie PDF, JPG, PNG ou planilha.' }, 400);
     }
     conteudo.push({ type: 'text', text: `Este é um PI (pedido de inserção) de mídia enviado por uma agência ou anunciante para uma emissora. ` +
-      `Leia o documento inteiro e registre tudo com a ferramenta registrar_pi. Regras: valores em reais como número (1.234,56 → 1234.56); ` +
+      `Leia o documento inteiro e registre tudo chamando a ferramenta registrar_pi uma única vez (obrigatório; não responda em texto). Regras: valores em reais como número (1.234,56 → 1234.56); ` +
       `datas AAAA-MM-DD; a grade de inserções vira "meses" (por mês, "dia:quantidade" só dos dias com inserção); não invente o que não está no documento ` +
       `(deixe vazio e diga em "duvidas"); confira se a soma das linhas bate com o total do documento e, se não bater, diga em "duvidas". ` +
       `Para cada linha, sugira o produto e a duração do catálogo abaixo que correspondem (pelo nome, horário e duração), só se tiver segurança.\n\n${catalogo}` });
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
         model: Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-5-5',
         max_tokens: 16000,
         tools: [{ name: 'registrar_pi', description: 'Registra os dados lidos do PI.', input_schema: ESQUEMA }],
-        tool_choice: { type: 'tool', name: 'registrar_pi' },
+        tool_choice: { type: 'auto' },   // este modelo não aceita "tool"/"any" forçados; a instrução pede a ferramenta
         messages: [{ role: 'user', content: conteudo }],
       }),
     });
@@ -113,12 +113,19 @@ Deno.serve(async (req) => {
       let erro = `A leitura falhou: ${msg}`;
       if (/credit balance/i.test(msg)) erro = 'A conta da Anthropic está sem créditos. Coloque créditos em console.anthropic.com › Billing e tente de novo.';
       else if (r.status === 401 || /api.key|x-api-key/i.test(msg)) erro = 'A chave da Anthropic no Supabase não foi aceita. Confira o segredo ANTHROPIC_API_KEY.';
-      else if (r.status === 404 || /model/i.test(msg)) erro = `O modelo de IA não foi encontrado (${msg}).`;
+      else if (r.status === 404 || /not_found|model:/i.test(msg)) erro = `O modelo de IA não foi encontrado (${msg}).`;
       return resposta({ erro }, 502);
     }
     const uso = (j.content || []).find((c: any) => c.type === 'tool_use');
-    if (!uso) return resposta({ erro: 'Não foi possível ler este documento. Confira se é um PI e tente de novo.' }, 422);
-    return resposta({ ok: true, leitura: uso.input, uso: j.usage });
+    let leitura = uso?.input;
+    if (!leitura) {   // reserva: a IA respondeu em texto; aproveita o JSON se houver
+      const txt = (j.content || []).filter((c: any) => c.type === 'text').map((c: any) => c.text).join('\n');
+      const a = txt.indexOf('{'), z = txt.lastIndexOf('}');
+      if (a >= 0 && z > a) { try { leitura = JSON.parse(txt.slice(a, z + 1)); } catch (_) { /* não era JSON */ } }
+      if (!leitura) console.error('Sem tool_use', j.stop_reason, txt.slice(0, 500));
+    }
+    if (!leitura || !Array.isArray(leitura.linhas)) return resposta({ erro: 'Não foi possível ler este documento. Confira se é um PI e tente de novo.' }, 422);
+    return resposta({ ok: true, leitura, uso: j.usage });
   } catch (e) {
     console.error(e);
     return resposta({ erro: (e as Error).message ?? String(e) }, 500);
