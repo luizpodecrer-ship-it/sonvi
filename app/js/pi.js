@@ -403,7 +403,13 @@
       <div class="card"><div class="hd"><h2>Observações internas da rádio</h2><span>não saem no PI exportado</span></div><textarea data-f="dados.billing.obsVehicle" placeholder="Anotações só para a equipe da rádio"${ro}>${esc(b.obsVehicle)}</textarea></div>`;
   }
 
-  const tabHistory = pi => `<div class="card"><h2>Histórico do pedido</h2><ul class="hist">${(() => { const x = leituraDe(pi); return x && pi.status === 'opec' ? `<li><span class="muted">${dfmt(S.dia(x.aberto_em))} ${S.hora(x.aberto_em)}</span><span class="pill" style="--tone:var(--green)">Recebido pela OPEC</span><span>${esc(x.por)}${x.aberturas > 1 ? ` · aberto ${x.aberturas} vezes` : ''}</span></li>` : ''; })()}${(S.db.hist[pi.id] || []).map(h => `<li><span class="muted">${dfmt(S.dia(h.em))} ${S.hora(h.em)}</span>${S.pill(h.status)}<span>${esc(S.usuario(h.usuario_id))}${h.nota ? ' · ' + esc(h.nota) : ''}</span></li>`).join('') || '<li class="muted">Carregando…</li>'}</ul></div>`;
+  // Histórico (do mais novo para o mais antigo) com a linha "Recebido pela OPEC" no lugar dela; continua depois de aprovado
+  const tabHistory = pi => { const x = !S.EDITABLE.includes(pi.status) ? leituraDe(pi) : null, hs = S.db.hist[pi.id] || [];
+    const lin = h => `<li><span class="muted">${dfmt(S.dia(h.em))} ${S.hora(h.em)}</span>${S.pill(h.status)}<span>${esc(S.usuario(h.usuario_id))}${h.nota ? ' · ' + esc(h.nota) : ''}</span></li>`;
+    const rec = x ? `<li><span class="muted">${dfmt(S.dia(x.aberto_em))} ${S.hora(x.aberto_em)}</span><span class="pill" style="--tone:var(--green)">Recebido pela OPEC</span><span>${esc(x.por)}${x.aberturas > 1 ? ` · aberto ${x.aberturas} vezes` : ''}</span></li>` : '';
+    let pos = rec ? hs.findIndex(h => new Date(h.em) <= new Date(x.aberto_em)) : -1; if (rec && pos < 0) pos = hs.length;
+    const itens = hs.map(lin); if (rec) itens.splice(pos, 0, rec);
+    return `<div class="card"><h2>Histórico do pedido</h2><ul class="hist">${itens.join('') || '<li class="muted">Carregando…</li>'}</ul></div>`; };
 
   // ---------- aba Mídias: arquivos do PI (áudios, textos, autorizações) ----------
   const BUCKET = 'midias';
