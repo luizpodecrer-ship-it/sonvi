@@ -222,7 +222,7 @@
       if (!(v.pis || v.propostas)) return simples();
       return S.excluirDigitando({ titulo:`Excluir ${esc(p.nome)}?`,
         itens:[v.pis && `${v.pis} PI${v.pis === 1 ? '' : 's'} passa${v.pis === 1 ? '' : 'm'} a ser venda direta (sem agência)`, v.propostas && `${v.propostas} proposta${v.propostas === 1 ? '' : 's'} também`, v.clientes && `${v.clientes} cliente${v.clientes === 1 ? '' : 's'} fica${v.clientes === 1 ? '' : 'm'} sem agência`].filter(Boolean),
-        aviso:'A comissão e a instrução de faturamento desses PIs deixam de considerar a agência. Não dá para desfazer.',
+        aviso:'A comissão e a instrução de faturamento desses PIs deixam de considerar a agência. Fica 30 dias na Lixeira, onde o diretor pode restaurar.',
         rotulo:'Para confirmar, digite o nome da agência', dica:p.nome, confere:t => t.trim().toLowerCase() === String(p.nome).trim().toLowerCase(), botao:'Excluir agência',
         onOk:f => S.run(async () => { await S.q(S.sb.rpc('excluir_agencia_completa', { p_pessoa:p.id, p_nome:f.ex_conf })); await S.carregarVeiculo(); }, 'Agência excluída') });
     }
@@ -241,7 +241,7 @@
     S.dialog(`<h2>Excluir ${esc(p.nome)} com tudo?</h2>
       <p>Vai junto, em ${esc(S.veh().nome)}:</p>
       <ul class="lista-ex">${itens.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
-      <p class="note aviso" style="margin:0">Isso some do SONVI de vez: dashboards, relatórios, comissões e o caminho dos PIs nas OPECs mudam. Não dá para desfazer. Os cadastros deste cliente em outros veículos continuam.</p>
+      <p class="note aviso" style="margin:0">Isso some do SONVI de vez: dashboards, relatórios, comissões e o caminho dos PIs nas OPECs mudam. Fica 30 dias na Lixeira, onde o diretor pode restaurar. Os cadastros deste cliente em outros veículos continuam.</p>
       <label class="f">Para confirmar, digite o nome do cliente<input name="ex_conf" autocomplete="off" required placeholder="${esc(p.nome)}"></label>
       <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Voltar</button><button class="btn danger" value="ok">Excluir com tudo</button></div>`,
       f => S.run(async () => {

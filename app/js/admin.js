@@ -213,14 +213,34 @@
     const doc = box.querySelector('.prdoc'), k = Math.min(1, (box.parentElement.clientWidth - 28) / doc.offsetWidth); box.style.transform = `scale(${k})`; box.style.width = doc.offsetWidth * k + 'px'; box.style.height = doc.offsetHeight * k + 'px'; };
 
   S.admAbrir = k => { aba = k; celLista = false; if (k === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); if (S.route().view !== 'admin') S.go('/admin'); else S.render(); };
+  // Lixeira (31/10/2026, database/063): o que foi excluído fica 30 dias guardado; o diretor restaura o lote inteiro
+  let lix = null, lixBusca = false;
+  const carregarLix = () => { lixBusca = true; S.q(S.sb.rpc('lixeira_lista')).then(l => { lix = l || []; if (S.route().view === 'admin') S.render(); })
+    .catch(e => { console.error(e); lix = []; }).finally(() => { lixBusca = false; }); };
+  const NOMES_LIX = { pis:['PI', 'PIs'], propostas:['proposta', 'propostas'], pessoas:['cadastro', 'cadastros'], lancamentos:['parcela', 'parcelas'], pi_historico:['registro de histórico', 'registros de histórico'],
+    pi_links:['link de mídia', 'links de mídia'], agenda:['follow-up', 'follow-ups'], fat_pedidos:['pedido de faturamento', 'pedidos de faturamento'], produtos:['produto', 'produtos'], precos:['preço', 'preços'],
+    combos:['combo', 'combos'], colaboradores:['colaborador', 'colaboradores'], veiculos:['veículo', 'veículos'], tabelas_preco:['tabela', 'tabelas'], repasses:['repasse', 'repasses'] };
+  const resumoLix = r => Object.entries(r || {}).filter(([t]) => NOMES_LIX[t]).map(([t, n]) => `${n} ${NOMES_LIX[t][n === 1 ? 0 : 1]}`).join(' · ');
+  const telaLixeira = () => {
+    if (!lix) return '<div class="card"><p class="muted">Buscando a Lixeira…</p></div>';
+    const dias = d => Math.max(0, Math.ceil((new Date(d) - Date.now()) / 864e5));
+    const linhas = lix.map(l => `<tr><td class="nw">${S.dfmt(S.dia(l.excluido_em))} ${S.hora(l.excluido_em)}</td><td><b class="clamp2">${esc(l.descricao)}</b><small class="muted">${esc(resumoLix(l.resumo))}</small></td><td class="nw">${esc(l.quem) || '—'}</td><td class="nw">${dias(l.apaga_em) === 0 ? 'hoje' : `em ${dias(l.apaga_em)} dia${dias(l.apaga_em) === 1 ? '' : 's'}`}</td>
+      <td class="r"><button class="btn sm" data-act="lixRestaurar" data-id="${l.lote}">${S.svg('voltar')}Restaurar</button></td></tr>`).join('');
+    const cartoes = lix.map(l => `<div><span class="tx"><b>${esc(l.descricao)}</b><small>${S.dfmt(S.dia(l.excluido_em))} ${S.hora(l.excluido_em)} · ${esc(l.quem) || '—'} · apaga ${dias(l.apaga_em) === 0 ? 'hoje' : `em ${dias(l.apaga_em)} dias`}</small><small>${esc(resumoLix(l.resumo))}</small></span><button class="btn sm" data-act="lixRestaurar" data-id="${l.lote}">Restaurar</button></div>`).join('');
+    return `<section class="card"><div class="hd"><h2>Lixeira</h2><span>${lix.length ? `${lix.length} ${lix.length === 1 ? 'item excluído' : 'itens excluídos'}` : 'vazia'}</span></div>
+      <p class="muted small" style="margin:-4px 0 14px">O que é excluído no SONVI fica guardado aqui por 30 dias, com tudo o que foi junto. Restaurar traz de volta como estava. Depois de 30 dias é apagado de vez. Arquivos de mídia enviados no PI não voltam; os links voltam.</p>
+      ${!lix.length ? '<p class="muted">Nada foi excluído nos últimos 30 dias.</p>' : S.celular ? `<div class="list">${cartoes}</div>`
+        : `<div class="scroll"><table><thead><tr><th>Excluído em</th><th>O que foi excluído</th><th>Quem excluiu</th><th>Apaga de vez</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div>`}</section>`;
+  };
+
   S.views.admin = () => {
     if (ehGer()) aba = 'usuarios';
     // Menu vertical de seções (aprovado em 29/10/2026, quadro "SONVI · Agências, controle e metas", telas 7 e 8): grupos Grupo,
     // Pessoas e Cadastros, cada item com ícone, nome, uma linha de apoio e a quantidade. No celular, a lista é a primeira tela.
     const SECOES = [['Grupo', [['empresa', 'Empresa comercial', 'Dados e modelo da proposta', 'empresa', null], ['veiculos', 'Veículos', 'Quem fatura, OPEC e financeiro', 'veiculos', S.db.veiculos.length]]],
       ['Pessoas', [['colaboradores', 'Colaboradores', 'Equipe, metas e comissão', 'clientes', S.db.colaboradores ? S.db.colaboradores.filter(c => c.ativo).length : null], ['usuarios', 'Usuários e acessos', 'Quem entra e o que vê', 'chave', S.db.usuarios.length]]],
-      ['Cadastros', [['agencias', 'Agências', 'Vale em todos os veículos', 'agencias', S.agenciasN ? S.agenciasN() : null]]]];
-    if (!ehGer()) { if (!S.db.colaboradores) carregarColab(); if (S.agenciasN && S.agenciasN() === null) S.agenciasTela(); }   // contadores do menu
+      ['Cadastros', [['agencias', 'Agências', 'Vale em todos os veículos', 'agencias', S.agenciasN ? S.agenciasN() : null], ['lixeira', 'Lixeira', 'Excluídos nos últimos 30 dias', 'lixo', lix ? lix.length : null]]]];
+    if (!ehGer()) { if (!lix && !lixBusca) carregarLix(); if (!S.db.colaboradores) carregarColab(); if (S.agenciasN && S.agenciasN() === null) S.agenciasTela(); }   // contadores do menu
     const naCel = !ehGer() && S.celular && celLista;
     const menuAd = ehGer() ? '' : `<nav class="ad-menu menu-desliza" data-menu="admin" aria-label="Seções da administração">${SECOES.map(([g, its]) => `<span class="ad-menu-g">${g}</span>${its.map(([k, n, sub, ic, q]) =>
       `<a href="#/admin" data-cor="${k}" class="ad-menu-i${aba === k && !naCel ? ' on' : ''}" data-act="admAba" data-tab="${k}"${aba === k && !naCel ? ' aria-current="page"' : ''}><span class="ad-menu-ic" aria-hidden="true">${S.svg(ic)}</span><span class="ad-menu-tx"><b>${n}</b><small>${sub}</small></span>${q !== null && q !== undefined ? `<span class="ad-menu-n">${q}</span>` : ''}${S.celular ? `<span class="ad-menu-seta" aria-hidden="true">${S.svg('seta', 16)}</span>` : ''}</a>`).join('')}`).join('')}</nav>`;
@@ -279,6 +299,8 @@
           <div class="list">${S.db.veiculos.map(v => `<div>${S.vav(v)}<span class="tx"><b>${esc(v.nome)}</b><small>Faixa ${esc(v.prop_faixa || '07h às 19h')} · PI com a marca ${marcaDe(v)} · validade ${v.prop_validade || 15} dias</small></span><button class="btn sm" data-act="admPropostas" data-id="${v.id}" aria-label="Editar propostas e PI da ${esc(v.nome)}">${S.svg('editar')}Editar</button></div>`).join('')}</div></section>`;
     } else if (aba === 'colaboradores') {
       body = telaColaboradores();
+    } else if (aba === 'lixeira') {
+      body = telaLixeira();
     } else if (aba === 'agencias') {
       // Agências do grupo (29/10/2026): cadastro único, vale em todos os veículos (agencias.js)
       body = S.agenciasTela().body;
@@ -300,7 +322,7 @@
     // Os acessos da equipe SONVI saíram daqui em 25/10/2026: ficam no Dashboard geral › Suporte (chamados.js)
     if (ehGer()) return { title:`<span class="sub">${esc(minhas().map(v => v.nome).join(' · '))}</span>Usuários`, actions:`<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`,
       body:`<p class="muted small" style="margin:0 0 14px">Você cadastra e edita consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente. Gerentes e diretores ficam com o diretor.</p>${body}` };
-    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'agencias' ? `<button class="btn pri" data-act="agNova">${S.svg('mais')}Nova agência</button>` : aba === 'empresa' ? `<button class="btn pri" data-act="admEmpresa">${S.svg('editar')}Editar dados</button>` : aba === 'colaboradores' ? `<button class="btn pri" data-act="colNovo">${S.svg('mais')}Novo colaborador</button>` : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:S.celular ? `<a href="#/admin" class="ad-voltar" data-act="admVoltar">${S.svg('esq', 16)}Administração</a>${body}` : `<div class="ad-lay">${menuAd}<div class="ad-corpo">${body}</div></div>` };
+    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'lixeira' ? '' : aba === 'agencias' ? `<button class="btn pri" data-act="agNova">${S.svg('mais')}Nova agência</button>` : aba === 'empresa' ? `<button class="btn pri" data-act="admEmpresa">${S.svg('editar')}Editar dados</button>` : aba === 'colaboradores' ? `<button class="btn pri" data-act="colNovo">${S.svg('mais')}Novo colaborador</button>` : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:S.celular ? `<a href="#/admin" class="ad-voltar" data-act="admVoltar">${S.svg('esq', 16)}Administração</a>${body}` : `<div class="ad-lay">${menuAd}<div class="ad-corpo">${body}</div></div>` };
   };
 
   // Categoria do veículo no formulário: Frequência e Rede afiliada só aparecem para rádio
@@ -324,7 +346,11 @@
       ...(() => { const v = S.veh(d.id) || {}, f = k => !String(v[k] || '').trim(); return f('logo') || f('cnpj') || f('razao_social') || f('opec_email') || f('dados_bancarios') || f('endereco') || f('telefone') ? [{ label:'Completar cadastro', icon:'check', act:'admVeiculo', data:{ id:d.id, editar:'1' } }] : []; })(),
       { label:'Propostas e PI', icon:'propostas', act:'admPropostas', data:{ id:d.id } }, { label:'Textos do PI', icon:'pis', act:'admTextosPI', data:{ id:d.id } }]),
     admVoltar: () => { celLista = true; S.render(); },
-    admAba: d => { aba = d.tab; celLista = false; if (aba === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); S.render(); },
+    lixRestaurar: async d => { const l = (lix || []).find(x => String(x.lote) === String(d.id)); if (!l) return;
+      if (!await S.confirmar(`Restaurar "${l.descricao}"?\n\nVolta tudo o que foi excluído junto (${resumoLix(l.resumo) || 'o item'}), como estava.`, { ok:'Restaurar' })) return;
+      await S.run(async () => { await S.q(S.sb.rpc('lixeira_restaurar', { p_lote:Number(l.lote) })); lix = lix.filter(x => x !== l); await S.recarregar(); if (S.agenciasRecarregar) S.agenciasRecarregar(); }, { titulo:'Restaurado', sub:l.descricao });
+      carregarLix(); },
+    admAba: d => { aba = d.tab; celLista = false; if (aba === 'lixeira') carregarLix(); if (aba === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); S.render(); },
     admVeiculo: d => { const v = d.id ? S.veh(d.id) : {};
       S.form(v.id ? esc(v.nome) : 'Novo veículo', [
         { html:campoCategoria(v, !!v.id && !d.editar) },

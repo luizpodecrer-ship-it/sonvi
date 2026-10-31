@@ -294,7 +294,7 @@ S.confirmar = (texto, { ok = 'Confirmar', voltar = 'Voltar', perigo = false } = 
 S.excluirDigitando = ({ titulo, itens = [], aviso, rotulo, dica, confere, botao = 'Excluir com tudo', extra = '', onOk }) => {
   S.dialog(`<h2>${titulo}</h2>
     ${itens.length ? `<p>Vai junto:</p><ul class="lista-ex">${itens.map(t => `<li>${S.esc(t)}</li>`).join('')}</ul>` : ''}
-    <p class="note aviso" style="margin:0">${aviso || 'Isso some do SONVI de vez e não dá para desfazer.'}</p>${extra}
+    <p class="note aviso" style="margin:0">${aviso || 'Isso some do SONVI agora. Fica 30 dias na Lixeira (Administração › Lixeira), onde o diretor pode restaurar; depois é apagado de vez.'}</p>${extra}
     <label class="f">${rotulo}<input name="ex_conf" autocomplete="off" required placeholder="${S.esc(dica || '')}"></label>
     <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Voltar</button><button class="btn danger" value="ok">${botao}</button></div>`, onOk);
   const campo = document.querySelector('#dlg [name="ex_conf"]'), v = () => campo.setCustomValidity(confere(campo.value) ? '' : `Digite ${rotulo.replace(/^Para confirmar, digite /, '')}${dica ? ': ' + dica : ''}`);

@@ -500,7 +500,7 @@
       S.run(() => S.excluir('lancamentos', l.id), 'Lançamento excluído'); },
     // Diretor: exclui qualquer lançamento, pago ou de PI (database/050)
     finExcluirTudo: async d => { const l = S.db.lancamentos.find(x => x.id === d.id); const pi = l.pi_id && S.db.pis.find(p => p.id === l.pi_id);
-      if (!await S.confirmar(`Excluir o lançamento "${l.descricao}" de ${brl(l.valor)}?\n\n${l.pago_em ? `Ele já foi ${l.sentido === 'receber' ? 'recebido' : 'pago'} em ${S.dfmt(l.pago_em)}: o valor sai do caixa e dos relatórios. ` : ''}${pi ? `É uma parcela do ${S.piNo(pi)}; o PI continua. ` : ''}Não dá para desfazer.`, { ok:'Excluir lançamento', perigo:true })) return;
+      if (!await S.confirmar(`Excluir o lançamento "${l.descricao}" de ${brl(l.valor)}?\n\n${l.pago_em ? `Ele já foi ${l.sentido === 'receber' ? 'recebido' : 'pago'} em ${S.dfmt(l.pago_em)}: o valor sai do caixa e dos relatórios. ` : ''}${pi ? `É uma parcela do ${S.piNo(pi)}; o PI continua. ` : ''}Fica 30 dias na Lixeira, onde o diretor pode restaurar.`, { ok:'Excluir lançamento', perigo:true })) return;
       S.run(async () => { await S.q(S.sb.rpc('excluir_lancamento_diretor', { p_lancamento:l.id })); S.db.lancamentos = S.db.lancamentos.filter(x => x.id !== l.id); }, 'Lançamento excluído'); },
     finRelatorios: () => { modo = 'relatorios'; S.render(); window.scrollTo(0, 0); },
     finVoltar: () => { modo = 'lista'; S.render(); },

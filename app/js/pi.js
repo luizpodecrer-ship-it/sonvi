@@ -597,7 +597,7 @@
       S.run(async () => { const novo = S.piNorm(await criar({ titulo:pi.titulo + ' (cópia)', cliente_id:pi.cliente_id, agencia_id:pi.agencia_id, projeto:pi.projeto }, JSON.parse(JSON.stringify(pi.dados)))); S.db.pis.push(novo); S.piEntrar(novo); S.ui.tab = 'detalhes'; location.hash = '/pi/' + novo.id; }, 'PI duplicado'); },
     piCancelarPI: async d => { const pi = S.db.pis.find(p => p.id === d.id); if (await S.confirmar(`Cancelar o ${S.piNo(pi)}? Ele sai da OPEC e do faturamento.`, { ok:'Cancelar o PI', voltar:'Manter', perigo:true })) S.setStatus(pi, 'cancelado'); },
     piExcluir: async d => { const pi = S.db.pis.find(p => p.id === d.id);
-      if (!await S.confirmar(`Excluir o ${S.piNo(pi)} (${pi.titulo || 'sem título'})? Não dá para desfazer.`, { ok:'Excluir PI', perigo:true })) return;
+      if (!await S.confirmar(`Excluir o ${S.piNo(pi)} (${pi.titulo || 'sem título'})? Fica 30 dias na Lixeira, onde o diretor pode restaurar.`, { ok:'Excluir PI', perigo:true })) return;
       S.run(async () => { if (ed.id === pi.id) sairEdicao(); await S.excluir('pis', pi.id);
         try { const { data } = await S.sb.storage.from(BUCKET).list(pasta(pi)); if (data && data.length) await S.sb.storage.from(BUCKET).remove(data.map(f => `${pasta(pi)}/${f.name}`)); } catch (e) { console.error(e); } /* apaga também as mídias do PI */
         if (S.route().view === 'pi') location.hash = '/pis'; }, 'PI excluído'); },
@@ -607,7 +607,7 @@
       const itens = [v.parcelas && `${v.parcelas} ${v.parcelas === 1 ? 'parcela' : 'parcelas'} no financeiro${v.pagas ? `, ${v.pagas} já ${v.pagas === 1 ? 'paga' : 'pagas'} (${brl(v.valor_pago)})` : ''}`,
         'o histórico, os links e os arquivos de mídia do PI', v.proposta && `a ligação com a proposta ${v.proposta} (a proposta continua)`].filter(Boolean);
       S.excluirDigitando({ titulo:`Excluir o ${S.piNo(pi)}?`, itens,
-        aviso:`${pi.status === 'rascunho' ? '' : `Ele está "${(S.STATUS[pi.status] || {}).label || pi.status}". `}Some da OPEC, do financeiro, dos dashboards e das comissões. Não dá para desfazer.`,
+        aviso:`${pi.status === 'rascunho' ? '' : `Ele está "${(S.STATUS[pi.status] || {}).label || pi.status}". `}Some da OPEC, do financeiro, dos dashboards e das comissões. Fica 30 dias na Lixeira, onde o diretor pode restaurar.`,
         rotulo:'Para confirmar, digite o número do PI', dica:S.piNo(pi), confere:t => (t.replace(/\D/g, '').replace(/^0+/, '') || 'x') === String(pi.numero), botao:'Excluir PI',
         onOk:f => S.run(async () => { if (ed.id === pi.id) sairEdicao();
           await S.q(S.sb.rpc('excluir_pi_completo', { p_pi:pi.id, p_conf:f.ex_conf }));

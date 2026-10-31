@@ -572,7 +572,7 @@
       if (!await S.confirmar(`Voltar a proposta ${S.propNo(p)} para rascunho?\n\nEla volta a poder ser editada. Depois é só enviar de novo: o cliente usa o mesmo link.`, { ok:'Voltar para rascunho' })) return;
       situacao(p, 'rascunho', '', 'Proposta em rascunho'); },
     prExcluir: async d => { const p = daLista(d);
-      if (!await S.confirmar(`Excluir a proposta ${S.propNo(p)} (${S.nome(p.cliente_id)})? Não dá para desfazer.`, { ok:'Excluir proposta', perigo:true })) return;
+      if (!await S.confirmar(`Excluir a proposta ${S.propNo(p)} (${S.nome(p.cliente_id)})? Fica 30 dias na Lixeira, onde o diretor pode restaurar.`, { ok:'Excluir proposta', perigo:true })) return;
       S.run(async () => { if (ed.id === p.id) fechar(); await S.excluir('propostas', p.id); if (S.route().view === 'propostas' && S.route().id) location.hash = '/propostas'; }, 'Proposta excluída'); },
     // Diretor: exclui a proposta em qualquer situação e, se marcar, os PIs gerados por ela (database/050)
     prExcluirTudo: async d => { const p = daLista(d); let v;
@@ -580,7 +580,7 @@
       const pis = v.pis || [], pagas = pis.reduce((t, x) => t + (x.pagas || 0), 0);
       const extra = pis.length ? `<label class="row mid" style="gap:10px;flex-wrap:nowrap;margin:2px 0"><input type="checkbox" name="com_pis">Excluir também ${pis.length === 1 ? 'o PI gerado' : `os ${pis.length} PIs gerados`} (${pis.map(x => esc(x.numero)).join(', ')}), com as parcelas do financeiro${pagas ? `, ${pagas} já ${pagas === 1 ? 'paga' : 'pagas'}` : ''}</label>` : '';
       S.excluirDigitando({ titulo:`Excluir a proposta ${S.propNo(p)}?`, itens:[v.followups && `${v.followups} follow-up${v.followups === 1 ? '' : 's'} ligado${v.followups === 1 ? '' : 's'} a ela (os automáticos são apagados; os outros ficam sem a proposta)`].filter(Boolean),
-        aviso:`${S.nome(p.cliente_id)} · ${p.situacao === 'rascunho' ? 'rascunho' : p.situacao}. ${pis.length ? 'Sem marcar a opção abaixo, os PIs continuam, só sem a proposta.' : ''} Não dá para desfazer.`, extra,
+        aviso:`${S.nome(p.cliente_id)} · ${p.situacao === 'rascunho' ? 'rascunho' : p.situacao}. ${pis.length ? 'Sem marcar a opção abaixo, os PIs continuam, só sem a proposta.' : ''} Fica 30 dias na Lixeira, onde o diretor pode restaurar.`, extra,
         rotulo:'Para confirmar, digite o número da proposta', dica:S.propNo(p), confere:t => { const x = t.replace(/\s/g, '').split('/'), n = v => (v || '').replace(/^0+/, ''); return x.length === 2 ? x[0] === String(p.ano) && n(x[1]) === String(p.numero) : x.length === 1 && n(x[0]) === String(p.numero); }, botao:'Excluir proposta',
         onOk:f => S.run(async () => { if (ed.id === p.id) fechar();
           const r = await S.q(S.sb.rpc('excluir_proposta_completa', { p_proposta:p.id, p_conf:f.ex_conf, p_com_pis:!!f.com_pis }));

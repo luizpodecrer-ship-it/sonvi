@@ -3278,10 +3278,10 @@ dialog.em-dlg [hidden] { display:none !important; }
 /* Menu de Administração com o efeito do menu do Dashboard geral (29/10/2026, S.menuDesliza em core.js): realce que desliza com mola,
    ícone cresce e ganha a cor do item; no item aberto o realce fica em --accent-soft. Só no computador. */
 .ad-menu [data-cor="empresa"] { --c:#0055FF; } .ad-menu [data-cor="veiculos"] { --c:#4F46E5; } .ad-menu [data-cor="colaboradores"] { --c:#7C3AED; }
-.ad-menu [data-cor="usuarios"] { --c:#0D8F82; } .ad-menu [data-cor="agencias"] { --c:#D9367A; }
+.ad-menu [data-cor="usuarios"] { --c:#0D8F82; } .ad-menu [data-cor="agencias"] { --c:#D9367A; } .ad-menu [data-cor="lixeira"] { --c:#C2410C; }
 @media (prefers-color-scheme: dark) {
   .ad-menu [data-cor="empresa"] { --c:#4C9DFF; } .ad-menu [data-cor="veiculos"] { --c:#8B9BFF; } .ad-menu [data-cor="colaboradores"] { --c:#B69CFF; }
-  .ad-menu [data-cor="usuarios"] { --c:#3DDC97; } .ad-menu [data-cor="agencias"] { --c:#F47BB0; }
+  .ad-menu [data-cor="usuarios"] { --c:#3DDC97; } .ad-menu [data-cor="agencias"] { --c:#F47BB0; } .ad-menu [data-cor="lixeira"] { --c:#FB923C; }
 }
 @media (min-width:821px) {
   nav.menu-desliza { position:sticky; }
