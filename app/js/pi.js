@@ -60,7 +60,7 @@
         : `<p class="muted">Nenhum PI veiculando em ${mesN}.</p>`}</section>`;
     // Lista do mês
     const pis = base.filter(p => !q || [p.titulo, S.nome(p.cliente_id), S.nome(p.agencia_id), S.usuario(p.consultor_id), p.projeto, S.piNo(p)].join(' ').toLowerCase().includes(q)).sort((a, b) => b.numero - a.numero);
-    carregaLeituras(); vigiarLeituras(pis);
+    carregaLeituras(); vigiarLeituras(pis); vigiarStatus(pis);
     const linhas = pis.map(p => { const c = S.calc(p), cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id), cons = S.usuario(p.consultor_id), tit = p.titulo || 'Sem título', v = veiculacao(p);
       return `<div class="pl-l click" data-go="/pi/${p.id}" data-flip="${p.id}" role="link" tabindex="0">
         <span class="pl-n">${S.piNo(p)}</span>
@@ -187,7 +187,7 @@
     const notas = `${devol && devol.nota ? `<div class="note"><b>Devolvido pela OPEC:</b> ${esc(devol.nota)}</div>` : ''}
       ${!editavel(pi) && S.EDITABLE.includes(pi.status) ? '<div class="note info">Este PI é de outro consultor ou o seu perfil só pode consultar.</div>' : ''}
       ${!S.EDITABLE.includes(pi.status) && pi.status !== 'cancelado' ? '<div class="note info">Este PI já saiu do rascunho: está somente para consulta.</div>' : ''}`;
-    carregaLeituras(); marcarAbertoOpec(pi); vigiarLeituras([pi]);
+    carregaLeituras(); marcarAbertoOpec(pi); vigiarLeituras([pi]); vigiarStatus([pi]);
     const nMid = nMidias(pi);
     const abas = `<nav class="abas" aria-label="Abas do PI">${[['detalhes', 'Detalhes'], ['faturamento', 'Faturamento'], ['midias', `Mídias${nMid ? ` <span class="cont">${nMid}</span>` : ''}`], ['historico', 'Histórico']].map(([t, n]) => `<button class="${S.ui.tab === t ? 'on' : ''}" data-act="piTab" data-tab="${t}">${n}</button>`).join('')}</nav>`;
     const body = S.ui.tab === 'faturamento' ? tabBilling(pi, c, em ? '' : ' disabled') : S.ui.tab === 'historico' ? tabHistory(pi) : S.ui.tab === 'midias' ? tabMidias(pi, em) : tabDetails(pi, c, em);
@@ -195,7 +195,7 @@
     const acoes = em
       ? `<span class="sujo" ${ed.sujo ? '' : 'hidden'}><i></i>Alterações não salvas</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piCancelar">Cancelar</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn pri" data-act="piSalvar">${S.svg('check')}Salvar</button>`
       : `<span class="muted small salvo">${salvoEm(pi)}</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn" data-act="piExport">${S.svg('baixar')}Exportar PI</button>${editavel(pi) ? `<button class="btn" data-act="piEditar">${S.svg('editar')}Editar</button>` : ''}${flow(pi)}`;
-    return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}${recebidoPill(pi)}${S.pagPi(pi)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
+    return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}${recebidoPill(pi)}${origPill(pi)}${S.pagPi(pi)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
       actions:acoes, body:abas + notas + body };
   };
 
@@ -218,6 +218,15 @@
   let releTimer = 0;
   const vigiarLeituras = lista => { if (releTimer || !lista.some(p => p.status === 'opec' && !leituraDe(p))) return;
     releTimer = setTimeout(() => { releTimer = 0; if (['pi', 'pis'].includes(S.route().view) && !document.hidden) { leitVeic = null; carregaLeituras(); } }, 20000); };
+  // A OPEC marca "programado" ou devolve pelo link do e-mail (database/067): enquanto houver PI com a OPEC na tela, confere a situação a cada 30 s
+  let statusTimer = 0;
+  const vigiarStatus = lista => { const ids = lista.filter(p => ['opec', 'aprovado'].includes(p.status)).map(p => p.id); if (statusTimer || !ids.length || !S.sb) return;
+    statusTimer = setTimeout(async () => { statusTimer = 0; if (!['pi', 'pis'].includes(S.route().view) || document.hidden) return;
+      try { const r = await S.q(S.sb.from('pis').select('id, status, atualizado_em').in('id', ids)); let mudou = false;
+        (r || []).forEach(x => { const p = (S.db.pis || []).find(y => y.id === x.id); if (p && p.status !== x.status) { p.status = x.status; p.atualizado_em = x.atualizado_em; delete S.db.hist[p.id]; mudou = true; } });
+        if (mudou && !ed.sujo) S.render(); else vigiarStatus(lista);
+      } catch (e) { console.error(e); } }, 30000); };
+  S.vigiarStatusPis = vigiarStatus;
   const recebidoMini = p => { if (p.status !== 'opec') return ''; const x = leituraDe(p);
     return x ? `<small class="pl-rec">${S.svg('check')}Recebido ${dfmt(S.dia(x.aberto_em)).slice(0, 5)} ${S.hora(x.aberto_em)}</small>` : '<small class="muted">OPEC ainda não abriu</small>'; };
   const marcarAbertoOpec = pi => { if (pi.status !== 'opec' || !S.pode('opec') || marcados.has(pi.id) || !S.sb) return; marcados.add(pi.id);
@@ -405,7 +414,7 @@
 
   // Histórico (do mais novo para o mais antigo) com a linha "Recebido pela OPEC" no lugar dela; continua depois de aprovado
   const tabHistory = pi => { const x = !S.EDITABLE.includes(pi.status) ? leituraDe(pi) : null, hs = S.db.hist[pi.id] || [];
-    const lin = h => `<li><span class="muted">${dfmt(S.dia(h.em))} ${S.hora(h.em)}</span>${S.pill(h.status)}<span>${esc(S.usuario(h.usuario_id))}${h.nota ? ' · ' + esc(h.nota) : ''}</span></li>`;
+    const lin = h => `<li><span class="muted">${dfmt(S.dia(h.em))} ${S.hora(h.em)}</span>${S.pill(h.status)}<span>${h.usuario_id ? esc(S.usuario(h.usuario_id)) + (h.nota ? ' · ' : '') : ''}${esc(h.nota || '')}</span></li>`;
     const rec = x ? `<li><span class="muted">${dfmt(S.dia(x.aberto_em))} ${S.hora(x.aberto_em)}</span><span class="pill" style="--tone:var(--green)">Recebido pela OPEC</span><span>${esc(x.por)}${x.aberturas > 1 ? ` · aberto ${x.aberturas} vezes` : ''}</span></li>` : '';
     let pos = rec ? hs.findIndex(h => new Date(h.em) <= new Date(x.aberto_em)) : -1; if (rec && pos < 0) pos = hs.length;
     const itens = hs.map(lin); if (rec) itens.splice(pos, 0, rec);
@@ -415,6 +424,7 @@
   const BUCKET = 'midias';
   const pasta = pi => `${pi.veiculo_id}/${pi.id}`;
   const LINKS = {};   // links das mídias por PI
+  const ORIG = {};    // PI original da agência por PI (null = não tem)
   const nMidias = pi => (S.db.midias[pi.id] || []).length + (LINKS[pi.id] || []).length;
   async function carregarMidias(pi) {
     S.db.midias[pi.id] = [];
@@ -425,6 +435,9 @@
       // Links (arquivos maiores, WeTransfer, Google Drive…; database/047)
       const { data:ls } = await S.sb.from('pi_links').select('*').eq('pi_id', pi.id).order('criado_em', { ascending:false });
       LINKS[pi.id] = ls || [];
+      // PI original da agência (database/067): fica à parte, em <veiculo>/<pi>/original/
+      const { data:o } = await S.sb.from('pi_originais').select('*').eq('pi_id', pi.id).maybeSingle();
+      ORIG[pi.id] = o || null;
       if (cur() === pi && !ed.sujo) S.render();
     } catch (e) { console.error(e); }
   }
@@ -444,11 +457,43 @@
         <form class="md-link" data-md-link novalidate><b>${S.svg('link')}Adicionar link</b><span class="muted small">Para arquivos maiores: WeTransfer, Google Drive, Dropbox…</span>
           <label class="f"><span class="sr">Endereço do link</span><input name="url" type="url" inputmode="url" placeholder="https://…" autocomplete="off" required></label>
           <div class="md-link-l"><label class="f"><span class="sr">Descrição</span><input name="titulo" placeholder="Descrição (ex.: VT 30&quot; em alta)" maxlength="200" autocomplete="off"></label><button class="btn pri" type="submit">Adicionar</button></div></form></div>` : '';
-    return `<section class="card md-card"><div class="hd"><h2>Mídias do PI</h2><span>áudios dos spots, textos de testemunhal, autorizações</span></div>
+    return `${cartaoOriginal(pi)}<section class="card md-card"><div class="hd"><h2>Mídias do PI</h2><span>áudios dos spots, textos de testemunhal</span></div>
       ${add}
       ${itens.length ? `<div class="md-lista">${itens.map(x => x.html).join('')}</div>` : '<p class="muted" style="margin:14px 0 0">Nenhuma mídia ainda.</p>'}
       <p class="md-nota">${S.svg('email')}<span>Os arquivos e links vão junto no e-mail para a OPEC${v.opec_email ? ` (${esc(v.opec_email)})` : ''}: os arquivos como link para baixar, válido por 30 dias.</span></p></section>`;
   }
+  // ---------- PI original da agência (database/067, 31/10/2026) ----------
+  // O documento que a agência ou o cliente mandou (às vezes já assinado). Fica à parte das mídias, em <veiculo>/<pi>/original/,
+  // e vai para a OPEC junto com o PI SONVI: no e-mail (anexado até 10 MB) e na página do link.
+  const seloOrig = o => o.assinado === true ? '<span class="pill" style="--tone:var(--green)">Assinado</span>' : o.assinado === false ? '<span class="pill" style="--tone:var(--orange)">Sem assinatura</span>' : '';
+  const origPill = pi => { const o = ORIG[pi.id]; if (!o) return '';
+    return `<button class="pill pl-orig" style="--tone:${o.assinado === true ? 'var(--green)' : o.assinado === false ? 'var(--orange)' : 'var(--gray)'};border:0;cursor:pointer" data-act="piOrigVer" title="Abrir o PI original da agência">${S.svg('doc', 13)}Original da agência${o.assinado === true ? ' · assinado' : o.assinado === false ? ' · sem assinatura' : ''}</button>`; };
+  const podeOrig = pi => S.pode('diretor') || S.pode('gerente') || (S.pode('consultor') && (!pi.consultor_id || pi.consultor_id === S.me.id));
+  function cartaoOriginal(pi) {
+    const o = ORIG[pi.id], pode = podeOrig(pi);
+    if (!o) return pode ? `<section class="card md-card md-orig"><div class="hd"><h2>PI original da agência</h2><span>o documento que a agência ou o cliente mandou</span></div>
+        <div class="md-add"><label class="drop md-drop"><input type="file" accept=".pdf,image/*" data-act-file="piOrig" hidden>${S.svg('subir')}<b>Anexar PI da agência</b><span>PDF ou foto · vai junto para a OPEC, separado das mídias</span></label></div></section>` : '';
+    return `<section class="card md-card md-orig"><div class="hd"><h2>PI original da agência</h2><span>vai junto para a OPEC, separado das mídias</span></div>
+      <div class="md-lista"><div class="md-i"><span class="md-ic">${S.svg('doc')}</span><span class="tx"><b title="${esc(o.nome)}">${esc(o.nome)}</b><small>${tamanho(o.tamanho || 0)} · ${dfmt(S.dia(o.criado_em))}</small></span>
+        <span class="md-ac">${seloOrig(o)}<button class="btn sm" data-act="piOrigVer">${S.svg('abrir')}Abrir</button>${pode ? `<button class="btn tres" data-act="piOrigMenu" aria-label="Mais opções do PI original">${S.svg('mais3')}</button>` : ''}</span></div></div>
+      ${pode ? `<label class="f md-ass">O PI da agência está assinado?<select data-orig-ass><option value="sim"${o.assinado === true ? ' selected' : ''}>Assinado / carimbado</option><option value="nao"${o.assinado === false ? ' selected' : ''}>Sem assinatura</option><option value=""${o.assinado == null ? ' selected' : ''}>Não sei</option></select></label>` : ''}</section>`;
+  }
+  // Guarda (ou troca) o original: sobe o arquivo e grava pi_originais; o arquivo anterior sai do armazenamento
+  S.guardarOriginal = async (pi, file, assinado) => {
+    if (file.size > 25 * 1048576) throw new Error('O PI da agência passa de 25 MB. Envie um arquivo menor.');
+    const limpo = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\-]+/g, '_');
+    const caminho = `${pi.veiculo_id}/${pi.id}/original/${Date.now()}_${limpo}`, antes = ORIG[pi.id];
+    const { error } = await S.sb.storage.from(BUCKET).upload(caminho, file, { upsert:false, contentType:file.type || undefined }); if (error) throw error;
+    const o = await S.q(S.sb.from('pi_originais').upsert({ pi_id:pi.id, veiculo_id:pi.veiculo_id, caminho, nome:file.name, tamanho:file.size, tipo:file.type || '', assinado:typeof assinado === 'boolean' ? assinado : null }, { onConflict:'pi_id' }).select().single());
+    if (antes && antes.caminho !== caminho) S.sb.storage.from(BUCKET).remove([antes.caminho]).catch(() => {});
+    ORIG[pi.id] = o; return o; };
+  const anexarOriginal = (pi, file) => { if (!file) return;
+    S.run(async () => { await S.guardarOriginal(pi, file, null); S.render(); ofereceAvisar(pi); }, { titulo:'PI da agência anexado', sub:'Vai junto no envio para a OPEC. Diga se ele está assinado.' }); };
+  document.addEventListener('change', e => {
+    if (e.target.dataset && e.target.dataset.actFile === 'piOrig') { const pi = cur(); if (pi) anexarOriginal(pi, e.target.files[0]); }
+    if (e.target.matches && e.target.matches('[data-orig-ass]')) { const pi = cur(), o = pi && ORIG[pi.id]; if (!o) return; const v = e.target.value, ass = v === 'sim' ? true : v === 'nao' ? false : null;
+      S.run(async () => { ORIG[pi.id] = await S.q(S.sb.from('pi_originais').update({ assinado:ass }).eq('pi_id', pi.id).select().single()); S.render(); }, null); }
+  });
   // Mídia nova num PI que já está com a OPEC: oferece avisar a OPEC por e-mail (o SONVI manda a lista de todas as mídias)
   const ofereceAvisar = pi => { const v = S.veh(pi.veiculo_id) || {};
     if (['rascunho', 'devolvido'].includes(pi.status) || !v.opec_email) return;
@@ -481,7 +526,8 @@
   document.addEventListener('change', e => { if (e.target.dataset && e.target.dataset.actFile === 'piUpload') { const pi = cur(); if (pi) enviarArquivos(pi, [...e.target.files]); } });
   document.addEventListener('dragover', e => { if (e.target.closest && e.target.closest('.drop')) { e.preventDefault(); e.target.closest('.drop').classList.add('on'); } });
   document.addEventListener('dragleave', e => { const d = e.target.closest && e.target.closest('.drop'); if (d) d.classList.remove('on'); });
-  document.addEventListener('drop', e => { const d = e.target.closest && e.target.closest('.drop'); if (!d) return; e.preventDefault(); d.classList.remove('on'); const pi = cur(); if (pi) enviarArquivos(pi, [...e.dataTransfer.files]); });
+  document.addEventListener('drop', e => { const d = e.target.closest && e.target.closest('.drop'); if (!d) return; e.preventDefault(); d.classList.remove('on'); const pi = cur(); if (!pi) return;
+    if (d.querySelector('[data-act-file="piOrig"]')) anexarOriginal(pi, e.dataTransfer.files[0]); else enviarArquivos(pi, [...e.dataTransfer.files]); });
 
   // Dias de um item levados para outro mês: mesma quantidade no mês, nos mesmos dias da semana (S.distribuir)
   const diasNoMes = (deMes, dias, paraMes) => {
@@ -529,6 +575,13 @@
       const d = document.getElementById('dlg'); d.onclose = () => { d.classList.remove('largo'); if (d.returnValue === 'exp') S.actions.piExport(); }; },
     piAbrirItem: d => { S.ui.piItem = Object.assign({}, S.ui.piItem, { [d.g]:d.id }); S.render(); },
     piVerResumo: () => { const s = document.getElementById('sum'); if (s) s.scrollIntoView({ behavior:'smooth', block:'start' }); },
+    piOrigVer: async () => { const pi = cur(), o = pi && ORIG[pi.id]; if (!o) return;
+      try { const { data, error } = await S.sb.storage.from(BUCKET).createSignedUrl(o.caminho, 300); if (error) throw error; window.open(data.signedUrl, '_blank', 'noopener'); } catch (e) { S.toast(S.erro(e)); } },
+    piOrigMenu: (d, botao) => { if (!botao) return; S.menu(botao, [{ label:'Trocar o arquivo', icon:'subir', act:'piOrigTrocar' }, { label:'Tirar o PI original', icon:'lixo', act:'piOrigTirar', perigo:true }]); },
+    piOrigTrocar: () => { const pi = cur(); if (!pi) return; const i = document.createElement('input'); i.type = 'file'; i.accept = '.pdf,image/*'; i.onchange = () => anexarOriginal(pi, i.files[0]); i.click(); },
+    piOrigTirar: async () => { const pi = cur(), o = pi && ORIG[pi.id]; if (!o) return;
+      if (!await S.confirmar(`Tirar o PI original da agência "${o.nome}" deste PI?`, { ok:'Tirar', perigo:true })) return;
+      S.run(async () => { await S.q(S.sb.from('pi_originais').delete().eq('pi_id', pi.id)); S.sb.storage.from(BUCKET).remove([o.caminho]).catch(() => {}); ORIG[pi.id] = null; S.render(); }, 'PI original tirado'); },
     piBaixar: async d => { const pi = cur(); try { const { data, error } = await S.sb.storage.from(BUCKET).createSignedUrl(`${pasta(pi)}/${d.nome}`, 120, { download:nomeArq(d.nome) }); if (error) throw error; window.open(data.signedUrl, '_blank', 'noopener'); } catch (e) { S.toast(S.erro(e)); } },
     piRmLink: async d => { const pi = cur(), l = (LINKS[pi.id] || []).find(x => x.id === d.id); if (!l) return;
       if (!await S.confirmar(`Excluir o link "${l.titulo || hostDe(l.url)}"?`, { ok:'Excluir link', perigo:true })) return;
@@ -714,10 +767,11 @@
     const ag = S.nome(pi.agencia_id), obs = String(pi.dados.billing.obsClient || '').trim();
     const msg = [`Olá, OPEC!`, '', `${reenvio ? 'Segue de novo, com os ajustes,' : 'Segue para conferência'} o ${S.piNo(pi)} · ${pi.titulo}.`,
       `Cliente: ${S.nome(pi.cliente_id) || '—'}${ag ? ` (agência ${ag})` : ''}`, `Período: ${mesesPi(pi)}`, c.ins || !c.pub ? `Inserções: ${c.ins}` : '', c.pub ? `Ação digital: ${pi.dados.digital.map(a => `${S.acaoTitulo(a)} · ${S.acaoCanal(a)} · ${S.acaoEntregasTxt(a)} · ${S.acaoPeriodo(a)}`).join('; ')} (a rádio define as datas)` : '',
-      faixas.length ? `Faixa: ${faixas.join(', ')}` : '', obs ? `Observações: ${obs}` : '', '', 'Ver o PI e baixar o PDF:', link, '', S.me.nome || S.me.email, v.nome]
+      faixas.length ? `Faixa: ${faixas.join(', ')}` : '', obs ? `Observações: ${obs}` : '', '', ORIG[pi.id] ? 'Abrir o PI, ver o PI original da agência e marcar como programado:' : 'Abrir o PI e marcar como programado:', link, '', S.me.nome || S.me.email, v.nome]
       .filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
     S.dialog(`<h2>${reenvio ? 'Reenviar' : 'Enviar'} ${S.piNo(pi)} para a OPEC</h2>
-      <p class="muted" style="margin-top:-6px">O SONVI manda o e-mail para a OPEC com o link do PI: ela abre sem login, confere e baixa o PDF. O PI passa para <b>Na OPEC</b>. Se a OPEC responder, a resposta chega no seu e-mail.</p>
+      <p class="muted" style="margin-top:-6px">O SONVI manda o e-mail para a OPEC com o link do PI: ela abre sem login, confere, baixa o PDF e marca como programado ali mesmo (ou devolve com o motivo). O PI passa para <b>Na OPEC</b> e você recebe um e-mail quando ela marcar. Se a OPEC responder o e-mail, a resposta chega para você.</p>
+      ${ORIG[pi.id] ? `<p class="muted small" style="margin:-4px 0 0">${S.svg('doc', 14)} Vai junto, à parte: <b>PI original da agência</b> (${esc(ORIG[pi.id].nome)}${ORIG[pi.id].assinado === true ? ', assinado' : ORIG[pi.id].assinado === false ? ', sem assinatura' : ''})${(ORIG[pi.id].tamanho || 0) <= 10 * 1048576 ? ', anexado ao e-mail' : ', pelo link'}.</p>` : ''}
       <label class="f">E-mail da OPEC<input name="email" type="email" autocomplete="off" value="${esc(v.opec_email || '')}" placeholder="opec@suaradio.com.br"></label>
       ${!v.opec_email ? (S.pode('diretor') ? `<label class="row mid" style="gap:10px;margin-top:-6px;font-size:14px;color:var(--ink-2);flex-wrap:nowrap"><input type="checkbox" name="guardar" checked>Guardar como o e-mail da OPEC da ${esc(v.nome)}</label>` : '<p class="muted small" style="margin-top:-8px">Peça ao diretor para cadastrar o e-mail da OPEC em Administração → Veículos; aí ele já vem preenchido.</p>') : ''}
       <label class="f">Mensagem<textarea name="msg" class="pr-msg">${esc(msg)}</textarea></label>

@@ -112,6 +112,7 @@
     if (imp && imp.url) URL.revokeObjectURL(imp.url);
     imp = { l, file, url:URL.createObjectURL(file), tipo:file.type, chave, repetido, linhas,
       cli:(acha('cliente', l.cliente) || {}).id || '', ag:l.agencia && (l.agencia.nome || l.agencia.cnpj) ? ((acha('agencia', l.agencia) || {}).id || '') : '__direta',
+      assinado:typeof l.assinado === 'boolean' ? l.assinado : null,
       titulo:String(l.campanha || '').trim() || `${(l.cliente && l.cliente.nome) || 'PI'} · ${l.periodo && l.periodo.inicio ? MESES[Number(l.periodo.inicio.slice(5, 7)) - 1] : ''}`.trim() };
   };
 
@@ -165,6 +166,7 @@
           <section class="card"><div class="hd"><h2>Dados do pedido</h2><span>Nada foi gravado ainda</span></div>
             <div class="ip-campos">${cliCampo}${agCampo}${kv('Nº do PI da agência', esc(l.numero_pi || ''))}${kv('Período', per.inicio ? `${S.dfmt(per.inicio)} a ${S.dfmt(per.fim || per.inicio)}` : '')}
               ${kv('Comissão da agência', imp.ag !== '__direta' ? `${Number(l.comissao_pct) || 0}%` : 'sem agência')}${kv('Pagamento', esc([pg.forma, pg.vencimento ? 'vencimento ' + S.dfmt(pg.vencimento) : ''].filter(Boolean).join(' · ')))}
+              <div class="ip-c"><label>Autorização</label><div class="ip-v"><select data-ip="assinado" aria-label="O PI da agência está assinado?"><option value="sim"${imp.assinado === true ? ' selected' : ''}>Assinado / carimbado</option><option value="nao"${imp.assinado === false ? ' selected' : ''}>Sem assinatura</option><option value=""${imp.assinado === null ? ' selected' : ''}>Não sei</option></select></div><small class="muted">Vai para a OPEC junto com o original</small></div>
               <div class="ip-c ip-full"><label for="ipTit">Título do PI no SONVI</label><input id="ipTit" data-ip="titulo" value="${esc(imp.titulo)}"></div></div></section>
           <section class="card"><div class="hd"><h2>Inserções</h2><span>${imp.linhas.length} ${imp.linhas.length === 1 ? 'linha' : 'linhas'} · ${imp.linhas.reduce((t, x) => t + x.ins, 0)} inserções</span></div>
             <div class="scroll"><table class="ip-tab"><thead><tr><th>No PI da agência</th><th><span class="sr">vira</span></th><th>No SONVI</th><th class="r">Inserções</th><th class="r">Unitário</th><th class="r">Total</th></tr></thead><tbody>${linhasHtml || '<tr><td colspan="6" class="muted">Nenhuma linha foi lida.</td></tr>'}</tbody></table></div>
@@ -187,6 +189,7 @@
     else if (k === 'fmt' && x) { x.fmt = el.value; x.sozinho = false; }
     else if (k === 'cli') imp.cli = el.value;
     else if (k === 'ag') imp.ag = el.value;
+    else if (k === 'assinado') { imp.assinado = el.value === 'sim' ? true : el.value === 'nao' ? false : null; return; }
     else if (k === 'titulo') { imp.titulo = el.value; return; }
     S.render();
   });
@@ -206,10 +209,9 @@
       billing:{ type:temAg ? 10 : 20, firstDue:/^\d{4}-\d{2}-\d{2}$/.test(pg.vencimento || '') ? pg.vencimento : '', installments:1, method:pg.forma || 'Boleto', obsClient:String(l.observacoes || '').slice(0, 2000) },
       importado:{ numero:String(l.numero_pi || ''), agencia:(l.agencia && l.agencia.nome) || '', arquivo:imp.file.name, em:new Date().toISOString(), total_documento:Number(l.total_bruto) || null } } }).dados;
     const pi = S.piNorm(await S.q(S.sb.rpc('criar_pi', { p_veiculo:S.ui.vehicleId, p_titulo:imp.titulo.trim() || 'PI importado', p_cliente:imp.cli, p_agencia:temAg ? imp.ag : null, p_projeto:'', p_dados:dados })));
-    // Original da agência na aba Mídias (falha aqui não desfaz o PI: avisa)
-    try { const limpo = imp.file.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.\-]+/g, '_');
-      const { error } = await S.sb.storage.from('midias').upload(`${pi.veiculo_id}/${pi.id}/${Date.now()}_${limpo}`, imp.file, { upsert:false, contentType:imp.file.type || undefined }); if (error) throw error;
-    } catch (e) { console.error(e); S.toast('O PI foi criado, mas o arquivo original não subiu. Envie pela aba Mídias.'); }
+    // Original da agência guardado à parte das mídias (database/067); vai junto para a OPEC. Falha aqui não desfaz o PI: avisa
+    try { await S.guardarOriginal(pi, imp.file, imp.assinado); }
+    catch (e) { console.error(e); S.toast('O PI foi criado, mas o original da agência não subiu. Anexe pela aba Mídias.'); }
     try { await S.q(S.sb.from('pi_importacoes').insert({ veiculo_id:pi.veiculo_id, pi_id:pi.id, agencia_chave:imp.chave, numero_agencia:String(l.numero_pi || '').trim(), arquivo:imp.file.name })); } catch (e) { console.error(e); }
     try { const aprend = imp.linhas.filter(x => x.prog && x.fmt).map(x => ({ veiculo_id:pi.veiculo_id, agencia_chave:imp.chave, texto:textoLinha(x.orig),
         programa:x.prog === '__texto' ? '' : nomeP(x), formato:x.fmt === '__texto' ? '' : nomeF(x), atualizado_em:new Date().toISOString() }));

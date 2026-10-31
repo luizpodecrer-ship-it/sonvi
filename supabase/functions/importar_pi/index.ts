@@ -30,6 +30,7 @@ const ESQUEMA = {
     desconto_valor: { type: ['number', 'null'], description: 'Desconto geral em reais sobre o total, se houver (além da comissão). null se não houver.' },
     pagamento: { type: 'object', properties: { forma: { type: 'string', description: 'Boleto, depósito, Pix…' }, vencimento: { type: 'string', description: 'AAAA-MM-DD do 1º vencimento, ou vazio' }, condicoes: { type: 'string' } } },
     observacoes: { type: 'string', description: 'Observações e instruções importantes do PI (texto curto).' },
+    assinado: { type: ['boolean', 'null'], description: 'true se o PI tem assinatura ou carimbo de autorização (da agência ou do anunciante); false se o espaço de assinatura está em branco ou não há assinatura; null se não dá para saber.' },
     linhas: { type: 'array', description: 'Uma linha por programa/formato da grade de inserções.', items: { type: 'object', properties: {
       programa: { type: 'string', description: 'Programa, horário ou tipo de inserção como escrito (ex.: Rotativo 7h às 19h).' },
       horario: { type: 'string', description: 'Faixa horária, se houver (ex.: 07h às 19h).' },

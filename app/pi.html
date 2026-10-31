@@ -11,8 +11,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/sonvi.css?v=202610310830">
-<!-- Página que a OPEC abre pelo link do e-mail do PI: sem login, mostra só o documento enviado e baixa o PDF. -->
+<link rel="stylesheet" href="css/sonvi.css?v=202610310915">
+<!-- Página que a OPEC abre pelo link do e-mail do PI (sem login; a OPEC não entra no SONVI desde 31/10/2026):
+     abrir registra o recebimento (pi_aberto); abas com o PI SONVI, o PI original da agência e as mídias;
+     "Marcar como programado" (conta como aprovado) e "Devolver com o motivo" pela função de borda opec_link (database/067). -->
 <style>
   body { display:block; min-height:100%; }
   .pub-barra { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px clamp(16px, 4vw, 40px); padding-top:calc(14px + env(safe-area-inset-top, 0px)); background:color-mix(in srgb, var(--surface) 96%, transparent); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
@@ -22,50 +24,168 @@
   main { padding:24px clamp(16px, 4vw, 40px) 0; display:flex; flex-direction:column; align-items:center; gap:16px; }
   main[hidden] { display:none; }
   .pub-vazio { max-width:520px; text-align:center; margin-top:10vh; }
-  #print { display:block; width:calc(100% - 2 * clamp(16px, 4vw, 40px)); max-width:1320px; margin:8px auto 60px; }
-  #print[hidden] { display:none; }
+  .pub-wrap { width:calc(100% - 2 * clamp(16px, 4vw, 40px)); max-width:1320px; margin:18px auto 0; }
+  .pub-wrap[hidden] { display:none; }
+  /* painel da OPEC: recebido · programado · ação */
+  .op-painel { display:grid; grid-template-columns:auto auto 1fr; gap:14px 28px; align-items:center; padding:16px 20px; }
+  .op-et { display:flex; gap:10px; align-items:flex-start; }
+  .op-et .b { width:22px; height:22px; border-radius:50%; flex:none; display:grid; place-items:center; color:#fff; font-size:13px; font-weight:700; margin-top:1px; border:2px solid var(--line); }
+  .op-et .b.f { background:var(--green); border-color:var(--green); }
+  .op-et b { display:block; font-size:14px; } .op-et small { color:var(--ink-2); font-size:13px; }
+  .op-acao { display:flex; gap:10px; align-items:flex-end; justify-content:flex-end; flex-wrap:wrap; }
+  .op-acao label { display:flex; flex-direction:column; gap:4px; font-size:12.5px; color:var(--ink-2); }
+  .op-acao input { height:44px; border:1px solid var(--line); border-radius:8px; padding:0 12px; font:inherit; font-size:15px; background:var(--surface); color:var(--ink); min-width:0; }
+  .op-acao input[name=nome] { width:200px; }
+  .op-acao .btn.ok { background:var(--green); border-color:var(--green); color:#fff; height:44px; }
+  .op-dev { grid-column:1 / -1; display:flex; justify-content:flex-end; margin-top:-6px; }
+  .op-dev button { background:none; border:0; padding:4px 0; color:var(--ink-2); text-decoration:underline; font:500 13px var(--font); cursor:pointer; }
+  .op-devform { grid-column:1 / -1; border-top:1px solid var(--line); padding-top:14px; display:flex; flex-direction:column; gap:10px; }
+  .op-devform textarea { min-height:84px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:inherit; background:var(--surface); color:var(--ink); resize:vertical; }
+  .op-devform .row { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+  .op-msg { grid-column:1 / -1; font-size:14px; } .op-msg.erro { color:var(--red); } .op-msg.bom { color:var(--green); font-weight:600; }
+  .op-fim { grid-column:3; justify-self:end; }
+  /* abas */
+  .op-abas { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:18px 0 0; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
+  .op-abas button { flex:none; white-space:nowrap; }
+  .op-abas button { background:none; border:0; border-bottom:2px solid transparent; padding:10px 14px; font:600 14px var(--font); color:var(--ink-2); cursor:pointer; min-height:44px; }
+  .op-abas button[aria-selected=true] { color:var(--ink); border-color:var(--accent); }
+  .op-abas .pill { margin-left:6px; }
+  #print { display:block; margin:18px 0 60px; }
+  #print[hidden], .op-pane[hidden] { display:none; }
   .pub-folha { transform-origin:0 0; }
   .pub-folha .pi-envio { width:1300px; background:#fff; padding:28px 32px; border-radius:4px; box-shadow:0 14px 40px -16px rgba(10,20,60,.35); }
-  @media print { .pub-folha { transform:none !important; width:auto !important; height:auto !important; } .pub-folha .pi-envio { width:auto; padding:0; box-shadow:none; border-radius:0; } #print { max-width:none; width:auto; margin:0; } }
+  .op-pane { margin:18px 0 60px; }
+  .op-orig { display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:14px 18px; }
+  .op-orig .tx { flex:1; min-width:200px; } .op-orig .tx b { display:block; } .op-orig .tx small { color:var(--ink-2); }
+  .op-orig-ver { margin-top:12px; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; }
+  .op-orig-ver iframe { width:100%; height:80vh; border:0; display:block; }
+  .op-orig-ver img { width:100%; height:auto; display:block; }
+  .op-mid { padding:6px 18px; } .op-mid div { display:flex; gap:12px; align-items:center; padding:12px 0; border-top:1px solid var(--line); } .op-mid div:first-child { border-top:0; }
+  .op-mid .tx { flex:1; min-width:0; } .op-mid .tx b { display:block; overflow-wrap:anywhere; } .op-mid .tx small { color:var(--ink-2); }
+  @media (max-width:900px) { .op-painel { grid-template-columns:1fr 1fr; } .op-acao { grid-column:1 / -1; justify-content:stretch; } .op-acao label { flex:1 1 160px; } .op-acao input[name=nome] { width:100%; } .op-acao .btn { flex:1 1 100%; justify-content:center; } .op-fim { grid-column:1 / -1; justify-self:start; } }
+  @media print { .pub-folha { transform:none !important; width:auto !important; height:auto !important; } .pub-folha .pi-envio { width:auto; padding:0; box-shadow:none; border-radius:0; } .pub-wrap { max-width:none; width:auto; margin:0; } .op-painel, .op-abas, .op-pane { display:none !important; } #print { margin:0; } }
 </style>
 <style id="pagina">@media print { @page { size:legal landscape; margin:8mm; } }</style>
 </head>
 <body>
 <header class="pub-barra" id="barra" hidden><div class="tx"><h1 id="titulo">Pedido de inserção</h1><small id="situacao"></small></div>
-  <button class="btn pri" type="button" id="baixar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar PDF</button></header>
+  <button class="btn" type="button" id="baixar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar PDF do PI</button></header>
 <main id="principal"><div class="card empty pub-vazio" id="estado" role="status"><b>Abrindo o PI…</b></div></main>
-<div id="print" role="main" aria-label="Pedido de inserção" hidden></div>
-<script src="js/config.js?v=202610310830"></script>
+<div class="pub-wrap" id="wrap" hidden>
+  <section class="card op-painel" id="painel" aria-label="Andamento na OPEC"></section>
+  <div class="op-abas" role="tablist" id="abas">
+    <button role="tab" aria-selected="true" data-aba="pi">PI SONVI</button>
+    <button role="tab" aria-selected="false" data-aba="orig" id="abaOrig" hidden>PI original da agência</button>
+    <button role="tab" aria-selected="false" data-aba="mid" id="abaMid" hidden>Mídias</button>
+  </div>
+  <div id="print" role="tabpanel" aria-label="PI SONVI"></div>
+  <div class="op-pane" id="paneOrig" role="tabpanel" hidden></div>
+  <div class="op-pane" id="paneMid" role="tabpanel" hidden></div>
+</div>
+<script src="js/config.js?v=202610310915"></script>
+<script src="js/data.js?v=202610310915"></script>
 <script>
 (() => {
   const token = new URLSearchParams(location.search).get('p') || '';
   const el = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
   const estado = (titulo, texto) => { el('estado').innerHTML = `<b>${titulo}</b>${texto}`; el('principal').hidden = false; };
-  const SIT = { opec:'Na OPEC, aguardando conferência', aprovado:'Aprovado pela OPEC', programado:'Programado', faturado:'Faturado' };
+  const SIT = { opec:'Na OPEC, aguardando programação', aprovado:'Aprovado, aguardando programação', programado:'Programado', faturado:'Programado e faturado' };
+  const cfg = window.SONVI_CONFIG, H = { apikey:cfg.key, 'Content-Type':'application/json' };
+  const rpc = (f, corpo) => fetch(`${cfg.url}/rest/v1/rpc/${f}`, { method:'POST', headers:H, body:JSON.stringify(corpo) });
+  const opec = corpo => fetch(`${cfg.url}/functions/v1/opec_link`, { method:'POST', headers:Object.assign({ Authorization:'Bearer ' + cfg.key }, H), body:JSON.stringify(Object.assign({ token }, corpo)) })
+    .then(r => r.json().catch(() => ({})).then(j => { if (!r.ok || j.erro) throw new Error(j.erro || 'Não foi possível concluir. Tente de novo.'); return j; }));
+  const quando = iso => { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }); };
+  const guardaNome = n => { try { localStorage.setItem('sonvi-opec-nome', n); } catch (e) { /* sem armazenamento */ } };
+  const nomeSalvo = () => { try { return localStorage.getItem('sonvi-opec-nome') || ''; } catch (e) { return ''; } };
+  let info = { status:'', recebido_em:null, programado:null, original:null, midias:[] }, devAberto = false;
+
   // O PI é largo (folha deitada): na tela ele é encolhido para caber; na impressão volta ao tamanho real
-  const ajusta = () => { const f = document.querySelector('.pub-folha'), d = f && f.querySelector('.pi-envio'); if (!d) return;
+  const ajusta = () => { const f = document.querySelector('.pub-folha'), d = f && f.querySelector('.pi-envio'); if (!d || el('print').hidden) return;
     f.style.transform = ''; const k = Math.min(1, el('print').clientWidth / d.offsetWidth);
     f.style.transform = `scale(${k})`; f.style.width = d.offsetWidth * k + 'px'; f.style.height = d.offsetHeight * k + 'px'; };
+
+  const painel = (msg, tipo) => {
+    const prog = ['programado', 'faturado'].includes(info.status), aberto = ['opec', 'aprovado'].includes(info.status);
+    const p = info.programado;
+    el('painel').innerHTML = `
+      <div class="op-et"><span class="b f" aria-hidden="true">✓</span><div><b>Recebido</b><small>${info.recebido_em ? quando(info.recebido_em) : 'agora'}</small></div></div>
+      <div class="op-et"><span class="b${prog ? ' f' : ''}" aria-hidden="true">${prog ? '✓' : ''}</span><div><b>Programado</b><small>${prog ? (p ? `${quando(p.em)}${p.nota ? ' · ' + esc(p.nota) : ''}` : 'sim') : 'falta marcar'}</small></div></div>
+      ${aberto ? `<form class="op-acao" id="fProg" novalidate>
+          <label>Seu nome<input name="nome" autocomplete="name" maxlength="80" value="${esc(nomeSalvo())}" required></label>
+          <label>A partir de (opcional)<input name="desde" type="date"></label>
+          <button class="btn ok" type="submit">Marcar como programado</button></form>
+        ${devAberto ? `<form class="op-devform" id="fDev" novalidate><label class="f">O que precisa ser ajustado?<textarea name="motivo" maxlength="1000" required placeholder="Ex.: falta o áudio do spot de 30&quot;; o período no PI da agência é outro."></textarea></label>
+          <div class="row"><button class="btn" type="button" id="devVolta">Voltar</button><button class="btn danger" type="submit">Devolver o PI</button></div></form>`
+          : `<div class="op-dev"><button type="button" id="devAbre">Tem algum problema? Devolver com o motivo</button></div>`}`
+        : `<div class="op-fim muted small">${prog && !msg ? 'Tudo certo. Quem enviou o PI já foi avisado.' : ''}</div>`}
+      <div class="op-msg ${tipo || ''}" role="status" id="opMsg">${msg ? esc(msg) : ''}</div>`;
+  };
+  const aviso = (msg, tipo) => { const m = el('opMsg'); if (!m) return painel(msg, tipo); m.className = 'op-msg ' + (tipo || ''); m.textContent = msg; };
+
+  const abas = () => {
+    const o = info.original, n = (info.midias || []).length;
+    el('abaOrig').hidden = !o; el('abaMid').hidden = !n;
+    if (o) { const pdf = /pdf/i.test(o.tipo) || /\.pdf$/i.test(o.nome), img = /^image\//i.test(o.tipo);
+      el('abaOrig').innerHTML = `PI original da agência${o.assinado === true ? ' <span class="pill" style="--tone:var(--green)">Assinado</span>' : o.assinado === false ? ' <span class="pill" style="--tone:var(--orange)">Sem assinatura</span>' : ''}`;
+      el('paneOrig').innerHTML = `<div class="card op-orig"><div class="tx"><b>${esc(o.nome)}</b><small>Documento que a agência ou o cliente mandou · ${esc(o.tamanho)}${o.assinado === true ? ' · assinado' : o.assinado === false ? ' · sem assinatura' : ''}</small></div>
+        <a class="btn" href="${esc(o.url)}" target="_blank" rel="noopener">Abrir em outra aba</a></div>
+        ${pdf ? `<div class="op-orig-ver"><iframe src="${esc(o.url)}" title="PI original da agência"></iframe></div>` : img ? `<div class="op-orig-ver"><img src="${esc(o.url)}" alt="PI original da agência"></div>` : ''}`; }
+    if (n) { el('abaMid').textContent = `Mídias (${n})`;
+      el('paneMid').innerHTML = `<div class="card op-mid">${info.midias.map(m => `<div><span class="tx"><b>${esc(m.nome)}</b><small>${m.arquivo ? 'Arquivo' : 'Link'}${m.info ? ' · ' + esc(m.info) : ''}</small></span><a class="btn sm" href="${esc(m.url)}" target="_blank" rel="noopener">${m.arquivo ? 'Baixar' : 'Abrir'}</a></div>`).join('')}</div>
+        ${info.midias.some(m => m.arquivo) ? '<p class="muted small">Os links dos arquivos valem por 30 dias.</p>' : ''}`; }
+  };
+  el('abas').addEventListener('click', e => { const b = e.target.closest('[data-aba]'); if (!b) return;
+    el('abas').querySelectorAll('[data-aba]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    el('print').hidden = b.dataset.aba !== 'pi'; el('paneOrig').hidden = b.dataset.aba !== 'orig'; el('paneMid').hidden = b.dataset.aba !== 'mid';
+    if (b.dataset.aba === 'pi') requestAnimationFrame(ajusta); });
+
+  el('painel').addEventListener('click', e => {
+    if (e.target.id === 'devAbre') { devAberto = true; painel(); const t = el('painel').querySelector('textarea'); if (t) t.focus(); }
+    if (e.target.id === 'devVolta') { devAberto = false; painel(); }
+  });
+  el('painel').addEventListener('submit', async e => { e.preventDefault();
+    const fp = el('fProg'), nome = fp.nome.value.trim();
+    if (!nome) { aviso('Escreva o seu nome para registrar quem marcou.', 'erro'); fp.nome.focus(); return; }
+    guardaNome(nome);
+    const bt = e.target.querySelector('button[type=submit]'); bt.disabled = true;
+    try {
+      if (e.target.id === 'fDev') {
+        const motivo = e.target.motivo.value.trim(); if (!motivo) { bt.disabled = false; e.target.motivo.focus(); return; }
+        await opec({ acao:'devolver', nome, motivo });
+        info.status = 'devolvido'; el('situacao').textContent = 'Devolvido para ajuste';
+        el('painel').innerHTML = `<div class="op-msg bom" role="status" style="grid-column:1/-1">PI devolvido. Quem enviou já foi avisado e vai mandar de novo com o ajuste.</div>`;
+        return;
+      }
+      const desde = fp.desde.value || '';
+      const r = await opec({ acao:'programar', nome, desde });
+      info.status = r.status || 'programado';
+      info.programado = { em:new Date().toISOString(), nota:nome + (desde ? ' · a partir de ' + desde.split('-').reverse().join('/') : '') };
+      el('situacao').textContent = SIT[info.status] || ''; devAberto = false;
+      painel(r.ja ? 'Este PI já estava marcado como programado.' : 'Marcado como programado. Quem enviou o PI já foi avisado.', 'bom');
+    } catch (err) { bt.disabled = false; aviso(err.message, 'erro'); }
+  });
+
   if (!/^[0-9a-f-]{36}$/i.test(token)) return estado('Link incompleto', 'Confira se o link foi copiado inteiro ou peça um novo a quem enviou o PI.');
-  fetch(window.SONVI_CONFIG.url + '/rest/v1/rpc/pi_por_link', { method:'POST', headers:{ apikey:window.SONVI_CONFIG.key, 'Content-Type':'application/json' }, body:JSON.stringify({ p_token:token }) })
-    .then(r => r.ok ? r.json() : Promise.reject(r))
+  rpc('pi_por_link', { p_token:token }).then(r => r.ok ? r.json() : Promise.reject(r))
     .then(lista => {
       const p = lista && lista[0];
       if (!p) return estado('Este PI não está disponível', 'Ele pode ter voltado para ajuste ou sido cancelado. Fale com quem enviou.');
       el('principal').hidden = true;
-      el('print').innerHTML = `<div class="pub-folha">${p.html}</div>`; el('print').hidden = false;
+      el('print').innerHTML = `<div class="pub-folha">${p.html}</div>`; el('wrap').hidden = false;
       const papel = (el('print').querySelector('.pi-envio') || {}).dataset || {};
       el('pagina').textContent = `@media print { @page { size:${papel.papel === 'a4' ? 'A4' : 'legal'} landscape; margin:8mm; } }`;
       el('titulo').textContent = p.numero; document.title = p.numero;
-      el('situacao').textContent = SIT[p.status] || '';
-      el('barra').hidden = false;
-      // Avisa o SONVI que a OPEC abriu o PI ("Recebido pela OPEC", database/057)
-      fetch(window.SONVI_CONFIG.url + '/rest/v1/rpc/pi_aberto', { method:'POST', headers:{ apikey:window.SONVI_CONFIG.key, 'Content-Type':'application/json' }, body:JSON.stringify({ p_token:token }) }).catch(() => {});
+      info.status = p.status; el('situacao').textContent = SIT[p.status] || '';
+      el('barra').hidden = false; painel();
+      // Avisa o SONVI que a OPEC abriu o PI ("Recebido pela OPEC", database/057); depois busca original, mídias e andamento
+      rpc('pi_aberto', { p_token:token }).catch(() => null).then(r => r && r.ok ? r.json() : null).then(em => { if (em) info.recebido_em = em; })
+        .finally(() => opec({ acao:'abrir' }).then(j => { Object.assign(info, j, { recebido_em:j.recebido_em || info.recebido_em }); el('situacao').textContent = SIT[info.status] || ''; abas(); painel(); }).catch(() => painel()));
       requestAnimationFrame(ajusta); window.addEventListener('resize', ajusta);
       (document.fonts ? document.fonts.ready : Promise.resolve()).then(ajusta);
     })
     .catch(() => estado('Não foi possível abrir o PI', 'Verifique a internet e tente de novo.'));
-  el('baixar').addEventListener('click', () => window.print());
+  el('baixar').addEventListener('click', () => { el('abas').querySelector('[data-aba=pi]').click(); setTimeout(() => window.print(), 60); });
 })();
 </script>
 </body>

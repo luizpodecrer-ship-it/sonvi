@@ -61,8 +61,13 @@ Deno.serve(async (req) => {
     } else return resposta({ erro: 'Ação desconhecida.' }, 400);
 
     // Link do botão: o endereço da empresa de cada pessoa (sonvi.com.br/<empresa>/)
-    const { data: orgs } = await adm.from('organizacoes').select('id, slug');
+    const { data: orgs } = await adm.from('organizacoes').select('id, slug, nome');
     const slugDe = new Map((orgs || []).map((o: any) => [o.id, o.slug]));
+    // Remetente (regra de 29/10/2026: nunca "SONVI"): o veículo, ou a empresa comercial quando o e-mail junta vários veículos
+    const { data: emps } = await adm.from('empresa_comercial').select('organizacao_id, nome');
+    const empNome = new Map((emps || []).map((e: any) => [e.organizacao_id, String(e.nome || '')]));
+    const orgNome = new Map((orgs || []).map((o: any) => [o.id, String(o.nome || '')]));
+    const empDe = (u: any) => nomeLimpo(empNome.get(u?.organizacao_id) || orgNome.get(u?.organizacao_id) || 'Comercial');
     const appDe = (u: any) => { const sl = slugDe.get(u?.organizacao_id); return (sl ? `https://sonvi.com.br/${sl}/` : (Deno.env.get('APP_URL') || 'https://sonvi.com.br/').replace(/\/?$/, '/')) + '#/followup'; };
     const hoje = diaCuiaba(), ontem = somaDias(hoje, -1), amanha = somaDias(hoje, 1);
 
@@ -90,7 +95,7 @@ Deno.serve(async (req) => {
     const casca = (titulo: string, intro: string, miolo: string, app: string) => `<div style="font:15px/1.55 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:600px">
       <h1 style="font-size:22px;line-height:1.25;margin:0 0 8px">${titulo}</h1><p style="color:#4b4b55;margin:0 0 20px">${intro}</p>${miolo}
       <p style="margin:26px 0"><a href="${app}" style="display:inline-block;background:#0055ff;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px">Abrir o Follow-up</a></p>
-      <p style="color:#6b6b74;font-size:12px">Enviado pelo SONVI todo dia às 7h30. Só chega quando há contatos para hoje ou retornos atrasados.</p></div>`;
+      <p style="color:#6b6b74;font-size:12px">Resumo automático, todo dia às 7h30. Só chega quando há contatos para hoje ou retornos atrasados.</p></div>`;
     const bloco = (rotulo: string, linhas: string[]) => linhas.length ? `<div style="border:1px solid #e4e6eb;border-radius:14px;padding:4px 16px;margin:0 0 14px">
       <p style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6b6b74;margin:12px 0 4px">${rotulo}</p>${linhas.join('')}</div>` : '';
     const item = (quando: string, texto: string, extra = '') => `<div style="display:flex;gap:12px;padding:9px 0;border-top:1px solid #eef0f3"><b style="min-width:50px">${quando}</b><span>${texto}${extra ? `<br><span style="color:#b42318;font-size:13px">${extra}</span>` : ''}</span></div>`;
@@ -119,7 +124,7 @@ Deno.serve(async (req) => {
       const at = partes.reduce((s, p) => s + p.r.at, 0), hj = partes.reduce((s, p) => s + p.r.hj, 0);
       const miolo = partes.length ? partes.map(p => `<h2 style="font-size:17px;margin:22px 0 8px">${esc(p.v.nome)} <span style="font-weight:400;color:#6b6b74;font-size:14px">· ${plural(p.r.hj, 'contato hoje', 'contatos hoje')}, ${plural(p.r.at, 'atrasado', 'atrasados')}</span></h2>${p.r.html}`).join('')
         : '<p style="color:#4b4b55">Nenhum contato marcado para hoje e nenhum atrasado nas rádios.</p>';
-      envios.push({ usuario: u.id, tipo: 'diretor', para: u.email, de: 'SONVI · Follow-up <followup@sonvi.com.br>',
+      envios.push({ usuario: u.id, tipo: 'diretor', para: u.email, de: `"${empDe(u)} · Follow-up" <followup@sonvi.com.br>`,
         assunto: `${teste ? '[Amostra] ' : ''}Follow-up das rádios · ${dataLonga} · ${plural(at, 'atrasado', 'atrasados')}`,
         html: casca(`Bom dia, ${esc(String(u.nome || '').split(' ')[0])}`, `Hoje as equipes têm ${plural(hj, 'contato marcado', 'contatos marcados')} e ${plural(at, 'retorno atrasado', 'retornos atrasados')}.`, miolo, appDe(u)) });
     }
@@ -133,7 +138,7 @@ Deno.serve(async (req) => {
         if (!partes.length) continue;
         const at = partes.reduce((s, p) => s + p.r.at, 0), hj = partes.reduce((s, p) => s + p.r.hj, 0);
         const um = partes.length === 1, nomeR = um ? nomeVei(partes[0].vid) : '';
-        envios.push({ usuario: u.id, tipo: 'gerente', para: u.email, de: `${um ? nomeLimpo(nomeR) + ' · ' : ''}SONVI <followup@sonvi.com.br>`,
+        envios.push({ usuario: u.id, tipo: 'gerente', para: u.email, de: `"${um ? nomeLimpo(nomeR) : empDe(u)} · Follow-up" <followup@sonvi.com.br>`,
           assunto: `Follow-up da equipe${um ? ' · ' + nomeLimpo(nomeR) : ''} · ${plural(at, 'atrasado', 'atrasados')}`,
           html: casca(`Bom dia, ${esc(String(u.nome || '').split(' ')[0])}`, `Sua equipe tem ${plural(hj, 'contato marcado', 'contatos marcados')} hoje e ${plural(at, 'retorno atrasado', 'retornos atrasados')}. Retorno que passou do dia sem registro aparece aqui.`,
             partes.map(p => `${um ? '' : `<h2 style="font-size:17px;margin:22px 0 8px">${esc(nomeVei(p.vid))}</h2>`}${p.r.html}`).join(''), appDe(u)) });
@@ -145,7 +150,7 @@ Deno.serve(async (req) => {
         const meus = abertas.filter(a => a.consultor_id === cid), at = meus.filter(atrasado), hj = meus.filter(a => !atrasado(a));
         const radios = [...new Set(meus.map(a => a.veiculo_id))], um = radios.length === 1;
         const lista = (l: Linha[]) => l.map(a => linhaContato(a)).map((h, i) => um ? h : h.replace('</b> ·', `</b> <span style="color:#6b6b74">(${esc(nomeVei(l[i].veiculo_id))})</span> ·`));
-        envios.push({ usuario: u.id, tipo: 'consultor', para: u.email, de: `${um ? nomeLimpo(nomeVei(radios[0])) + ' · ' : ''}SONVI <followup@sonvi.com.br>`,
+        envios.push({ usuario: u.id, tipo: 'consultor', para: u.email, de: `"${um ? nomeLimpo(nomeVei(radios[0])) : empDe(u)} · Follow-up" <followup@sonvi.com.br>`,
           assunto: `Seus contatos de hoje · ${plural(hj.length, 'marcado', 'marcados')}${at.length ? `, ${plural(at.length, 'atrasado', 'atrasados')}` : ''}`,
           html: casca(`Bom dia, ${esc(String(u.nome || '').split(' ')[0])}`,
             `Você tem ${plural(hj.length, 'contato', 'contatos')} hoje${at.length ? ` e ${plural(at.length, 'retorno atrasado', 'retornos atrasados')}. Os atrasados entram no resumo do seu gerente` : ''}.`,

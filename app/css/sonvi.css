@@ -3485,3 +3485,10 @@ form.ver .so-ed, form.ver [data-pd-add], form.ver [data-act="pdFaixaMais"], form
 @media (max-width:980px) { .ip-conf { grid-template-columns:1fr; } .ip-doc { position:static; } .ip-pdf { height:50vh; } }
 @media (max-width:560px) { .ip-campos { grid-template-columns:1fr; } .ip-rod { position:static; } .ip-rod .btn { flex:1; } .ip-rod .grow { display:none; } }
 @media (prefers-reduced-motion: reduce) { .ip-etapas .agora i { animation:none; } }
+
+/* PI original da agência na aba Mídias (31/10/2026, database/067) */
+.md-orig { margin-bottom:16px; }
+.md-orig .md-ac .pill { align-self:center; }
+.md-ass { margin:12px 0 0; max-width:320px; }
+.md-orig .md-add { grid-template-columns:1fr; }
+.pill.pl-orig svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
