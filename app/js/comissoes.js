@@ -78,7 +78,7 @@
   // Linhas do mês, uma por consultor (e "Sem responsável" quando há PI sem consultor)
   const calcMes = mes => {
     const b = st.base, r = st.meses[mes] || { itens:[] }, metas = (S.metasDoMes && S.metasDoMes(mes)) || [], h = hoje();
-    const por = {}, pes = uid => por[uid || ''] || (por[uid || ''] = { uid:uid || '', bruto:0, liq:0, pis:0, meta:0, rec:0, liqPago:0, com:0, prev:0, fila:0, atraso:0, propC:0, propA:0, itens:[], porV:{} });
+    const por = {}, pes = uid => por[uid || ''] || (por[uid || ''] = { uid:uid || '', bruto:0, liq:0, pis:0, meta:0, rec:0, liqPago:0, com:0, prev:0, fila:0, atraso:0, propC:0, propA:0, itens:[], porV:{}, atrasos:[] });
     (b.cols || []).filter(c => c.funcao === 'consultor' && c.ativo && c.usuario_id).forEach(c => pes(c.usuario_id));
     b.pis.filter(p => !p.antigo).forEach(p => { const f = S.fatiaMes(p, mes); if (!(f > 0)) return; const o = pes(p.consultor_id), liq = S.valorNoMes(p, mes);
       o.bruto += brutoNoMes(p, mes); o.liq += liq; o.pis++; o.porV[p.veiculo_id] = (o.porV[p.veiculo_id] || 0) + liq;
@@ -88,7 +88,7 @@
     const piDe = new Map(b.pis.map(p => [p.id, p]));
     b.abertas.forEach(l => { const pi = piDe.get(l.pi_id); if (!pi) return; const o = pes(pi.consultor_id);
       const pc = pi.consultor_id ? pctEm(pi.consultor_id, pi.veiculo_id, pi.criado_em) : null; if (pc) o.fila += Number(l.valor) * fator(pi) * pc / 100;
-      if (l.vencimento && l.vencimento < h) o.atraso += Number(l.valor) || 0; });
+      if (l.vencimento && l.vencimento < h) { o.atraso += Number(l.valor) || 0; o.atrasos.push({ cliente:l.contraparte || 'Cliente', valor:Number(l.valor) || 0, venc:l.vencimento }); } });
     (b.props || []).forEach(p => { if (String(p.data || '').slice(0, 7) !== mes || !p.consultor_id) return; const o = pes(p.consultor_id); o.propC++; if (p.situacao === 'aprovada') o.propA++; });
     const lista = Object.values(por).filter(o => o.uid || o.liq || o.rec).sort((a, b2) => (a.uid ? 0 : 1) - (b2.uid ? 0 : 1) || b2.liq - a.liq || b2.com - a.com);
     const tot = lista.reduce((t, o) => { ['bruto', 'liq', 'pis', 'meta', 'rec', 'com', 'prev', 'atraso', 'propC', 'propA', 'fila'].forEach(k => { t[k] += o[k]; }); return t; }, { bruto:0, liq:0, pis:0, meta:0, rec:0, com:0, prev:0, atraso:0, propC:0, propA:0, fila:0 });
@@ -179,15 +179,17 @@
           : `<p class="muted" style="margin:0">Nenhum cliente dele pagou em ${nomeMes(mes)}${fechado ? '' : ' até agora'}.</p>`}</section>`;
   };
 
-  // ---------- extrato (PDF e página) ----------
-  const extratoDados = (uid, mes) => { const { lista, fechado } = calcMes(mes), o = lista.find(x => x.uid === uid) || { itens:[], com:0, liq:0, liqPago:0, meta:0, fila:0 };
-    return { uid, mes, nome:nomeDe(uid), empresa:S.empCurto(), fechado, itens:o.itens, com:o.com, liqPago:o.liqPago, liq:o.liq, meta:o.meta, fila:o.fila, pago:fechado && (fechado.pagos || {})[uid] }; };
-  const extratoHtml = x => `<div class="cmx"><div class="cmx-cab"><div><h1>Extrato de comissão</h1><div>${nomeMesLongo(x.mes)} · ${x.fechado ? `fechado em ${dfmt(diaDe(x.fechado.fechado_em))}` : 'prévia (mês aberto)'}</div></div><div class="cmx-quem"><b>${esc(x.empresa)}</b><br>Consultor: ${esc(x.nome)}</div></div>
-    <table><thead><tr><th>Pago em</th><th>Cliente</th><th>PI</th><th class="r">Líquido pago</th><th class="r">%</th><th class="r">Comissão</th></tr></thead>
-    <tbody>${x.itens.length ? x.itens.map(i => `<tr><td>${dfmt(i.pago_em)}</td><td>${esc(i.cliente)}</td><td>${esc(i.pi_no)}</td><td class="r">${brl(i.liquido)}</td><td class="r">${pctTxt(i.pct)}</td><td class="r">${brl(i.comissao)}</td></tr>`).join('') : '<tr><td colspan="6">Nenhum pagamento de cliente no mês.</td></tr>'}</tbody></table>
-    <div class="cmx-tot"><span>Comissão ${x.pago ? `paga em ${dfmt(x.pago)}` : 'a pagar'}</span><span>${brl(x.com)}</span></div>
-    <p class="cmx-nota">Comissão = percentual do consultor × valor líquido que o cliente pagou no mês. Vendido no mês (líquido): ${brl(x.liq)}${x.meta ? ` · meta ${Math.round(x.liq / x.meta * 100)}%` : ''} · comissão ainda a receber dos clientes: ${brl(x.fila)}.</p>
-    <div class="cmx-ass"><div>${esc(x.empresa)}</div><div>${esc(x.nome)}</div></div></div>`;
+  // ---------- extrato (PDF e página): a folha vem de extrato-folha.js (SONVI_EXTRATO), a mesma da página pública ----------
+  const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
+  const resumoDe = o => ({ nome:nomeDe(o.uid), pct:pctAtual(o.uid), bruto:r2(o.bruto), liquido_vendido:r2(o.liq), pis:o.pis, meta:o.meta, fila:r2(o.fila),
+    atrasos:(o.atrasos || []).slice().sort((a, b) => String(a.venc).localeCompare(String(b.venc))).slice(0, 8) });
+  const extratoDados = (uid, mes) => { const { lista, fechado } = calcMes(mes), o = lista.find(x => x.uid === uid) || { uid, itens:[], com:0, liq:0, liqPago:0, meta:0, fila:0, bruto:0, pis:0, atrasos:[] };
+    const emp = S.db.empresa || {}, pago = fechado && (fechado.pagos || {})[uid], veiculos = {};
+    o.itens.forEach(i => { const v = S.veh(i.veiculo_id); if (v) veiculos[i.veiculo_id] = { nome:v.nome, sigla:v.sigla, cor:v.cor }; });
+    return { uid, mes, nome:nomeDe(uid), fechado, com:o.com, situacao:pago ? 'paga' : fechado ? 'fechado' : 'previa', fechado_em:fechado ? fechado.fechado_em : null, pago_em:pago || null,
+      empresa:{ nome:emp.nome || S.empCurto(), logo:emp.logo || '', cor:emp.cor || '', cor2:emp.cor2 || '', cidade:emp.cidade || '', slug:S.ORG || (S.ctx && S.ctx.org && S.ctx.org.slug) || 'head14' },
+      resumo:resumoDe(o), itens:o.itens, veiculos }; };
+  const extratoHtml = x => window.SONVI_EXTRATO.html(x);
   const carregarPdfLib = () => window.html2pdf ? Promise.resolve() : new Promise((ok, erro) => { const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js'; s.onload = ok; s.onerror = () => erro(new Error('Não foi possível gerar o PDF agora.')); document.head.appendChild(s); });
   const arquivoNome = x => `Extrato de comissão ${x.nome} ${x.mes}.pdf`.replace(/[\\/:*?"<>|]/g, '');
@@ -203,23 +205,36 @@
   const linkExtrato = token => `${S.ORG ? `https://sonvi.com.br/${S.ORG}/` : new URL('.', location.href).href}extrato.html?e=${token}`;
   const contato = uid => { const c = colDe(uid) || {}, u = (S.db.usuarios || []).find(x => x.id === uid) || {}; return { email:String(c.email || u.email || '').trim(), cel:String(c.celular || u.celular || '').replace(/\D/g, '') }; };
   const assinatura = () => `${(S.me && S.me.nome && !(S.ctx && S.ctx.suporte) ? S.me.nome.split(' ')[0] + ' · ' : '')}${S.empCurto()}`;
-  const msgPadrao = (x) => x.fechado
-    ? `Olá, ${x.nome.split(' ')[0]}! Segue o seu extrato de comissão de ${nomeMes(x.mes)}/${x.mes.slice(0, 4)}: ${brl(x.com)}, referente às parcelas pagas pelos seus clientes no mês. Qualquer dúvida, é só responder.\n\n${assinatura()}`
-    : `Olá, ${x.nome.split(' ')[0]}! Segue a prévia da sua comissão de ${nomeMes(x.mes)}/${x.mes.slice(0, 4)}: ${brl(x.com)} até agora, pelas parcelas que os seus clientes já pagaram. O mês ainda está aberto, então o valor pode mudar até o fechamento.\n\n${assinatura()}`;
-  // Resumo em texto para o WhatsApp no mês aberto (ainda não há link do extrato)
-  const resumoTexto = x => [`${x.fechado ? 'Extrato' : 'Prévia'} de comissão · ${nomeMes(x.mes)}/${x.mes.slice(0, 4)} · ${x.nome}`,
-    ...x.itens.map(i => `${dfmt(i.pago_em).slice(0, 5)} · ${i.cliente} · ${brl(i.liquido)} × ${pctTxt(i.pct)} = ${brl(i.comissao)}`), `Comissão: ${brl(x.com)}`].join('\n');
+  // Saudação editável (e-mail e WhatsApp); no WhatsApp vem depois o bloco organizado, o link e a assinatura (SONVI_EXTRATO.whats)
+  const msgPadrao = x => x.situacao === 'previa'
+    ? `Olá, ${x.nome.split(' ')[0]}! 👋 Segue a prévia da sua comissão de ${nomeMes(x.mes)}. O mês ainda está aberto, então o valor pode mudar até o fechamento.`
+    : `Olá, ${x.nome.split(' ')[0]}! 👋 Segue o seu extrato de comissão de ${nomeMes(x.mes)}. Qualquer dúvida, é só responder.`;
+  // Link do extrato: o oficial (mês fechado) ou o da prévia (mês aberto, criado na hora; o mesmo link vira o oficial ao fechar)
+  const linkDe = async x => { const ext = x.fechado && x.fechado.extratos[x.uid];
+    if (ext) return linkExtrato(ext.token);
+    const token = await S.q(S.sb.rpc('extrato_previa_link', { p_usuario:x.uid, p_mes:x.mes, p_resumo:x.resumo })); return linkExtrato(token); };
   const servidor = async corpo => { const { data, error } = await S.sb.functions.invoke('comissoes', { body:corpo });
     if (error) { let m = error.message; try { const j = await error.context.json(); if (j && j.erro) m = j.erro; } catch (e) { /* */ } throw new Error(m); }
     if (data && data.erro) throw new Error(data.erro); return data; };
+  // Números do e-mail (o servidor monta o mesmo topo do extrato)
+  const numerosEmail = x => { const c = window.SONVI_EXTRATO.contas(x);
+    return { comissao:r2(c.com), recebido:r2(c.rec), liquido:r2(c.liq), pct:c.pct, vendido:r2(c.vend), meta:c.meta, fila:r2(c.fila), situacao:x.situacao, pago_em:x.pago_em || '', parcelas:(x.itens || []).length, cidade:x.empresa.cidade || '' }; };
   const enviarEmail = async (uid, mensagem) => { const mes = mesAtualTela(), x = extratoDados(uid, mes), ext = x.fechado && x.fechado.extratos[uid];
-    const pdf = await gerarPdf(x, 'base64');
-    if (ext) await servidor({ acao:'enviar_extrato', extrato:ext.id, pdf, arquivo:arquivoNome(x), mensagem });
-    else await servidor({ acao:'enviar_previa', usuario:uid, mes, comissao:Math.round(x.com * 100) / 100, pdf, arquivo:arquivoNome(x), mensagem }); };
-  const abrirWhats = (uid, mensagem) => { const mes = mesAtualTela(), x = extratoDados(uid, mes), ext = x.fechado && x.fechado.extratos[uid], { cel } = contato(uid);
-    const texto = ext ? `${mensagem}\n\nExtrato: ${linkExtrato(ext.token)}` : `${mensagem}\n\n${resumoTexto(x)}`;
-    window.open(`https://wa.me/${cel ? (cel.length <= 11 ? '55' : '') + cel : ''}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
-    if (ext) S.q(S.sb.rpc('extrato_registrar_envio', { p_extrato:ext.id, p_canal:'whatsapp' })).catch(() => {}); };
+    const pdf = await gerarPdf(x, 'base64'), numeros = numerosEmail(x), assina = assinatura();
+    if (ext) await servidor({ acao:'enviar_extrato', extrato:ext.id, pdf, arquivo:arquivoNome(x), mensagem, numeros, assina });
+    else await servidor({ acao:'enviar_previa', usuario:uid, mes, comissao:numeros.comissao, resumo:x.resumo, pdf, arquivo:arquivoNome(x), mensagem, numeros, assina }); };
+  // WhatsApp: a janela abre já no clique (o Safari bloqueia janela aberta depois) e recebe o endereço quando o link fica pronto
+  const abrirWhats = async (uid, mensagem) => { const mes = mesAtualTela(), x = extratoDados(uid, mes), ext = x.fechado && x.fechado.extratos[uid], { cel } = contato(uid);
+    const jan = window.open('', '_blank');
+    try { const link = await linkDe(x), texto = window.SONVI_EXTRATO.whats(x, { saudacao:mensagem, link, assinatura:assinatura() });
+      const url = `https://wa.me/${cel ? (cel.length <= 11 ? '55' : '') + cel : ''}?text=${encodeURIComponent(texto)}`;
+      if (jan) jan.location.href = url; else window.open(url, '_blank', 'noopener');
+      if (ext) S.q(S.sb.rpc('extrato_registrar_envio', { p_extrato:ext.id, p_canal:'whatsapp' })).catch(() => {}); }
+    catch (e) { if (jan) jan.close(); console.error(e); S.toast(S.erro(e)); } };
+  // PDF pelo compartilhar do aparelho (celular e Mac): o arquivo fica pronto quando a janela de envio abre, para o clique já compartilhar
+  let pdfPronto = null;
+  const prepararPdf = x => { pdfPronto = null; if (!navigator.canShare) return; gerarPdf(x, 'base64').then(b64 => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    const f = new File([u], arquivoNome(x), { type:'application/pdf' }); if (navigator.canShare({ files:[f] })) pdfPronto = { uid:x.uid, mes:x.mes, f }; }).catch(() => {}); };
 
   Object.assign(S.actions, {
     cmMes: d => { const n = +d.d; st.mes = n === 0 ? '' : somaMes(mesAtualTela(), n); if (st.mes === S.mesAtual()) st.mes = ''; S.render(); },
@@ -247,7 +262,7 @@
         ${semPct.length ? `<p class="note aviso" style="margin:0">${semPct.map(o => esc(nomeDe(o.uid))).join(', ')} sem percentual cadastrado: a comissão fica zero. Cadastre em Colaboradores antes de fechar.</p>` : ''}
         ${atr.length ? `<p class="note" style="margin:0">Ainda há ${brl(atr.reduce((t, o) => t + o.atraso, 0))} em atraso na carteira (${atr.map(o => esc(nomeDe(o.uid))).join(', ')}). Se o cliente pagar depois, entra no mês seguinte.</p>` : ''}
         <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Voltar</button><button class="btn pri" value="ok">Fechar e gerar extratos</button></div>`,
-        () => { const resumo = {}; cons.forEach(o => { resumo[o.uid] = { nome:nomeDe(o.uid), bruto:Math.round(o.bruto * 100) / 100, liquido_vendido:Math.round(o.liq * 100) / 100, pis:o.pis, meta:o.meta, pct:pctAtual(o.uid), fila:Math.round(o.fila * 100) / 100 }; });
+        () => { const resumo = {}; cons.forEach(o => { resumo[o.uid] = resumoDe(o); });
           S.run(async () => { await S.q(S.sb.rpc('fechar_comissoes', { p_mes:mes, p_resumo:resumo })); await recarregarMes(mes); }, { titulo:`${NM[0].toUpperCase() + NM.slice(1)} fechado`, sub:`${brl(tot.com)} em comissões · extratos prontos para enviar` }); }); },
     cmMenuMes: (d, botao) => S.menu(botao, [{ label:'Reabrir o mês', icon:'voltar', act:'cmReabrir', perigo:true }]),
     cmReabrir: () => { const mes = mesAtualTela();
@@ -268,21 +283,23 @@
           <button type="button" class="btn" data-act="cmPdf" data-id="${uid}">${S.svg('baixar')}Baixar PDF</button>
           ${dir ? `<button type="button" class="btn" data-act="cmEnviar" data-id="${uid}" data-canal="whatsapp">${S.svg('whats')}WhatsApp</button><button type="button" class="btn pri" data-act="cmEnviar" data-id="${uid}" data-canal="email">${S.svg('email')}E-mail</button>` : ''}</div>
         ${x.fechado ? '' : `<div class="note aviso">Prévia: ${nomeMes(x.mes)} ainda está aberto, então a comissão pode mudar até o fechamento.</div>`}
-        <div class="previa cm-previa">${extratoHtml(x)}</div>`);
+        <div class="cm-previa ex2-moldura">${extratoHtml(x)}</div>`);
       const dl = document.getElementById('dlg'); dl.classList.add('largo'); const antes = dl.onclose; dl.onclose = ev => { dl.classList.remove('largo'); if (antes) antes(ev); }; },
     cmEnviar: d => { { const dl = document.getElementById('dlg'); if (dl && dl.open) dl.close('x'); }
       const uid = d.id, mes = mesAtualTela(), x = extratoDados(uid, mes), { email, cel } = contato(uid), fech = !!(x.fechado && x.fechado.extratos[uid]);
-      const canal0 = d.canal || (email ? 'email' : 'whatsapp');
+      const canal0 = d.canal || (email ? 'email' : 'whatsapp'); prepararPdf(x);
       S.dialog(`<h2>Enviar ${fech ? 'o extrato' : 'a prévia'} de ${nomeMes(mes)}</h2><p class="muted" style="margin:-6px 0 0">${esc(x.nome)} · comissão de ${brl(x.com)}${fech ? '' : ' até agora (mês aberto)'}</p>
         <div class="cm-envios" role="radiogroup" aria-label="Como enviar">
           <label class="cm-env"><input type="radio" name="canal" value="email"${email ? (canal0 === 'email' ? ' checked' : '') : ' disabled'}><span class="cm-ei">${S.svg('email')}</span><span><b>E-mail</b><small>${email ? `${esc(email)} · PDF anexado` : 'sem e-mail no cadastro do colaborador'}</small></span></label>
-          <label class="cm-env"><input type="radio" name="canal" value="whatsapp"${canal0 === 'whatsapp' || !email ? ' checked' : ''}><span class="cm-ei wa">${S.svg('whats')}</span><span><b>WhatsApp</b><small>${cel ? `${esc(contato(uid).cel.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3'))} · ` : 'sem celular no cadastro · '}${fech ? 'mensagem pronta com o link do extrato' : 'mensagem pronta com o resumo da comissão'}</small></span></label>
-          <label class="cm-env"><input type="radio" name="canal" value="pdf"><span class="cm-ei">${S.svg('baixar')}</span><span><b>Baixar PDF</b><small>para imprimir ou mandar por outro meio</small></span></label></div>
-        <label class="f">Mensagem<textarea name="mensagem" rows="5">${esc(msgPadrao(x))}</textarea></label>
-        <p class="muted small" style="margin:0">O e-mail sai como "${esc((S.me.nome || '').split(' ')[0] || 'Diretor')} · ${esc(S.empCurto())}" e a resposta volta para você. ${fech ? 'No WhatsApp vai um link seguro, que abre sem login e mostra só o extrato dele.' : 'No WhatsApp vai o resumo em texto; o link do extrato só existe depois que o mês é fechado.'}</p>
+          <label class="cm-env"><input type="radio" name="canal" value="whatsapp"${canal0 === 'whatsapp' || !email ? ' checked' : ''}><span class="cm-ei wa">${S.svg('whats')}</span><span><b>WhatsApp</b><small>${cel ? `${esc(contato(uid).cel.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3'))} · ` : 'sem celular no cadastro · '}mensagem organizada com o link do extrato</small></span></label>
+          <label class="cm-env"><input type="radio" name="canal" value="pdf"><span class="cm-ei">${S.svg('baixar')}</span><span><b>${navigator.canShare ? 'Enviar o PDF' : 'Baixar PDF'}</b><small>${navigator.canShare ? 'abre o compartilhar do aparelho com o arquivo: escolha o WhatsApp e o consultor' : 'para imprimir ou arrastar na conversa'}</small></span></label></div>
+        <label class="f">Saudação<textarea name="mensagem" rows="3">${esc(msgPadrao(x))}</textarea><small class="muted">No WhatsApp, depois dela vão a comissão, o recebido, o vendido, a situação e o link do extrato${fech ? '' : ' (a prévia)'}.</small></label>
+        <p class="muted small" style="margin:0">O e-mail sai como "${esc((S.me.nome || '').split(' ')[0] || 'Diretor')} · ${esc(S.empCurto())}" e a resposta volta para você. O link é seguro: abre sem login e mostra só o extrato dele${fech ? '' : '; quando o mês fechar, o mesmo link mostra o extrato oficial'}.</p>
         <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Enviar</button></div>`,
         async f => { if (f.canal === 'whatsapp') { abrirWhats(uid, f.mensagem); return; }
-          if (f.canal === 'pdf') return S.actions.cmPdf({ id:uid });
+          if (f.canal === 'pdf') { if (pdfPronto && pdfPronto.uid === uid && pdfPronto.mes === mes) { const texto = window.SONVI_EXTRATO.whats(x, { saudacao:f.mensagem, assinatura:assinatura() });
+              navigator.share({ files:[pdfPronto.f], title:arquivoNome(x), text:texto }).catch(e => { if (e && e.name !== 'AbortError') S.actions.cmPdf({ id:uid }); }); return; }
+            return S.actions.cmPdf({ id:uid }); }
           S.toast('Gerando o PDF e enviando…');
           await S.run(async () => { await enviarEmail(uid, f.mensagem); await recarregarMes(mes); }, { titulo:fech ? 'Extrato enviado' : 'Prévia enviada', sub:`${x.nome} · ${email}` }); }); },
     cmEnviarTodos: () => { const mes = mesAtualTela(), { lista, fechado } = calcMes(mes), cons = lista.filter(o => o.uid && fechado.extratos[o.uid]);
