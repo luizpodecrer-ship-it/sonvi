@@ -71,23 +71,12 @@
   // Lista aprovada em 25/10/2026 (adaptada do recurso "Escalafón" da Moxen, licença permite uso dentro do produto; estilos .cl-* em sonvi.css):
   // só a lista, que se ordena pelos títulos. Cada linha viaja do lugar velho ao novo com mola e em cascata; as que sobem passam por cima,
   // com sombra. Uma pílula salta ao título que manda, a seta gira ao inverter e as outras colunas ficam mais fracas. Tons do veículo.
-  const VENDA = ['opec', 'aprovado', 'programado', 'faturado'];
-  const cf = { sit:'todos', cons:'', por:'comprado', sentido:'desc' };
-  const curtoC = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
-  // Compras por mês (12 meses, o último é o atual) de cada pessoa, pelo campo do PI (cliente_id ou agencia_id)
-  const compras = campo => { const h = S.today(), mes0 = (() => { const [y, m] = h.split('-').map(Number), d = new Date(y, m - 12, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
-    const idx = ym => { const [y, m] = ym.split('-').map(Number), [y0, m0] = mes0.split('-').map(Number); return (y - y0) * 12 + (m - m0); };
-    const out = {}; S.db.pis.filter(p => VENDA.includes(p.status) && p[campo]).forEach(p => { const i = idx(S.dia(p.criado_em).slice(0, 7)); if (i < 0 || i > 11) return;
-      const r = out[p[campo]] = out[p[campo]] || { m:Array(12).fill(0), total:0 }; const v = S.calc(p).total; r.m[i] += v; r.total += v; });
-    Object.values(out).forEach(r => { const k = r.m.map((v, i) => v ? i : -1).filter(i => i > -1).pop(); r.ult = k === undefined ? -1 : 11 - k; });
-    return out; };
-  const ultTxt = c => !c || c.ult < 0 ? 'nunca' : c.ult === 0 ? 'este mês' : c.ult === 1 ? 'há 1 mês' : `há ${c.ult} meses`;
-  const ultCls = c => !c || c.ult < 0 ? 'cl-u-nunca' : c.ult === 0 ? 'cl-u-mes' : c.ult <= 3 ? 'cl-u-tri' : 'cl-u-sumiu';
+  const cf = { sit:'todos', cons:'', por:'nome', sentido:'asc' };
   // Colunas: [chave, título, sentido de partida, classe]
   const colunas = cli => [['nome', cli ? 'Cliente' : 'Agência', 'asc', ''], ...(cli ? [['cons', 'Consultor', 'asc', 'cl-c-cons']] : []), ['cidade', 'Cidade', 'asc', 'cl-c-cid'],
-    ['comprado', 'Comprado', 'desc', ''], ['ultima', 'Última compra', 'asc', 'cl-c-ult'], ...(cli ? [['sit', 'Situação', 'asc', 'cl-c-sit']] : [])];
+    ['tel', 'Telefone', 'asc', 'cl-c-tel'], ...(cli ? [['sit', 'Situação', 'asc', 'cl-c-sit']] : [])];
   const DITO = { nome:['de A a Z', 'de Z a A'], cons:['consultor, de A a Z', 'consultor, de Z a A'], cidade:['cidade, de A a Z', 'cidade, de Z a A'],
-    comprado:['quem comprou mais primeiro', 'quem comprou menos primeiro'], ultima:['compra mais recente primeiro', 'compra mais antiga primeiro'], sit:['situação, de A a Z', 'situação, de Z a A'] };
+    tel:['telefone, do menor ao maior', 'telefone, do maior ao menor'], sit:['situação, de A a Z', 'situação, de Z a A'] };
   const SETA = '<svg class="cl-seta" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5v13m0 0-5-5m5 5 5-5"/></svg>';
   // Mola convertida em curva linear() do CSS: o navegador anima sem JavaScript a cada quadro
   const mola = (k, c) => { const pts = [0]; let x = 0, v = 0, t = 0;
@@ -122,38 +111,38 @@
   S.views.clientes = id => {
     // Agências saíram de dentro do veículo (29/10/2026): o cadastro é único do grupo, no Dashboard Gestão (agencias.js)
     aba = 'cliente'; if (id === 'agencias' && S.me.diretor) queueMicrotask(() => S.admAbrir('agencias'));
-    const cli = aba === 'cliente', q = S.ui.q.toLowerCase(), todas = S.pessoas(aba), cp = compras(cli ? 'cliente_id' : 'agencia_id');
+    const cli = aba === 'cliente', q = S.ui.q.toLowerCase(), todas = S.pessoas(aba);
+    const fone = p => p.telefone || p.whatsapp || '';
     const gestor = S.pode('diretor', 'gerente'), podeCriar = S.pode('diretor', 'gerente', 'consultor'), outras = radiosDestino().length > 0;
-    const cols = colunas(cli); if (!cols.some(c => c[0] === cf.por)) { cf.por = 'comprado'; cf.sentido = 'desc'; }
+    const cols = colunas(cli); if (!cols.some(c => c[0] === cf.por)) { cf.por = 'nome'; cf.sentido = 'asc'; }
     // Responsáveis: consultores e gerentes da rádio e quem mais tiver clientes (ex.: o diretor)
     const resp = !(cli && gestor) ? [] : [...S.responsaveis(), ...[...new Set(todas.map(p => p.consultor_id).filter(Boolean))].map(id => ({ id, nome:S.usuario(id) || 'Responsável' }))]
       .filter((u, i, l) => l.findIndex(x => x.id === u.id) === i && todas.some(p => p.consultor_id === u.id));
     if (cf.cons && !resp.some(u => u.id === cf.cons)) cf.cons = '';
     const nomeCons = p => p.consultor_id ? (S.usuario(p.consultor_id) || '') : '';
-    const valor = (p, k) => { const c = cp[p.id]; return k === 'comprado' ? (c ? c.total : 0) : k === 'ultima' ? (c && c.ult >= 0 ? c.ult : 999) : k === 'cons' ? (nomeCons(p) || '￿') : k === 'sit' ? (SIT[p.situacao] || [''])[0] : String(p[k === 'nome' ? 'nome' : 'cidade'] || '￿'); };
+    const valor = (p, k) => { return k === 'tel' ? (fone(p) || '￿') : k === 'cons' ? (nomeCons(p) || '￿') : k === 'sit' ? (SIT[p.situacao] || [''])[0] : String(p[k === 'nome' ? 'nome' : 'cidade'] || '￿'); };
     const lista = todas.filter(p => (!cli || !cf.cons || p.consultor_id === cf.cons) && (!cli || cf.sit === 'todos' || p.situacao === cf.sit)
       && (!q || [p.nome, p.razao_social, p.documento, p.cidade, p.segmento].join(' ').toLowerCase().includes(q)))
       .sort((a, b) => { const x = valor(a, cf.por), y = valor(b, cf.por), r = typeof x === 'number' ? x - y : x.localeCompare(y, 'pt-BR');
         return (r || a.nome.localeCompare(b.nome, 'pt-BR')) * (cf.sentido === 'asc' ? 1 : -1); });
-    const max = Math.max(1, ...lista.map(p => (cp[p.id] || {}).total || 0)), tot = lista.reduce((s, p) => s + ((cp[p.id] || {}).total || 0), 0);
-    const recentes = lista.filter(p => cp[p.id] && cp[p.id].ult <= 2).length, palavra = cli ? (lista.length === 1 ? 'cliente' : 'clientes') : (lista.length === 1 ? 'agência' : 'agências');
-    const resumo = `${lista.length} ${palavra} · ${curtoC(tot)} em 12 meses · ${recentes} ${recentes === 1 ? 'comprou' : 'compraram'} nos últimos 3 meses`;
+    // Lista reorganizada (31/10/2026, pedido do Luiz): sem Comprado e Última compra; telefone em coluna própria, CNPJ embaixo do nome
+    const palavra = cli ? (lista.length === 1 ? 'cliente' : 'clientes') : (lista.length === 1 ? 'agência' : 'agências');
+    const nSit = k => lista.filter(p => p.situacao === k).length;
+    const resumo = cli ? [`${lista.length} ${palavra}`, ...[['ativo', 'ativo', 'ativos'], ['prospect', 'prospect', 'prospects'], ['inativo', 'inativo', 'inativos']].filter(([k]) => nSit(k)).map(([k, a, b]) => `${nSit(k)} ${nSit(k) === 1 ? a : b}`)].join(' · ') : `${lista.length} ${palavra}`;
     const ini = cols.find(c => c[0] === cf.por)[2], estado = 'Ordenado: ' + DITO[cf.por][cf.sentido === ini ? 0 : 1];
     const tres = p => outras && podeAlterarLa(p) ? `<button class="btn tres" data-act="pesMenu" data-id="${p.id}" aria-label="Opções de ${esc(p.nome)}">${S.svg('mais3')}</button>` : '';
-    const sub = p => cli ? [p.documento, p.telefone || p.whatsapp].filter(Boolean).join(' · ') : [`Comissão ${S.nfmt(Number(p.comissao)) || '0'}%`, (() => { const n = S.pessoas('cliente').filter(c => c.agencia_id === p.id).length; return n ? `${n} cliente${n === 1 ? '' : 's'}` : ''; })()].filter(Boolean).join(' · ');
-    const comp = p => { const c = cp[p.id], v = c ? c.total : 0; return `<span class="cl-bar" aria-hidden="true"><i style="--p:${v ? (.08 + .92 * v / max).toFixed(3) : 0}"></i></span>${v ? curtoC(v) : '—'}`; };
+    const sub = p => cli ? (p.documento || '') : [`Comissão ${S.nfmt(Number(p.comissao)) || '0'}%`, (() => { const n = S.pessoas('cliente').filter(c => c.agencia_id === p.id).length; return n ? `${n} cliente${n === 1 ? '' : 's'}` : ''; })()].filter(Boolean).join(' · ');
     const sitPill = p => `<span class="pill cl-s-${esc(p.situacao)}">${esc((SIT[p.situacao] || [p.situacao])[0])}</span>`;
     const linha = p => `<div class="cl-fila" role="row" data-linha="${p.id}" data-act="pesEditar" data-id="${p.id}">
       <span class="cl-cel cl-nome" role="cell" data-col="nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><span><b title="${esc(p.nome)}">${esc(p.nome)}</b>${sub(p) ? `<small>${esc(sub(p))}</small>` : ''}</span></span>
       ${cli ? `<span class="cl-cel cl-c-cons" role="cell" data-col="cons">${esc(nomeCons(p).split(' ')[0]) || '—'}</span>` : ''}
       <span class="cl-cel cl-c-cid" role="cell" data-col="cidade" title="${esc(p.cidade)}">${esc(p.cidade) || '—'}</span>
-      <span class="cl-cel cl-comp" role="cell" data-col="comprado">${comp(p)}</span>
-      <span class="cl-cel cl-c-ult" role="cell" data-col="ultima"><span class="pill ${ultCls(cp[p.id])}">${ultTxt(cp[p.id])}</span></span>
+      <span class="cl-cel cl-c-tel nw" role="cell" data-col="tel">${esc(fone(p)) || '—'}</span>
       ${cli ? `<span class="cl-cel cl-c-sit" role="cell" data-col="sit">${sitPill(p)}</span>` : ''}
       <span class="cl-acao" role="cell">${tres(p)}</span></div>`;
     const cab = `<div class="cl-fila cl-tit" role="row"><span class="cl-pilula" aria-hidden="true"></span>${cols.map(([k, n, s, cl]) => `<span role="columnheader" class="${cl}" data-col="${k}" aria-sort="${cf.por === k ? (cf.sentido === 'asc' ? 'ascending' : 'descending') : 'none'}"><button type="button" data-act="cliOrdem" data-v="${k}" data-sentido="${s}">${n}${SETA}</button></span>`).join('')}<span role="columnheader" class="cl-acao"><span class="sr">Opções</span></span></div>`;
     const cel = p => `<div class="cl-cel-l" data-flip="${p.id}" data-act="pesEditar" data-id="${p.id}"><span class="cl-nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><span><b>${esc(p.nome)}</b><small>${esc([cli ? nomeCons(p).split(' ')[0] : '', p.cidade].filter(Boolean).join(' · ') || '—')}</small></span></span>
-      <span class="cl-dir"><b>${cp[p.id] ? curtoC(cp[p.id].total) : '—'}</b><span class="pill ${ultCls(cp[p.id])}">${ultTxt(cp[p.id])}</span></span></div>`;
+      <span class="cl-dir">${cli ? sitPill(p) : ''}</span></div>`;
     const filtrado = q || cf.sit !== 'todos' || cf.cons;
     const vazio = `<div class="empty"><b>Nenhum cadastro${filtrado ? ' encontrado' : ''}</b>${filtrado ? 'Experimente outro filtro ou outra busca.' : S.pode('consultor') && cli ? 'Aqui aparecem os clientes da sua carteira.' : podeCriar ? (cli ? 'Cadastre o primeiro cliente pelo botão "Novo cliente".' : 'Cadastre a primeira agência pelo botão "Nova agência".') : ''}</div>`;
     const filtros = `<div class="cl-barra"><label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por nome, CNPJ, cidade ou segmento" aria-label="Buscar ${cli ? 'clientes' : 'agências'}"></label>

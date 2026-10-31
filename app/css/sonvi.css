@@ -2630,8 +2630,8 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 .cl-cab { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:8px; }
 .cl-cab h2 { margin:0; } .cl-cab p { margin:2px 0 0; font-size:13.5px; color:var(--ink-2); }
 .cl-estado { font-size:13px; color:var(--ink-2); }
-.cl-tab { position:relative; --cl-cols:minmax(0, 2.3fr) minmax(0, .9fr) minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, .95fr) minmax(0, .8fr) 40px; }
-.cl-tab.cl-ag { --cl-cols:minmax(0, 2.4fr) minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr) 40px; }
+.cl-tab { position:relative; --cl-cols:minmax(0, 2.6fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr) 40px; }
+.cl-tab.cl-ag { --cl-cols:minmax(0, 2.4fr) minmax(0, 1.2fr) minmax(0, 1fr) 40px; }
 .cl-fila { position:relative; display:grid; grid-template-columns:var(--cl-cols); gap:14px; align-items:center; min-height:62px; padding:0 12px; background:var(--surface); }
 .cl-corpo .cl-fila { border-top:1px solid var(--line); cursor:pointer; }
 .cl-corpo .cl-fila:hover { background:color-mix(in srgb, var(--fill) 55%, var(--surface)); }
@@ -2639,7 +2639,7 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 .cl-corpo .cl-fila::after { content:""; position:absolute; inset:0; border-radius:12px; pointer-events:none; box-shadow:0 18px 32px -16px rgba(0,0,0,.3); opacity:0; }
 .cl-cel { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px; color:var(--ink); font-variant-numeric:tabular-nums; color:var(--ink-2); transition:color .45s cubic-bezier(.22,1,.36,1); }
 .cl-cel .pill { transition:filter .45s; filter:saturate(.55); } .cl-cel .cl-bar { transition:opacity .45s; opacity:.5; }
-.cl-tab[data-por="nome"] [data-col="nome"], .cl-tab[data-por="cons"] [data-col="cons"], .cl-tab[data-por="cidade"] [data-col="cidade"], .cl-tab[data-por="comprado"] [data-col="comprado"],
+.cl-tab[data-por="nome"] [data-col="nome"], .cl-tab[data-por="cons"] [data-col="cons"], .cl-tab[data-por="cidade"] [data-col="cidade"], .cl-tab[data-por="tel"] [data-col="tel"],
 .cl-tab[data-por="ultima"] [data-col="ultima"], .cl-tab[data-por="sit"] [data-col="sit"], .cl-cel.cl-nome { color:var(--ink); }
 .cl-tab[data-por="ultima"] [data-col="ultima"] .pill, .cl-tab[data-por="sit"] [data-col="sit"] .pill { filter:none; } .cl-tab[data-por="comprado"] .cl-bar { opacity:1; }
 .cl-nome { display:flex; align-items:center; gap:12px; min-width:0; }
@@ -2664,8 +2664,8 @@ a.ga-l:hover { background:color-mix(in srgb, var(--fill) 60%, transparent); colo
 /* celular: nome e comprado */
 .cl-cel-lista > div { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; align-items:center; padding:12px 4px; border-top:1px solid var(--line); cursor:pointer; min-height:44px; }
 .cl-dir { display:flex; flex-direction:column; align-items:flex-end; gap:4px; } .cl-dir b { font:600 14px var(--display); font-variant-numeric:tabular-nums; }
-@media (max-width:1240px) { .cl-tab { --cl-cols:minmax(0, 2.2fr) minmax(0, .9fr) minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, .85fr) 40px; } .cl-tab.cl-cli .cl-c-cid { display:none; } }
-@media (max-width:1100px) { .cl-tab.cl-cli { --cl-cols:minmax(0, 2.2fr) minmax(0, .9fr) minmax(0, 1.35fr) minmax(0, 1fr) 40px; } .cl-tab .cl-c-sit { display:none; } }
+@media (max-width:1240px) { .cl-tab { --cl-cols:minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .85fr) 40px; } .cl-tab.cl-cli .cl-c-cid { display:none; } }
+@media (max-width:1100px) { .cl-tab.cl-cli { --cl-cols:minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1fr) 40px; } .cl-tab .cl-c-sit { display:none; } }
 @media (prefers-reduced-motion: reduce) { .cl-cel, .cl-cel .pill, .cl-cel .cl-bar, .cl-seta { transition:none; } }
 
 /* ===== Combos (combos.js, aprovado em 24/10/2026): cartões com a mistura por veículo e editor com o preço ao lado ===== */

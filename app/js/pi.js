@@ -471,8 +471,7 @@
   const podeOrig = pi => S.pode('diretor') || S.pode('gerente') || (S.pode('consultor') && (!pi.consultor_id || pi.consultor_id === S.me.id));
   function cartaoOriginal(pi) {
     const o = ORIG[pi.id], pode = podeOrig(pi);
-    if (!o) return pode ? `<section class="card md-card md-orig"><div class="hd"><h2>PI original da agência</h2><span>o documento que a agência ou o cliente mandou</span></div>
-        <div class="md-add"><label class="drop md-drop"><input type="file" accept=".pdf,image/*" data-act-file="piOrig" hidden>${S.svg('subir')}<b>Anexar PI da agência</b><span>PDF ou foto · vai junto para a OPEC, separado das mídias</span></label></div></section>` : '';
+    if (!o) return '';   // sem área de anexar (31/10/2026, pedido do Luiz): o PI original chega pela importação (Importar PI)
     return `<section class="card md-card md-orig"><div class="hd"><h2>PI original da agência</h2><span>vai junto para a OPEC, separado das mídias</span></div>
       <div class="md-lista"><div class="md-i"><span class="md-ic">${S.svg('doc')}</span><span class="tx"><b title="${esc(o.nome)}">${esc(o.nome)}</b><small>${tamanho(o.tamanho || 0)} · ${dfmt(S.dia(o.criado_em))}</small></span>
         <span class="md-ac">${seloOrig(o)}<button class="btn sm" data-act="piOrigVer">${S.svg('abrir')}Abrir</button>${pode ? `<button class="btn tres" data-act="piOrigMenu" aria-label="Mais opções do PI original">${S.svg('mais3')}</button>` : ''}</span></div></div>
@@ -568,16 +567,16 @@
     piVer: () => { const pi = cur();
       S.buildPrint(pi, { date:today(), to:'client', commission:true, billing:true, clientData:true, vehicleData:true, obs:true, signClient:true, signVehicle:true, signAgency:!!pi.agencia_id, conds:true });
       const doc = document.getElementById('print').innerHTML, probs = S.piProblems(pi);
-      S.dialog(`<div class="row mid"><h2 class="grow">Visualizar ${S.piNo(pi)}</h2><button class="btn" value="x">Fechar</button><button class="btn pri" value="exp" type="submit">${S.svg('baixar')}Exportar PI</button></div>
+      S.dialog(`<div class="row mid"><h2 class="grow">Visualizar ${S.piNo(pi)}</h2><button class="btn" value="x">Fechar</button></div>
         ${probs.length ? `<div class="note">Falta preencher: ${probs.map(esc).join('; ')}.</div>` : '<div class="note info">Tudo preenchido para enviar.</div>'}
         <div class="previa">${doc}</div>`);
       document.getElementById('dlg').classList.add('largo');
-      const d = document.getElementById('dlg'); d.onclose = () => { d.classList.remove('largo'); if (d.returnValue === 'exp') S.actions.piExport(); }; },
+      const d = document.getElementById('dlg'); d.onclose = () => { d.classList.remove('largo'); }; },   // sem "Exportar PI" aqui (31/10/2026): já está no cabeçalho do PI
     piAbrirItem: d => { S.ui.piItem = Object.assign({}, S.ui.piItem, { [d.g]:d.id }); S.render(); },
     piVerResumo: () => { const s = document.getElementById('sum'); if (s) s.scrollIntoView({ behavior:'smooth', block:'start' }); },
     piOrigVer: async () => { const pi = cur(), o = pi && ORIG[pi.id]; if (!o) return;
       try { const { data, error } = await S.sb.storage.from(BUCKET).createSignedUrl(o.caminho, 300); if (error) throw error; window.open(data.signedUrl, '_blank', 'noopener'); } catch (e) { S.toast(S.erro(e)); } },
-    piOrigMenu: (d, botao) => { if (!botao) return; S.menu(botao, [{ label:'Trocar o arquivo', icon:'subir', act:'piOrigTrocar' }, { label:'Tirar o PI original', icon:'lixo', act:'piOrigTirar', perigo:true }]); },
+    piOrigMenu: (d, botao) => { if (!botao) return; S.menu(botao, [{ label:'Tirar o PI original', icon:'lixo', act:'piOrigTirar', perigo:true }]); },
     piOrigTrocar: () => { const pi = cur(); if (!pi) return; const i = document.createElement('input'); i.type = 'file'; i.accept = '.pdf,image/*'; i.onchange = () => anexarOriginal(pi, i.files[0]); i.click(); },
     piOrigTirar: async () => { const pi = cur(), o = pi && ORIG[pi.id]; if (!o) return;
       if (!await S.confirmar(`Tirar o PI original da agência "${o.nome}" deste PI?`, { ok:'Tirar', perigo:true })) return;
