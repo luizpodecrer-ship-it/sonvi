@@ -507,7 +507,7 @@
   // Visualizar: a proposta como vai sair no PDF, com o que está na tela (inclusive o que ainda não foi salvo)
   const visualizar = (p, id) => {
     const probs = problemas(p), sujo = ed.id === id && ed.sujo;
-    S.dialog(`<div class="row mid"><h2 class="grow">Proposta ${S.propNo(p)}</h2><button class="btn" value="x">Fechar</button><button class="btn pri" value="pdf" type="submit">${S.svg('baixar')}Baixar PDF</button></div>
+    S.dialog(`<div class="row mid"><h2 class="grow">Proposta ${S.propNo(p)}</h2><button class="btn" value="x">Fechar</button></div>
       ${probs.length ? `<div class="note" style="margin:0">Falta preencher: ${probs.map(esc).join('; ')}.</div>` : ''}
       ${sujo ? '<div class="note info" style="margin:0">Mostrando o que está na tela, inclusive o que ainda não foi salvo. Lembre de clicar em <b>Salvar</b>.</div>' : ''}
       <div class="pr-previa" tabindex="0" role="region" aria-label="Prévia da proposta"><div class="pr-folha">${S.htmlProposta(p)}</div></div>`);
