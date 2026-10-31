@@ -1,6 +1,7 @@
 // SONVI · função de borda "comissoes" (database/068, aprovado em 31/10/2026, "Vendas e comissões").
 //   { acao: "enviar_extrato", extrato, pdf, arquivo, mensagem } → (diretor logado) manda ao consultor o extrato de comissão do mês
 //      fechado, com o PDF anexado (gerado na tela) e o link seguro extrato.html?e=<token>.
+//   { acao: "enviar_previa", usuario, mes, comissao, pdf, arquivo, mensagem } → (diretor) a prévia do mês aberto, só com o PDF (sem link).
 // Remetente: "<quem envia> · <empresa comercial>" <comissoes@sonvi.com.br>, resposta para quem enviou (nunca "SONVI");
 // no acesso de suporte, só a empresa. Envia pelo Resend (segredo RESEND_API_KEY).
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -26,7 +27,8 @@ Deno.serve(async (req) => {
     const url = Deno.env.get('SUPABASE_URL')!, publica = Deno.env.get('SUPABASE_ANON_KEY')!, secreta = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const adm = createClient(url, secreta, { auth: { persistSession: false, autoRefreshToken: false } });
     const b = await req.json().catch(() => ({}));
-    if (b.acao !== 'enviar_extrato') return resposta({ erro: 'Ação desconhecida.' }, 400);
+    if (b.acao !== 'enviar_extrato' && b.acao !== 'enviar_previa') return resposta({ erro: 'Ação desconhecida.' }, 400);
+    const previa = b.acao === 'enviar_previa';
 
     const auth = req.headers.get('Authorization') ?? '';
     const quem = createClient(url, publica, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
@@ -34,8 +36,17 @@ Deno.serve(async (req) => {
     if (!user) return resposta({ erro: 'Entre no sistema para enviar.' }, 401);
 
     // O banco confere se quem chama é diretor da empresa do extrato (e se o mês continua fechado)
-    const { data: x, error } = await quem.rpc('extrato_para_envio', { p_extrato: String(b.extrato || '') });
-    if (error) return resposta({ erro: error.message }, 400);
+    let x: any;
+    if (previa) {
+      if (!/^\d{4}-\d{2}$/.test(String(b.mes || ''))) return resposta({ erro: 'Mês inválido.' }, 400);
+      const { data, error } = await quem.rpc('comissao_contato', { p_usuario: String(b.usuario || '') });
+      if (error) return resposta({ erro: error.message }, 400);
+      x = { ...data, mes: String(b.mes), comissao: Number(b.comissao) || 0 };
+    } else {
+      const { data, error } = await quem.rpc('extrato_para_envio', { p_extrato: String(b.extrato || '') });
+      if (error) return resposta({ erro: error.message }, 400);
+      x = data;
+    }
     const para = String(x.email || '').trim().toLowerCase();
     if (!emailOk(para)) return resposta({ erro: `${x.nome || 'O consultor'} não tem e-mail no cadastro (Administração › Colaboradores).` }, 400);
     const pdf = String(b.pdf || '');
@@ -50,20 +61,20 @@ Deno.serve(async (req) => {
     const replyTo = !suporte && emailOk(String(eu?.email || '')) ? String(eu!.email).toLowerCase() : undefined;
     const link = `${x.slug ? `https://sonvi.com.br/${x.slug}/` : 'https://sonvi.com.br/'}extrato.html?e=${x.token}`;
     const nomeMes = `${MESES[+String(x.mes).slice(5) - 1]}/${String(x.mes).slice(0, 4)}`;
-    const assunto = `Extrato de comissão · ${nomeMes} · ${empresa}`;
+    const assunto = `${previa ? 'Prévia da comissão' : 'Extrato de comissão'} · ${nomeMes} · ${empresa}`;
     const msg = String(b.mensagem || '').trim().slice(0, 3000) || `Olá! Segue o seu extrato de comissão de ${nomeMes}: ${brl(x.comissao)}.`;
     const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:560px">
       ${msg.split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${esc(p).replace(/\n/g, '<br>')}</p>`).join('')}
-      <table style="width:100%;border-collapse:collapse;border:1px solid #e4e6eb;font-size:14px;margin:6px 0 18px"><tr><td style="padding:10px 14px;color:#6b6b74">Comissão de ${esc(nomeMes)}</td><td style="padding:10px 14px;text-align:right"><b>${esc(brl(x.comissao))}</b></td></tr></table>
-      <p style="margin:0 0 22px"><a href="${esc(link)}" style="display:inline-block;background:#15171c;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px">Ver o extrato</a></p>
-      <p style="margin:0;color:#6b6b74;font-size:13px">O PDF do extrato vai anexado. ${esc(empresa)}.</p></div>`;
-    const texto = `${msg}\n\nComissão de ${nomeMes}: ${brl(x.comissao)}\nVer o extrato: ${link}\n\nO PDF do extrato vai anexado.`;
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e4e6eb;font-size:14px;margin:6px 0 18px"><tr><td style="padding:10px 14px;color:#6b6b74">Comissão de ${esc(nomeMes)}${previa ? ' (até agora)' : ''}</td><td style="padding:10px 14px;text-align:right"><b>${esc(brl(x.comissao))}</b></td></tr></table>
+      ${previa ? '' : `<p style="margin:0 0 22px"><a href="${esc(link)}" style="display:inline-block;background:#15171c;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px">Ver o extrato</a></p>`}
+      <p style="margin:0;color:#6b6b74;font-size:13px">${previa ? 'O PDF da prévia vai anexado. O mês ainda está aberto: o valor pode mudar até o fechamento.' : 'O PDF do extrato vai anexado.'} ${esc(empresa)}.</p></div>`;
+    const texto = `${msg}\n\nComissão de ${nomeMes}${previa ? ' (até agora)' : ''}: ${brl(x.comissao)}${previa ? '' : `\nVer o extrato: ${link}`}\n\nO PDF ${previa ? 'da prévia' : 'do extrato'} vai anexado.`;
     const arquivo = nomeLimpo(String(b.arquivo || `Extrato de comissão ${nomeMes}.pdf`)).replace(/[\\/:*?|]/g, '') || 'extrato.pdf';
     const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ from, to: [para], subject: assunto, html, text: texto, ...(replyTo ? { reply_to: replyTo } : {}),
         attachments: [{ filename: /\.pdf$/i.test(arquivo) ? arquivo : arquivo + '.pdf', content: pdf }] }) });
     if (!r.ok) { const t = await r.text(); console.error('resend', r.status, t); return resposta({ erro: 'O e-mail não saiu. Tente de novo em instantes.' }, 502); }
-    await quem.rpc('extrato_registrar_envio', { p_extrato: x.id, p_canal: 'email' });
+    if (!previa) await quem.rpc('extrato_registrar_envio', { p_extrato: x.id, p_canal: 'email' });
     return resposta({ ok: true, para });
   } catch (e) {
     console.error(e);
