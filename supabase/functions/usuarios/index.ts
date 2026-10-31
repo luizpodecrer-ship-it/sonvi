@@ -22,6 +22,11 @@ const resposta = (corpo: unknown, status = 200) => new Response(JSON.stringify(c
 const PERFIS = ['gerente', 'consultor', 'opec', 'financeiro', 'programador', 'locutor'];
 const PERFIS_DO_GERENTE = ['consultor', 'opec', 'financeiro', 'programador', 'locutor'];
 const emailOk = (e: string) => /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(e);
+// Nome da empresa do cliente (regra do Luiz, 31/10/2026: nada chega como "SONVI"; o cliente se sente dono do sistema)
+const nomeEmpresa = async (adm: any, org: string | null) => { if (!org) return 'Comercial';
+  const { data: e } = await adm.from('empresa_comercial').select('nome').eq('organizacao_id', org).maybeSingle();
+  const { data: o } = e?.nome ? { data: null } : await adm.from('organizacoes').select('nome').eq('id', org).maybeSingle();
+  return String(e?.nome || o?.nome || 'Comercial').replace(/[<>"\r\n,;]/g, '').trim().slice(0, 60) || 'Comercial'; };
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 // Senha provisória fácil de ditar e digitar no celular: 3 grupos de 4, sem letras e números que se confundem (0/O, 1/l/I)
@@ -46,21 +51,21 @@ Deno.serve(async (req) => {
       const email = String(b.email ?? '').trim().toLowerCase();
       const pronto = resposta({ ok: true });
       if (!emailOk(email)) return resposta({ erro: 'Digite um e-mail válido.' }, 400);
-      const { data: u } = await adm.from('usuarios').select('id, nome, ativo').ilike('email', email).maybeSingle();
+      const { data: u } = await adm.from('usuarios').select('id, nome, ativo, organizacao_id').ilike('email', email).maybeSingle();
       if (!u || !u.ativo) return pronto;
       const { data, error } = await adm.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: destino } });
       if (error) { console.error(error); return pronto; }
       const chave = Deno.env.get('RESEND_API_KEY');
       if (!chave) return resposta({ erro: 'O envio de e-mail ainda não está configurado. Peça ao diretor uma senha provisória.' }, 503);
       const link = data.properties.action_link, nome = String(u.nome || '').split(' ')[0];
-      const music = /\/music\//.test(destino), sistema = music ? 'Sonvi Music' : 'SONVI';
-      const texto = `Olá${nome ? ', ' + nome : ''}!\n\nRecebemos um pedido para criar uma senha nova no ${sistema}. Abra o link abaixo e escolha a sua senha:\n\n${link}\n\nO link vale por 1 hora e só funciona uma vez. Se não foi você que pediu, ignore este e-mail: a sua senha continua a mesma.`;
+      const sistema = await nomeEmpresa(adm, u.organizacao_id);
+      const texto = `Olá${nome ? ', ' + nome : ''}!\n\nRecebemos um pedido para criar uma senha nova no sistema da ${sistema}. Abra o link abaixo e escolha a sua senha:\n\n${link}\n\nO link vale por 1 hora e só funciona uma vez. Se não foi você que pediu, ignore este e-mail: a sua senha continua a mesma.`;
       const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:520px">
-        <p>Olá${nome ? ', ' + esc(nome) : ''}!</p><p>Recebemos um pedido para criar uma senha nova no ${sistema}.</p>
+        <p>Olá${nome ? ', ' + esc(nome) : ''}!</p><p>Recebemos um pedido para criar uma senha nova no sistema da ${esc(sistema)}.</p>
         <p style="margin:26px 0"><a href="${esc(link)}" style="display:inline-block;background:#0055ff;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:8px">Criar senha nova</a></p>
         <p style="color:#6b6b74;font-size:13px">O link vale por 1 hora e só funciona uma vez. Se não foi você que pediu, ignore este e-mail: a sua senha continua a mesma.</p></div>`;
       const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: `${sistema} <acesso@sonvi.com.br>`, to: [email], subject: `Criar senha nova no ${sistema}`, text: texto, html }) });
+        body: JSON.stringify({ from: `"${sistema}" <acesso@sonvi.com.br>`, to: [email], subject: `Criar senha nova · ${sistema}`, text: texto, html }) });
       if (!r.ok) console.error(await r.text());
       return pronto;
     }
@@ -69,7 +74,7 @@ Deno.serve(async (req) => {
     const quem = createClient(url, publica, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } }, auth: { persistSession: false } });
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
     const { data: { user: eu } } = await quem.auth.getUser(token);
-    if (!eu) return resposta({ erro: 'Entre no SONVI de novo.' }, 401);
+    if (!eu) return resposta({ erro: 'Entre de novo no sistema.' }, 401);
 
     // A própria senha: qualquer pessoa logada (é assim que a senha provisória deixa de valer)
     if (b.acao === 'minha_senha') {
@@ -111,7 +116,7 @@ Deno.serve(async (req) => {
       if (vinculos.some((v: any) => !radiosDaOrg.has(v.veiculo_id))) return resposta({ erro: 'Rádio não encontrada.' }, 403);
       if (!diretor && !vinculos.length) return resposta({ erro: 'Escolha pelo menos uma rádio e o perfil nela.' }, 400);
       const { data: existe } = await adm.from('usuarios').select('id').ilike('email', email).maybeSingle();
-      if (existe) return resposta({ erro: ehDiretor ? 'Já existe um usuário com esse e-mail no SONVI.' : 'Já existe um usuário com esse e-mail no SONVI. Se ele trabalha em outra rádio, peça ao diretor para dar acesso a ele na sua.' }, 409);
+      if (existe) return resposta({ erro: ehDiretor ? 'Já existe um usuário com esse e-mail.' : 'Já existe um usuário com esse e-mail. Se ele trabalha em outra rádio, peça ao diretor para dar acesso a ele na sua.' }, 409);
 
       // Cria a conta já confirmada, com a senha provisória
       const senha = senhaProvisoria();
@@ -149,17 +154,17 @@ Deno.serve(async (req) => {
       const chave = Deno.env.get('RESEND_API_KEY');
       if (!chave) return resposta({ erro: 'O envio de e-mail ainda não está configurado.' }, 503);
       const { data: remet0 } = await adm.from('usuarios').select('nome, email').eq('id', eu.id).maybeSingle();
-      const remet = suporte ? { nome: 'Suporte SONVI', email: '' } : remet0;
-      const music = /\/music\//.test(destino), sistema = music ? 'Sonvi Music' : 'SONVI', nome = String(u.nome || '').split(' ')[0];
-      const texto = `Olá${nome ? ', ' + nome : ''}!\n\nSeu acesso ao ${sistema} está pronto.\n\nEntre em: ${destino}\nE-mail: ${u.email}\nSenha provisória: ${senha}\n\nNo primeiro acesso você vai criar a sua própria senha.${remet?.nome ? `\n\nCadastrado por ${remet.nome}.` : ''}`;
+      const remet = suporte ? { nome: '', email: '' } : remet0;   // no acesso de suporte não assina ninguém (nunca "SONVI")
+      const sistema = await nomeEmpresa(adm, org), nome = String(u.nome || '').split(' ')[0];
+      const texto = `Olá${nome ? ', ' + nome : ''}!\n\nSeu acesso ao sistema da ${sistema} está pronto.\n\nEntre em: ${destino}\nE-mail: ${u.email}\nSenha provisória: ${senha}\n\nNo primeiro acesso você vai criar a sua própria senha.${remet?.nome ? `\n\nCadastrado por ${remet.nome}.` : ''}`;
       const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:520px">
-        <p>Olá${nome ? ', ' + esc(nome) : ''}!</p><p>Seu acesso ao ${sistema} está pronto.</p>
+        <p>Olá${nome ? ', ' + esc(nome) : ''}!</p><p>Seu acesso ao sistema da ${esc(sistema)} está pronto.</p>
         <table style="border-collapse:collapse;margin:18px 0;font-size:15px"><tr><td style="color:#6b6b74;padding:4px 16px 4px 0">E-mail</td><td><b>${esc(u.email)}</b></td></tr>
         <tr><td style="color:#6b6b74;padding:4px 16px 4px 0">Senha provisória</td><td><b style="font-family:Menlo,Consolas,monospace;font-size:17px;letter-spacing:.04em">${esc(senha)}</b></td></tr></table>
-        <p style="margin:24px 0"><a href="${esc(destino)}" style="display:inline-block;background:#0055ff;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:8px">Entrar no ${sistema}</a></p>
+        <p style="margin:24px 0"><a href="${esc(destino)}" style="display:inline-block;background:#0055ff;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:8px">Entrar no sistema</a></p>
         <p style="color:#6b6b74;font-size:13px">No primeiro acesso você vai criar a sua própria senha.${remet?.nome ? ` Cadastrado por ${esc(remet.nome)}. Dúvidas? É só responder este e-mail.` : ''}</p></div>`;
       const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: `${sistema} <acesso@sonvi.com.br>`, to: [u.email], subject: `Seu acesso ao ${sistema}`, text: texto, html, ...(emailOk(remet?.email || '') ? { reply_to: remet!.email } : {}) }) });
+        body: JSON.stringify({ from: `"${remet?.nome ? String(remet.nome).replace(/[<>"\r\n,;]/g, '').slice(0, 40) + ' · ' : ''}${sistema}" <acesso@sonvi.com.br>`, to: [u.email], subject: `Seu acesso ao sistema · ${sistema}`, text: texto, html, ...(emailOk(remet?.email || '') ? { reply_to: remet!.email } : {}) }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) return resposta({ erro: `O serviço de e-mail recusou: ${j?.message || r.status}` }, 502);
       return resposta({ ok: true, email: u.email });

@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
       const auth = req.headers.get('Authorization') ?? '';
       quem = createClient(url, publica, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
       const { data: { user } } = await quem.auth.getUser(auth.replace(/^Bearer\s+/i, ''));
-      if (!user) return resposta({ erro: 'Entre no SONVI para enviar.' }, 401);
+      if (!user) return resposta({ erro: 'Entre no sistema para enviar.' }, 401);
       const { data: u } = await adm.from('usuarios').select('id, nome, email').eq('id', user.id).maybeSingle();
       eu = u || { id: user.id, nome: '', email: user.email };
     } else return resposta({ erro: 'Ação desconhecida.' }, 400);
@@ -87,9 +87,9 @@ Deno.serve(async (req) => {
         ['Mês veiculado', d.mes_nome || 'Período do PI'], ['Valor', brl(d.valor)], ['Vencimento', [d.vencimento ? dfmt(d.vencimento) : 'a combinar', d.forma].filter(Boolean).join(' · ')],
         ...(d.email_nota ? [['Nota e boleto para', d.email_nota] as [string, string]] : [])];
       const assunto = `${lembrete ? 'Lembrete: ' : ''}Faturar ${d.pi_no || 'PI'} · ${d.cliente || ''} · ${d.mes_nome ? d.mes_nome + ' · ' : ''}${brl(d.valor)}`.replace(/\s+/g, ' ').slice(0, 200);
-      const html = casca(v, 'pedido de faturamento', lembrete ? `Ainda não recebemos a confirmação deste faturamento (pedido enviado em ${dfmt(diaCuiaba(new Date(f.criado_em)))}). Depois de emitir a nota, confirme pelo botão: o SONVI fica atualizado na hora.`
-        : `Olá! A ${esc(emp)} pede o faturamento abaixo. Depois de emitir a nota, confirme pelo botão: o SONVI fica atualizado na hora.`,
-        quadro, 'Confirmar faturamento', link, `O botão abre uma página do SONVI; nada é confirmado só por abrir. O link vale só para este pedido. Dúvidas? Responda este e-mail${c.nome ? `: a resposta vai direto para ${esc(c.nome.split(' ')[0])}` : ''}.`, c, emp);
+      const html = casca(v, 'pedido de faturamento', lembrete ? `Ainda não recebemos a confirmação deste faturamento (pedido enviado em ${dfmt(diaCuiaba(new Date(f.criado_em)))}). Depois de emitir a nota, confirme pelo botão: o sistema fica atualizado na hora.`
+        : `Olá! A ${esc(emp)} pede o faturamento abaixo. Depois de emitir a nota, confirme pelo botão: o sistema fica atualizado na hora.`,
+        quadro, 'Confirmar faturamento', link, `O botão abre uma página segura; nada é confirmado só por abrir. O link vale só para este pedido. Dúvidas? Responda este e-mail${c.nome ? `: a resposta vai direto para ${esc(c.nome.split(' ')[0])}` : ''}.`, c, emp);
       const texto = `${v.nome} · pedido de faturamento\n\n${quadro.map(([k, x]) => `${k}: ${x}`).join('\n')}\n\nConfirmar faturamento: ${link}\n\n${c.nome}\nConsultor comercial · ${emp}${c.celular ? ' · ' + c.celular : ''}`;
       await envia(`${nomeLimpo(c.nome ? c.nome + ' · ' + v.nome : v.nome)} <faturamento@sonvi.com.br>`, para, c.email || eu?.email || '', assunto, html, texto);
       await adm.from('fat_pedidos').update({ enviado_em: new Date().toISOString(), envios: (f.envios || 0) + 1, para }).eq('id', f.id);

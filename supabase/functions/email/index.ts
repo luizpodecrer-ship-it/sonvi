@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const auth = req.headers.get('Authorization') ?? '';
     const quem = createClient(url, publica, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
     const { data: { user } } = await quem.auth.getUser(auth.replace(/^Bearer\s+/i, ''));
-    if (!user) return resposta({ erro: 'Entre no SONVI para enviar.' }, 401);
+    if (!user) return resposta({ erro: 'Entre no sistema para enviar.' }, 401);
 
     const b = await req.json();
     const para = [...new Set(String(b.para ?? '').split(/[,;\s]+/).map((e: string) => e.trim().toLowerCase()).filter(Boolean))];
@@ -88,7 +88,9 @@ Deno.serve(async (req) => {
       if ((l as any).pi_id) { const { data: lp } = await quem.from('pis').select('consultor_id').eq('id', (l as any).pi_id).maybeSingle(); consultorId = (lp as any)?.consultor_id || ''; }
     } else return resposta({ erro: 'Tipo de envio desconhecido.' }, 400);
 
-    const { data: eu } = await quem.from('usuarios').select('nome, email').eq('id', user.id).maybeSingle();
+    const { data: eu0 } = await quem.from('usuarios').select('nome, email, organizacao_id').eq('id', user.id).maybeSingle();
+    // Acesso de suporte (equipe da plataforma, sem organização): não assina; fica o consultor do registro ou só o veículo
+    const eu = eu0 && eu0.organizacao_id ? eu0 : { nome: '', email: '' };
     // Nome do consultor (o do PI/proposta; sem ele, quem envia) e do veículo no remetente; a resposta vai para o consultor
     let cons: any = null;
     if (consultorId && consultorId !== user.id) { const adm = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -108,7 +110,7 @@ Deno.serve(async (req) => {
       <td style="padding:12px 10px"><b>${esc(titulo)}</b><br><span style="color:#6b6b74;font-size:13px">${sub}</span></td>
       <td style="padding:12px 14px;text-align:right;white-space:nowrap"><a href="${esc(href)}" style="color:#0047d6;font-weight:600">${botao}</a></td></tr></table>`;
     const blocoDocs = b.tipo === 'pi_opec' && link ? `<div style="margin:24px 0 0"><div style="font-weight:600">Documentos</div>
-      ${doc('PI', '#0055ff', `${piNo} (SONVI)`, 'O pedido para lançar na programação · baixe o PDF na página', link, 'Abrir')}
+      ${doc('PI', '#0055ff', `${piNo} · ${veiculoNome}`, 'O pedido para lançar na programação · baixe o PDF na página', link, 'Abrir')}
       ${original ? doc('PDF', '#52525b', 'PI original da agência', `${selo === 'assinado' ? '<b style="color:#0b7a52">✓ Assinado</b> · ' : selo ? '<b style="color:#9a4d00">Sem assinatura</b> · ' : ''}${esc(original.nome)} · ${esc(original.info)}${original.anexar ? ' · anexado' : ''}`, original.url, 'Abrir') : ''}</div>` : '';
     const blocoMidias = midias.length ? `<div style="margin:24px 0 0;border:1px solid #e3e6ec;border-radius:12px;padding:14px 16px">
       <div style="font-weight:600;margin-bottom:8px">Mídias do PI (${midias.length})</div>

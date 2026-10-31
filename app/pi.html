@@ -7,13 +7,12 @@
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex, nofollow">
 <title>Pedido de inserção</title>
-<link rel="icon" type="image/svg+xml" href="img/simbolo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/sonvi.css?v=202610310915">
+<link rel="stylesheet" href="css/sonvi.css?v=202610311245">
 <!-- Página que a OPEC abre pelo link do e-mail do PI (sem login; a OPEC não entra no SONVI desde 31/10/2026):
-     abrir registra o recebimento (pi_aberto); abas com o PI SONVI, o PI original da agência e as mídias;
+     abrir registra o recebimento (pi_aberto); abas com o PI do veículo, o PI original da agência e as mídias;
      "Marcar como programado" (conta como aprovado) e "Devolver com o motivo" pela função de borda opec_link (database/067). -->
 <style>
   body { display:block; min-height:100%; }
@@ -74,16 +73,16 @@
 <div class="pub-wrap" id="wrap" hidden>
   <section class="card op-painel" id="painel" aria-label="Andamento na OPEC"></section>
   <div class="op-abas" role="tablist" id="abas">
-    <button role="tab" aria-selected="true" data-aba="pi">PI SONVI</button>
+    <button role="tab" aria-selected="true" data-aba="pi" id="abaPi">PI</button>
     <button role="tab" aria-selected="false" data-aba="orig" id="abaOrig" hidden>PI original da agência</button>
     <button role="tab" aria-selected="false" data-aba="mid" id="abaMid" hidden>Mídias</button>
   </div>
-  <div id="print" role="tabpanel" aria-label="PI SONVI"></div>
+  <div id="print" role="tabpanel" aria-label="PI"></div>
   <div class="op-pane" id="paneOrig" role="tabpanel" hidden></div>
   <div class="op-pane" id="paneMid" role="tabpanel" hidden></div>
 </div>
-<script src="js/config.js?v=202610310915"></script>
-<script src="js/data.js?v=202610310915"></script>
+<script src="js/config.js?v=202610311245"></script>
+<script src="js/data.js?v=202610311245"></script>
 <script>
 (() => {
   const token = new URLSearchParams(location.search).get('p') || '';
@@ -175,7 +174,7 @@
       el('print').innerHTML = `<div class="pub-folha">${p.html}</div>`; el('wrap').hidden = false;
       const papel = (el('print').querySelector('.pi-envio') || {}).dataset || {};
       el('pagina').textContent = `@media print { @page { size:${papel.papel === 'a4' ? 'A4' : 'legal'} landscape; margin:8mm; } }`;
-      el('titulo').textContent = p.numero; document.title = p.numero;
+      el('titulo').textContent = p.numero; document.title = p.numero; el('abaPi').textContent = p.numero; el('print').setAttribute('aria-label', p.numero);
       info.status = p.status; el('situacao').textContent = SIT[p.status] || '';
       el('barra').hidden = false; painel();
       // Avisa o SONVI que a OPEC abriu o PI ("Recebido pela OPEC", database/057); depois busca original, mídias e andamento

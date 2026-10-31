@@ -492,7 +492,7 @@
         <div class="rd-radio"><b>${esc(v.nome)}</b>${[v.razao_social && v.cnpj ? `${v.razao_social} · CNPJ ${v.cnpj}` : v.razao_social || (v.cnpj && 'CNPJ ' + v.cnpj), v.cidade].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('')}</div>
         <div class="rd-tit"><small>RELATÓRIO FINANCEIRO</small><b>${esc(REL.find(x => x[0] === rel.id)[1])}</b><span>${rel.id === 'inadimplencia' ? 'Posição em' : 'Período:'} <b>${rel.id === 'inadimplencia' ? dfmt(S.today()) : periodoTxt()}</b></span></div></header>
       ${resumoHtml(r)}${partHtml(r)}${tabelaHtml(r)}<p class="rd-nota">Valores em reais. "—" = sem valor.</p>${lerHtml(r)}
-      <footer class="rd-rod"><span>${esc(filtrosTxt())}</span><span>Gerado pelo SONVI em ${dfmt(S.today())} às ${hora}${S.me && S.me.nome ? ' por ' + esc(S.me.nome) : ''}</span></footer></div>`; };
+      <footer class="rd-rod"><span>${esc(filtrosTxt())}</span><span>Gerado em ${dfmt(S.today())} às ${hora}${S.quemAssina() ? ' por ' + esc(S.quemAssina()) : ''}</span></footer></div>`; };
 
   Object.assign(S.actions, {
     finAvulso: () => formAvulso(),

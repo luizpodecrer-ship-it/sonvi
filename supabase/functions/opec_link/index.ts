@@ -87,10 +87,10 @@ Deno.serve(async (req) => {
         const cor = /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : '#0055ff';
         const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:560px">
           <p style="margin:0 0 6px;font-weight:700">${esc(v.nome)} · ${esc(titulo)}</p>
-          <p style="margin:0 0 18px;color:#3f3f46">${prog ? 'A OPEC marcou o PI como programado pelo link do e-mail. No SONVI ele já aparece como Programado.' : 'A OPEC devolveu o PI pelo link do e-mail. Ajuste no SONVI e envie de novo.'}</p>
+          <p style="margin:0 0 18px;color:#3f3f46">${prog ? 'A OPEC marcou o PI como programado pelo link do e-mail. No sistema ele já aparece como Programado.' : 'A OPEC devolveu o PI pelo link do e-mail. Ajuste o PI e envie de novo.'}</p>
           <table style="width:100%;border-collapse:collapse;border:1px solid #e4e6eb;font-size:14px">${linhas.map(([k, x], i) => `<tr${i ? ' style="border-top:1px solid #eef0f3"' : ''}><td style="padding:9px 14px;color:#6b6b74;white-space:nowrap;vertical-align:top">${esc(k)}</td><td style="padding:9px 14px"><b>${esc(x)}</b></td></tr>`).join('')}</table>
-          <p style="margin:24px 0"><a href="${esc(linkPi)}" style="display:inline-block;background:${esc(cor)};color:#fff;text-decoration:none;font-weight:700;padding:13px 24px;border-radius:8px">Abrir o PI no SONVI</a></p></div>`;
-        const texto = `${titulo}\n\n${linhas.map(([k, x]) => `${k}: ${x}`).join('\n')}\n\nAbrir o PI no SONVI: ${linkPi}`;
+          <p style="margin:24px 0"><a href="${esc(linkPi)}" style="display:inline-block;background:${esc(cor)};color:#fff;text-decoration:none;font-weight:700;padding:13px 24px;border-radius:8px">Abrir o PI</a></p></div>`;
+        const texto = `${titulo}\n\n${linhas.map(([k, x]) => `${k}: ${x}`).join('\n')}\n\nAbrir o PI: ${linkPi}`;
         await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ from: `"${nomeLimpo('OPEC · ' + (v.nome || ''))}" <pi@sonvi.com.br>`, to: [para.toLowerCase()], subject: titulo, html, text: texto }) });
       }

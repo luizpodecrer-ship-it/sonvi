@@ -499,7 +499,7 @@
     if (['rascunho', 'devolvido'].includes(pi.status) || !v.opec_email) return;
     S.toast('Mídia adicionada. A OPEC já tem este PI.', { acao:'Avisar a OPEC', fn:() => avisarOpec(pi) }); };
   const avisarOpec = pi => { const v = S.veh(pi.veiculo_id) || {}, assunto = `${S.piNo(pi)} · mídias para a OPEC`;
-    const texto = [`Olá, OPEC!`, '', `Foram adicionadas mídias ao ${S.piNo(pi)} · ${pi.titulo}.`, pi.link_token ? '' : null, pi.link_token ? 'Ver o PI:' : null, pi.link_token ? linkPi(pi.link_token) : null, '', S.me.nome || S.me.email, v.nome].filter(l => l !== null).join('\n');
+    const texto = [`Olá, OPEC!`, '', `Foram adicionadas mídias ao ${S.piNo(pi)} · ${pi.titulo}.`, pi.link_token ? '' : null, pi.link_token ? 'Ver o PI:' : null, pi.link_token ? linkPi(pi.link_token) : null, '', S.quemAssina(pi.consultor_id) || S.empCurto(), v.nome].filter(l => l !== null).join('\n');
     S.toast('Enviando as mídias para a OPEC…');
     S.enviarEmail({ tipo:'pi_opec', id:pi.id, para:v.opec_email, assunto, texto }).then(r => S.toast(`Mídias enviadas para a OPEC (${v.opec_email})${r && r.midias ? ` · ${r.midias} ${r.midias === 1 ? 'item' : 'itens'}` : ''}`))
       .catch(err => S.emailManual(v.opec_email, assunto, texto, `O e-mail não foi: ${err.message}`)); };
@@ -767,7 +767,7 @@
     const ag = S.nome(pi.agencia_id), obs = String(pi.dados.billing.obsClient || '').trim();
     const msg = [`Olá, OPEC!`, '', `${reenvio ? 'Segue de novo, com os ajustes,' : 'Segue para conferência'} o ${S.piNo(pi)} · ${pi.titulo}.`,
       `Cliente: ${S.nome(pi.cliente_id) || '—'}${ag ? ` (agência ${ag})` : ''}`, `Período: ${mesesPi(pi)}`, c.ins || !c.pub ? `Inserções: ${c.ins}` : '', c.pub ? `Ação digital: ${pi.dados.digital.map(a => `${S.acaoTitulo(a)} · ${S.acaoCanal(a)} · ${S.acaoEntregasTxt(a)} · ${S.acaoPeriodo(a)}`).join('; ')} (a rádio define as datas)` : '',
-      faixas.length ? `Faixa: ${faixas.join(', ')}` : '', obs ? `Observações: ${obs}` : '', '', ORIG[pi.id] ? 'Abrir o PI, ver o PI original da agência e marcar como programado:' : 'Abrir o PI e marcar como programado:', link, '', S.me.nome || S.me.email, v.nome]
+      faixas.length ? `Faixa: ${faixas.join(', ')}` : '', obs ? `Observações: ${obs}` : '', '', ORIG[pi.id] ? 'Abrir o PI, ver o PI original da agência e marcar como programado:' : 'Abrir o PI e marcar como programado:', link, '', S.quemAssina(pi.consultor_id) || S.empCurto(), v.nome]
       .filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
     S.dialog(`<h2>${reenvio ? 'Reenviar' : 'Enviar'} ${S.piNo(pi)} para a OPEC</h2>
       <p class="muted" style="margin-top:-6px">O SONVI manda o e-mail para a OPEC com o link do PI: ela abre sem login, confere, baixa o PDF e marca como programado ali mesmo (ou devolve com o motivo). O PI passa para <b>Na OPEC</b> e você recebe um e-mail quando ela marcar. Se a OPEC responder o e-mail, a resposta chega para você.</p>
@@ -932,9 +932,9 @@
       <div class="pd-fecho"><div><div>E, por estarem de acordo com as especificações e condições deste pedido${o.conds ? ' e das condições gerais abaixo' : ''}, as partes assinam o presente para todos os efeitos legais.</div>
         <div>${esc(cidade ? cidade + ', ' : '')}${dataExt(o.date)}.</div>
         ${signs.length ? `<div class="pd-ass" style="--n:${signs.length}">${signs.map(([r, n]) => `<div><b>${r}</b>${n ? `<br><span>${esc(n)}</span>` : ''}</div>`).join('')}</div>` : ''}</div>
-        <div class="pd-box pd-aprov"><b>Aprovação OPEC</b>${aprov ? `<span class="ok">Aprovado em ${dfmt(S.dia(aprov.em))}</span><span>por ${esc(S.usuario(aprov.usuario_id))}</span>` : '<span class="mut">Aguardando</span>'}</div></div>
+        <div class="pd-box pd-aprov"><b>Aprovação OPEC</b>${aprov ? `<span class="ok">Aprovado em ${dfmt(S.dia(aprov.em))}</span><span>por ${esc(aprov.usuario_id ? S.usuario(aprov.usuario_id) : String(aprov.nota || '').replace(/^OPEC pelo link · /, '') || 'OPEC')}</span>` : '<span class="mut">Aguardando</span>'}</div></div>
       ${o.conds ? `<div class="pd-conds"><b>CONDIÇÕES GERAIS</b> — ${condicoesHtml(v.pi_condicoes, v)}</div>` : ''}
-      <div class="pd-rodape"><span>Gerado pelo SONVI · ${S.piNo(pi)}</span></div></div>`;
+      <div class="pd-rodape"><span>${esc(S.piNo(pi))} · ${esc(v.nome)}</span></div></div>`;
   };
   // Percentual da comissão, quando ela é em %
   const d_pct = (pi, so) => { const r = pi.dados.commission; if (r.type !== 'pct' || !num(r.value)) return ''; const t = nfmt(num(r.value)).replace(/,00$/, '') + '%'; return so ? t : ' ' + t; };

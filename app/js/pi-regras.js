@@ -253,6 +253,10 @@
   // espalhados ao longo do mês (posição ⌊(i + ½) × dias ÷ sobra⌋), nunca amontoado no começo. Sem limite por dia.
   // Devolve { meses:[{ period:'AAAA-MM', itens:{ índice:{ dia:quantidade } } }], soma, esperado, semDias:[índices], inicio, fim }
   // Parte da empresa comercial (database/049): percentual sobre o líquido de cada venda, gravado no PI quando nasce
+  // Quem assina o que sai do sistema (e-mail, WhatsApp): o consultor do registro; sem ele, quem está usando;
+  // no acesso de suporte, nunca "Suporte SONVI": fica só a empresa (31/10/2026, regra do Luiz: nada chega como SONVI)
+  S.quemAssina = consultorId => { const c = consultorId && !(S.db.suporteIds || []).includes(consultorId) ? S.usuario(consultorId) : '';
+    return c || (S.ctx && S.ctx.suporte ? '' : (S.me && (S.me.nome || S.me.email)) || ''); };
   S.empCurto = () => String(((S.db && S.db.empresa) || {}).nome || 'Head 14').split('·')[0].trim() || 'Head 14';
   // Comissão do consultor (decidido em 29/10/2026): sempre 5% do valor líquido que o cliente pagou, igual para todos
   S.COMISSAO_PCT = 5;

@@ -32,7 +32,7 @@
   // Mostra a senha provisória (uma vez só) com a mensagem pronta para o WhatsApp. No primeiro acesso a pessoa cria a própria senha.
   const mostrarSenha = (u, senha, novo) => {
     const ende = location.origin + location.pathname, nome = (u.nome || '').split(' ')[0];
-    const msg = `Olá${nome ? ', ' + nome : ''}! ${novo ? `Seu acesso ao ${S.APP === 'music' ? 'Sonvi Music' : 'SONVI'} foi criado.` : 'Aqui está a sua nova senha provisória.'}\n\nEntre em: ${ende}\nE-mail: ${u.email}\nSenha provisória: ${senha}\n\nNo primeiro acesso você vai criar a sua própria senha.`;
+    const msg = `Olá${nome ? ', ' + nome : ''}! ${novo ? `Seu acesso ao sistema da ${S.empCurto()} foi criado.` : 'Aqui está a sua nova senha provisória.'}\n\nEntre em: ${ende}\nE-mail: ${u.email}\nSenha provisória: ${senha}\n\nNo primeiro acesso você vai criar a sua própria senha.`;
     const fone = String(u.celular || '').replace(/\D/g, ''), wa = `https://wa.me/${fone ? (fone.length <= 11 ? '55' : '') + fone : ''}?text=${encodeURIComponent(msg)}`;
     S.dialog(`<h2>${novo ? 'Usuário cadastrado' : 'Nova senha provisória'}</h2>
       <p>Envie os dados de acesso para <b>${esc(u.nome || u.email)}</b>. No primeiro acesso, o SONVI pede que a pessoa crie a própria senha.</p>
