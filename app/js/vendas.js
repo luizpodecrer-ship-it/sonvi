@@ -33,6 +33,13 @@
     if (S.route().view === 'vendas') S.render();
   };
   const recarregar = async () => { S.db.lancamentos = await S.q(S.sb.from('lancamentos').select('*').eq('veiculo_id', S.ui.vehicleId)); dados.ok = false; await carregar(true); };
+  // Comissões do mês (database/068), guardadas por 2 minutos
+  const coms = {}, comBusca = {};
+  const comDoMes = ym => { const c = coms[ym]; if ((!c || Date.now() - c.em > 120000) && !comBusca[ym]) { comBusca[ym] = true;
+      S.q(S.sb.rpc('comissoes_do_mes', { p_mes:ym })).then(r => { coms[ym] = Object.assign(r || { itens:[] }, { em:Date.now() }); }).catch(e => { console.error(e); coms[ym] = { itens:[], em:Date.now() }; })
+        .finally(() => { comBusca[ym] = false; if (S.route().view === 'vendas') S.render(); }); }
+    return c || null; };
+  S.vendasComUsar = (ym, r) => { coms[ym] = Object.assign(r, { em:Date.now() + 1e9 }); };   // testes
   S.vendasUsar = (d) => Object.assign(dados, { veic:S.ui.vehicleId, ok:true }, d); // testes
 
   // ---------- números que contam até o valor (2 s, desacelerando no fim); só quando o valor muda, não a cada desenho ----------
@@ -181,19 +188,19 @@
       ${reps.length ? `<div class="vd-reps">${reps.map(r => `<span>${dfmt(r.recebido_em)} · <b>${brl(r.valor)}</b>${r.observacao ? ` · ${esc(r.observacao)}` : ''}<button class="btn sm tres" data-act="vdRepExcluir" data-id="${r.id}" aria-label="Excluir este repasse">×</button></span>`).join('')}</div>` : ''}
       <div class="vd-pe"><span>Repasse de ${mesNome}: <b>${brl(Math.max(0, devida - recebidaH))}</b> a receber · vence <b>${vencRep}</b></span><button class="btn sm" data-act="vdRepasse" data-mes="${ym}" data-v="${Math.max(0, devida - recebidaH).toFixed(2)}">Registrar repasse recebido</button></div></section>`;
 
-    // Comissões (percentual atual do colaborador; o fechamento oficial vem na próxima etapa)
-    const col = uid => dados.col.find(c => c.usuario_id === uid);
-    const porCons = {};
-    const pc = uid => porCons[uid || ''] || (porCons[uid || ''] = { uid, vend:0, rec:0, com:0, semPct:false });
+    // Comissões (31/10/2026): percentual cadastrado de cada consultor × líquido pago, a conta do banco (comissoes_do_mes, database/068),
+    // só as parcelas deste veículo. O fechamento do mês fica em Administração › Vendas e comissões.
+    const cm = comDoMes(ym), porCons = {};
+    const pc = uid => porCons[uid || ''] || (porCons[uid || ''] = { uid, vend:0, rec:0, com:0, pcts:new Set() });
     vendidos.forEach(x => { pc(x.p.consultor_id).vend += x.v; });
-    // Comissão (29/10/2026): sempre 5% do líquido que o cliente pagou (S.COMISSAO_PCT), igual para todos os consultores
-    pagosMes.forEach(l => { const pi = piDe(l.pi_id), o = pc(pi.consultor_id); o.rec += pago(l); if (pi.consultor_id) o.com += pago(l) * fatorLiquido(pi) * S.COMISSAO_PCT / 100; });
+    (cm ? cm.itens || [] : []).filter(i => i.veiculo_id === S.ui.vehicleId).forEach(i => { const o = pc(i.consultor_id); o.rec += Number(i.valor_pago) || 0; o.com += Number(i.comissao) || 0; if (i.pct !== null) o.pcts.add(Number(i.pct)); });
     const consList = Object.values(porCons).sort((a, b) => b.vend - a.vend);
-    const comissoes = `<section class="card vd-com" aria-label="Comissões"><div class="hd"><h2>Comissões · ${mesNome}</h2><span class="muted small">fechamento no mês seguinte</span></div>
-      ${consList.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>Consultor</th><th class="r">Vendido</th><th class="r">Recebido</th><th class="r">Comissão</th></tr></thead><tbody>
-        ${consList.map(o => `<tr><td><b>${esc(o.uid ? S.usuario(o.uid) || 'Consultor' : 'Sem responsável')}</b><small>${o.uid ? `${S.COMISSAO_PCT}% do líquido pago` : 'PIs sem consultor'}</small></td><td class="r nw">${brl(o.vend)}</td><td class="r nw">${brl(o.rec)}</td><td class="r nw"><b>${brl(o.com)}</b></td></tr>`).join('')}</tbody></table></div>`
+    const pctsTxt = o => o.pcts.size ? [...o.pcts].map(n => String(n).replace('.', ',') + '%').join(' · ') + ' do líquido pago' : 'pelo percentual cadastrado';
+    const comissoes = `<section class="card vd-com" aria-label="Comissões"><div class="hd"><h2>Comissões · ${mesNome}</h2>${cm && cm.fechamento ? '<span class="pill fn-ok">mês fechado</span>' : '<span class="muted small">fechamento no mês seguinte</span>'}</div>
+      ${!cm ? '<p class="muted" style="margin:0">Buscando as comissões…</p>' : consList.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>Consultor</th><th class="r">Vendido</th><th class="r">Recebido</th><th class="r">Comissão</th></tr></thead><tbody>
+        ${consList.map(o => `<tr><td><b>${esc(o.uid ? S.usuario(o.uid) || 'Consultor' : 'Sem responsável')}</b><small>${o.uid ? pctsTxt(o) : 'PIs sem consultor'}</small></td><td class="r nw">${brl(o.vend)}</td><td class="r nw">${brl(o.rec)}</td><td class="r nw"><b>${o.uid ? brl(o.com) : '—'}</b></td></tr>`).join('')}</tbody></table></div>`
         : `<p class="muted" style="margin:0">Sem vendas nem recebimentos em ${mesNome}.</p>`}
-      <p class="muted small" style="margin:12px 0 0">A comissão cresce conforme os clientes pagam: o consultor recebe ${S.COMISSAO_PCT}% do valor líquido que o cliente pagou no mês.</p></section>`;
+      <p class="muted small" style="margin:12px 0 0">A comissão cresce conforme os clientes pagam: cada consultor recebe o percentual do cadastro sobre o valor líquido que o cliente pagou no mês.${S.me.diretor ? ' Fechamento e extratos em <a href="#/admin" data-act="vdComissoes">Administração › Vendas e comissões</a>.' : ''}</p></section>`;
 
     return { title:`<span class="sub">${esc(v.nome)}</span>Vendas`,
       actions:`<button class="btn" data-act="vdRelatorios">${S.svg('relatorio')}Relatórios</button>`,
@@ -232,6 +239,7 @@
     vdMes: d => { const hoje = S.today().slice(0, 7), atual = st.mes || hoje, alvo = +d.d ? somaMes(atual, +d.d) : hoje; st.mes = alvo === hoje ? '' : alvo; st.lista = 8; S.render(); },
     vdAba: d => { st.aba = d.v; st.lista = 8; S.render(); },
     vdMais: () => { st.lista = 999; S.render(); },
+    vdComissoes: () => { if (S.admAbrir) S.admAbrir('comissoes'); },
     vdRelatorios: () => { S.go('/financeiro'); setTimeout(() => S.actions.finRelatorios && S.actions.finRelatorios(), 0); },
     vdEnviar: d => { const pi = S.db.pis.find(p => p.id === d.id); if (!pi) return; const v = S.veh(pi.veiculo_id), mesRef = d.mes || '';
       if (!S.pode('diretor', 'financeiro')) return S.toast('Só o diretor ou o financeiro envia para faturar.');

@@ -258,8 +258,7 @@
   S.quemAssina = consultorId => { const c = consultorId && !(S.db.suporteIds || []).includes(consultorId) ? S.usuario(consultorId) : '';
     return c || (S.ctx && S.ctx.suporte ? '' : (S.me && (S.me.nome || S.me.email)) || ''); };
   S.empCurto = () => String(((S.db && S.db.empresa) || {}).nome || 'Head 14').split('·')[0].trim() || 'Head 14';
-  // Comissão do consultor (decidido em 29/10/2026): sempre 5% do valor líquido que o cliente pagou, igual para todos
-  S.COMISSAO_PCT = 5;
+  // Comissão do consultor (31/10/2026): o percentual cadastrado de cada um (Colaboradores), não mais 5% fixo; ver comissoes.js e database/068
   S.repassePct = pi => { const v = pi && pi.repasse_pct !== undefined && pi.repasse_pct !== null ? pi.repasse_pct : ((S.db && S.db.empresa) || {}).repasse_pct; const n = Number(v); return isNaN(n) || v === undefined || v === null ? 20 : n; };
   // Meses de calendário (decidido em 27/10/2026): o 1º mês vai do dia do início até o fim do mês e leva a quantidade
   // proporcional aos dias permitidos que sobram nele; os outros são meses inteiros. Começando no dia 1, todos são inteiros.

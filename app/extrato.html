@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Extrato de comissão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/sonvi.css?v=202610311755">
+<!-- Extrato de comissão do consultor (database/068): extrato.html?e=<token>, sem login. Só o extrato daquele consultor,
+     de um mês fechado. Com o nome da empresa comercial, nunca SONVI. "Baixar PDF" imprime a folha. -->
+<style>
+  body { display:block; min-height:100%; background:var(--bg); }
+  .ex { max-width:820px; margin:0 auto; padding:24px 16px 48px; display:flex; flex-direction:column; gap:14px; }
+  .ex-top { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; } .ex-top small { color:var(--ink-3); font-size:12px; }
+  .ex .card { padding:28px; overflow-x:auto; }
+  .ex .cmx { width:auto; padding:0; background:transparent; color:var(--ink); }
+  .ex .cmx th { color:var(--ink-3); border-color:var(--line); } .ex .cmx td { border-color:var(--line); }
+  .ex .cmx-cab { border-color:var(--ink); } .ex .cmx-tot { background:var(--bg); } .ex .cmx-nota { color:var(--ink-2); } .ex .cmx-ass div { border-color:var(--ink); }
+  .ex-pago { display:inline-block; margin-top:6px; }
+  @media (max-width:560px) { .ex .card { padding:18px; } .ex .cmx-tot { font-size:14px; gap:10px; } .ex .cmx-tot span:last-child { white-space:nowrap; } .ex .cmx td, .ex .cmx th { padding:7px 4px; } .ex .cmx-cab { flex-direction:column; } .ex .cmx-quem { text-align:left; } .ex .cmx th:nth-child(3), .ex .cmx td:nth-child(3), .ex .cmx th:nth-child(5), .ex .cmx td:nth-child(5) { display:none; } }
+  @media print { body { background:#fff; } .ex { padding:0; max-width:none; } .ex-top { display:none; } .ex .card { box-shadow:none; border:0; padding:0; } .ex .cmx { color:#15171c; } }
+</style>
+</head>
+<body>
+<div class="ex">
+  <div class="ex-top"><small>Página segura · sem login · vale só para este link</small><button class="btn" type="button" id="pdf" hidden>Baixar PDF</button></div>
+  <main class="card" id="caixa" aria-live="polite"><b>Abrindo…</b></main>
+</div>
+<script src="js/config.js?v=202610311755"></script>
+<script>
+(() => {
+  const token = new URLSearchParams(location.search).get('e') || '', caixa = document.getElementById('caixa');
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  const brl = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  const dfmt = d => d ? `${String(d).slice(8, 10)}/${String(d).slice(5, 7)}/${String(d).slice(0, 4)}` : '';
+  const pct = n => n === null || n === undefined ? '—' : String(Math.round(Number(n) * 100) / 100).replace('.', ',') + '%';
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const estado = (t, x) => { caixa.innerHTML = `<b style="font-size:17px">${t}</b><p class="muted" style="margin:8px 0 0">${x}</p>`; };
+  if (!/^[0-9a-f-]{36}$/i.test(token)) return estado('Link incompleto', 'Confira se o link foi copiado inteiro.');
+  fetch(window.SONVI_CONFIG.url + '/rest/v1/rpc/extrato_por_token', { method:'POST', headers:{ apikey:window.SONVI_CONFIG.key, 'Content-Type':'application/json' }, body:JSON.stringify({ p_token:token }) })
+    .then(r => r.json().then(j => { if (!r.ok) throw new Error((j && j.message) || 'Não foi possível abrir.'); return j; }))
+    .then(x => {
+      if (!x) return estado('Link inválido', 'Este extrato não existe mais.');
+      if (x.reaberto) return estado('Extrato em revisão', 'O mês foi reaberto para ajuste. Quando for fechado de novo, um novo extrato chega para você.');
+      const r = x.resumo || {}, itens = x.itens || [], m = String(x.mes), mesNome = `${MESES[+m.slice(5) - 1]} de ${m.slice(0, 4)}`;
+      document.title = `Extrato de comissão · ${mesNome}`;
+      const liq = Number(r.liquido_vendido || 0), meta = Number(r.meta || 0);
+      caixa.innerHTML = `<div class="cmx"><div class="cmx-cab"><div><h1>Extrato de comissão</h1><div>${esc(mesNome[0].toUpperCase() + mesNome.slice(1))} · fechado em ${dfmt(String(x.fechado_em).slice(0, 10))}</div>${x.pago_em ? `<span class="pill fn-ok ex-pago">Paga em ${dfmt(x.pago_em)}</span>` : ''}</div><div class="cmx-quem"><b>${esc(String(x.empresa || '').split('·')[0].trim())}</b><br>Consultor: ${esc(r.nome || '')}</div></div>
+        <table><thead><tr><th>Pago em</th><th>Cliente</th><th>PI</th><th class="r">Líquido pago</th><th class="r">%</th><th class="r">Comissão</th></tr></thead>
+        <tbody>${itens.length ? itens.map(i => `<tr><td>${dfmt(i.pago_em)}</td><td>${esc(i.cliente)}</td><td>${esc(i.pi_no)}</td><td class="r">${brl(i.liquido)}</td><td class="r">${pct(i.pct)}</td><td class="r">${brl(i.comissao)}</td></tr>`).join('') : '<tr><td colspan="6">Nenhum pagamento de cliente no mês.</td></tr>'}</tbody></table>
+        <div class="cmx-tot"><span>Comissão ${x.pago_em ? `paga em ${dfmt(x.pago_em)}` : 'a pagar'}</span><span>${brl(r.comissao)}</span></div>
+        <p class="cmx-nota">Comissão = percentual do consultor × valor líquido que o cliente pagou no mês.${liq ? ` Vendido no mês (líquido): ${brl(liq)}${meta ? ` · meta ${Math.round(liq / meta * 100)}%` : ''}.` : ''}${r.fila ? ` Comissão ainda a receber dos clientes: ${brl(r.fila)}.` : ''}</p>
+        <div class="cmx-ass"><div>${esc(String(x.empresa || '').split('·')[0].trim())}</div><div>${esc(r.nome || '')}</div></div></div>`;
+      const b = document.getElementById('pdf'); b.hidden = false; b.onclick = () => window.print();
+    }).catch(e => estado('Não foi possível abrir', esc(e.message)));
+})();
+</script>
+</body>
+</html>
