@@ -1,4 +1,4 @@
-// SONVI · Painel com filtro cruzado do Dashboard geral (24/10/2026).
+// SONVI · Painel com filtro cruzado do Dashboard Gestão (24/10/2026).
 // Adaptado do recurso "Sincronía" da Moxen (moxen.cl/recursos), usado conforme a licença dele: dentro do produto,
 // sem redistribuir o código como modelo. Sem bibliotecas.
 //
@@ -282,7 +282,7 @@
       const parte = v => dec(v * 100, 1) + '% do total';
       const pill = (k, txt, tom) => { if (k.pill.textContent === txt && k.pill.dataset.tom === (tom || '')) return; k.pill.textContent = txt; k.pill.dataset.tom = tom || '';
         k.pill.classList.remove('cz-muda'); void k.pill.offsetWidth; if (!quieto() && !inicial) k.pill.classList.add('cz-muda'); };
-      // Números próprios de quem montou o painel (Dashboard geral, 29/10/2026): D.kpiValores(filtros, temFiltro, total) → { k: { texto, sub, pill, tom } }
+      // Números próprios de quem montou o painel (Dashboard Gestão, 29/10/2026): D.kpiValores(filtros, temFiltro, total) → { k: { texto, sub, pill, tom } }
       if (D.kpiValores) { const vals = D.kpiValores({ c:f.c, d:f.d, r:f.r && f.r.slice() }, temFiltro(), t);
         Object.keys(kpis).forEach(k => { const x = vals[k]; if (!x) return; kpis[k].rolo.poe(x.texto, inicial); pill(kpis[k], x.pill || '', x.tom || ''); if (kpis[k].sub) kpis[k].sub.textContent = x.sub || ''; });
         return; }

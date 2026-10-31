@@ -1,4 +1,4 @@
-// SONVI · Suporte do grupo (aprovado em 25/10/2026): item "Suporte" no menu do Dashboard geral, só o diretor (rota #/chamados;
+// SONVI · Suporte do grupo (aprovado em 25/10/2026): item "Suporte" no menu do Dashboard Gestão, só o diretor (rota #/chamados;
 // #/suporte continua sendo o link que abre o chat). Faixa quando a equipe SONVI está dentro, quatro números, abas
 // Chamados · Acessos da equipe SONVI, e paginação de 10 em 10 nas duas (adaptada de um componente de paginação, em JS puro).
 // Os chamados são as conversas do chat (console_chamados, a RLS entrega os da empresa ao diretor); clicar abre o chat nele.

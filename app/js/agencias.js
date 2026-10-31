@@ -1,4 +1,4 @@
-// SONVI · Agências do grupo (aprovado em 29/10/2026, database/058): item "Agências" no menu do Dashboard geral, só o diretor.
+// SONVI · Agências do grupo (aprovado em 29/10/2026, database/058): item "Agências" no menu do Dashboard Gestão, só o diretor.
 // Cadastro único: a agência é cadastrada uma vez e vale em todos os veículos. Por baixo cada veículo tem a sua cópia
 // (cliente, proposta e PI apontam para ela) e o banco mantém as cópias iguais (salvar_agencia_grupo, excluir_agencia_grupo).
 // Dentro do veículo a aba "Agências" saiu de Clientes; o cliente, a proposta e o PI continuam escolhendo a agência como antes.

@@ -120,7 +120,7 @@
   };
 
   S.views.clientes = id => {
-    // Agências saíram de dentro do veículo (29/10/2026): o cadastro é único do grupo, no Dashboard geral (agencias.js)
+    // Agências saíram de dentro do veículo (29/10/2026): o cadastro é único do grupo, no Dashboard Gestão (agencias.js)
     aba = 'cliente'; if (id === 'agencias' && S.me.diretor) queueMicrotask(() => S.admAbrir('agencias'));
     const cli = aba === 'cliente', q = S.ui.q.toLowerCase(), todas = S.pessoas(aba), cp = compras(cli ? 'cliente_id' : 'agencia_id');
     const gestor = S.pode('diretor', 'gerente'), podeCriar = S.pode('diretor', 'gerente', 'consultor'), outras = radiosDestino().length > 0;

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/sonvi.css?v=202610311245">
+<link rel="stylesheet" href="css/sonvi.css?v=202610311635">
 <!-- Página que o financeiro do veículo abre pelo e-mail (database/055): ?f=<token> confirma o faturamento (nº da nota);
      ?p=<token> responde se o cliente pagou. Sem login: só o que o link permite. Nada muda só por abrir. -->
 <style>
@@ -46,8 +46,8 @@
   <div class="cf-top"><small>Página segura · sem login · vale só para este link</small></div>
   <main class="card" id="caixa" aria-live="polite"><b>Abrindo…</b></main>
 </div>
-<script src="js/config.js?v=202610311245"></script>
-<script src="js/data.js?v=202610311245"></script>
+<script src="js/config.js?v=202610311635"></script>
+<script src="js/data.js?v=202610311635"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search), tf = qs.get('f') || '', tp = qs.get('p') || '';

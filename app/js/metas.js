@@ -113,7 +113,7 @@
       <div class="mf-cards">${t1}${t2}${t3}${t4}</div>${por}</section>`;
   };
 
-  // Metas dos consultores com anel de % (Dashboard geral, aprovado em 29/10/2026, tela 10): equipe no alto (números rolam) e um
+  // Metas dos consultores com anel de % (Dashboard Gestão, aprovado em 29/10/2026, tela 10): equipe no alto (números rolam) e um
   // quadro por consultor com o anel da meta, vendido de meta, quanto falta e a situação (batida / no ritmo / atrasado no ritmo).
   // O anel cresce do valor anterior até o novo (S.metasAnima, depois do desenho); o % rola como os outros números.
   const anelAntes = {};

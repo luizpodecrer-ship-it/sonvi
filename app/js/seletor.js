@@ -4,7 +4,7 @@
 //
 // O botão mostra o selo, o nome e a linha de apoio do veículo aberto. Ao clicar abre um painel (sem busca, decidido
 // em 24/10/2026) com a lista dos veículos (selo + nome + atalho) e, só para o diretor,
-// "Dashboard geral" por último. Setas andam, Enter escolhe, Esc fecha. Alt + 1 a 9 trocam direto, de qualquer tela.
+// "Dashboard Gestão" por último. Setas andam, Enter escolhe, Esc fecha. Alt + 1 a 9 trocam direto, de qualquer tela.
 // Ao trocar, o nome rola como um tambor do veículo antigo para o novo. A troca em si é S.trocarVeiculo (app.js).
 (() => {
   const { esc } = S;
@@ -35,7 +35,7 @@
     .observe(document.documentElement, { childList:true, subtree:true });
 
   // ---------- o painel ----------
-  const opcoes = () => [...veiculos().map((v, i) => ({ id:v.id, nome:v.nome, v, n:i + 1 })), ...(dir ? [{ id:'__geral', nome:'Dashboard geral', geral:true }] : [])];
+  const opcoes = () => [...veiculos().map((v, i) => ({ id:v.id, nome:v.nome, v, n:i + 1 })), ...(dir ? [{ id:'__geral', nome:'Dashboard Gestão', geral:true }] : [])];
   function cria() {
     painel = document.createElement('div');
     painel.className = 'sv-painel'; painel.id = 'sv-painel'; painel.setAttribute('role', 'dialog'); painel.setAttribute('aria-label', 'Trocar de veículo'); painel.hidden = true;

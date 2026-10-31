@@ -599,7 +599,7 @@ S.toast = (msg, op) => { const t = document.getElementById('toast'), comAcao = !
   window.addEventListener('resize', () => S.segDesliza());
 })();
 
-// Menu de seções com o efeito do menu do Dashboard geral (29/10/2026, Administração): o realce desliza com mola até o item sob o mouse ou o foco,
+// Menu de seções com o efeito do menu do Dashboard Gestão (29/10/2026, Administração): o realce desliza com mola até o item sob o mouse ou o foco,
 // volta ao item aberto, o ícone cresce e ganha a cor do item (data-cor). A tela é redesenhada a cada clique: a posição fica guardada pela chave
 // (data-menu) e o realce nasce ali e vai até o item novo. Só no computador.
 (() => {

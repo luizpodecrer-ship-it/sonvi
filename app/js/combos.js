@@ -1,5 +1,5 @@
 // SONVI · Combos do grupo (database/044, aprovado em 24/10/2026, Etapa 2 de Produtos).
-// O diretor cria em Dashboard geral → Combos (#/combos): nome, "vale até" opcional, itens de qualquer veículo da empresa
+// O diretor cria em Dashboard Gestão → Combos (#/combos): nome, "vale até" opcional, itens de qualquer veículo da empresa
 // e um preço fechado. Os itens ficam guardados prontos (como itens de proposta, com veiculo_id e preço de tabela do dia).
 // Na proposta (botão "Combo") eles entram fechados, com o preço dividido na proporção da tabela (S.itensDoCombo);
 // aprovada, o SONVI gera um PI por veículo (gerar_pi_veiculo), e cada veículo fatura a sua parte.

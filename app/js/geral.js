@@ -1,4 +1,4 @@
-// SONVI · Dashboard geral (aprovado em 24/10/2026): a tela de entrada do diretor, com todos os veículos do grupo.
+// SONVI · Dashboard Gestão (aprovado em 24/10/2026): a tela de entrada do diretor, com todos os veículos do grupo.
 // Painel com filtro cruzado (cruzado.js, 24/10/2026): vendido, PIs fechados, ticket médio e a receber; barras por veículo,
 // linha por dia (ou mês) e anel por consultor, que se filtram entre si; e a lista de veículos, que segue os filtros; clicar numa linha abre o Dashboard daquele veículo.
 // Os números vêm de uma consulta só para todos os veículos (só as colunas necessárias) e ficam na memória por 2 minutos.
@@ -101,7 +101,7 @@
   const pctTxt = (v, tot) => tot ? `${Math.round(v / tot * 100)}% do grupo` : '';
 
 
-  // ---------- painel único do Dashboard geral (aprovado em 29/10/2026, tela 10 do quadro "SONVI · Agências, controle e metas") ----------
+  // ---------- painel único do Dashboard Gestão (aprovado em 29/10/2026, tela 10 do quadro "SONVI · Agências, controle e metas") ----------
   // Um mês de veiculação escolhido no alto. Cubo veículo × consultor × dia com o líquido (S.valorNoMes), a parte da Head 14 e o nº de PIs;
   // o acumulado (mês + seguintes) por veículo × consultor; e as parcelas do mês ainda não pagas. Os 5 consultores com mais venda no
   // mês (depois os do acumulado) têm fatia própria e o resto vira "Outros".

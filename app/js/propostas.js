@@ -652,7 +652,7 @@
     prAddProd: () => { const p = atualEd(); if (!p) return;
       S.escolherProduto({ tipos:['radio', 'ooh'], onItens:its => comItem(pp => { its.forEach(it => { delete it.veiculo_id; }); pp.itens.push(...its); const t = S.tabelaVigente(); if (t && !pp.tabela_id) pp.tabela_id = t.id; }) }); },
     // Combo do grupo: entra fechado, com o preço dividido entre os itens na proporção da tabela
-    prAddCombo: () => { const p = atualEd(); if (!p) return; const cs = S.combosAtivos(); if (!cs.length) return S.toast('Não há combos ativos. O diretor cria em Dashboard geral → Combos.');
+    prAddCombo: () => { const p = atualEd(); if (!p) return; const cs = S.combosAtivos(); if (!cs.length) return S.toast('Não há combos ativos. O diretor cria em Dashboard Gestão → Combos.');
       const info = c => `<b>${brl(c.preco)}</b>${Number(c.valor_tabela) > c.preco ? ` · tabela ${brl(c.valor_tabela)} (−${nfmt((1 - c.preco / c.valor_tabela) * 100).replace(/,?0+$/, '')}%)` : ''}${c.vale_ate ? ` · vale até ${dfmt(c.vale_ate)}` : ''}<br><small class="muted">${(c.itens || []).map(x => `${esc((S.veh(x.veiculo_id) || {}).sigla || '')} ${esc(x.programa)} · ${esc(x.formato)} (${esc(S.qtdItem(x))})`).join('<br>')}</small>`;
       S.dialog(`<h2>Adicionar combo</h2><label class="f">Combo<select name="combo" required><option value="">Escolha</option>${cs.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select></label>
         <div id="prComboInfo" class="caixa" hidden></div><p class="muted small">O combo entra fechado: as quantidades não mudam. Aprovada a proposta, o SONVI gera um PI para cada veículo.</p>

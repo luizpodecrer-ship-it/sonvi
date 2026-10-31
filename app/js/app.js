@@ -5,8 +5,8 @@
   const MUSIC = S.APP === 'music';
   // [tela, nome, perfis, endereço externo]. O Sonvi Music abre em outra aba, com login próprio.
   const NAV = MUSIC ? S.MUSIC_NAV : [
-    ['geral', 'Dashboard geral', ['diretor']],   // só o diretor: todos os veículos (24/10/2026)
-    ['combos', 'Combos', ['diretor']],           // combos do grupo (itens de vários veículos), só no Dashboard geral
+    ['geral', 'Dashboard Gestão', ['diretor']],   // só o diretor: todos os veículos (24/10/2026)
+    ['combos', 'Combos', ['diretor']],           // combos do grupo (itens de vários veículos), só no Dashboard Gestão
     ['dashboard', 'Dashboard', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['followup', 'Follow-up', ['diretor', 'gerente', 'consultor']],
     ['clientes', 'Clientes', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
@@ -16,7 +16,7 @@
     ['vendas', 'Vendas', ['diretor', 'financeiro']],  // no lugar do Financeiro (27/10/2026): quem fatura e recebe é o financeiro de cada veículo
     ['produtos', 'Produtos', ['diretor', 'gerente', 'consultor']],
     ['admin', 'Administração', ['diretor']],
-    ['chamados', 'Suporte', ['diretor']],        // chamados e acessos da equipe SONVI, só no Dashboard geral (25/10/2026)
+    ['chamados', 'Suporte', ['diretor']],        // chamados e acessos da equipe SONVI, só no Dashboard Gestão (25/10/2026)
     ['admin', 'Usuários', ['gerente']]]; // o gerente cadastra a equipe das rádios dele
   const SOON = [];
 
@@ -41,7 +41,7 @@
     if (fimSuporte !== sup.id) { fimSuporte = sup.id; setTimeout(() => { if (S.ctx && S.ctx.suporte && S.ctx.suporte.id === sup.id) { S.toast('O acesso de suporte terminou.'); S.iniciar(); } }, Math.max(0, fim - Date.now()) + 1000); }
   };
 
-  // Menu fluido do Dashboard geral e de todos os veículos (o mesmo do Console, 25/10/2026; divisor antes de Administração só no Dashboard geral): o realce desliza até o item sob o mouse ou o foco,
+  // Menu fluido do Dashboard Gestão e de todos os veículos (o mesmo do Console, 25/10/2026; divisor antes de Administração só no Dashboard Gestão): o realce desliza até o item sob o mouse ou o foco,
   // o ícone cresce e ganha a cor do item; na troca de tela o realce sai de onde estava e vai até o item novo. Só no computador.
   let realceY = null;
   const menuFluido = (side, liga, divisor) => {
@@ -74,21 +74,21 @@
     faixaSuporte(!acesso && S.ctx && S.ctx.suporte);
     if (acesso) { S.temaRadio(null); document.getElementById('side').innerHTML = ''; ultimoSide = ''; bar.innerHTML = ''; content.innerHTML = acesso; document.title = MUSIC ? 'Sonvi Music' : 'SONVI'; ultima = ''; return; }
 
-    // Diretor: entra pelo Dashboard geral (todos os veículos); lá o menu fica enxuto e não há veículo aberto
+    // Diretor: entra pelo Dashboard Gestão (todos os veículos); lá o menu fica enxuto e não há veículo aberto
     const DIR = !MUSIC && !!(S.me && S.me.diretor), bruto = location.hash.replace(/^#\/?/, '').split('/')[0];
     let { view, id } = S.route();
     if (DIR && !bruto) view = 'geral';
-    // Administração e Combos do diretor vivem no Dashboard geral (24/10/2026): abrir qualquer uma delas leva o menu para lá
+    // Administração e Combos do diretor vivem no Dashboard Gestão (24/10/2026): abrir qualquer uma delas leva o menu para lá
     if (['geral', 'admin', 'combos', 'chamados', 'agencias'].includes(view)) S.ui.emGeral = DIR; else S.ui.emGeral = false;
     const geral = DIR && S.ui.emGeral, semVeiculo = !S.ui.vehicleId;
     const itens = NAV.filter(n => n[2].includes(S.perfil) && (!semVeiculo || ['admin', 'geral', 'combos', 'chamados', 'agencias'].includes(n[0])) && (!geral || ['geral', 'combos', 'agencias', 'admin', 'chamados'].includes(n[0])) && !(n[0] === 'combos' && !geral) && !(n[0] === 'agencias' && !geral) && !(n[0] === 'chamados' && !geral) && !(n[0] === 'geral' && !geral && !semVeiculo) && !(n[0] === 'admin' && DIR && !geral && !semVeiculo)), telas = itens.filter(n => !n[3]);
     if (!telas.some(n => n[0] === view) && view !== 'pi' && !(view === 'importar' && telas.some(n => n[0] === 'pis') && S.pode('diretor', 'gerente', 'consultor'))) view = telas.length ? telas[0][0] : 'soMusic';
     if (semVeiculo && !(DIR && ['geral', 'admin', 'combos', 'chamados', 'agencias'].includes(view))) view = MUSIC ? (telas[0] || ['hoje'])[0] : DIR ? 'geral' : 'admin';
-    S.ui.view = view;   // tela realmente desenhada (com o hash vazio, o diretor vê o Dashboard geral)
+    S.ui.view = view;   // tela realmente desenhada (com o hash vazio, o diretor vê o Dashboard Gestão)
     S.temaRadio(semVeiculo || geral ? null : S.veh());
     const active = view === 'pi' || view === 'importar' ? 'pis' : view, waiting = S.db.pis.filter(p => p.status === 'opec').length, atrasos = !MUSIC && S.fuAtrasados && !semVeiculo ? S.fuAtrasados() : 0, veh = semVeiculo ? null : S.veh();
     const inicio = MUSIC ? 'hoje' : DIR ? 'geral' : 'dashboard';
-    const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${inicio}" data-go="/${inicio}" aria-label="${MUSIC ? 'Sonvi Music' : DIR ? 'SONVI · Dashboard geral' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
+    const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${inicio}" data-go="/${inicio}" aria-label="${MUSIC ? 'Sonvi Music' : DIR ? 'SONVI · Dashboard Gestão' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
       <button type="button" class="recolher" data-act="menuRecolher" aria-controls="side">${S.svg('recolher')}${S.svg('expandir')}<span class="sr">Recolher menu</span></button>
       ${semVeiculo || geral ? '' : S.seletorVeiculo(veh, DIR)}
       <nav aria-label="Menu principal">${itens.map(([k, n, , href], i) => { const ex = itens.length > 5 && i >= 4 ? ' extra' : ''; return href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo${ex}" data-ico="${k}">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
@@ -119,7 +119,7 @@
     if (S.segDesliza) S.segDesliza(content);
     if (S.menuDesliza) S.menuDesliza(content);   // números que rolam e ficam montados entre desenhos (S.roloFixo)
     requestAnimationFrame(() => content.querySelectorAll('.scroll').forEach(sc => { if (sc.scrollWidth > sc.clientWidth + 2 && !sc.querySelector('a[href], button, input, select, textarea, [tabindex]')) { const t = sc.closest('.card') && sc.closest('.card').querySelector('h2'); sc.tabIndex = 0; sc.setAttribute('role', 'region'); sc.setAttribute('aria-label', (t ? t.textContent.trim() + ': ' : '') + 'tabela, role para o lado para ver tudo'); } }));
-    document.title = (MUSIC ? 'Sonvi Music' : 'SONVI') + (view === 'geral' ? ' · Dashboard geral' : semVeiculo || geral ? '' : ' · ' + veh.nome);
+    document.title = (MUSIC ? 'Sonvi Music' : 'SONVI') + (view === 'geral' ? ' · Dashboard Gestão' : semVeiculo || geral ? '' : ' · ' + veh.nome);
   };
 
   // Carrega tudo da nuvem e desenha
@@ -169,11 +169,11 @@
     const ctl = e.target.closest('input, select, button'); // um botão dentro de uma linha clicável não abre a linha; o próprio botão com data-go abre
     if (go && (!ctl || ctl === go)) { if (go.tagName === 'A') e.preventDefault(); if (go.dataset.go.startsWith('/pi/')) S.ui.tab = 'detalhes'; if (!go.dataset.go.startsWith('/pi')) S.ui.q = ''; S.go(go.dataset.go); }
   });
-  // Alterações que ainda não foram salvas impedem trocar de veículo (seletor ou Dashboard geral)
+  // Alterações que ainda não foram salvas impedem trocar de veículo (seletor ou Dashboard Gestão)
   const pendente = () => S.piEd && S.piEd.sujo ? 'Salve ou cancele as alterações do PI antes de trocar de veículo.'
     : S.propSujo && S.propSujo() ? 'Salve ou descarte as alterações da proposta antes de trocar de veículo.'
     : S.tpSujo && S.tpSujo() ? 'Salve ou descarte as alterações da tabela de preços antes de trocar de veículo.' : '';
-  // Dashboard geral → abre um veículo (carrega só os dados dele) e vai para o Dashboard dele
+  // Dashboard Gestão → abre um veículo (carrega só os dados dele) e vai para o Dashboard dele
   S.abrirVeiculo = async (vid, destino = '/dashboard') => {
     if (vid !== S.ui.vehicleId) { const msg = pendente(); if (msg) return S.toast(msg); }
     S.ui.emGeral = false; S.ui.q = '';
@@ -186,7 +186,7 @@
     S.go(destino);
   };
   // Troca de veículo (seletor do alto do menu, atalho Alt + número): busca na nuvem só os dados dele.
-  // '__geral' (só o diretor) volta ao Dashboard geral. Alterações não salvas impedem a troca.
+  // '__geral' (só o diretor) volta ao Dashboard Gestão. Alterações não salvas impedem a troca.
   S.trocarVeiculo = async vid => {
     if (vid === '__geral') { const msg = pendente(); if (msg) return S.toast(msg); return S.go('/geral'); }
     if (!vid || vid === S.ui.vehicleId) return;
@@ -200,7 +200,7 @@
   document.addEventListener('change', async e => {
     const el = e.target, d = el.dataset;
     if (el.closest('dialog')) return;
-    // Diretor: a última opção do seletor volta ao Dashboard geral (24/10/2026)
+    // Diretor: a última opção do seletor volta ao Dashboard Gestão (24/10/2026)
     if (d.ui === 'vehicleId' && el.value === '__geral') { el.value = S.ui.vehicleId; const msg = pendente(); if (msg) return S.toast(msg); return S.go('/geral'); }
     if (d.ui === 'vehicleId' && pendente()) { el.value = S.ui.vehicleId; return S.toast(pendente()); }
     if (d.ui === 'vehicleId') return S.trocarVeiculo(el.value);

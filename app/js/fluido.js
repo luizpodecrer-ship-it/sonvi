@@ -12,7 +12,7 @@
 
   // Conteúdo de cada opção. Rádios aparecem com o selo e a frequência/cidade.
   S.fluidoItem = S.fluidoItem || ((sel, op) => {
-    if (sel.dataset.ui === 'vehicleId' && op.value === '__geral') return `<span class="fl-geral" aria-hidden="true">${S.svg('geral')}</span><span class="fl-tx"><b>Dashboard geral</b></span>`;
+    if (sel.dataset.ui === 'vehicleId' && op.value === '__geral') return `<span class="fl-geral" aria-hidden="true">${S.svg('geral')}</span><span class="fl-tx"><b>Dashboard Gestão</b></span>`;
     if (sel.dataset.ui === 'vehicleId' && S.veh) { const v = S.veh(op.value); if (v) return `${S.vav(v)}<span class="fl-tx"><b>${esc(v.nome)}</b></span>`; }   // só o nome (24/10/2026)
     return `<span class="fl-tx"><b>${esc(op.textContent)}</b></span>`;
   });
