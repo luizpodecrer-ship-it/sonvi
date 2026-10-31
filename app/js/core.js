@@ -190,6 +190,9 @@ S.go = path => { if (location.hash === '#' + path) S.render(); else location.has
 // Ao fechar: o foco volta para o botão que abriu (ou o equivalente, se a tela foi redesenhada).
 S.dialog = (html, onOk, opts = {}) => {
   const d = document.getElementById('dlg'), origem = document.activeElement;
+  // Cada janela começa no tamanho padrão (31/10/2026): uma janela aberta por cima de outra (ex.: Visualizar extrato → E-mail)
+  // trocava o onclose antes de a anterior tirar a própria classe (largo, medio, em-dlg) e a próxima janela abria gigante
+  d.className = '';
   const alvo = origem && origem.dataset && (origem.dataset.act || origem.dataset.go) ? ['act', 'id', 'go'].filter(k => origem.dataset[k]).map(k => `[data-${k}="${CSS.escape(origem.dataset[k])}"]`).join('') : '';
   d.innerHTML = `<form method="dialog">${html}</form>`;
   const h = d.querySelector('h2'); if (h) { h.id = 'dlgTitulo'; d.setAttribute('aria-labelledby', 'dlgTitulo'); } else d.removeAttribute('aria-labelledby');
