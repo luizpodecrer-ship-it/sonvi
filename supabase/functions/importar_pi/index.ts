@@ -38,11 +38,14 @@ const ESQUEMA = {
       insercoes_total: { type: 'integer', description: 'Total de inserções da linha.' },
       total: { type: 'number', description: 'Valor total bruto da linha, em reais.' },
       bonificada: { type: 'boolean', description: 'true se for bonificação/cortesia (sem custo).' },
-      dias: { type: 'array', description: 'Quantidade por dia. Sempre a data completa AAAA-MM-DD; se a grade só traz o número do dia, use o mês e o ano do cabeçalho/período.',
-        items: { type: 'object', properties: { data: { type: 'string' }, qtd: { type: 'integer' } }, required: ['data', 'qtd'] } },
+      meses: { type: 'array', description: 'Grade de inserções, um item por mês. Se a grade só traz o número do dia, use o mês e o ano do cabeçalho/período.',
+        items: { type: 'object', properties: {
+          mes: { type: 'string', description: 'AAAA-MM' },
+          dias: { type: 'string', description: 'Só os dias com inserção, no formato "dia:quantidade" separados por vírgula. Ex.: "3:2,4:2,5:1,10:3".' } },
+          required: ['mes', 'dias'] } },
       produto_sugerido_id: { type: 'string', description: 'id do produto do catálogo do veículo que corresponde à linha, ou vazio.' },
       formato_sugerido_id: { type: 'string', description: 'id da duração/variação do catálogo que corresponde, ou vazio.' } },
-      required: ['programa', 'unitario', 'insercoes_total', 'dias'] } },
+      required: ['programa', 'unitario', 'insercoes_total', 'meses'] } },
     total_bruto: { type: ['number', 'null'], description: 'Valor total bruto escrito no documento.' },
     total_liquido: { type: ['number', 'null'], description: 'Valor líquido escrito no documento, se houver.' },
     duvidas: { type: 'array', items: { type: 'string' }, description: 'O que ficou ilegível, ambíguo ou foi deduzido (frases curtas em português).' },
@@ -88,7 +91,7 @@ Deno.serve(async (req) => {
     }
     conteudo.push({ type: 'text', text: `Este é um PI (pedido de inserção) de mídia enviado por uma agência ou anunciante para uma emissora. ` +
       `Leia o documento inteiro e registre tudo com a ferramenta registrar_pi. Regras: valores em reais como número (1.234,56 → 1234.56); ` +
-      `datas AAAA-MM-DD; a grade de inserções vira "dias" com a data completa de cada dia que tem inserção; não invente o que não está no documento ` +
+      `datas AAAA-MM-DD; a grade de inserções vira "meses" (por mês, "dia:quantidade" só dos dias com inserção); não invente o que não está no documento ` +
       `(deixe vazio e diga em "duvidas"); confira se a soma das linhas bate com o total do documento e, se não bater, diga em "duvidas". ` +
       `Para cada linha, sugira o produto e a duração do catálogo abaixo que correspondem (pelo nome, horário e duração), só se tiver segurança.\n\n${catalogo}` });
 
@@ -104,7 +107,15 @@ Deno.serve(async (req) => {
       }),
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) return resposta({ erro: `A leitura falhou: ${j?.error?.message || r.status}` }, 502);
+    if (!r.ok) {
+      const msg = String(j?.error?.message || r.status);
+      console.error('Anthropic', r.status, JSON.stringify(j?.error || j));
+      let erro = `A leitura falhou: ${msg}`;
+      if (/credit balance/i.test(msg)) erro = 'A conta da Anthropic está sem créditos. Coloque créditos em console.anthropic.com › Billing e tente de novo.';
+      else if (r.status === 401 || /api.key|x-api-key/i.test(msg)) erro = 'A chave da Anthropic no Supabase não foi aceita. Confira o segredo ANTHROPIC_API_KEY.';
+      else if (r.status === 404 || /model/i.test(msg)) erro = `O modelo de IA não foi encontrado (${msg}).`;
+      return resposta({ erro }, 502);
+    }
     const uso = (j.content || []).find((c: any) => c.type === 'tool_use');
     if (!uso) return resposta({ erro: 'Não foi possível ler este documento. Confira se é um PI e tente de novo.' }, 422);
     return resposta({ ok: true, leitura: uso.input, uso: j.usage });

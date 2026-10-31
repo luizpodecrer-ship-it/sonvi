@@ -61,18 +61,23 @@
       <ul class="ip-etapas" id="ipEt">${ETAPAS.map((e, i) => `<li class="${i ? 'depois' : 'agora'}"><i aria-hidden="true"></i>${e}</li>`).join('')}</ul>
       <p class="muted small">Leva de 20 segundos a 1 minuto, conforme o tamanho do PI.</p>
       <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button></div>`);
+    // "Cancelado" só pelo botão ou pelo Esc desta janela (o fechamento da janela anterior chega atrasado e não pode contar)
     const d = document.getElementById('dlg'); let cancelado = false, passo = 0;
-    d.addEventListener('close', () => { cancelado = true; }, { once:true });
+    const cancela = () => { cancelado = true; };
+    d.querySelector('button[value=cancel]').addEventListener('click', cancela);
+    d.addEventListener('cancel', cancela);
+    const solta = () => d.removeEventListener('cancel', cancela);
     const marca = n => { const li = [...(document.querySelectorAll('#ipEt li'))]; li.forEach((x, i) => { x.className = i < n ? 'feito' : i === n ? 'agora' : 'depois'; }); };
     const relogio = setInterval(() => { if (passo < ETAPAS.length - 1) marca(++passo); }, 9000);
     try {
       const corpo = Object.assign({ veiculo_id:S.ui.vehicleId }, await corpoDe(f));
-      const { data, error } = await S.sb.functions.invoke('importar_pi', { body:corpo });
+      const limite = new Promise((_, nao) => setTimeout(() => nao(new Error('A leitura demorou demais. Tente de novo; se repetir, envie o PI em PDF.')), 170000));
+      const { data, error } = await Promise.race([S.sb.functions.invoke('importar_pi', { body:corpo }), limite]);
       if (error) { let m = error.message; try { const j = await error.context.json(); if (j && j.erro) m = j.erro; } catch (e) { /* sem corpo */ } throw new Error(m); }
       if (data && data.erro) throw new Error(data.erro);
-      clearInterval(relogio); if (cancelado) return; marca(ETAPAS.length); d.close('ok');
+      clearInterval(relogio); solta(); if (cancelado) return; marca(ETAPAS.length); d.close('ok');
       await preparar(data.leitura || {}, f); S.go('/importar');
-    } catch (e) { clearInterval(relogio); console.error(e); if (!cancelado) { d.close('cancel'); S.toast(S.erro(e)); } }
+    } catch (e) { clearInterval(relogio); solta(); console.error(e); if (!cancelado) { if (d.open) d.close('cancel'); S.toast(S.erro(e)); } }
   };
 
   // ---------- 3. conferência ----------
@@ -94,7 +99,12 @@
       const m = (mapas || []).find(k => k.texto === textoLinha(x));
       const p = m ? progs.find(q => q.nome === m.programa) : progs.find(q => q.id === x.produto_sugerido_id);
       const f = m ? fmts.find(q => q.nome === m.formato) : fmts.find(q => q.id === x.formato_sugerido_id);
-      const dias = (x.dias || []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.data) && Number(d.qtd) > 0);
+      // A IA manda a grade curta por mês ({ mes:'2026-11', dias:'1:3,2:2' }); "dias" com a data completa ainda é aceito
+      const curtos = [];
+      (x.meses || []).forEach(m => { if (!/^\d{4}-\d{2}$/.test(String(m.mes || ''))) return;
+        String(m.dias || '').split(/[,;\s]+/).forEach(p => { const [dd, q] = p.split(':'); const n = Number(dd);
+          if (n >= 1 && n <= 31) curtos.push({ data:`${m.mes}-${String(n).padStart(2, '0')}`, qtd:Number(q || 1) }); }); });
+      const dias = (curtos.length ? curtos : (x.dias || [])).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d.data) && Number(d.qtd) > 0);
       const ins = dias.reduce((s, d) => s + Number(d.qtd), 0) || Number(x.insercoes_total) || 0;
       return { i, orig:x, prog:p ? p.id : (m && m.programa === '' ? '__texto' : ''), fmt:f ? f.id : (m && m.formato === '' ? '__texto' : ''), sozinho:!!m || !!(p && f),
         unit:Number(x.unitario) || 0, ins, dias, bonus:!!x.bonificada };
