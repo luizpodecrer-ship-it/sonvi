@@ -232,21 +232,27 @@
   const entLista = xs => (xs || []).length ? `<ul>${xs.map(x => `<li>${entTxt(x)}</li>`).join('')}</ul>` : '<p class="muted small">Nenhuma entrega.</p>';
   const chaveEnt = d => JSON.stringify([(d.online || []).map(x => [x.qtd || null, x.titulo, x.sub || '']), (d.dial || []).map(x => [x.qtd || null, x.titulo, x.sub || '']), d.rodape || '']);
   S.projetoEntregasHtml = (d, cls = '') => `<div class="pj-ent ${cls}"><div><b class="pj-lado">Online</b>${entLista(d.online)}</div><div><b class="pj-lado">Dial</b>${entLista(d.dial)}</div></div>`;
+  const pjAbertos = new Set();   // projetos com as entregas abertas na lista
   const vistaProjetos = () => {
     const ps = projProds().filter(p => p.ativo || pode()), at = ps.filter(p => p.ativo), m = modeloProj(), md = dadosDe(m), vals = at.map(p => Number(dadosDe(p).valor) || 0).filter(v => v > 0);
-    const igual = p => m && chaveEnt(dadosDe(p)) === chaveEnt(md);
-    const cards = ps.map(p => { const d = dadosDe(p);
-      return `<article class="card pj${p.ativo ? '' : ' off'}" data-flip="${p.id}"><div class="pj-top"><h3>${esc(p.nome)}${p.ativo ? '' : ' <span class="pill fn-neutra">Fora das propostas</span>'}</h3><span class="pj-quando">${diasLetras(diasDe(p))}<small>${esc(S.projetoHoras(d) || 'rotativo')}</small></span>
-        <div class="pj-valor"><b>${brl(d.valor)}</b><span>por mês</span></div>${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
-        ${S.projetoEntregasHtml(d)}
-        <div class="pj-pe"><span class="muted small">${p.ativo ? (m ? (igual(p) ? 'Igual ao modelo' : '<span class="pill fn-ok">Entregas próprias</span>') : 'Por mês') : 'Não aparece nas propostas'}</span>${pode() ? `<button class="btn sm" data-act="pdEditar" data-id="${p.id}">Editar</button>` : ''}</div></article>`; }).join('');
-    const novo = pode() ? `<button type="button" class="pj pj-novo" data-act="pjNovo"><i aria-hidden="true">+</i><b>Novo projeto</b><span>${m ? 'já vem com as entregas do modelo' : 'Online e Dial, valor por mês'}</span></button>` : '';
+    // Lista (aprovada em 31/10/2026, opção B do artifact "Projetos especiais · exibição"): uma linha por projeto;
+    // clicar abre as entregas Online e Dial logo embaixo. No celular, cada linha vira um cartão compacto.
+    const dialQ = d => (d.dial || []).reduce((t, x) => t + (Number(x.qtd) || 0), 0);
+    const linhas = ps.map(p => { const d = dadosDe(p), ab = pjAbertos.has(p.id);
+      return `<div class="pjl-lin${p.ativo ? '' : ' off'}${ab ? ' aberta' : ''}" data-flip="${p.id}" data-act="pjVer" data-id="${p.id}" tabindex="-1">
+        <button type="button" class="pjl-nome" data-act="pjVer" data-id="${p.id}" aria-expanded="${ab}"><span class="pjl-seta" aria-hidden="true">${S.svg('seta', 14)}</span><span><b>${esc(p.nome)}</b>${p.ativo ? '' : '<small>Fora das propostas</small>'}</span></button>
+        <span class="pjl-dias">${diasLetras(diasDe(p))}</span><span class="pjl-hora">${esc(S.projetoHoras(d) || 'rotativo')}</span>
+        <span class="pjl-dial"><b>${dialQ(d)}</b><small> no dial</small></span><b class="pjl-valor">${brl(d.valor)}</b>
+        <span class="lin-acoes">${pode() ? `<button class="btn sm" data-act="pdEditar" data-id="${p.id}">Editar</button>${tres('pdMenu', p.id, p.nome)}` : ''}</span></div>
+        ${ab ? `<div class="pjl-ent">${S.projetoEntregasHtml(d)}${d.rodape ? `<p class="muted small">${esc(d.rodape)}</p>` : ''}</div>` : ''}`; }).join('');
+    const lista = ps.length ? `<section class="card pjl"><div class="pjl-lin pjl-cab" aria-hidden="true"><span>Projeto</span><span>Dias</span><span>Horário</span><span>Dial / mês</span><span>Valor / mês</span><span></span></div>${linhas}</section>`
+      : pode() ? `<div class="card empty"><b>Nenhum projeto especial</b>Clique em "Novo projeto": ${m ? 'ele já vem com as entregas do modelo.' : 'Online e Dial, com valor por mês.'}</div>` : '';
     const topo = `<section class="card"><div class="hd"><h2>Projetos especiais da ${esc(S.veh().nome)}</h2><span>Online + Dial, valor por mês, dias e horário</span></div>
       <div class="pj-resumo"><div><small>Projetos ativos</small><b>${at.length}</b></div><div><small>Menor valor</small><b>${vals.length ? brl(Math.min(...vals)) : '—'}</b></div><div><small>Maior valor</small><b>${vals.length ? brl(Math.max(...vals)) : '—'}</b></div>
         <div><small>Entregas do modelo</small><b>${m ? `${(md.online || []).length} online · ${(md.dial || []).length} dial` : 'sem modelo'}</b></div></div></section>`;
     const vazio = !ps.length && !pode() ? '<div class="card empty"><b>Nenhum projeto especial</b>Quando o diretor cadastrar, os projetos aparecem aqui.</div>' : '';
     return { title:titulo('Produtos'), actions:pode() ? `<button class="btn" data-act="pjModelo">${m ? 'Editar modelo' : 'Criar modelo'}</button><button class="btn pri" data-act="pjNovo">${S.svg('mais')}Novo projeto</button>` : '',
-      body:S.produtosAbas('projetos') + topo + (vazio || `<div class="pj-grade">${cards}${novo}</div>`)
+      body:S.produtosAbas('projetos') + topo + (vazio || lista)
         + '<p class="muted small pdt-nota">Na proposta o projeto entra pelo botão "Projeto especial", como um bloco fechado. No PI, o Dial vira linhas da grade nos dias e no horário do projeto e o Online vai nas observações.</p>' };
   };
   const linhaEnt = (lado, x, i) => `<div class="pdt-row pj-row" data-linha="${i}"><input name="pj_${lado}_q_${i}" data-mask="int" inputmode="numeric" value="${Number(x.qtd) > 0 ? Number(x.qtd) : ''}" placeholder="—" aria-label="Quantidade por mês (vazio = o mês todo)"${lado === 'dial' ? ' required' : ''}>
@@ -496,6 +502,7 @@
     pdAbrir: d => { location.hash = '/produtos/' + d.id; },
     pdEditar: d => { const p = prod(d.id); if (!p) return; if (p.secao === 'patrocinio') formCota(p); else if (p.secao === 'projeto') formProjeto(p); else formRadio(p); },
     pjNovo: () => formProjeto(null),
+    pjVer: (d, b) => { if (b && b.closest && b.closest('.lin-acoes')) return; if (pjAbertos.has(d.id)) pjAbertos.delete(d.id); else pjAbertos.add(d.id); S.render(); },
     pjModelo: () => formProjeto(modeloProj() || { secao:'projeto_modelo', nome:'Modelo dos projetos especiais', ativo:false, dados:{ online:[], dial:[] } }, true),
     pjLinhaMais: d => novaLinha(d.lado === 'dial' ? 'pjDial' : 'pjOnline', linhaEnt(d.lado, {}, nLinha++)),
     pjVoltarModelo: async () => { const m = modeloProj(); if (!m) return; const dd = document.getElementById('dlg'); if (!dd) return;

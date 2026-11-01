@@ -3719,3 +3719,27 @@ form.ver .so-ed, form.ver [data-pd-add], form.ver [data-act="pdFaixaMais"], form
 .pj-quando small { color:var(--ink-2); font-size:13px; font-weight:600; }
 .pj-horas { margin-top:-4px; } .pj-horas input { max-width:140px; }
 .prd-pe-tit .prd-pe-hora { display:block; font:600 10px/1.3 'Manrope', sans-serif; letter-spacing:.02em; opacity:.9; margin-top:1mm; }
+
+/* ---------- Projetos especiais em lista (31/10/2026, opção B do artifact "Projetos especiais · exibição") ---------- */
+.pjl { padding:6px 10px; }
+.pjl-lin { display:grid; grid-template-columns:minmax(0, 1.6fr) 190px minmax(0, 1fr) 100px 130px 120px; align-items:center; gap:12px; padding:10px 8px; border-bottom:1px solid var(--line); cursor:pointer; border-radius:var(--radius-s); }
+.pjl-lin:hover:not(.pjl-cab) { background:var(--bg); } .pjl-lin.aberta { background:var(--bg); border-bottom-color:transparent; }
+.pjl-cab { cursor:default; font-size:12px; font-weight:600; color:var(--ink-3); padding-top:8px; padding-bottom:8px; }
+.pjl-cab span:nth-child(4), .pjl-cab span:nth-child(5) { text-align:right; }
+.pjl-nome { display:flex; align-items:center; gap:8px; background:none; border:0; padding:0; font:inherit; color:var(--ink); text-align:left; cursor:pointer; min-width:0; }
+.pjl-nome b { font:600 14.5px/1.3 var(--display); display:block; } .pjl-nome small { display:block; color:var(--ink-3); font-size:12px; }
+.pjl-nome:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
+.pjl-seta { display:inline-grid; color:var(--ink-3); transition:transform .2s; } .pjl-lin.aberta .pjl-seta { transform:rotate(90deg); }
+.pjl-hora { font-size:13.5px; font-weight:600; color:var(--ink-2); white-space:nowrap; }
+.pjl-dial, .pjl-valor { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; } .pjl-dial small { display:none; } .pjl-valor { font:600 15px var(--display); }
+.pjl-lin .lin-acoes { justify-content:flex-end; }
+.pjl-lin.off > :not(.lin-acoes) { opacity:.6; }
+.pjl-ent { background:var(--bg); border-radius:0 0 var(--radius-s) var(--radius-s); padding:4px 12px 14px; margin-bottom:6px; border-bottom:1px solid var(--line); }
+.pjl-ent .pj-ent > div { background:var(--surface); } .pjl-ent p { margin:10px 0 0; }
+@media (prefers-reduced-motion: reduce) { .pjl-seta { transition:none; } }
+@media (max-width:1100px) { .pjl-lin { grid-template-columns:minmax(0, 1.4fr) 180px minmax(0, 1fr) 120px 110px; } .pjl-dial { display:none; } .pjl-cab span:nth-child(4) { display:none; } }
+@media (max-width:720px) {
+  .pjl-cab { display:none; }
+  .pjl-lin { grid-template-columns:minmax(0, 1fr) auto; grid-template-areas:"nome valor" "dias dias" "hora acoes"; gap:8px 10px; padding:14px 8px; }
+  .pjl-nome { grid-area:nome; } .pjl-valor { grid-area:valor; } .pjl-dias { grid-area:dias; } .pjl-hora { grid-area:hora; } .pjl-lin .lin-acoes { grid-area:acoes; }
+}
