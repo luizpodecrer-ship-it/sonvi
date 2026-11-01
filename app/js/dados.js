@@ -43,7 +43,13 @@
   // Executa uma ação na nuvem, avisa o resultado e redesenha a tela
   S.run = async (fn, ok) => {
     try { const r = await fn(); if (ok) (S.salvo ? S.salvo(ok.titulo || ok, ok.titulo ? ok : {}) : S.toast(ok)); S.render(); return r === undefined ? true : r; }
-    catch (e) { console.error(e); S.toast(S.erro(e)); S.render(); return null; }
+    catch (e) { console.error(e);
+      // O registro sumiu (excluído em outra aba ou por outra pessoa): recarrega o veículo para a tela parar de mostrar o que não existe mais
+      if (/não encontrad/i.test(S.erro(e)) && S.ui && S.ui.vehicleId && !S.ui.emGeral) {
+        try { await S.carregarVeiculo(); } catch (e2) { console.error(e2); }
+        S.toast('Este registro não existe mais: foi excluído em outra aba ou por outra pessoa. A tela foi atualizada.');
+      } else S.toast(S.erro(e));
+      S.render(); return null; }
   };
 
   // Grava (cria ou altera) uma linha e mantém a cópia em memória igual à nuvem

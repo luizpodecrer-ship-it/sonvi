@@ -173,6 +173,16 @@
   const pendente = () => S.piEd && S.piEd.sujo ? 'Salve ou cancele as alterações do PI antes de trocar de veículo.'
     : S.propSujo && S.propSujo() ? 'Salve ou descarte as alterações da proposta antes de trocar de veículo.'
     : S.tpSujo && S.tpSujo() ? 'Salve ou descarte as alterações da tabela de preços antes de trocar de veículo.' : '';
+  // Voltar para a aba depois de um tempo: busca de novo os dados do veículo (outra aba ou outra pessoa pode ter mudado algo).
+  // Não recarrega com alteração por salvar, janela aberta ou campo em uso.
+  let saiuEm = 0;
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) { saiuEm = Date.now(); return; }
+    if (!saiuEm || Date.now() - saiuEm < 20000) return; saiuEm = 0;
+    if (!S.me || !S.ui.vehicleId || S.ui.emGeral || S.APP === 'music' || pendente() || (S.piEd && S.piEd.id) || document.querySelector('dialog[open]')) return;
+    const at = document.activeElement; if (at && /^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName)) return;
+    try { await S.carregarVeiculo(); S.render(); } catch (e) { console.error(e); }
+  });
   // Dashboard Gestão → abre um veículo (carrega só os dados dele) e vai para o Dashboard dele
   S.abrirVeiculo = async (vid, destino = '/dashboard') => {
     if (vid !== S.ui.vehicleId) { const msg = pendente(); if (msg) return S.toast(msg); }
