@@ -114,7 +114,7 @@
     const itens = NAV.filter(([k]) => k !== 'configuracoes' || pode('proprietario'));
     return `<div class="c-marca"><img src="/img/sonvi-branco.svg" width="343" height="78" alt="SONVI"><span class="c-selo">CONSOLE</span></div>
     <nav aria-label="Menu do Console"><span class="realce" aria-hidden="true"></span>${itens.map(([k, n, ic, cor]) => `${k === 'configuracoes' ? '<span class="div" aria-hidden="true"></span>' : ''}<a href="#/${k}" style="--c:${cor}" class="${g === k ? 'on' : ''}"${g === k ? ' aria-current="page"' : ''}>${ICONE[ic]}<span>${n}</span>${conta[k] ? `<em aria-label="${conta[k]} ${k === 'financeiro' ? 'em atraso' : 'sem resposta'}">${conta[k]}</em>` : ''}</a>`).join('')}</nav>
-    <div class="c-eu"><span class="av" aria-hidden="true">${esc(S.iniciais((D.eu || {}).nome || 'SONVI'))}</span><button class="tx" data-act="contaMenu" aria-haspopup="menu" title="Minha conta"><b>${esc((D.eu || {}).nome || '')}</b><small>${NOME_PAPEL[papel()] || 'Equipe SONVI'}</small></button><button class="btn sm" data-act="sair">Sair</button></div>`; };
+    ${S.credito('escuro', '/', 'menu-cred')}<div class="c-eu"><span class="av" aria-hidden="true">${esc(S.iniciais((D.eu || {}).nome || 'SONVI'))}</span><button class="tx" data-act="contaMenu" aria-haspopup="menu" title="Minha conta"><b>${esc((D.eu || {}).nome || '')}</b><small>${NOME_PAPEL[papel()] || 'Equipe SONVI'}</small></button><button class="btn sm" data-act="sair">Sair</button></div>`; };
   // O realce sai de onde estava (troca de tela) e vai até o item da tela; acompanha o mouse e o foco
   let realceY = null;
   const menuFluido = () => {
