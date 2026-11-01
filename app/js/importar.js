@@ -291,7 +291,7 @@
     const grids = Object.keys(porMes).sort().map(m => ({ id:S.uid(), period:m, praca:v.cidade || '', items:usadas.filter(x => porMes[m][x.k]).map(x => ({
       id:S.uid(), piece:'', f1:nomeSonvi(x), f2:nomeFmt(x), days:porMes[m][x.k], unit:unitDe(x), disc:{ type:'pct', value:0 }, bonus:x.bonus, faixa:x.orig.horario || '' })) }));
     const temAg = imp.ag && imp.ag !== '__direta', pg = l.pagamento || {};
-    const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:temAg ? Number(imp.com) || 0 : 0 }, discount:{ type:'brl', value:imp.modo === 'linhas' ? Number(l.desconto_valor) || 0 : 0 }, grids,
+    const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:temAg ? Number(imp.com) || 0 : 0 }, discount:{ type:'brl', value:imp.modo === 'linhas' ? Number(l.desconto_valor) || 0 : 0 }, grids, marca:'comercial',   // PI importado sai sempre com a marca da empresa comercial (Head 14), de qualquer veículo (31/10/2026)
       billing:{ type:temAg ? 10 : 20, firstDue:/^\d{4}-\d{2}-\d{2}$/.test(pg.vencimento || '') ? pg.vencimento : '', installments:1, method:pg.forma || 'Boleto', obsClient:String(l.observacoes || '').slice(0, 2000) },
       importado:{ numero:String(l.numero_pi || ''), agencia:(l.agencia && l.agencia.nome) || '', arquivo:imp.file.name, em:new Date().toISOString(), total_documento:Number(l.total_bruto) || null, modo:imp.modo } } }).dados;
     const pi = S.piNorm(await S.q(S.sb.rpc('criar_pi', { p_veiculo:S.ui.vehicleId, p_titulo:imp.titulo.trim() || 'PI importado', p_cliente:imp.cli, p_agencia:temAg ? imp.ag : null, p_projeto:'', p_dados:dados })));
