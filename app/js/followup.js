@@ -185,7 +185,7 @@
       <label class="f" data-so="realizado nao_atendeu">O que ficou combinado<textarea name="resultado" placeholder="Ex.: Gostou do rotativo, vai falar com o sócio e responde na sexta"></textarea></label>
       <fieldset class="f fu-motivo" data-so="sem"><legend>Por que não quis?</legend>${chips('motivo', MOTIVOS.map(m => [m, m]), '')}</fieldset>
       <div class="fu-prox" data-so="prox"><p class="fu-prox-t" id="fuProxT">Próximo contato</p>
-        <div class="fu-3"><label class="f">Data<input type="date" name="pdata" min="${S.today()}"></label><span class="f"><span>Dia da semana</span><span class="fu-ro" id="fuDia" aria-live="polite">—</span></span><label class="f">Hora<input type="time" name="phora" value="10:00"></label></div>
+        <div class="fu-3"><label class="f">Data<input type="date" name="pdata" min="${S.today()}"></label><span class="f"><span>Dia da semana</span><span class="fu-ro" id="fuDia" aria-live="polite">—</span></span><label class="f">Hora<input name="phora" value="10:00" data-mask="hora" inputmode="numeric" autocomplete="off" placeholder="00:00"></label></div>
         <div data-so="tipo">${chips('ptipo', NOVOS.map(([k, n]) => [k, n]), visita ? 'ligacao' : a.tipo === 'retorno' ? 'ligacao' : a.tipo)}</div>
         <label class="f" data-so="tipo">Assunto<input name="passunto" placeholder="Ex.: Resposta depois de falar com o sócio"></label>
         <p class="muted small" id="fuProxAviso">Você e o gerente veem o lembrete no e-mail das 7h30 do dia.</p></div>

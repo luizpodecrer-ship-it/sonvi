@@ -306,12 +306,12 @@ S.excluirDigitando = ({ titulo, itens = [], aviso, rotulo, dica, confere, botao 
 // Cadastro já existente abre só para consulta, com o botão "Editar"; um novo já abre editável.
 S.form = (title, fields, v, onOk, ok = 'Salvar', opts = {}) => {
   const ver = !!v.id && !opts.editar, trava = ver ? ' disabled data-trava="1"' : '';
-  const inp = f => { const val = v[f.k] ?? '', m = f.mask || S.CAMPO_MASCARA[f.k], ph = f.ph || S.CAMPO_EXEMPLO[f.k] || (m && S.MASK[m].ph) || '';
+  const inp = f => { const val = v[f.k] ?? '', m = f.mask || (f.type === 'time' ? 'hora' : S.CAMPO_MASCARA[f.k]), ph = f.ph || S.CAMPO_EXEMPLO[f.k] || (m && S.MASK[m].ph) || '';
     const a = `name="${f.k}"${f.req ? ' required' : ''}${trava}${m ? ` data-mask="${m}" inputmode="${S.MASK[m].modo}" autocomplete="off"` : ''}${ph && !['select', 'checkbox', 'color', 'date', 'datetime-local'].includes(f.type) ? ` placeholder="${S.esc(ph)}"` : ''}`;
     if (f.type === 'select') return `<select ${a}>${f.options.map(([k, n]) => `<option value="${S.esc(k)}"${String(k) === String(val) ? ' selected' : ''}>${S.esc(n)}</option>`).join('')}</select>`;
     if (f.type === 'textarea') return `<textarea ${a}>${S.esc(val)}</textarea>`;
     if (f.type === 'checkbox') return `<input type="checkbox" ${a}${val ? ' checked' : ''}>`;
-    return `<input type="${f.type || 'text'}" ${a} value="${S.esc(val)}"${f.id ? ` id="${f.id}"` : ''}>`; };
+    return `<input type="${f.type === 'time' ? 'text' : f.type || 'text'}" ${a} value="${S.esc(val)}"${f.id ? ` id="${f.id}"` : ''}>`; };
   const row = f => f.html || `<label class="f${f.type === 'checkbox' ? ' chk' : ''}"${f.full || f.type === 'textarea' ? ' style="grid-column:1/-1"' : ''}>${f.type === 'checkbox' ? inp(f) + S.esc(f.label) : S.esc(f.label) + inp(f)}</label>`;
   S.dialog(`<h2>${title}</h2><div class="g2">${fields.map(row).join('')}</div>
     ${S.rodapeEdicao(ok, v.id ? 'Descartar' : 'Cancelar')}`, onOk);
@@ -466,7 +466,10 @@ S.listaEditavel = cfg => {
     sigla:{ ph:'Ex.: CBN', modo:'text', f:v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) },
     dec:{ ph:'0,00', modo:'decimal', f:dec },
     pct:{ ph:'0', modo:'decimal', f:v => dec(v).replace(/^(\d{1,3}(?:\.\d{3})*)/, m => m.length > 3 ? '100' : m) },
-    int:{ ph:'0', modo:'numeric', f:v => so(v).slice(0, 6) } };
+    int:{ ph:'0', modo:'numeric', f:v => so(v).slice(0, 6) },
+    // Horário: só números, os dois pontos entram sozinhos (1500 → 15:00, 730 → 07:30); ao sair, "15" vira 15:00 (31/10/2026)
+    hora:{ ph:'00:00', modo:'numeric', fim:true, f:v => { let d = so(v).slice(0, 4); if (d && +d[0] > 2) d = ('0' + d).slice(0, 4); return d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2) : d; },
+      erro:v => { const d = so(v); if (!d) return ''; if (d.length < 4) return 'Complete o horário (ex.: 07:30).'; const h = +d.slice(0, 2), m = +d.slice(2); return h > 24 || m > 59 || (h === 24 && m) ? 'Horário inválido.' : ''; } } };
   // Campos que ganham máscara e exemplo só pelo nome, em qualquer formulário
   S.CAMPO_MASCARA = { documento:'doc', cnpj:'cnpj', cpf:'cpf', telefone:'tel', whatsapp:'tel', celular:'tel', cep:'cep', inscricao_estadual:'ie', sigla:'sigla', preco:'dec', valor:'dec', comissao:'pct', desconto_max:'pct' };
   S.CAMPO_EXEMPLO = { email:'nome@empresa.com.br', cidade:'Cuiabá / MT', endereco:'Rua, número, bairro', frequencia:'101,9 FM', razao_social:'Como consta no CNPJ', rede_afiliada:'Ex.: CBN, Jovem Pan', segmento:'Ex.: Varejo, Saúde, Educação',
@@ -479,7 +482,8 @@ S.listaEditavel = cfg => {
     const novo = m.f(el.value);
     if (novo !== el.value) {
       el.value = novo;
-      if (digitando && document.activeElement === el) { let pos = 0, n = 0; while (pos < novo.length && n < antes) { if (/[\dA-Za-z,]/.test(novo[pos])) n++; pos++; } try { el.setSelectionRange(pos, pos); } catch (e) {} }
+      if (digitando && document.activeElement === el && m.fim) { try { el.setSelectionRange(novo.length, novo.length); } catch (e) {} }
+      else if (digitando && document.activeElement === el) { let pos = 0, n = 0; while (pos < novo.length && n < antes) { if (/[\dA-Za-z,]/.test(novo[pos])) n++; pos++; } try { el.setSelectionRange(pos, pos); } catch (e) {} }
     }
     el.setCustomValidity(m.erro ? m.erro(el.value) : '');
     if (el._aviso) avisar(el); // depois do primeiro aviso, acompanha a digitação
@@ -493,6 +497,9 @@ S.listaEditavel = cfg => {
   };
   S.mascarar = raiz => (raiz || document).querySelectorAll('input[data-mask]').forEach(el => { if (!el.placeholder && S.MASK[el.dataset.mask]) el.placeholder = S.MASK[el.dataset.mask].ph; aplicar(el); });
   document.addEventListener('input', e => { if (e.target.dataset && e.target.dataset.mask) aplicar(e.target, true); });
+  // Horário com só a hora ("15" ou "7") ganha os minutos ao sair do campo
+  document.addEventListener('focusout', e => { const el = e.target; if (!el.dataset || el.dataset.mask !== 'hora') return; const d = so(el.value);
+    if (d.length && d.length <= 2) { el.value = d.padStart(2, '0') + ':00'; aplicar(el); el.dispatchEvent(new Event('input', { bubbles:true })); el.dispatchEvent(new Event('change', { bubbles:true })); } });
   // CEP: ao completar os 8 números, busca o endereço (ViaCEP; se falhar, BrasilAPI) e preenche endereço e cidade
   const dica = (el, txt, erro) => { let a = el.parentElement.querySelector(':scope > .dica'); if (!txt) { if (a) a.remove(); return; }
     if (!a) { a = document.createElement('small'); el.insertAdjacentElement('afterend', a); } a.className = 'dica' + (erro ? ' aviso' : ''); a.textContent = txt; };

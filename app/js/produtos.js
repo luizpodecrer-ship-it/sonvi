@@ -63,8 +63,8 @@
   const HORA = '^([01]?\\d|2[0-4]):[0-5]\\d$';
   const linhaFaixa = (f, i) => { const tem = DIAS.some(d => d[0] === f.dias);
     return `<div class="pdt-faixa" data-faixa="${i}"><select name="fx_dias_${i}" aria-label="Dias da faixa ${i + 1}">${(tem ? DIAS : [[f.dias, diasNome(f.dias)], ...DIAS]).map(([k, n]) => `<option value="${k}"${k === f.dias ? ' selected' : ''}>${n}</option>`).join('')}</select>
-      <input name="fx_ini_${i}" value="${esc(f.ini)}" placeholder="08:00" pattern="${HORA}" inputmode="numeric" aria-label="Começa às"><span class="muted">às</span>
-      <input name="fx_fim_${i}" value="${esc(f.fim)}" placeholder="11:00" pattern="${HORA}" inputmode="numeric" aria-label="Termina às">
+      <input name="fx_ini_${i}" value="${esc(f.ini)}" placeholder="08:00" pattern="${HORA}" inputmode="numeric" data-mask="hora" autocomplete="off" aria-label="Começa às"><span class="muted">às</span>
+      <input name="fx_fim_${i}" value="${esc(f.fim)}" placeholder="11:00" pattern="${HORA}" inputmode="numeric" data-mask="hora" autocomplete="off" aria-label="Termina às">
       <button type="button" class="btn tres" data-act="pdTirarLinha" aria-label="Tirar esta faixa">×</button></div>`; };
   const lerFaixas = f => Object.keys(f).filter(k => k.startsWith('fx_dias_')).map(k => k.slice(8)).sort((a, b) => a - b)
     .map(i => ({ dias:f['fx_dias_' + i], ini:(f['fx_ini_' + i] || '').trim(), fim:(f['fx_fim_' + i] || '').trim() })).filter(x => x.dias);
@@ -263,8 +263,8 @@
         <label class="f">Valor por mês (R$)<input name="valor" data-mask="dec" inputmode="decimal" required value="${d.valor ? S.nfmt(d.valor) : ''}" placeholder="0,00"></label></div>
       <fieldset class="pj-diasf"><legend class="form-sec">Dias da semana do quadro</legend><div class="pj-chips">${DIAS_SEM.map(k => `<label class="pj-chip"><input type="checkbox" name="dia_${k}"${dias.includes(k) ? ' checked' : ''}><span>${DIA_CURTO[k]}</span></label>`).join('')}</div>
         <small class="muted">As inserções do Dial vão para esses dias e esse horário no PI. Pode pôr só o começo (ou só o fim); sem horário, ficam em rotativo.</small></fieldset>
-      <div class="g2 pj-horas"><label class="f">Começa às<input name="ini" value="${esc(d.ini || '')}" placeholder="07:00" pattern="${HORA}" inputmode="numeric" aria-label="Horário em que o projeto começa"></label>
-        <label class="f">Termina às<input name="fim" value="${esc(d.fim || '')}" placeholder="10:00" pattern="${HORA}" inputmode="numeric" aria-label="Horário em que o projeto termina"></label></div>`}
+      <div class="g2 pj-horas"><label class="f">Começa às<input name="ini" value="${esc(d.ini || '')}" placeholder="07:00" pattern="${HORA}" inputmode="numeric" data-mask="hora" autocomplete="off" aria-label="Horário em que o projeto começa"></label>
+        <label class="f">Termina às<input name="fim" value="${esc(d.fim || '')}" placeholder="10:00" pattern="${HORA}" inputmode="numeric" data-mask="hora" autocomplete="off" aria-label="Horário em que o projeto termina"></label></div>`}
       <div class="row mid pj-leg"><span class="form-sec grow">Entregas por mês</span>${!ehModelo && m ? '<button type="button" class="btn sm so-ed" data-act="pjVoltarModelo" data-pd-add="1">Voltar para o modelo</button>' : ''}</div>
       <div class="pj-duo"><div class="pj-col"><b class="pj-lado">Online</b><div class="pdt-rows" id="pjOnline">${(d.online || []).map((x, i) => linhaEnt('online', x, i)).join('')}</div>
           <button type="button" class="btn sm" data-act="pjLinhaMais" data-lado="online" data-pd-add="1">${S.svg('mais')}Entrega online</button></div>
