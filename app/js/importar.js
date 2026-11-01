@@ -93,7 +93,7 @@
     const chave = chaveDe(l);
     let mapas = [], repetido = null;
     try { mapas = await S.q(S.sb.from('pi_import_mapas').select('*').eq('veiculo_id', S.ui.vehicleId).eq('agencia_chave', chave)); } catch (e) { console.error(e); }
-    if (l.numero_pi) { try { const r = await S.q(S.sb.from('pi_importacoes').select('pi_id, numero_agencia').eq('veiculo_id', S.ui.vehicleId).eq('agencia_chave', chave).eq('numero_agencia', String(l.numero_pi).trim())); repetido = (r || [])[0] || null; } catch (e) { console.error(e); } }
+    if (l.numero_pi) { try { const r = await S.q(S.sb.from('pi_importacoes').select('pi_id, numero_agencia').eq('veiculo_id', S.ui.vehicleId).eq('agencia_chave', chave).eq('numero_agencia', String(l.numero_pi).trim()).not('pi_id', 'is', null)); repetido = (r || [])[0] || null; } catch (e) { console.error(e); } }
     const progs = programas(), fmts = formatos();
     const linhas = (l.linhas || []).map((x, i) => {
       const m = (mapas || []).find(k => k.texto === textoLinha(x));
@@ -157,7 +157,7 @@
     const prev = /^image\//.test(imp.tipo) ? `<img src="${imp.url}" alt="PI original" class="ip-img">` : imp.tipo === 'application/pdf' ? `<iframe src="${imp.url}#view=FitH" title="PI original" class="ip-pdf"></iframe>` : `<p class="muted small">Planilha: ${esc(imp.file.name)}</p>`;
     const duvidas = (l.duvidas || []).filter(Boolean);
     const body = `
-      ${imp.repetido ? `<div class="note aviso">Este PI da agência (nº ${esc(l.numero_pi)}) já foi importado neste veículo. <a href="#/pi/${imp.repetido.pi_id}" data-go="/pi/${imp.repetido.pi_id}">Abrir o PI que já existe</a></div>` : ''}
+      ${imp.repetido ? `<div class="note aviso">Este PI da agência (nº ${esc(l.numero_pi)}) já foi importado neste veículo (dá para criar outro mesmo assim). <a href="#/pi/${imp.repetido.pi_id}" data-go="/pi/${imp.repetido.pi_id}">Abrir o PI que já existe</a></div>` : ''}
       ${outroVeic ? `<div class="note aviso">O PI parece ser para <b>${esc(l.veiculo.nome)}</b>, e você está na <b>${esc(v.nome)}</b>. Se for de outro veículo, troque de veículo no menu e importe de novo.</div>` : ''}
       ${duvidas.length ? `<div class="note info"><b>A leitura avisou:</b> ${duvidas.map(esc).join(' · ')}</div>` : ''}
       <div class="ip-conf">
@@ -177,7 +177,7 @@
         </div>
       </div>
       <div class="ip-rod card">${pend.length ? `<span class="ip-falta">Falta: ${esc(pend.join(' · '))}</span>` : '<span class="ip-pronto">Tudo conferido</span>'}<span class="grow"></span>
-        <button class="btn" data-act="ipCancelar">Cancelar</button><button class="btn pri" data-act="ipCriar"${pend.length || imp.repetido ? ' disabled' : ''}>${S.svg('check')}Criar PI</button></div>`;
+        <button class="btn" data-act="ipCancelar">Cancelar</button><button class="btn pri" data-act="ipCriar"${pend.length ? ' disabled' : ''}>${S.svg('check')}Criar PI</button></div>`;
     return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}${esc(v.nome)}</span>Conferir PI importado`, actions:'', body };
   };
 
@@ -226,7 +226,9 @@
     piImportar: () => abrir(),
     ipCancelar: async () => { if (!await S.confirmar('Descartar esta importação? Nada foi gravado.', { ok:'Descartar', perigo:true })) return; if (imp) URL.revokeObjectURL(imp.url); imp = null; S.go('/pis'); },
     ipTrocaAg: () => { imp.ag = ''; S.render(); },
-    ipCriar: () => { if (!imp || pendencias().length) return; criar(); },
+    ipCriar: async () => { if (!imp || pendencias().length) return;
+      if (imp.repetido && !await S.confirmar(`O PI nº ${imp.l.numero_pi} desta agência já foi importado neste veículo. Criar outro PI mesmo assim?`, { ok:'Criar outro PI' })) return;
+      criar(); },
     ipCadCli: () => { const c = imp.l.cliente || {};
       S.run(async () => { const p = await S.salvar('pessoas', { veiculo_id:S.ui.vehicleId, tipo:'cliente', pessoa:digitos(c.cnpj).length === 11 ? 'pf' : 'pj', nome:String(c.nome || c.razao_social || 'Cliente').trim(),
           razao_social:c.razao_social || '', documento:c.cnpj || '', email:c.email || '', telefone:c.telefone || '', cidade:c.cidade || '', endereco:c.endereco || '', situacao:'ativo', consultor_id:S.pode('consultor') ? S.me.id : null });
