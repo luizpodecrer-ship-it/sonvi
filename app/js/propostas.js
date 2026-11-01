@@ -22,9 +22,13 @@
   const curtoData = iso => iso ? String(iso).slice(0, 10).split('-').reverse().slice(0, 2).join('/') : '';
   const cidadeDe = txt => String(txt || '').split('/')[0].trim();
   const piDe = p => p.pi_id && S.db.pis.find(x => x.id === p.pi_id);
-  const assinante = p => emp().assina === 'consultor' || !emp().responsavel
-    ? { nome:S.usuario(p.consultor_id) || emp().responsavel || '', cargo:`Consultor(a) · ${empCurto()}` }
-    : { nome:emp().responsavel, cargo:[emp().cargo, empCurto()].filter(Boolean).join(' · ') };
+  // Quem assina a proposta (31/10/2026): o consultor responsável por ela; o responsável da empresa comercial (ex.: o diretor)
+  // só quando a proposta é de um diretor, da equipe SONVI ou não tem consultor.
+  const consultorDe = p => { const id = p.consultor_id; if (!id || (S.db.suporteIds || []).includes(id)) return '';
+    const u = S.db.usuarios.find(x => x.id === id); return u && !u.diretor ? u.nome || '' : ''; };
+  const assinante = p => { const c = consultorDe(p);
+    if (c || emp().assina === 'consultor' || !emp().responsavel) return { nome:c || S.usuario(p.consultor_id) || emp().responsavel || '', cargo:`Consultor(a) · ${empCurto()}` };
+    return { nome:emp().responsavel, cargo:[emp().cargo, empCurto()].filter(Boolean).join(' · ') }; };
   // "Spot 30" · Rotativo seg. a sáb." (o que a proposta vende, numa linha)
   const ehDig = it => it.secao === 'digital';
   const resumoItem = it => ehDig(it) ? (it.entregas ? `${S.acaoTitulo(it)} (${S.acaoEntregasTxt(it)})` : `${it.formato} · ${it.programa}`) : `${it.formato} · ${it.programa}${(it.dias || []).length < 7 ? ' ' + S.diasTexto(it.dias) : ''}`;

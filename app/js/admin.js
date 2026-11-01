@@ -296,7 +296,7 @@
           <div class="em-tres">
             <section class="card em-c"><h2>Endereço</h2><div class="em-kv">${kv('CEP', e.cep)}${kv('Rua e número', rua)}${kv('Bairro · cidade', [e.bairro, e.cidade].filter(Boolean).join(' · '))}</div></section>
             <section class="card em-c"><h2>Contato</h2><div class="em-kv">${kv('E-mail', e.email)}${kv('Telefone', e.telefone)}${kv('Site', e.site)}</div></section>
-            <section class="card em-c"><h2>Quem assina</h2><div class="em-kv">${kv('Nas propostas', e.assina === 'consultor' ? 'Quem fez a proposta' : e.responsavel)}${e.assina === 'consultor' ? '' : kv('Cargo', e.cargo)}</div></section>
+            <section class="card em-c"><h2>Quem assina</h2><div class="em-kv">${kv('Nas propostas', e.assina === 'consultor' ? 'Quem fez a proposta' : `${e.responsavel || '—'} (as dos consultores saem com o nome do consultor)`)}${e.assina === 'consultor' ? '' : kv('Cargo', e.cargo)}</div></section>
           </div>
           <section class="card em-c em-mod"><div class="hd"><h2>Modelo da proposta (A4)</h2><button class="btn sm" data-act="admEmpresa" data-aba="modelo">Personalizar</button></div>
             <div class="em-mod-c"><div class="em-a4" aria-hidden="true"><div class="em-a4-in">${S.htmlProposta(amostraProposta())}</div></div>
@@ -429,7 +429,7 @@
             <fieldset class="em-bl"><legend>Contato</legend><div class="em-g">
               ${c('email', 'E-mail', 's6', ' type="email"')}${c('telefone', 'Telefone', 's3', ' data-mask="tel" inputmode="tel" autocomplete="off"')}${c('site', 'Site', 's3', ' placeholder="Ex.: head14.com.br"')}</div></fieldset>
             <fieldset class="em-bl"><legend>Quem assina as propostas</legend><div class="em-g">
-              <label class="f s6">Assina<select name="assina"><option value="responsavel"${e.assina !== 'consultor' ? ' selected' : ''}>O responsável abaixo</option><option value="consultor"${e.assina === 'consultor' ? ' selected' : ''}>Quem fez a proposta</option></select></label>
+              <label class="f s6">Assina<select name="assina"><option value="responsavel"${e.assina !== 'consultor' ? ' selected' : ''}>O consultor da proposta ou, sem consultor, o responsável abaixo</option><option value="consultor"${e.assina === 'consultor' ? ' selected' : ''}>Quem fez a proposta</option></select></label>
               ${c('responsavel', 'Responsável', 's3', ' placeholder="Nome de quem assina"')}${c('cargo', 'Cargo', 's3', ' placeholder="Ex.: Diretor"')}</div></fieldset>
           </div></div>
         <div class="em-painel em-modelo" data-painel="modelo"${d.aba === 'modelo' ? '' : ' hidden'}>
