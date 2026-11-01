@@ -1,6 +1,6 @@
 // SONVI · função de borda "opec_link" (31/10/2026; database/067). Atende a página pública do PI (app/pi.html), que a OPEC
 // abre pelo link do e-mail, sem login. Quem prova o acesso é o token do link (link_token do PI).
-//   { acao: "abrir", token }                   → situação, PI original da agência e mídias (links para baixar, 30 dias)
+//   { acao: "abrir", token }                   → situação, PI original da agência (com o giro, database/073) e mídias (links para baixar, 30 dias)
 //   { acao: "programar", token, nome, desde }  → marca programado (conta como aprovado) e avisa o consultor por e-mail
 //   { acao: "devolver", token, nome, motivo }  → devolve com o motivo e avisa o consultor por e-mail
 // Remetente dos avisos: "OPEC · <veículo>" (regra de 29/10/2026: nunca "SONVI").
@@ -35,10 +35,10 @@ Deno.serve(async (req) => {
 
     if (b.acao === 'abrir') {
       const pasta = `${pi.veiculo_id}/${pi.id}`;
-      const { data: orig } = await adm.from('pi_originais').select('caminho, nome, tamanho, tipo, assinado').eq('pi_id', pi.id).maybeSingle();
+      const { data: orig } = await adm.from('pi_originais').select('caminho, nome, tamanho, tipo, assinado, giro').eq('pi_id', pi.id).maybeSingle();
       let original: any = null;
       if (orig) { const { data: s } = await adm.storage.from('midias').createSignedUrl(orig.caminho, TRINTA_DIAS);
-        if (s?.signedUrl) original = { nome: orig.nome, tipo: orig.tipo, tamanho: tam(Number(orig.tamanho || 0)), assinado: orig.assinado, url: s.signedUrl }; }
+        if (s?.signedUrl) original = { nome: orig.nome, tipo: orig.tipo, tamanho: tam(Number(orig.tamanho || 0)), assinado: orig.assinado, giro: orig.giro, url: s.signedUrl }; }
       const midias: any[] = [];
       const { data: arqs } = await adm.storage.from('midias').list(pasta, { sortBy: { column: 'created_at', order: 'asc' } });
       const validos = (arqs || []).filter((f: any) => f.id && f.name);

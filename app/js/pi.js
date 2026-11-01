@@ -478,12 +478,12 @@
       ${pode ? `<label class="f md-ass">O PI da agência está assinado?<select data-orig-ass><option value="sim"${o.assinado === true ? ' selected' : ''}>Assinado / carimbado</option><option value="nao"${o.assinado === false ? ' selected' : ''}>Sem assinatura</option><option value=""${o.assinado == null ? ' selected' : ''}>Não sei</option></select></label>` : ''}</section>`;
   }
   // Guarda (ou troca) o original: sobe o arquivo e grava pi_originais; o arquivo anterior sai do armazenamento
-  S.guardarOriginal = async (pi, file, assinado) => {
+  S.guardarOriginal = async (pi, file, assinado, giro) => {
     if (file.size > 25 * 1048576) throw new Error('O PI da agência passa de 25 MB. Envie um arquivo menor.');
     const limpo = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\-]+/g, '_');
     const caminho = `${pi.veiculo_id}/${pi.id}/original/${Date.now()}_${limpo}`, antes = ORIG[pi.id];
     const { error } = await S.sb.storage.from(BUCKET).upload(caminho, file, { upsert:false, contentType:file.type || undefined }); if (error) throw error;
-    const o = await S.q(S.sb.from('pi_originais').upsert({ pi_id:pi.id, veiculo_id:pi.veiculo_id, caminho, nome:file.name, tamanho:file.size, tipo:file.type || '', assinado:typeof assinado === 'boolean' ? assinado : null }, { onConflict:'pi_id' }).select().single());
+    const o = await S.q(S.sb.from('pi_originais').upsert({ pi_id:pi.id, veiculo_id:pi.veiculo_id, caminho, nome:file.name, tamanho:file.size, tipo:file.type || '', assinado:typeof assinado === 'boolean' ? assinado : null, giro:[0, 90, 180, 270].includes(giro) ? giro : null }, { onConflict:'pi_id' }).select().single());
     if (antes && antes.caminho !== caminho) S.sb.storage.from(BUCKET).remove([antes.caminho]).catch(() => {});
     ORIG[pi.id] = o; return o; };
   const anexarOriginal = (pi, file) => { if (!file) return;
@@ -574,8 +574,14 @@
       const d = document.getElementById('dlg'); d.onclose = () => { d.classList.remove('largo'); }; },   // sem "Exportar PI" aqui (31/10/2026): já está no cabeçalho do PI
     piAbrirItem: d => { S.ui.piItem = Object.assign({}, S.ui.piItem, { [d.g]:d.id }); S.render(); },
     piVerResumo: () => { const s = document.getElementById('sum'); if (s) s.scrollIntoView({ behavior:'smooth', block:'start' }); },
+    // Abre o original numa janela, sempre deitado (folha.js); girar fica guardado no original (database/073)
     piOrigVer: async () => { const pi = cur(), o = pi && ORIG[pi.id]; if (!o) return;
-      try { const { data, error } = await S.sb.storage.from(BUCKET).createSignedUrl(o.caminho, 300); if (error) throw error; window.open(data.signedUrl, '_blank', 'noopener'); } catch (e) { S.toast(S.erro(e)); } },
+      try { const { data, error } = await S.sb.storage.from(BUCKET).createSignedUrl(o.caminho, 600); if (error) throw error;
+        S.dialog(`<div class="row mid"><h2 class="grow">PI original da agência</h2>${seloOrig(o)}<button class="btn" value="x">Fechar</button></div><div id="piOrigFolha"></div>`);
+        const dl = document.getElementById('dlg'); dl.classList.add('largo');
+        window.SONVI_FOLHA.montar(document.getElementById('piOrigFolha'), { url:data.signedUrl, tipo:o.tipo, nome:o.nome, titulo:o.nome, giro:o.giro, altura:'min(70vh, 720px)',
+          aoGirar:g => { o.giro = g; if (podeOrig(pi)) S.sb.from('pi_originais').update({ giro:g }).eq('pi_id', pi.id).then(() => {}); } });
+      } catch (e) { S.toast(S.erro(e)); } },
     piOrigMenu: (d, botao) => { if (!botao) return; S.menu(botao, [{ label:'Tirar o PI original', icon:'lixo', act:'piOrigTirar', perigo:true }]); },
     piOrigTrocar: () => { const pi = cur(); if (!pi) return; const i = document.createElement('input'); i.type = 'file'; i.accept = '.pdf,image/*'; i.onchange = () => anexarOriginal(pi, i.files[0]); i.click(); },
     piOrigTirar: async () => { const pi = cur(), o = pi && ORIG[pi.id]; if (!o) return;

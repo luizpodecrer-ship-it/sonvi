@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="css/sonvi.css?v=202610312200">
+<link rel="stylesheet" href="css/sonvi.css?v=202611010000">
 <!-- Página que a OPEC abre pelo link do e-mail do PI (sem login; a OPEC não entra no SONVI desde 31/10/2026):
      abrir registra o recebimento (pi_aberto); abas com o PI do veículo, o PI original da agência e as mídias;
      "Marcar como programado" (conta como aprovado) e "Devolver com o motivo" pela função de borda opec_link (database/067). -->
@@ -56,7 +56,7 @@
   .op-pane { margin:18px 0 60px; }
   .op-orig { display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:14px 18px; }
   .op-orig .tx { flex:1; min-width:200px; } .op-orig .tx b { display:block; } .op-orig .tx small { color:var(--ink-2); }
-  .op-orig-ver { margin-top:12px; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; }
+  .op-orig-ver { margin-top:12px; border-radius:12px; overflow:hidden; }
   .op-orig-ver iframe { width:100%; height:80vh; border:0; display:block; }
   .op-orig-ver img { width:100%; height:auto; display:block; }
   .op-mid { padding:6px 18px; } .op-mid div { display:flex; gap:12px; align-items:center; padding:12px 0; border-top:1px solid var(--line); } .op-mid div:first-child { border-top:0; }
@@ -81,8 +81,9 @@
   <div class="op-pane" id="paneOrig" role="tabpanel" hidden></div>
   <div class="op-pane" id="paneMid" role="tabpanel" hidden></div>
 </div>
-<script src="js/config.js?v=202610312200"></script>
-<script src="js/data.js?v=202610312200"></script>
+<script src="js/config.js?v=202611010000"></script>
+<script src="js/data.js?v=202611010000"></script>
+<script src="js/folha.js?v=202611010000"></script>
 <script>
 (() => {
   const token = new URLSearchParams(location.search).get('p') || '';
@@ -129,7 +130,9 @@
       el('abaOrig').innerHTML = `PI original da agência${o.assinado === true ? ' <span class="pill" style="--tone:var(--green)">Assinado</span>' : o.assinado === false ? ' <span class="pill" style="--tone:var(--orange)">Sem assinatura</span>' : ''}`;
       el('paneOrig').innerHTML = `<div class="card op-orig"><div class="tx"><b>${esc(o.nome)}</b><small>Documento que a agência ou o cliente mandou · ${esc(o.tamanho)}${o.assinado === true ? ' · assinado' : o.assinado === false ? ' · sem assinatura' : ''}</small></div>
         <a class="btn" href="${esc(o.url)}" target="_blank" rel="noopener">Abrir em outra aba</a></div>
-        ${pdf ? `<div class="op-orig-ver"><iframe src="${esc(o.url)}" title="PI original da agência"></iframe></div>` : img ? `<div class="op-orig-ver"><img src="${esc(o.url)}" alt="PI original da agência"></div>` : ''}`; }
+        ${pdf || img ? '<div class="op-orig-ver" id="opFolha"></div>' : ''}`;
+      // Sempre deitado (folha.js): o giro guardado na importação, senão página em pé gira sozinha
+      if ((pdf || img) && window.SONVI_FOLHA) window.SONVI_FOLHA.montar(el('opFolha'), { url:o.url, tipo:o.tipo, nome:o.nome, titulo:o.nome, giro:o.giro, altura:'75vh', abrir:false }); }
     if (n) { el('abaMid').textContent = `Mídias (${n})`;
       el('paneMid').innerHTML = `<div class="card op-mid">${info.midias.map(m => `<div><span class="tx"><b>${esc(m.nome)}</b><small>${m.arquivo ? 'Arquivo' : 'Link'}${m.info ? ' · ' + esc(m.info) : ''}</small></span><a class="btn sm" href="${esc(m.url)}" target="_blank" rel="noopener">${m.arquivo ? 'Baixar' : 'Abrir'}</a></div>`).join('')}</div>
         ${info.midias.some(m => m.arquivo) ? '<p class="muted small">Os links dos arquivos valem por 30 dias.</p>' : ''}`; }
