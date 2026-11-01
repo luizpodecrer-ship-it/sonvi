@@ -31,9 +31,9 @@
     try {
       const d = new Date(); d.setMonth(d.getMonth() - 18); const desde = d.toISOString().slice(0, 10);
       const [pis, abertas, props, cols, hist] = await Promise.all([
-        S.q(S.sb.from('pis').select('id, veiculo_id, numero, titulo, status, consultor_id, cliente_id, agencia_id, valor_total, valor_liquido, criado_em, dados').in('status', VENDIDO).gte('criado_em', desde)),
-        S.q(S.sb.from('lancamentos').select('id, veiculo_id, pi_id, valor, vencimento, contraparte').eq('sentido', 'receber').is('pago_em', null).not('pi_id', 'is', null)),
-        S.q(S.sb.from('propostas').select('id, consultor_id, situacao, data').gte('data', desde)).catch(() => []),
+        S.todos(S.sb.from('pis').select('id, veiculo_id, numero, titulo, status, consultor_id, cliente_id, agencia_id, valor_total, valor_liquido, criado_em, dados').in('status', VENDIDO).gte('criado_em', desde)),
+        S.todos(S.sb.from('lancamentos').select('id, veiculo_id, pi_id, valor, vencimento, contraparte').eq('sentido', 'receber').is('pago_em', null).not('pi_id', 'is', null)),
+        S.todos(S.sb.from('propostas').select('id, consultor_id, situacao, data').gte('data', desde)).catch(() => []),
         S.q(S.sb.from('colaboradores').select('id, usuario_id, nome, funcao, ativo, comissao, comissao_veiculos, veiculos, email, celular')),
         S.q(S.sb.from('colaborador_comissoes').select('colaborador_id, padrao, por_veiculo, desde').order('desde')).catch(() => [])]);
       const conhecidos = new Set((pis || []).map(p => p.id)), faltam = [...new Set((abertas || []).map(l => l.pi_id).filter(id => !conhecidos.has(id)))];

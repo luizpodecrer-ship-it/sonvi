@@ -36,7 +36,7 @@
   const unico = f => f.cobranca === 'unico';
   const titulo = t => `<span class="sub">${esc(S.veh().nome)}</span>${t}`;
   const tres = (act, id, nome) => `<button type="button" class="btn tres" data-act="${act}" data-id="${id}" aria-label="Opções de ${esc(nome)}">${S.svg('mais3')}</button>`;
-  const recarregar = async () => { S.db.produtos = await S.q(S.sb.from('produtos').select('*').eq('veiculo_id', S.ui.vehicleId)); await S.recarregarTabelas(); };
+  const recarregar = async () => { S.db.produtos = await S.todos(S.sb.from('produtos').select('*').eq('veiculo_id', S.ui.vehicleId)); await S.recarregarTabelas(); };
 
   // ---------- dias e horários (uma linha por faixa: "Seg a Sex · 08h às 11h") ----------
   const DIAS = [['1,2,3,4,5', 'Seg a Sex'], ['1,2,3,4,5,6', 'Seg a Sáb'], ['0,1,2,3,4,5,6', 'Seg a Dom'], ['0,6', 'Sáb e Dom'], ['6', 'Sábado'], ['0', 'Domingo'],

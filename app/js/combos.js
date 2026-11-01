@@ -22,8 +22,8 @@
   let fonte = null, carregando = false;
   const carregar = async () => { if (carregando) return; carregando = true;
     try { const ids = (S.db.veiculos || []).map(v => v.id);
-      const [produtos, tabelas, combos] = await Promise.all([S.q(S.sb.from('produtos').select('*').in('veiculo_id', ids)), S.q(S.sb.from('tabelas_preco').select('*').in('veiculo_id', ids).eq('permanente', true)), S.q(S.sb.from('combos').select('*').order('nome'))]);
-      const precos = tabelas.length ? await S.q(S.sb.from('precos').select('*').in('tabela_id', tabelas.map(t => t.id))) : [];
+      const [produtos, tabelas, combos] = await Promise.all([S.todos(S.sb.from('produtos').select('*').in('veiculo_id', ids)), S.q(S.sb.from('tabelas_preco').select('*').in('veiculo_id', ids).eq('permanente', true)), S.q(S.sb.from('combos').select('*').order('nome'))]);
+      const precos = tabelas.length ? await S.todos(S.sb.from('precos').select('*').in('tabela_id', tabelas.map(t => t.id))) : [];
       fonte = {}; ids.forEach(id => { fonte[id] = { produtos:produtos.filter(p => p.veiculo_id === id), precos:precos.filter(p => p.veiculo_id === id), tabela:tabelas.find(t => t.veiculo_id === id) || null }; });
       S.db.combos = combos;
     } catch (e) { console.error(e); S.toast(S.erro(e)); fonte = fonte || {}; }

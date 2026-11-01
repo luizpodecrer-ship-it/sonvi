@@ -24,7 +24,7 @@
     dados.carregando = true;
     try {
       const [fat, rep, col] = await Promise.all([
-        S.q(S.sb.from('fat_pedidos').select('id, pi_id, mes_ref, situacao, dados, para, criado_em, enviado_em, envios, nota_fiscal, observacao, confirmado_por, confirmado_em').eq('veiculo_id', v)),
+        S.todos(S.sb.from('fat_pedidos').select('id, pi_id, mes_ref, situacao, dados, para, criado_em, enviado_em, envios, nota_fiscal, observacao, confirmado_por, confirmado_em').eq('veiculo_id', v)),
         S.q(S.sb.from('repasses').select('*').eq('veiculo_id', v).order('recebido_em')),
         S.q(S.sb.from('colaboradores').select('usuario_id, nome, comissao, comissao_veiculos')).catch(() => [])]);
       Object.assign(dados, { veic:v, fat:fat || [], rep:rep || [], col:col || [], ok:true });
@@ -32,7 +32,7 @@
     dados.carregando = false;
     if (S.route().view === 'vendas') S.render();
   };
-  const recarregar = async () => { S.db.lancamentos = await S.q(S.sb.from('lancamentos').select('*').eq('veiculo_id', S.ui.vehicleId)); dados.ok = false; await carregar(true); };
+  const recarregar = async () => { S.db.lancamentos = await S.todos(S.sb.from('lancamentos').select('*').eq('veiculo_id', S.ui.vehicleId)); dados.ok = false; await carregar(true); };
   // Comissões do mês (database/068), guardadas por 2 minutos
   const coms = {}, comBusca = {};
   const comDoMes = ym => { const c = coms[ym]; if ((!c || Date.now() - c.em > 120000) && !comBusca[ym]) { comBusca[ym] = true;

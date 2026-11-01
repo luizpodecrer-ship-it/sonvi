@@ -23,6 +23,9 @@ const brl = (v: unknown) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { min
 const dfmt = (d: string) => d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '';
 const diaCuiaba = (d = new Date()) => new Date(d.getTime() - 4 * 3600e3).toISOString().slice(0, 10);
 const SEMANA = 7 * 864e5;
+// Lista inteira de 1.000 em 1.000 (o banco entrega no máximo 1.000 linhas por busca; 31/10/2026)
+const tudo = async (busca: any, ordem = 'id') => { const out: any[] = []; busca = busca.order(ordem);
+  for (let i = 0; ; i += 1000) { const { data, error } = await busca.range(i, i + 999); if (error) throw error; out.push(...(data || [])); if (!data || data.length < 1000) return out; } };
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -133,10 +136,10 @@ Deno.serve(async (req) => {
     const agora = Date.now(), hoje = diaCuiaba(), falhas: string[] = []; let pedidos = 0, perguntas = 0;
     const { data: orgs } = await adm.from('organizacoes').select('id, situacao');
     const suspensa = new Set((orgs || []).filter((o: any) => o.situacao === 'suspenso').map((o: any) => o.id));
-    const { data: veics } = await adm.from('veiculos').select('id, organizacao_id');
+    const veics = await tudo(adm.from('veiculos').select('id, organizacao_id'));
     const ativo = new Set((veics || []).filter((v: any) => !suspensa.has(v.organizacao_id)).map((v: any) => v.id));
     // Pedidos sem confirmação: lembrete uma vez por semana
-    const { data: pend } = await adm.from('fat_pedidos').select('*').eq('situacao', 'enviado');
+    const pend = await tudo(adm.from('fat_pedidos').select('*').eq('situacao', 'enviado'));
     for (const f of (pend || [])) {
       if (!ativo.has(f.veiculo_id)) continue;
       const ult = Date.parse(f.enviado_em || f.criado_em);
@@ -145,9 +148,9 @@ Deno.serve(async (req) => {
       await espera(600);
     }
     // Parcelas dos pedidos: no vencimento e depois uma vez por semana, enquanto não estiver paga
-    const { data: todos } = await adm.from('fat_pedidos').select('id, pi_id, mes_ref');
+    const todos = await tudo(adm.from('fat_pedidos').select('id, pi_id, mes_ref'));
     const chaves = new Set((todos || []).map((f: any) => `${f.pi_id}|${f.mes_ref}`));
-    const { data: abertas } = await adm.from('lancamentos').select('*').eq('sentido', 'receber').is('pago_em', null).not('pi_id', 'is', null).lte('vencimento', hoje);
+    const abertas = await tudo(adm.from('lancamentos').select('*').eq('sentido', 'receber').is('pago_em', null).not('pi_id', 'is', null).lte('vencimento', hoje));
     for (const l of (abertas || [])) {
       if (!ativo.has(l.veiculo_id) || !chaves.has(`${l.pi_id}|${l.mes_ref || ''}`)) continue;
       const ult = Math.max(l.pag_ultima ? Date.parse(l.pag_ultima) : 0, l.pag_respondido_em ? Date.parse(l.pag_respondido_em) : 0);

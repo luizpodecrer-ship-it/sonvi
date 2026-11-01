@@ -203,7 +203,7 @@
   // registra sozinho. Vale a leitura feita depois do último envio ("Na OPEC" do histórico).
   const leituras = {}, marcados = new Set(); let leitVeic = null, leitBusca = false;
   const carregaLeituras = () => { const v = S.ui.vehicleId; if (!v || leitVeic === v || leitBusca || !S.sb) return; leitBusca = true;
-    S.q(S.sb.from('pi_leituras').select('*').eq('veiculo_id', v)).then(l => { Object.keys(leituras).forEach(k => delete leituras[k]); (l || []).forEach(x => { leituras[x.pi_id] = x; });
+    S.todos(S.sb.from('pi_leituras').select('*').eq('veiculo_id', v), 'pi_id').then(l => { Object.keys(leituras).forEach(k => delete leituras[k]); (l || []).forEach(x => { leituras[x.pi_id] = x; });
       leitVeic = v; const vw = S.route().view; if ((vw === 'pi' && !ed.sujo) || vw === 'pis') S.render(); }).catch(e => console.error(e)).finally(() => { leitBusca = false; }); };
   window.addEventListener('hashchange', () => { if (/^#\/pis?(\/|$)/.test(location.hash)) leitVeic = null; });
   S.leiturasUsar = (l) => { Object.keys(leituras).forEach(k => delete leituras[k]); l.forEach(x => { leituras[x.pi_id] = x; }); leitVeic = S.ui.vehicleId; }; // testes

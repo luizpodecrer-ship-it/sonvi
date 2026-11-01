@@ -208,7 +208,7 @@
     el.innerHTML = resto > 0.004 ? `Recebendo ${brl(pago)} de ${brl(devido)}: a parcela fica paga e <b>${brl(resto)}</b> continua em aberto, com o mesmo vencimento.` : `Total a receber: <b>${brl(devido)}</b>. A parcela fica quitada.`;
   };
   document.addEventListener('input', e => { if (e.target.closest && e.target.closest('#dlg') && /^fb_/.test(e.target.name || '')) resumoBaixa(); });
-  const recarregar = async () => { S.db.lancamentos = await S.q(S.sb.from('lancamentos').select('*').eq('veiculo_id', S.ui.vehicleId)); };
+  const recarregar = async () => { S.db.lancamentos = await S.todos(S.sb.from('lancamentos').select('*').eq('veiculo_id', S.ui.vehicleId)); };
   // Depois da baixa, o aviso oferece "Desfazer" (é o estorno de cada parcela, pela mesma função do menu)
   const baixar = async itens => {
     const ok = await S.run(async () => { await S.q(S.sb.rpc('baixar_lancamentos', { p_itens:itens })); sel.clear(); await recarregar(); });

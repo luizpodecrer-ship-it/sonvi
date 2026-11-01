@@ -233,7 +233,7 @@
     });
   };
   // Depois de registrar, busca a agenda da rádio de novo (a função criou o próximo contato)
-  const recarregar = async () => { S.db.agenda = await S.q(S.sb.from('agenda').select('*').eq('veiculo_id', S.ui.vehicleId)); };
+  const recarregar = async () => { S.db.agenda = await S.todos(S.sb.from('agenda').select('*').eq('veiculo_id', S.ui.vehicleId)); };
 
   const novo = (d = {}) => {
     const g = gestor(); if (g && !S.consultores().length && !S.pode('diretor')) return S.toast('Vincule um consultor a esta rádio antes de agendar.');

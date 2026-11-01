@@ -75,16 +75,20 @@ Deno.serve(async (req) => {
     let automaticos = 0;
     if (!teste) { const { data } = await adm.rpc('followup_automaticos'); automaticos = Number(data || 0); }
 
+    // Listas inteiras, de 1.000 em 1.000 (o banco entrega no máximo 1.000 linhas por busca; 31/10/2026)
+    const tudo = async (busca: any, ordem: string) => { const out: any[] = []; busca = busca.order(ordem);
+      for (let i = 0; ; i += 1000) { const { data, error } = await busca.range(i, i + 999); if (error) throw error; out.push(...(data || [])); if (!data || data.length < 1000) return { data: out }; } };
     const [{ data: veiculos }, { data: usuarios }, { data: vinculos }, { data: abertos }, { data: feitos }] = await Promise.all([
-      adm.from('veiculos').select('id, nome, organizacao_id').order('nome'),
-      adm.from('usuarios').select('id, nome, email, diretor, ativo, organizacao_id').eq('ativo', true),
-      adm.from('usuario_veiculos').select('usuario_id, veiculo_id, perfil'),
-      adm.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, quando, assunto, situacao, registrado_em').eq('situacao', 'agendado').lt('quando', inicio(amanha)).order('quando'),
-      adm.from('agenda').select('id, veiculo_id, consultor_id, situacao').in('situacao', ['realizado', 'nao_atendeu']).gte('registrado_em', inicio(ontem)).lt('registrado_em', inicio(hoje)),
+      tudo(adm.from('veiculos').select('id, nome, organizacao_id').order('nome'), 'id'),
+      tudo(adm.from('usuarios').select('id, nome, email, diretor, ativo, organizacao_id').eq('ativo', true), 'id'),
+      tudo(adm.from('usuario_veiculos').select('usuario_id, veiculo_id, perfil'), 'usuario_id'),
+      tudo(adm.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, quando, assunto, situacao, registrado_em').eq('situacao', 'agendado').lt('quando', inicio(amanha)).order('quando'), 'id'),
+      tudo(adm.from('agenda').select('id, veiculo_id, consultor_id, situacao').in('situacao', ['realizado', 'nao_atendeu']).gte('registrado_em', inicio(ontem)).lt('registrado_em', inicio(hoje)), 'id'),
     ]);
     const abertas = (abertos || []) as Linha[];
     const ids = [...new Set(abertas.map(a => a.cliente_id).filter(Boolean))] as string[];
-    const { data: pessoas } = ids.length ? await adm.from('pessoas').select('id, nome').in('id', ids) : { data: [] };
+    const pessoas: any[] = [];
+    for (let i = 0; i < ids.length; i += 200) { const { data } = await adm.from('pessoas').select('id, nome').in('id', ids.slice(i, i + 200)); pessoas.push(...(data || [])); }
     const nomeCli = (id: string | null) => (pessoas || []).find((p: any) => p.id === id)?.nome || 'Sem cliente';
     const nomeUsu = (id: string) => (usuarios || []).find((u: any) => u.id === id)?.nome || 'Consultor';
     const nomeVei = (id: string) => (veiculos || []).find((v: any) => v.id === id)?.nome || 'Rádio';

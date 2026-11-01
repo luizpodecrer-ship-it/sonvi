@@ -24,6 +24,12 @@
   S.guardarRadio = id => { try { if (id) localStorage.setItem(chaveRadio(), id); } catch (e) { /* navegador sem armazenamento */ } };
 
   const q = S.q = async promise => { const { data, error } = await promise; if (error) throw error; return data; };
+  // Lista inteira, de 1.000 em 1.000 (31/10/2026): o Supabase entrega no máximo 1.000 linhas por busca e corta o resto
+  // sem avisar. Toda lista que pode crescer (PIs, parcelas, follow-ups, cadastros…) passa por aqui. A ordem por id
+  // (desempate, depois da ordem que a busca já tiver) mantém as páginas firmes.
+  const PAG = 1000;
+  S.todos = async (busca, ordem = 'id') => { if (ordem) busca = busca.order(ordem); const out = [];
+    for (let i = 0; ; i += PAG) { const parte = await q(busca.range(i, i + PAG - 1)); out.push(...(parte || [])); if (!parte || parte.length < PAG) return out; } };
 
   // Mensagens do banco em linguagem de gente
   S.erro = e => {
@@ -89,8 +95,8 @@
     const [me, veiculos, vinculos, usuarios, empresa, suporteIds, suporteLog] = await Promise.all([
       q(S.sb.from('usuarios').select('*').eq('id', session.user.id).maybeSingle()),
       q(S.sb.from('veiculos').select('*').order('nome')),
-      q(S.sb.from('usuario_veiculos').select('*')),
-      q(S.sb.from('usuarios').select('*').order('nome')),
+      S.todos(S.sb.from('usuario_veiculos').select('*'), 'usuario_id'),
+      S.todos(S.sb.from('usuarios').select('*').order('nome')),
       // Empresa comercial do grupo (Head 14): a marca das propostas e, quando escolhida, dos PIs
       S.APP === 'music' ? Promise.resolve([]) : q(S.sb.from('empresa_comercial').select('*').limit(1)),
       q(S.sb.rpc('suporte_ids')),
@@ -118,20 +124,20 @@
     Object.assign(S.db, { pessoas:[], produtos:[], precos:[], tabelas:[], pis:[], agenda:[], lancamentos:[], propostas:[], hist:{}, midias:{}, musVeiculo:null, musSemana:null });
     if (!v) { S.perfil = S.me && S.me.diretor ? 'diretor' : null; return; }
     S.perfil = S.me.diretor ? 'diretor' : (S.db.vinculos.find(x => x.usuario_id === S.me.id && x.veiculo_id === v) || {}).perfil || null;
-    const de = t => q(S.sb.from(t).select('*').eq('veiculo_id', v));
+    const de = t => S.todos(S.sb.from(t).select('*').eq('veiculo_id', v));
     const [pessoas, produtos, precos, tabelas, pis, agenda, lancamentos, propostas] = await Promise.all([de('pessoas'), de('produtos'), de('precos'), de('tabelas_preco'), de('pis'), de('agenda'), de('lancamentos'),
       S.APP === 'music' ? Promise.resolve([]) : de('propostas')]);
     Object.assign(S.db, { pessoas, produtos, precos, tabelas, pis:pis.map(S.piNorm), agenda, lancamentos, propostas });
     // Pagamento dos PIs (pago, em aberto, atrasado): todos os perfis veem dos PIs que enxergam, sem abrir o Financeiro
     S.db.pagPis = {};
-    if (S.APP !== 'music') { try { (await q(S.sb.rpc('pagamento_dos_pis', { p_veiculo:v })) || []).forEach(r => { S.db.pagPis[r.pi_id] = r; }); } catch (e) { console.error(e); } }
+    if (S.APP !== 'music') { try { (await S.todos(S.sb.rpc('pagamento_dos_pis', { p_veiculo:v }), 'pi_id') || []).forEach(r => { S.db.pagPis[r.pi_id] = r; }); } catch (e) { console.error(e); } }
     // Combos do grupo (database/044): valem em todos os veículos da empresa
     if (S.APP !== 'music') { try { S.db.combos = await q(S.sb.from('combos').select('*').order('nome')); } catch (e) { console.error(e); S.db.combos = []; } }
   };
 
   // Tabelas de preço e seus preços (depois de criar, salvar ou publicar uma tabela)
   S.recarregarTabelas = async () => { const v = S.ui.vehicleId;
-    const [tabelas, precos] = await Promise.all([q(S.sb.from('tabelas_preco').select('*').eq('veiculo_id', v)), q(S.sb.from('precos').select('*').eq('veiculo_id', v))]);
+    const [tabelas, precos] = await Promise.all([S.todos(S.sb.from('tabelas_preco').select('*').eq('veiculo_id', v)), S.todos(S.sb.from('precos').select('*').eq('veiculo_id', v))]);
     Object.assign(S.db, { tabelas, precos }); };
 
   // Programação musical: carrega só quando a pessoa abre o módulo (acervo, categorias, formatos, regras e a semana escolhida).
