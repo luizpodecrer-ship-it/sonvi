@@ -125,7 +125,7 @@
     const faixas = fx.faixas.length ? fx.faixas : [{ dias:'1,2,3,4,5', ini:'', fim:'' }];
     S.dialog(`<h2>${p.id ? esc(p.nome) : 'Novo produto'}</h2>
       <fieldset class="cat-escolha"><legend class="form-sec">Tipo</legend><div class="cat-ops">${SECOES.map(([k, n]) => `<label class="cat-op"><input type="radio" name="secao" value="${k}"${k === (p.secao || 'programa') ? ' checked' : ''}><span>${n}</span></label>`).join('')}</div></fieldset>
-      <div class="g2"><label class="f" style="grid-column:1/-1">Nome do produto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Jornal da Manhã, Rotativo 24h, Testemunhal"></label></div>
+      <div class="g2"><label class="f" style="grid-column:1/-1">Nome do produto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Jornal da Manhã, Rotativo 24h, Testemunhal…"></label></div>
       <div class="form-sec pdt-fsec">Dias e horários</div>
       <div class="pdt-faixas" id="pdFaixas">${faixas.map(linhaFaixa).join('')}</div>
       <div class="row pdt-linha-acoes"><button type="button" class="btn sm" data-act="pdFaixaMais">${S.svg('mais')}Outra faixa</button><span class="grow"></span><label class="chk"><input type="checkbox" name="local"${fx.local || d.local ? ' checked' : ''}>Programação local</label></div>
@@ -197,7 +197,7 @@
     const fx = S.faixasDoTexto(p.detalhe), d = dadosDe(p), faixas = fx.faixas.length ? fx.faixas : [{ dias:'1,2,3,4,5', ini:'', fim:'' }];
     const inc = (d.incluido || []).length ? d.incluido : [{ formato_id:'', qtd:'', faixa:'todas' }];
     S.dialog(`<h2>${p.id ? esc(p.nome) : 'Nova cota de patrocínio'}</h2>
-      <div class="g2"><label class="f">Programa<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Tarde na Verde"></label><label class="chk pdt-chk-alto"><input type="checkbox" name="local"${fx.local || d.local ? ' checked' : ''}>Programação local</label></div>
+      <div class="g2"><label class="f">Programa<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Tarde na Verde…"></label><label class="chk pdt-chk-alto"><input type="checkbox" name="local"${fx.local || d.local ? ' checked' : ''}>Programação local</label></div>
       <div class="form-sec pdt-fsec">Dias e horários</div>
       <div class="pdt-faixas" id="pdFaixas">${faixas.map(linhaFaixa).join('')}</div>
       <button type="button" class="btn sm" data-act="pdFaixaMais" data-pd-add="1">${S.svg('mais')}Outra faixa</button>
@@ -227,7 +227,7 @@
   // Online e Dial lado a lado, valor por mês, dias e horário do quadro. Estilos .pj-* no fim de sonvi.css.
   const DIAS_SEM = [1, 2, 3, 4, 5, 6, 0], DIA_CURTO = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const diasDe = p => { const d = dadosDe(p).dias; return Array.isArray(d) && d.length ? d.map(Number) : [1, 2, 3, 4, 5]; };
-  const diasLetras = dias => `<span class="pj-dias" aria-label="${esc(S.diasTexto(dias))}">${DIAS_SEM.map(k => `<span class="${dias.includes(k) ? 'on' : ''}" aria-hidden="true">${S.DIA_LETRA[k]}</span>`).join('')}</span>`;
+  const diasLetras = dias => `<span class="pj-dias" role="img" aria-label="${esc(S.diasTexto(dias))}">${DIAS_SEM.map(k => `<span class="${dias.includes(k) ? 'on' : ''}" aria-hidden="true">${S.DIA_LETRA[k]}</span>`).join('')}</span>`;
   const entTxt = x => `${Number(x.qtd) > 0 ? `<b>${Number(x.qtd)}</b> ` : ''}${esc(x.titulo)}${x.sub ? ` <span class="muted">${esc(x.sub)}</span>` : ''}`;
   const entLista = xs => (xs || []).length ? `<ul>${xs.map(x => `<li>${entTxt(x)}</li>`).join('')}</ul>` : '<p class="muted small">Nenhuma entrega.</p>';
   const chaveEnt = d => JSON.stringify([(d.online || []).map(x => [x.qtd || null, x.titulo, x.sub || '']), (d.dial || []).map(x => [x.qtd || null, x.titulo, x.sub || '']), d.rodape || '']);
@@ -241,7 +241,7 @@
     // clicar abre as entregas Online e Dial logo embaixo. No celular, cada linha vira um cartão compacto.
     const dialQ = d => (d.dial || []).reduce((t, x) => t + (Number(x.qtd) || 0), 0);
     const linhas = ps.map(p => { const d = dadosDe(p), ab = pjAbertos.has(p.id);
-      return `<div class="pjl-lin${p.ativo ? '' : ' off'}${ab ? ' aberta' : ''}" data-flip="${p.id}" data-act="pjVer" data-id="${p.id}" tabindex="-1">
+      return `<div class="pjl-lin${p.ativo ? '' : ' off'}${ab ? ' aberta' : ''}" data-flip="${p.id}" data-clica=".pjl-nome">
         <button type="button" class="pjl-nome" data-act="pjVer" data-id="${p.id}" aria-expanded="${ab}"><span class="pjl-seta" aria-hidden="true">${S.svg('seta', 14)}</span><span><b>${esc(p.nome)}</b>${p.ativo ? '' : '<small>Fora das propostas</small>'}</span></button>
         <span class="pjl-dias">${diasLetras(diasDe(p))}</span><span class="pjl-hora">${esc(S.projetoHoras(d) || 'rotativo')}</span>
         <span class="pjl-dial"><b>${dialQ(d)}</b><small> no dial</small></span><b class="pjl-valor">${brl(d.valor)}</b>
@@ -267,7 +267,7 @@
     p = p || { ativo:true, secao:'projeto', nome:'', dados:{ dias:[1, 2, 3, 4, 5], online:md.online || [{}], dial:md.dial || [{}], rodape:md.rodape || '' } };
     const d = dadosDe(p), dias = diasDe(p);
     S.dialog(`<div class="row mid"><h2 class="grow">${ehModelo ? 'Modelo dos projetos especiais' : p.id ? esc(p.nome) : 'Novo projeto especial'}</h2><span class="pill fn-neutra">${esc(S.veh().nome)}</span></div>
-      ${ehModelo ? '<p class="muted small">O que todo projeto novo traz. Os projetos já cadastrados não mudam sozinhos.</p>' : `<div class="g2"><label class="f">Nome do projeto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Jornal da CBN"></label>
+      ${ehModelo ? '<p class="muted small">O que todo projeto novo traz. Os projetos já cadastrados não mudam sozinhos.</p>' : `<div class="g2"><label class="f">Nome do projeto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Jornal da CBN…"></label>
         <label class="f">Valor por mês (R$)<input name="valor" data-mask="dec" inputmode="decimal" required value="${d.valor ? S.nfmt(d.valor) : ''}" placeholder="0,00"></label></div>
       <fieldset class="pj-diasf"><legend class="form-sec">Dias da semana do quadro</legend><div class="pj-chips">${DIAS_SEM.map(k => `<label class="pj-chip"><input type="checkbox" name="dia_${k}"${dias.includes(k) ? ' checked' : ''}><span>${DIA_CURTO[k]}</span></label>`).join('')}</div>
         <small class="muted">As inserções do Dial vão para esses dias e esse horário no PI. Pode pôr só o começo (ou só o fim); sem horário, ficam em rotativo.</small></fieldset>
@@ -295,7 +295,7 @@
 
   // ---------- mídia exterior ----------
   const ehInsercao = p => (dadosDe(p).cobranca || COBRA[p.categoria]) === 'insercao';
-  const foto = (src, w = 64, h = 44, alt = '') => src ? `<img class="pdt-foto" src="${src}" width="${w}" height="${h}" alt="${esc(alt)}">` : `<span class="pdt-foto vazia" style="width:${w}px;height:${h}px" aria-hidden="true">${S.svg('imagem', 18)}</span>`;
+  const foto = (src, w = 64, h = 44, alt = '') => src ? `<img class="pdt-foto" src="${src}" width="${w}" height="${h}" alt="${esc(alt)}" loading="lazy" decoding="async">` : `<span class="pdt-foto vazia" style="width:${w}px;height:${h}px" aria-hidden="true">${S.svg('imagem', 18)}</span>`;
   // Mídia exterior no padrão da rádio (aprovado em 25/10/2026): "Tabela da <veículo>" com Cartões · Mapa de preços, quatro números,
   // filtro por categoria (quando há mais de uma) e, para quem vende por inserção, a comparação por variação. Cartões em grade com
   // miniaturas pequenas dos pontos ao lado do nome, preços com barra proporcional ao maior da tabela e um exemplo da conta.
@@ -303,7 +303,7 @@
   const fotosDe = p => { const d = dadosDe(p); return ehInsercao(p) ? (d.pontos || []).map(x => x.foto).filter(Boolean) : [(d.ponto || {}).foto].filter(Boolean); };
   const unidadesDe = p => { const d = dadosDe(p); return (d.pontos || []).length || Number(d.frota) || 1; };
   const mini = p => { const fs = fotosDe(p), d = dadosDe(p);
-    return `<span class="pdt-mini" aria-hidden="true">${fs.length ? fs.slice(0, 3).map(src => `<img src="${src}" width="36" height="36" alt="">`).join('') + (fs.length > 3 ? `<span class="q">+${fs.length - 3}</span>` : '')
+    return `<span class="pdt-mini" aria-hidden="true">${fs.length ? fs.slice(0, 3).map(src => `<img src="${src}" width="36" height="36" alt="" loading="lazy" decoding="async">`).join('') + (fs.length > 3 ? `<span class="q">+${fs.length - 3}</span>` : '')
       : `<span class="q">${ehInsercao(p) ? (d.frota || (d.pontos || []).length || '—') : S.svg('imagem', 16)}</span>`}</span>`; };
   const cartaoOoh = (p, mx) => { const d = dadosDe(p), vs = (d.variacoes || []).filter(x => Number(x.valor) > 0), ins = ehInsercao(p), pr = d.producao || {}, pt = d.ponto || {};
     const sub = ins ? `por inserção · por dia · por ${unidade(d, 1)}${d.funcionamento ? ' · ' + esc(d.funcionamento) : ''}` : [pt.endereco, pt.cidade].filter(Boolean).map(esc).join(' · ') || 'Endereço não informado';
@@ -390,10 +390,10 @@
     const d = dadosDe(p), pt = d.ponto || {}, pr = d.producao || {};
     const vIns = (d.cobranca === 'insercao' && (d.variacoes || []).length) ? d.variacoes : [{ nome:'VT15"' }, { nome:'VT30"' }, { nome:'VT45"' }, { nome:'VT60"' }];
     const vMes = (d.cobranca === 'mes' && (d.variacoes || []).length) ? d.variacoes : [{ nome:'Face A' }];
-    const campo = (k, rot, val, ex = '', full) => `<label class="f"${full ? ' style="grid-column:1/-1"' : ''}>${rot}<input name="${k}" value="${esc(val || '')}"${ex ? ` placeholder="${esc(ex)}"` : ''}></label>`;
+    const campo = (k, rot, val, ex = '', full) => `<label class="f"${full ? ' style="grid-column:1/-1"' : ''}>${rot}<input name="${k}" value="${esc(val || '')}"${/maps$/.test(k) ? ' inputmode="url" spellcheck="false" autocapitalize="off" autocomplete="off"' : ''}${ex ? ` placeholder="${esc(ex)}"` : ''}></label>`;
     S.dialog(`<h2>${p.id ? esc(p.nome) : 'Novo produto · ' + esc(S.veh().nome)}</h2>
       ${cats.length > 1 ? `<fieldset class="cat-escolha"><legend class="form-sec">Categoria</legend><div class="cat-ops">${cats.map(k => `<label class="cat-op"><input type="radio" name="categoria" value="${k}"${k === cat ? ' checked' : ''}><span>${esc(S.nomeCategoria(k))}</span></label>`).join('')}</div></fieldset>` : `<input type="hidden" name="categoria" value="${cat}">`}
-      <div class="g2"><label class="f" style="grid-column:1/-1">Nome do produto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Painéis de LED, Front light 1001, Empena 001"></label></div>
+      <div class="g2"><label class="f" style="grid-column:1/-1">Nome do produto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Painéis de LED, Front light 1001, Empena 001…"></label></div>
       <div class="pdt-bloco" data-cobra="insercao">
         <div class="g2"><label class="f">Vendido por<select name="unidade">${Object.entries(UNIDADE).map(([k, [um]]) => `<option value="${k}"${(d.unidade || 'painel') === k ? ' selected' : ''}>${um}</option>`).join('')}</select></label>
           ${campo('funcionamento', 'Funcionamento', d.funcionamento, 'Todos os dias · 6h às 0h')}${campo('arquivo', 'Arquivo padrão', d.arquivo, 'Vídeo MP4 · 1024 × 768 px', true)}</div>
@@ -449,7 +449,7 @@
 
   // Ponto (painel, ônibus, tela) de um produto por inserção
   const formPonto = (p, i) => { const d = dadosDe(p), pts = d.pontos || [], x = i === undefined ? { id:S.uid() } : pts[i];
-    const campo = (k, rot, ex = '', full) => `<label class="f"${full ? ' style="grid-column:1/-1"' : ''}>${rot}<input name="${k}" value="${esc(x[k] || '')}"${ex ? ` placeholder="${esc(ex)}"` : ''}${k === 'codigo' ? ' required' : ''}></label>`;
+    const campo = (k, rot, ex = '', full) => `<label class="f"${full ? ' style="grid-column:1/-1"' : ''}>${rot}<input name="${k}" value="${esc(x[k] || '')}"${/maps$/.test(k) ? ' inputmode="url" spellcheck="false" autocapitalize="off" autocomplete="off"' : ''}${ex ? ` placeholder="${esc(ex)}"` : ''}${k === 'codigo' ? ' required' : ''}></label>`;
     S.dialog(`<h2>${i === undefined ? 'Novo ponto' : `Ponto ${esc(x.codigo)}`} · ${esc(p.nome)}</h2>
       <div class="g2">${campo('codigo', 'Código', '001')}${campo('cidade', 'Cidade', 'Cuiabá')}${campo('endereco', 'Endereço / referência', 'Av. Fernando Corrêa (ao lado do Hotel Ibis)', true)}
         ${campo('impacto', 'Impacto por dia', '10.000 veículos')}${campo('obs', 'Observação do impacto', 'BR 251 + tráfego local')}

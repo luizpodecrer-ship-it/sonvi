@@ -163,6 +163,9 @@
   document.addEventListener('click', e => {
     // Ctrl/Cmd/Shift+clique ou botão do meio num link do menu: o navegador abre em outra aba ou janela
     const link = e.target.closest('a[href^="#/"]'); if (link && (e.metaKey || e.ctrlKey || e.shiftKey || e.button)) return;
+    // Linha clicável (data-clica = o botão que ela representa): clique fora de botões e links repassa ao botão, que é quem tem o foco e o teclado
+    const lin = e.target.closest('[data-clica]');
+    if (lin && !e.target.closest('button, a, input, select, textarea, label')) { const b = lin.querySelector(lin.dataset.clica); if (b) { b.click(); return; } }
     const act = e.target.closest('[data-act]');
     if (act) { if (act.tagName === 'A') e.preventDefault(); S.actions[act.dataset.act](act.dataset, act); return; }
     const go = e.target.closest('[data-go]');
