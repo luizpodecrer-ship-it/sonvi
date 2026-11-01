@@ -917,7 +917,7 @@
         <tr>${celCli('Anunciante', esc(cli.nome))}${celCli('Agência', ag ? esc(ag.nome) + (o.commission && d_pct(pi, true) ? ` · comissão ${d_pct(pi, true)}` : '') : 'Venda direta')}</tr>
         <tr>${celCli(cli.pessoa === 'pf' ? 'CPF' : 'CNPJ', esc(cli.documento))}${celCli('IE', esc(cli.inscricao_estadual))}</tr>
         <tr>${celCli('Endereço', esc(cli.endereco))}${celCli('Cidade', esc([cli.cidade, cli.cep && 'CEP ' + cli.cep].filter(Boolean).join(' · ')))}</tr>
-        <tr>${celCli('Contato', esc([cli.contato_assina || cli.contato_decide, cli.telefone || cli.whatsapp].filter(Boolean).join(' · ')))}${celCli('Consultor', esc(S.usuario(pi.consultor_id)))}</tr></table>`
+        <tr>${celCli('Contato', esc([cli.contato_assina || cli.contato_decide, cli.telefone || cli.whatsapp].filter(Boolean).join(' · ')))}${celCli('Consultor', esc((S.db.suporteIds || []).includes(pi.consultor_id) ? '' : S.usuario(pi.consultor_id)))}</tr></table>`
       : `<table class="pd-cli"><tr>${celCli('Anunciante', esc(cli.nome))}${celCli('Agência', ag ? esc(ag.nome) : 'Venda direta')}</tr><tr>${celCli('Consultor', esc(S.usuario(pi.consultor_id)), true)}</tr></table>`;
     // Marca do PI: a da rádio ou a da empresa comercial do grupo (Head 14). Quem fatura continua sendo a rádio.
     const marca = o.marca || pi.dados.marca || v.pi_marca || 'radio', e = S.db.empresa;
