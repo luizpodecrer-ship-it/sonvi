@@ -3714,3 +3714,4 @@ form.ver .so-ed, form.ver [data-pd-add], form.ver [data-act="pdFaixaMais"], form
   .ip-tab td { display:block; padding:0; border:0; } .ip-tab td:nth-child(1), .ip-tab td:nth-child(2) { grid-column:1 / -1; }
   .ip-tab td:nth-child(3) { text-align:left; } .ip-tab td:nth-child(3) .ip-qtd { margin-left:0; } .ip-tab td:nth-child(5) { grid-column:1 / -1; }
 }
+.ip-marca select { margin-top:2px; min-width:160px; }

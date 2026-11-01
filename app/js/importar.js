@@ -137,7 +137,7 @@
       modo:unitsZero && docBruto > 0 ? 'fechado' : 'linhas', valor:docBruto || linhas.reduce((t, x) => t + (x.bonus ? 0 : x.unit * x.ins), 0), com:Number(l.comissao_pct) || 0,
       juntar:linhas.some(x => x.prog.startsWith('cota:')) && linhas.some(x => !ehGrupo(x.prog)),
       cli:(acha('cliente', l.cliente) || {}).id || '', ag:l.agencia && (l.agencia.nome || l.agencia.cnpj) ? ((acha('agencia', l.agencia) || {}).id || '') : '__direta',
-      assinado:typeof l.assinado === 'boolean' ? l.assinado : null,
+      assinado:typeof l.assinado === 'boolean' ? l.assinado : null, marca:'comercial',
       titulo:String(l.campanha || '').trim() && !/^\d{4}$/.test(String(l.campanha).trim()) ? String(l.campanha).trim() : `${(l.cliente && l.cliente.nome) || 'PI'} · ${cap(MESES[Number(mesesDe(l)[0].slice(5)) - 1])}` };
   };
   const cap = t => t ? t[0].toUpperCase() + t.slice(1) : '';
@@ -180,6 +180,7 @@
       : `<div class="ip-it"><small>Agência</small><b>${imp.ag === '__direta' ? 'Venda direta' : esc(agAchada ? agAchada.nome : '')}${imp.ag !== '__direta' ? ` · ${Number(imp.com) || 0}%` : ''}</b><button class="ip-troca" data-act="ipTrocaAg">Trocar</button></div>`;
     const pedido = `<section class="card"><div class="hd"><h2>Pedido</h2><span>Nada foi gravado ainda</span></div>
       <div class="ip-resumo">${cliHtml}${agHtml}<div class="ip-it"><small>Nº na agência</small><b>${esc(l.numero_pi || '—')}</b></div><div class="ip-it"><small>Veiculação</small><b>${esc(mesesTxt)}</b></div>
+        <label class="ip-it ip-marca"><small>PI sai com a marca</small><select data-ip="marca" aria-label="Marca do PI"><option value="comercial"${imp.marca !== 'radio' ? ' selected' : ''}>${esc(String((S.db.empresa && S.db.empresa.nome) || 'Empresa comercial').split('·')[0].trim())}</option><option value="radio"${imp.marca === 'radio' ? ' selected' : ''}>${esc(v.nome)}</option></select></label>
         <span class="grow"></span>${imp.assinado === true ? '<span class="pill" style="--tone:var(--green)">Assinado</span>' : imp.assinado === false ? '<span class="pill" style="--tone:var(--orange)">Sem assinatura</span>' : ''}</div>
       <details class="ip-mais"${S.ui.ipMais ? ' open' : ''}><summary>Mais dados do PI</summary><div class="ip-mais-g">
         <label class="f">Título do PI no SONVI<input data-ip="titulo" value="${esc(imp.titulo)}"></label>
@@ -255,6 +256,7 @@
     else if (k === 'ag') { imp.ag = el.value; const a = S.pessoa(el.value); if (a && a.comissao !== undefined && !(Number(imp.l.comissao_pct) > 0)) imp.com = S.num(a.comissao); }
     else if (k === 'assinado') { imp.assinado = el.value === 'sim' ? true : el.value === 'nao' ? false : null; return; }
     else if (k === 'titulo') { imp.titulo = el.value; return; }
+    else if (k === 'marca') { imp.marca = el.value; return; }
     S.render();
   });
   document.addEventListener('input', e => { if (!imp || !e.target.dataset) return; const k = e.target.dataset.ip;
@@ -291,7 +293,7 @@
     const grids = Object.keys(porMes).sort().map(m => ({ id:S.uid(), period:m, praca:v.cidade || '', items:usadas.filter(x => porMes[m][x.k]).map(x => ({
       id:S.uid(), piece:'', f1:nomeSonvi(x), f2:nomeFmt(x), days:porMes[m][x.k], unit:unitDe(x), disc:{ type:'pct', value:0 }, bonus:x.bonus, faixa:x.orig.horario || '' })) }));
     const temAg = imp.ag && imp.ag !== '__direta', pg = l.pagamento || {};
-    const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:temAg ? Number(imp.com) || 0 : 0 }, discount:{ type:'brl', value:imp.modo === 'linhas' ? Number(l.desconto_valor) || 0 : 0 }, grids, marca:'comercial',   // PI importado sai sempre com a marca da empresa comercial (Head 14), de qualquer veículo (31/10/2026)
+    const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:temAg ? Number(imp.com) || 0 : 0 }, discount:{ type:'brl', value:imp.modo === 'linhas' ? Number(l.desconto_valor) || 0 : 0 }, grids, marca:imp.marca === 'radio' ? 'radio' : 'comercial',   // escolhido na conferência; padrão: empresa comercial (Head 14), 31/10/2026
       billing:{ type:temAg ? 10 : 20, firstDue:/^\d{4}-\d{2}-\d{2}$/.test(pg.vencimento || '') ? pg.vencimento : '', installments:1, method:pg.forma || 'Boleto', obsClient:String(l.observacoes || '').slice(0, 2000) },
       importado:{ numero:String(l.numero_pi || ''), agencia:(l.agencia && l.agencia.nome) || '', arquivo:imp.file.name, em:new Date().toISOString(), total_documento:Number(l.total_bruto) || null, modo:imp.modo } } }).dados;
     const pi = S.piNorm(await S.q(S.sb.rpc('criar_pi', { p_veiculo:S.ui.vehicleId, p_titulo:imp.titulo.trim() || 'PI importado', p_cliente:imp.cli, p_agencia:temAg ? imp.ag : null, p_projeto:'', p_dados:dados })));
