@@ -56,6 +56,8 @@
   const hTxt = t => { const [h, m] = String(t || '').split(':'); return !h ? '' : `${h.padStart(2, '0')}h${m && m !== '00' ? m : ''}`; };
   S.faixaTexto = f => [diasNome(f.dias), f.ini && f.fim ? `${hTxt(f.ini)} às ${hTxt(f.fim)}` : ''].filter(Boolean).join(' · ');
   S.faixaHoras = f => f.ini && f.fim ? `${hTxt(f.ini)} às ${hTxt(f.fim)}` : '';
+  // Projeto especial: começo e fim são opcionais, um sem o outro vale ("a partir das 07h", "até as 10h")
+  S.projetoHoras = d => { d = d || {}; return d.ini && d.fim ? `${hTxt(d.ini)} às ${hTxt(d.fim)}` : d.ini ? `a partir das ${hTxt(d.ini)}` : d.fim ? `até as ${hTxt(d.fim)}` : ''; };
   const ehLocal = p => !!dadosDe(p).local || LOCAL.test(semAc(p.detalhe));
   const horario = p => String(p.detalhe || '').split(/\n|\|/).map(x => x.trim()).filter(x => x && !LOCAL.test(semAc(x))).map(esc).join('<span class="pdt-sep">·</span>') || 'Horário a combinar';
   const HORA = '^([01]?\\d|2[0-4]):[0-5]\\d$';
@@ -234,7 +236,7 @@
     const ps = projProds().filter(p => p.ativo || pode()), at = ps.filter(p => p.ativo), m = modeloProj(), md = dadosDe(m), vals = at.map(p => Number(dadosDe(p).valor) || 0).filter(v => v > 0);
     const igual = p => m && chaveEnt(dadosDe(p)) === chaveEnt(md);
     const cards = ps.map(p => { const d = dadosDe(p);
-      return `<article class="card pj${p.ativo ? '' : ' off'}" data-flip="${p.id}"><div class="pj-top"><h3>${esc(p.nome)}${p.ativo ? '' : ' <span class="pill fn-neutra">Fora das propostas</span>'}</h3><span class="pj-quando">${diasLetras(diasDe(p))}<small>${esc(S.faixaHoras(d) || 'rotativo')}</small></span>
+      return `<article class="card pj${p.ativo ? '' : ' off'}" data-flip="${p.id}"><div class="pj-top"><h3>${esc(p.nome)}${p.ativo ? '' : ' <span class="pill fn-neutra">Fora das propostas</span>'}</h3><span class="pj-quando">${diasLetras(diasDe(p))}<small>${esc(S.projetoHoras(d) || 'rotativo')}</small></span>
         <div class="pj-valor"><b>${brl(d.valor)}</b><span>por mês</span></div>${pode() ? tres('pdMenu', p.id, p.nome) : ''}</div>
         ${S.projetoEntregasHtml(d)}
         <div class="pj-pe"><span class="muted small">${p.ativo ? (m ? (igual(p) ? 'Igual ao modelo' : '<span class="pill fn-ok">Entregas próprias</span>') : 'Por mês') : 'Não aparece nas propostas'}</span>${pode() ? `<button class="btn sm" data-act="pdEditar" data-id="${p.id}">Editar</button>` : ''}</div></article>`; }).join('');
@@ -260,7 +262,7 @@
       ${ehModelo ? '<p class="muted small">O que todo projeto novo traz. Os projetos já cadastrados não mudam sozinhos.</p>' : `<div class="g2"><label class="f">Nome do projeto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Jornal da CBN"></label>
         <label class="f">Valor por mês (R$)<input name="valor" data-mask="dec" inputmode="decimal" required value="${d.valor ? S.nfmt(d.valor) : ''}" placeholder="0,00"></label></div>
       <fieldset class="pj-diasf"><legend class="form-sec">Dias da semana do quadro</legend><div class="pj-chips">${DIAS_SEM.map(k => `<label class="pj-chip"><input type="checkbox" name="dia_${k}"${dias.includes(k) ? ' checked' : ''}><span>${DIA_CURTO[k]}</span></label>`).join('')}</div>
-        <small class="muted">As inserções do Dial vão para esses dias e esse horário no PI. Sem horário, ficam em rotativo.</small></fieldset>
+        <small class="muted">As inserções do Dial vão para esses dias e esse horário no PI. Pode pôr só o começo (ou só o fim); sem horário, ficam em rotativo.</small></fieldset>
       <div class="g2 pj-horas"><label class="f">Começa às<input name="ini" value="${esc(d.ini || '')}" placeholder="07:00" pattern="${HORA}" inputmode="numeric" aria-label="Horário em que o projeto começa"></label>
         <label class="f">Termina às<input name="fim" value="${esc(d.fim || '')}" placeholder="10:00" pattern="${HORA}" inputmode="numeric" aria-label="Horário em que o projeto termina"></label></div>`}
       <div class="row mid pj-leg"><span class="form-sec grow">Entregas por mês</span>${!ehModelo && m ? '<button type="button" class="btn sm so-ed" data-act="pjVoltarModelo" data-pd-add="1">Voltar para o modelo</button>' : ''}</div>
@@ -276,9 +278,8 @@
         if (!ehModelo && !dial.some(x => x.qtd > 0)) return S.toast('Coloque ao menos uma entrega no Dial, com a quantidade por mês.');
         const ds = ehModelo ? [] : DIAS_SEM.filter(k => f['dia_' + k] === 'on'); if (!ehModelo && !ds.length) return S.toast('Marque ao menos um dia da semana.');
         const valor = ehModelo ? 0 : S.num(f.valor); if (!ehModelo && !(valor > 0)) return S.toast('Informe o valor do projeto por mês.');
-        const ini = String(f.ini || '').trim(), fim = String(f.fim || '').trim(); if (!ehModelo && !!ini !== !!fim) return S.toast('Preencha o horário de começo e de fim (ou deixe os dois vazios para rotativo).');
-        const dados = ehModelo ? { online, dial, rodape:String(f.rodape || '').trim() } : Object.assign({}, d, { dias:ds, ini, fim, valor, online, dial, rodape:String(f.rodape || '').trim() });
-        const horas = S.faixaHoras({ ini, fim });
+        const ini = String(f.ini || '').trim(), fim = String(f.fim || '').trim();         const dados = ehModelo ? { online, dial, rodape:String(f.rodape || '').trim() } : Object.assign({}, d, { dias:ds, ini, fim, valor, online, dial, rodape:String(f.rodape || '').trim() });
+        const horas = S.projetoHoras({ ini, fim });
         S.run(async () => { await S.q(S.sb.rpc('salvar_produto_radio', { p_veiculo:S.ui.vehicleId, p_produto:{ id:p.id || null, nome:ehModelo ? 'Modelo dos projetos especiais' : f.nome.trim(), detalhe:ehModelo ? '' : [S.diasTexto(ds), horas].filter(Boolean).join(' · '), secao:ehModelo ? 'projeto_modelo' : 'projeto', ativo:ehModelo ? false : f.ativo === 'on', dados }, p_precos:[] })); await recarregar(); },
           ehModelo ? 'Modelo salvo' : { titulo:'Projeto salvo', sub:`${f.nome.trim()} · ${brl(valor)} por mês` }); }, { consulta:!!p.id });
     medio();
@@ -599,7 +600,7 @@
   S.itensDoProjeto = (p, o = {}) => { const d = dadosDe(p), dial = (d.dial || []).filter(x => Number(x.qtd) > 0), tab = Number(d.valor) || 0;
     const valor = o.valor !== undefined ? Number(o.valor) || 0 : tab, dias = (o.dias && o.dias.length ? o.dias : diasDe(p)).slice().sort((a, b) => a - b), grupo = o.grupo || S.uid();
     const totalQ = dial.reduce((a, x) => a + Number(x.qtd), 0), unit = totalQ ? valor / totalQ : 0, unitT = totalQ ? tab / totalQ : 0;
-    const horas = S.faixaHoras(d);
+    const horas = S.projetoHoras(d);
     const projeto = { id:p.id, nome:p.nome.trim(), valor:r2(valor), valor_tabela:r2(tab), grupo, dias, horas, online:(d.online || []).map(x => ({ qtd:x.qtd || null, titulo:x.titulo, sub:x.sub || '' })),
       dial:dial.map(x => ({ qtd:Number(x.qtd), titulo:x.titulo, sub:x.sub || '' })), rodape:d.rodape || '' };
     let resto = r2(valor);
