@@ -399,37 +399,93 @@
     aviso.textContent = novo.slugMsg || 'Só letras minúsculas, números e hífen. Sugerido a partir do nome; dá para mudar.'; };
 
   // ---------- Financeiro ----------
-  const fin = { mes:null, filtro:'todas', cliente:'' };
+  // Aprovado em 01/11/2026 (artifact "Console · Financeiro"): ano no alto; números do ano (a receber, recebido, próximos 12 meses,
+  // em atraso com a inadimplência); gráfico mês a mês (clicar escolhe o mês da lista); próximos vencimentos; atenção; por cliente;
+  // relatórios (extrato do cliente, geral, inadimplência) em PDF e planilha.
+  const fin = { ano:null, mes:null, filtro:'todas', cliente:'' };
+  const valorDe = x => Number(x.situacao === 'paga' ? x.valor_pago ?? x.valor : x.valor) || 0;
+  const somaV = l => l.reduce((t, x) => t + valorDe(x), 0);
+  const vivas = () => (D.cobrancas || []).filter(x => x.situacao !== 'cancelada');
+  const MES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   const telaFinanceiro = () => {
-    if (!fin.mes) fin.mes = hojeISO().slice(0, 7);
-    const edita = pode('proprietario', 'financeiro'), todas = (D.cobrancas || []).filter(x => !fin.cliente || x.organizacao_id === fin.cliente);
-    const doMes = todas.filter(x => x.vencimento.slice(0, 7) === fin.mes), cfg = D.config || {};
-    const rc = receitaContratada().filter(c => !fin.cliente || c.id === fin.cliente);
-    const pagosMes = todas.filter(x => x.situacao === 'paga' && String(x.pago_em || '').slice(0, 7) === fin.mes);
-    const aReceber = doMes.filter(x => x.situacao === 'aberta' && !atrasada(x)), emAtraso = todas.filter(atrasada);
-    const maior = emAtraso.length ? Math.max(...emAtraso.map(x => -diasAte(x.vencimento))) : 0, prox = aReceber.slice().sort((a, b) => a.vencimento.localeCompare(b.vencimento))[0];
-    const mesN = nomeMes(fin.mes).toLowerCase();
+    const hj = hojeISO();
+    if (!fin.ano) fin.ano = hj.slice(0, 4);
+    if (!fin.mes || fin.mes.slice(0, 4) !== fin.ano) fin.mes = fin.ano === hj.slice(0, 4) ? hj.slice(0, 7) : fin.ano + '-01';
+    const edita = pode('proprietario', 'financeiro'), cfg = D.config || {}, todas = (D.cobrancas || []).filter(x => !fin.cliente || x.organizacao_id === fin.cliente);
+    const viv = todas.filter(x => x.situacao !== 'cancelada'), doAno = viv.filter(x => x.vencimento.slice(0, 4) === fin.ano);
+    const rc = receitaContratada().filter(c => !fin.cliente || c.id === fin.cliente), mensal = rc.reduce((t, c) => t + Number(c.contrato.valor_mensal), 0);
+    const emAtraso = todas.filter(atrasada), aRecAno = doAno.filter(x => x.situacao === 'aberta' && !atrasada(x));
+    const pagosAno = viv.filter(x => x.situacao === 'paga' && String(x.pago_em || '').slice(0, 4) === fin.ano);
+    const ate12 = (() => { const d = new Date(hj + 'T12:00:00'); d.setFullYear(d.getFullYear() + 1); return S.dia(d.toISOString()); })();
+    const prox12 = viv.filter(x => x.situacao === 'aberta' && x.vencimento >= hj && x.vencimento <= ate12);
+    const vencidoAte = viv.filter(x => x.vencimento < hj && x.vencimento.slice(0, 4) === fin.ano), inad = somaV(vencidoAte) ? Math.round(somaV(doAno.filter(atrasada)) / somaV(vencidoAte) * 100) : 0;
+    const maior = emAtraso.length ? Math.max(...emAtraso.map(x => -diasAte(x.vencimento))) : 0;
+    const pctPago = somaV(doAno) ? Math.round(somaV(doAno.filter(x => x.situacao === 'paga')) / somaV(doAno) * 100) : 0;
+    // gráfico do ano
+    const porMes = Array.from({ length:12 }, (_, m) => { const ym = `${fin.ano}-${String(m + 1).padStart(2, '0')}`, l = doAno.filter(x => x.vencimento.slice(0, 7) === ym);
+      return { ym, pago:somaV(l.filter(x => x.situacao === 'paga')), aberto:somaV(l.filter(x => x.situacao === 'aberta' && !atrasada(x))), atraso:somaV(l.filter(atrasada)) }; });
+    const topo = Math.max(1, ...porMes.map(m => m.pago + m.aberto + m.atraso));
+    const grafico = `<div class="cf-chart" role="group" aria-label="Cobranças de ${fin.ano} por mês">${porMes.map((m, i) => { const t = m.pago + m.aberto + m.atraso;
+      return `<button class="cf-col${m.ym === fin.mes ? ' on' : ''}" data-act="finMes" data-tab="${m.ym}" aria-pressed="${m.ym === fin.mes}" aria-label="${nomeMes(m.ym)}: ${S.brl(t)}${m.atraso ? ', ' + S.brl(m.atraso) + ' em atraso' : ''}" title="${nomeMes(m.ym)} · recebido ${S.brl(m.pago)} · a receber ${S.brl(m.aberto)}${m.atraso ? ' · em atraso ' + S.brl(m.atraso) : ''}">
+        <span class="cf-stk" style="height:${t ? Math.max(4, t / topo * 100) : 2}%">${m.atraso ? `<i class="cf-at" style="flex:${m.atraso}"></i>` : ''}${m.aberto ? `<i class="cf-ab" style="flex:${m.aberto}"></i>` : ''}${m.pago ? `<i class="cf-ok" style="flex:${m.pago}"></i>` : ''}</span><small>${MES3[i]}</small></button>`; }).join('')}</div>
+      <div class="cf-leg"><span><i class="cf-ok"></i>Recebido</span><span><i class="cf-ab"></i>A receber</span><span><i class="cf-at"></i>Em atraso</span></div>`;
+    // próximos vencimentos e atenção
+    const em30 = (() => { const d = new Date(hj + 'T12:00:00'); d.setDate(d.getDate() + 30); return S.dia(d.toISOString()); })();
+    const proximos = [...emAtraso.slice().sort((a, b) => a.vencimento.localeCompare(b.vencimento)), ...viv.filter(x => x.situacao === 'aberta' && x.vencimento >= hj && x.vencimento <= em30).sort((a, b) => a.vencimento.localeCompare(b.vencimento))].slice(0, 6);
+    const ate = d => d === 0 ? 'hoje' : d > 0 ? `em ${d} dia${d === 1 ? '' : 's'}` : `há ${-d} dia${d === -1 ? '' : 's'}`;
+    const listaProx = proximos.length ? proximos.map(x => `<div><span class="tx"><b>${esc(x.cliente)} · ${esc(x.descricao)}</b><small${atrasada(x) ? ' class="cf-ruim"' : ''}>${S.dfmt(x.vencimento).slice(0, 5)} · ${atrasada(x) ? 'atrasada ' : ''}${ate(diasAte(x.vencimento))} · ${esc(nomeForma(x.forma))}</small></span><b class="nowrap">${S.brl(x.valor)}</b></div>`).join('')
+      : '<p class="muted small">Nada vence nos próximos 30 dias.</p>';
+    const atencao = [...D.clientes.filter(c => c.contrato && !emailsDe(c).length).map(c => [`${esc(c.nome)} sem e-mail de cobrança`, 'os avisos automáticos não chegam ao cliente', 'Completar', `#/cliente/${c.slug}`]),
+      ...(cfg.avisos_ligados ? [] : [['Avisos automáticos desligados', 'as cobranças não saem sozinhas por e-mail', 'Ligar', '#/configuracoes']]),
+      ...(cfg.pix_chave ? [] : [['Chave Pix não cadastrada', 'a cobrança sai sem o Pix', 'Cadastrar', '#/configuracoes']]),
+      ['Boleto e Pix automáticos', 'a baixa ainda é manual', 'A configurar', ''],
+      ...D.clientes.filter(c => c.situacao === 'ativo' && !c.contrato).map(c => [`${esc(c.nome)} sem contrato`, 'cliente ativo sem mensalidade cadastrada', 'Cadastrar', `#/cliente/${c.slug}`])]
+      .map(([t, s, b, h]) => `<div><span class="tx"><b>${t}</b><small>${s}</small></span>${h ? `<a class="pill cf-pl" style="--tone:var(--orange)" href="${h}">${b}</a>` : `<span class="pill" style="--tone:var(--orange)">${b}</span>`}</div>`).join('');
+    // por cliente
+    const clis = D.clientes.filter(c => (!fin.cliente || c.id === fin.cliente) && (c.contrato || viv.some(x => x.organizacao_id === c.id)));
+    const porCli = clis.map(c => { const l = doAno.filter(x => x.organizacao_id === c.id), pago = somaV(viv.filter(x => x.organizacao_id === c.id && x.situacao === 'paga' && String(x.pago_em || '').slice(0, 4) === fin.ano));
+      const ab = somaV(l.filter(x => x.situacao === 'aberta' && !atrasada(x))), at = somaV(viv.filter(x => x.organizacao_id === c.id && atrasada(x))), tot = somaV(l), pg = tot ? Math.round(somaV(l.filter(x => x.situacao === 'paga')) / tot * 100) : 0, k = c.contrato;
+      return { c, k, pago, ab, at, pg }; });
+    const linhasCli = porCli.map(({ c, k, pago, ab, at, pg }) => `<tr><td><a class="c-cli" href="#/cliente/${esc(c.slug)}"><span class="tx"><b>${esc(c.nome)}</b><small>${k ? `${esc(nomeForma(k.forma))} · dia ${k.dia_vencimento}${k.reajuste ? ' · ' + esc(k.reajuste) : ''}` : 'sem contrato'}</small></span></a></td>
+      <td class="r nowrap">${k ? S.brl(k.valor_mensal) : '—'}</td><td class="nowrap">${k ? `até ${S.dfmt(fimContrato(k)).slice(3)} · ` : ''}${finPill(c)}</td><td class="r nowrap">${S.brl(pago)}</td><td class="r nowrap">${S.brl(ab)}</td><td class="r nowrap${at ? ' cf-ruim' : ''}">${at ? S.brl(at) : '—'}</td>
+      <td class="nowrap"><span class="prog cf-prog" aria-hidden="true"><i style="width:${pg}%"></i></span> ${pg}%</td><td class="r"><button class="btn sm" data-act="relAbrir" data-tipo="extrato" data-cli="${c.id}">Relatório</button></td></tr>`).join('');
+    const cartoesCli = porCli.map(({ c, k, pago, ab, at, pg }) => `<div class="c-cob"><span class="tx"><b>${esc(c.nome)}</b><small>${k ? S.brl(k.valor_mensal) + ' por mês' : 'sem contrato'} · recebido ${S.brl(pago)} · a receber ${S.brl(ab)}${at ? ` · <span class="cf-ruim">atraso ${S.brl(at)}</span>` : ''} · ${pg}% pago</small></span><button class="btn sm" data-act="relAbrir" data-tipo="extrato" data-cli="${c.id}">Relatório</button></div>`).join('');
+    // cobranças do mês escolhido
+    const doMes = todas.filter(x => x.vencimento.slice(0, 7) === fin.mes), mesN = nomeMes(fin.mes).toLowerCase();
     let lista = fin.filtro === 'atrasadas' ? emAtraso : doMes.filter(x => fin.filtro === 'todas' || (fin.filtro === 'abertas' ? x.situacao === 'aberta' : x.situacao === 'paga'));
     lista = lista.slice().sort((a, b) => a.vencimento.localeCompare(b.vencimento) || a.cliente.localeCompare(b.cliente));
     const titulo = fin.filtro === 'atrasadas' ? 'Cobranças atrasadas' : `Cobranças de ${mesN}`;
     const acao = x => !edita ? '' : x.situacao === 'aberta' ? `<button class="btn sm" data-act="cobCobrar" data-id="${x.id}">${atrasada(x) ? 'Cobrar' : 'Enviar'}</button>` : x.situacao === 'paga' ? `<button class="btn sm" data-act="cobRecibo" data-id="${x.id}">Recibo</button>` : '';
-    const linhas = lista.map(x => `<tr${x.situacao === 'cancelada' ? ' class="c-inativo"' : ''}><td><b>${esc(x.cliente)}</b><small>${esc(nomeForma(x.forma))}</small></td><td class="nowrap">${esc(x.descricao)}</td><td class="nowrap">${S.dfmt(x.vencimento)}</td><td class="r nowrap">${S.brl(x.situacao === 'paga' ? x.valor_pago ?? x.valor : x.valor)}</td><td>${cobPill(x)}</td>
+    const linhas = lista.map(x => `<tr${x.situacao === 'cancelada' ? ' class="c-inativo"' : ''}><td><b>${esc(x.cliente)}</b><small>${esc(nomeForma(x.forma))}</small></td><td class="nowrap">${esc(x.descricao)}</td><td class="nowrap">${S.dfmt(x.vencimento)}</td><td class="r nowrap">${S.brl(valorDe(x))}</td><td>${cobPill(x)}</td>
       <td><div class="c-linha-acoes">${acao(x)}${edita ? `<button class="btn tres sm" data-act="cobMenu" data-id="${x.id}" aria-label="Opções da cobrança">${S.svg('mais3')}</button>` : ''}</div></td></tr>`).join('');
-    const cartoes = lista.map(x => `<div class="c-cob"><span class="tx"><b>${esc(x.cliente)}</b><small>${esc(x.descricao)} · ${S.dfmt(x.vencimento)} · ${esc(nomeForma(x.forma))}</small><span class="c-pills">${cobPill(x)}</span></span><span class="vl"><b>${S.brl(x.situacao === 'paga' ? x.valor_pago ?? x.valor : x.valor)}</b><span class="c-linha-acoes">${acao(x)}${edita ? `<button class="btn tres sm" data-act="cobMenu" data-id="${x.id}" aria-label="Opções da cobrança">${S.svg('mais3')}</button>` : ''}</span></span></div>`).join('');
-    const meses = [-1, 0, 1].map(n => somaMes(fin.mes, n));
+    const cartoes = lista.map(x => `<div class="c-cob"><span class="tx"><b>${esc(x.cliente)}</b><small>${esc(x.descricao)} · ${S.dfmt(x.vencimento)} · ${esc(nomeForma(x.forma))}</small><span class="c-pills">${cobPill(x)}</span></span><span class="vl"><b>${S.brl(valorDe(x))}</b><span class="c-linha-acoes">${acao(x)}${edita ? `<button class="btn tres sm" data-act="cobMenu" data-id="${x.id}" aria-label="Opções da cobrança">${S.svg('mais3')}</button>` : ''}</span></span></div>`).join('');
+    const anos = [...new Set([String(Number(hj.slice(0, 4)) - 1), hj.slice(0, 4), String(Number(hj.slice(0, 4)) + 1), ...(D.cobrancas || []).map(x => x.vencimento.slice(0, 4))])].sort()
+      .filter(a => a === hj.slice(0, 4) || a === fin.ano || (D.cobrancas || []).some(x => x.vencimento.slice(0, 4) === a));
     const antes = Number(cfg.aviso_dias_antes) || 5, depois = Number(cfg.aviso_dias_depois) || 3;
     return { titulo:'Financeiro', sub:'Console SONVI · cobrança pela ' + esc(cfg.empresa || 'Astravox'),
-      acoes:`<div class="seg c-meses" role="group" aria-label="Mês">${meses.map(m => `<button class="${m === fin.mes ? 'on' : ''}" data-act="finMes" data-tab="${m}" aria-pressed="${m === fin.mes}">${nomeMes(m)}</button>`).join('')}</div>${edita ? `<button class="btn" data-act="avulso">${S.svg('mais')}Lançamento avulso</button>` : ''}`,
-      corpo:`<div class="tiles"><div class="tile hero"><small>Receita mensal contratada</small><b>${curto(rc.reduce((t, c) => t + Number(c.contrato.valor_mensal), 0))}</b><span>${plural(rc.length, 'contrato', 'contratos')}</span></div>
-        <div class="tile"><small>Recebido em ${mesN}</small><b>${curto(pagosMes.reduce((t, x) => t + Number(x.valor_pago ?? x.valor), 0))}</b><span>${plural(pagosMes.length, 'pagamento', 'pagamentos')}</span></div>
-        <div class="tile"><small>A receber em ${mesN}</small><b>${curto(aReceber.reduce((t, x) => t + Number(x.valor), 0))}</b><span>${prox ? 'próxima ' + S.dfmt(prox.vencimento).slice(0, 5) : 'nada em aberto'}</span></div>
-        <div class="tile"><small>Em atraso</small><b${emAtraso.length ? ' class="c-vermelho"' : ''}>${curto(emAtraso.reduce((t, x) => t + Number(x.valor), 0))}</b><span${emAtraso.length ? ' class="ruim"' : ''}>${emAtraso.length ? `${plural(emAtraso.length, 'cobrança', 'cobranças')} · ${maior} dia${maior === 1 ? '' : 's'}` : 'nada atrasado'}</span></div></div>
-      <section class="card"><div class="hd"><h2>${titulo}</h2>
-          <select data-fin-cliente aria-label="Cliente"><option value="">Todos os clientes</option>${D.clientes.map(c => `<option value="${c.id}"${fin.cliente === c.id ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></div>
-          <div class="seg" role="group" aria-label="Situação">${[['todas', 'Todas'], ['abertas', 'Em aberto'], ['atrasadas', 'Atrasadas'], ['pagas', 'Pagas']].map(([k, n]) => `<button class="${fin.filtro === k ? 'on' : ''}" data-act="finFiltro" data-tab="${k}" aria-pressed="${fin.filtro === k}">${n}${k === 'atrasadas' && emAtraso.length ? ` (${emAtraso.length})` : ''}</button>`).join('')}</div>
+      acoes:`<div class="seg c-meses" role="group" aria-label="Ano">${anos.map(a => `<button class="${a === fin.ano ? 'on' : ''}" data-act="finAno" data-tab="${a}" aria-pressed="${a === fin.ano}">${a}</button>`).join('')}</div>
+        <button class="btn" data-act="relAbrir" data-tipo="geral">${S.svg('doc')}Relatórios</button>${edita ? `<button class="btn" data-act="avulso">${S.svg('mais')}Lançamento avulso</button>` : ''}`,
+      corpo:`<div class="cf-kpis"><div class="tile hero"><small>Receita mensal contratada</small><b>${curto(mensal)}</b><span>${curto(mensal * 12)} por ano · ${plural(rc.length, 'contrato ativo', 'contratos ativos')}</span></div>
+        <div class="tile"><small>A receber em ${fin.ano}</small><b>${curto(somaV(aRecAno))}</b><span>${plural(aRecAno.length, 'cobrança', 'cobranças')} em aberto</span></div>
+        <div class="tile"><small>Recebido em ${fin.ano}</small><b>${curto(somaV(pagosAno))}</b><span>${plural(pagosAno.length, 'pagamento', 'pagamentos')} · ${pctPago}% do previsto</span></div>
+        <div class="tile"><small>Próximos 12 meses</small><b>${curto(somaV(prox12))}</b><span>${plural(prox12.length, 'cobrança', 'cobranças')} a vencer</span></div>
+        <div class="tile"><small>Em atraso</small><b${emAtraso.length ? ' class="c-vermelho"' : ''}>${curto(somaV(emAtraso))}</b><span${emAtraso.length ? ' class="ruim"' : ''}>${emAtraso.length ? `${plural(emAtraso.length, 'cobrança', 'cobranças')} · ${maior} dia${maior === 1 ? '' : 's'}` : 'nada atrasado'} · inadimplência ${inad}%</span></div></div>
+      <div class="cf-duo"><section class="card"><div class="hd"><h2>${fin.ano} mês a mês</h2><span>clique num mês para ver as cobranças dele</span>
+          <select data-fin-cliente aria-label="Cliente"><option value="">Todos os clientes</option>${D.clientes.map(c => `<option value="${c.id}"${fin.cliente === c.id ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></div>${grafico}</section>
+        <section class="card"><div class="hd"><h2>Próximos vencimentos</h2><span>30 dias</span></div><div class="list cf-lista">${listaProx}</div>
+          <div class="hd cf-at-hd"><h2>Atenção</h2></div><div class="list cf-lista">${atencao}</div></section></div>
+      <section class="card"><div class="hd"><h2>Por cliente</h2><span>${fin.ano}</span><button class="btn sm" data-act="relCsvCli">${S.svg('baixar')}Planilha</button></div>
+        ${porCli.length ? `<div class="scroll so-largo"><table><thead><tr><th>Cliente</th><th class="r">Mensalidade</th><th>Contrato</th><th class="r">Recebido</th><th class="r">A receber</th><th class="r">Em atraso</th><th>Pago do ano</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhasCli}</tbody></table></div><div class="list c-cobs so-cel">${cartoesCli}</div>`
+          : '<div class="empty"><b>Nenhum cliente com contrato</b>Cadastre o contrato no cliente (Clientes › cliente › Contrato).</div>'}</section>
+      <section class="card" id="cf-cobs"><div class="hd"><h2>${titulo}</h2>
+          <div class="seg" role="group" aria-label="Situação">${[['todas', 'Todas'], ['abertas', 'Em aberto'], ['atrasadas', 'Atrasadas'], ['pagas', 'Pagas']].map(([k, n]) => `<button class="${fin.filtro === k ? 'on' : ''}" data-act="finFiltro" data-tab="${k}" aria-pressed="${fin.filtro === k}">${n}${k === 'atrasadas' && emAtraso.length ? ` (${emAtraso.length})` : ''}</button>`).join('')}</div></div>
           ${lista.length ? `<div class="scroll so-largo"><table><thead><tr><th>Cliente</th><th>Referente</th><th>Vencimento</th><th class="r">Valor</th><th>Situação</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div><div class="list c-cobs so-cel">${cartoes}</div>`
-            : `<div class="empty"><b>${fin.filtro === 'atrasadas' ? 'Nada atrasado' : 'Nenhuma cobrança'}</b>${D.clientes.some(c => c.contrato) ? 'Troque o mês ou o filtro.' : 'Cadastre o contrato no cliente (Clientes › cliente › Contrato) e as mensalidades aparecem aqui.'}</div>`}
+            : `<div class="empty"><b>${fin.filtro === 'atrasadas' ? 'Nada atrasado' : 'Nenhuma cobrança'}</b>${D.clientes.some(c => c.contrato) ? 'Escolha outro mês no gráfico ou outro filtro.' : 'Cadastre o contrato no cliente (Clientes › cliente › Contrato) e as mensalidades aparecem aqui.'}</div>`}
           ${edita ? '<p class="muted small">No ⋯ de cada linha: dar baixa, reenviar a cobrança, mudar vencimento ou valor, cancelar, estornar e ver os avisos enviados.</p>' : ''}</section>
+      <section class="card"><div class="hd"><h2>Relatórios</h2><span>PDF para imprimir ou mandar e planilha para o contador</span></div>
+        <div class="cf-rel"><button data-act="relAbrir" data-tipo="extrato"><b>Extrato do cliente</b><small>Tudo o que foi cobrado, pago e está em aberto de um cliente, no período. Dá para mandar ao cliente.</small></button>
+          <button data-act="relAbrir" data-tipo="geral"><b>Geral do período</b><small>Recebido, a receber e atrasado de todos os clientes, mês a mês, com o total.</small></button>
+          <button data-act="relAbrir" data-tipo="inad"><b>Inadimplência</b><small>Quem está em atraso, há quantos dias e quantos avisos já foram enviados.</small></button></div></section>
       <div class="c-grade">
           <section class="card"><div class="hd"><h2>Avisos automáticos</h2>${cfg.avisos_ligados ? '<span class="pill" style="--tone:var(--green)">Ligados</span>' : '<span class="pill" style="--tone:var(--gray)">Desligados</span>'}</div>
             <div class="c-tempo"><div><b>10 dias antes</b><span>A cobrança por e-mail, com Pix e dados para pagar</span></div><div><b>${antes} dias antes</b><span>Lembrete de vencimento</span></div>
@@ -440,6 +496,48 @@
             <p class="muted">Até lá, a cobrança vai por e-mail com a chave Pix e os dados bancários de ${esc(cfg.empresa || 'Astravox')}${cfg.pix_chave ? '' : ' (cadastre em Configurações › Cobrança)'}, e a baixa é manual.</p></section>
         </div>` };
   };
+
+  // ---------- Relatórios do Financeiro ----------
+  const REL_TIPOS = [['extrato', 'Extrato do cliente'], ['geral', 'Geral do período'], ['inad', 'Inadimplência']];
+  const relPeriodo = (p, de, ate) => { const hj = hojeISO(), a = fin.ano || hj.slice(0, 4);
+    if (p === 'ano') return [a + '-01-01', a + '-12-31', `ano de ${a}`];
+    if (p === 'mes') { const [y, m] = (fin.mes || hj.slice(0, 7)).split('-').map(Number), u = new Date(y, m, 0).getDate(); return [`${fin.mes}-01`, `${fin.mes}-${u}`, nomeMes(fin.mes, true)]; }
+    if (p === '12m') { const d = new Date(hj + 'T12:00:00'); d.setFullYear(d.getFullYear() - 1); d.setDate(d.getDate() + 1); return [S.dia(d.toISOString()), hj, 'últimos 12 meses']; }
+    if (p === 'tudo') return ['0000-01-01', '9999-12-31', 'todo o período'];
+    return [de || '0000-01-01', ate || '9999-12-31', `${de ? S.dfmt(de) : 'início'} a ${ate ? S.dfmt(ate) : 'hoje'}`]; };
+  const relDados = o => { const [de, ate, nomeP] = relPeriodo(o.periodo, o.de, o.ate);
+    let l = vivas().filter(x => !o.cliente || x.organizacao_id === o.cliente);
+    if (o.tipo === 'inad') l = l.filter(atrasada); else l = l.filter(x => x.vencimento >= de && x.vencimento <= ate);
+    if (o.tipo !== 'inad' && o.mostrar === 'abertas') l = l.filter(x => x.situacao === 'aberta'); if (o.tipo !== 'inad' && o.mostrar === 'pagas') l = l.filter(x => x.situacao === 'paga');
+    l.sort((a, b) => a.vencimento.localeCompare(b.vencimento) || a.cliente.localeCompare(b.cliente));
+    const c = D.clientes.find(k => k.id === o.cliente), tot = { cobrado:somaV(l), pago:somaV(l.filter(x => x.situacao === 'paga')), aberto:somaV(l.filter(x => x.situacao === 'aberta' && !atrasada(x))), atraso:somaV(l.filter(atrasada)) };
+    return { l, c, tot, nomeP, titulo:o.tipo === 'extrato' ? `Extrato financeiro · ${c ? c.nome : 'todos os clientes'}` : o.tipo === 'inad' ? `Inadimplência · ${c ? c.nome : 'todos os clientes'}` : `Relatório geral · ${c ? c.nome : 'todos os clientes'}` }; };
+  const sitTxt = x => x.situacao === 'paga' ? 'Paga' : atrasada(x) ? `Atrasada (${-diasAte(x.vencimento)} dias)` : 'Em aberto';
+  const relFolha = o => { const r = relDados(o), cfg = D.config || {}, e = esc;
+    const kk = `<div class="rf-kk"><div>Cobrado<b>${S.brl(r.tot.cobrado)}</b></div><div>Recebido<b>${S.brl(r.tot.pago)}</b></div><div>A receber<b>${S.brl(r.tot.aberto)}</b></div><div>Em atraso<b>${S.brl(r.tot.atraso)}</b></div></div>`;
+    let corpo;
+    if (o.tipo === 'geral') { const meses = [...new Set(r.l.map(x => x.vencimento.slice(0, 7)))].sort(), clis = [...new Set(r.l.map(x => x.cliente))].sort();
+      const linha = (rot, l) => `<tr><td>${rot}</td><td class="r">${S.brl(somaV(l))}</td><td class="r">${S.brl(somaV(l.filter(x => x.situacao === 'paga')))}</td><td class="r">${S.brl(somaV(l.filter(x => x.situacao === 'aberta' && !atrasada(x))))}</td><td class="r">${S.brl(somaV(l.filter(atrasada)))}</td></tr>`;
+      const cab = p => `<tr><th>${p}</th><th class="r">Cobrado</th><th class="r">Recebido</th><th class="r">A receber</th><th class="r">Em atraso</th></tr>`;
+      corpo = `<h4>Mês a mês</h4><table>${cab('Mês')}${meses.map(m => linha(nomeMes(m, true), r.l.filter(x => x.vencimento.slice(0, 7) === m))).join('')}<tr class="rf-tot">${linha('Total', r.l).slice(4)}</table>
+        ${o.cliente ? '' : `<h4>Por cliente</h4><table>${cab('Cliente')}${clis.map(n => linha(e(n), r.l.filter(x => x.cliente === n))).join('')}</table>`}`; }
+    else corpo = `<table><tr>${o.cliente ? '' : '<th>Cliente</th>'}<th>Referente</th><th>Vencimento</th><th class="r">Valor</th><th>Situação</th><th>${o.tipo === 'inad' ? 'Avisos enviados' : 'Pago em'}</th></tr>
+      ${r.l.map(x => `<tr>${o.cliente ? '' : `<td>${e(x.cliente)}</td>`}<td>${e(x.descricao)}</td><td>${S.dfmt(x.vencimento)}</td><td class="r">${S.brl(valorDe(x))}</td><td>${sitTxt(x)}</td><td>${o.tipo === 'inad' ? (Array.isArray(x.avisos) ? x.avisos.length : Object.keys(x.avisos || {}).length) : x.pago_em ? S.dfmt(x.pago_em) : '—'}</td></tr>`).join('') || `<tr><td colspan="6">Nada no período.</td></tr>`}</table>`;
+    return `<div class="rf"><h3>${e(r.titulo)}</h3><div class="rf-sub">${e(cfg.empresa || 'Astravox')}${cfg.cnpj ? ' · CNPJ ' + e(cfg.cnpj) : ''} · ${o.tipo === 'inad' ? 'em atraso hoje' : e(r.nomeP)} · gerado em ${S.dfmt(hojeISO())}</div><div class="rf-ln"></div>${kk}${corpo}
+      ${o.tipo === 'extrato' ? `<p class="rf-sub">Como pagar: ${cfg.pix_chave ? 'Pix ' + e(cfg.pix_chave) : 'Pix'}${cfg.dados_bancarios ? ' · ' + e(String(cfg.dados_bancarios).replace(/\n/g, ' · ')) : ''}. Após o vencimento: multa de ${e(cfg.multa ?? 2)}% e juros de ${e(cfg.juros ?? 1)}% ao mês.</p>` : ''}</div>`; };
+  const relLer = () => { const f = document.querySelector('#dlg form'); return f ? Object.fromEntries(new FormData(f)) : {}; };
+  const relCsv = (o, nome) => { const r = relDados(o), n = v => (Number(v) || 0).toFixed(2).replace('.', ','), q2 = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const linhas = [['Cliente', 'Referente', 'Vencimento', 'Valor', 'Situação', 'Pago em', 'Valor pago', 'Forma'].join(';'),
+      ...r.l.map(x => [q2(x.cliente), q2(x.descricao), S.dfmt(x.vencimento), n(x.valor), q2(sitTxt(x)), x.pago_em ? S.dfmt(x.pago_em) : '', x.situacao === 'paga' ? n(valorDe(x)) : '', q2(nomeForma(x.forma))].join(';'))];
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + linhas.join('\r\n')], { type:'text/csv;charset=utf-8' })); a.download = nome || `${r.titulo}.csv`; document.body.appendChild(a); a.click(); a.remove(); };
+  const relPrevia = () => { const el = document.querySelector('#dlg .rf-prev'); if (!el) return; const o = relLer();
+    const datas = document.querySelector('#dlg .rf-datas'); if (datas) datas.hidden = o.periodo !== 'datas';
+    const cli = document.querySelector('#dlg [name=cliente]'); if (cli) { const v = cli.value; cli.querySelector('option[value=""]').disabled = o.tipo === 'extrato'; if (o.tipo === 'extrato' && !v) { cli.value = D.clientes[0] ? D.clientes[0].id : ''; return relPrevia(); } }
+    const mo = document.querySelector('#dlg .rf-mostrar'); if (mo) mo.hidden = o.tipo === 'inad';
+    el.innerHTML = relFolha(relLer()); };
+  const relImprimir = o => { const w = window.open('', '_blank'); if (!w) return S.toast('O navegador bloqueou a nova janela. Libere as janelas do Console e tente de novo.');
+    w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(relDados(o).titulo)}</title><style>${RF_CSS}body{margin:32px auto;max-width:900px;padding:0 24px;background:#fff}button{margin-top:24px;padding:10px 18px;border-radius:8px;border:1px solid #15171c;background:#fff;font:600 13px sans-serif;cursor:pointer}@media print{button{display:none}body{margin:0}}</style></head><body>${relFolha(o)}<button onclick="print()">Imprimir ou salvar em PDF</button></body></html>`); w.document.close(); };
+  const RF_CSS = '.rf{font:13px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c}.rf h3{font-size:18px;margin:0}.rf h4{font-size:13px;margin:18px 0 6px}.rf-sub{color:#5b6170;font-size:12px}.rf-ln{height:3px;background:linear-gradient(90deg,#0055ff 70%,#f2a65a 70%);margin:10px 0 14px}.rf-kk{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}.rf-kk div{background:#f3f5f9;border-radius:6px;padding:8px 10px;font-size:11.5px;color:#5b6170}.rf-kk b{display:block;font-size:15px;color:#15171c}.rf table{width:100%;border-collapse:collapse;font-size:12px}.rf th{text-align:left;color:#5b6170;font-weight:600;padding:6px;border-bottom:1px solid #d9dde5}.rf td{padding:6px;border-bottom:1px solid #eceef3}.rf .r{text-align:right;white-space:nowrap}.rf-tot td{font-weight:700}';
 
   // ---------- Suporte ----------
   const sup = { aba:'chamados', cliente:'', situacao:'abertos', msgs:{}, carregando:'' };
@@ -740,7 +838,24 @@
     verFinCliente: d => { fin.cliente = d.id; fin.filtro = 'todas'; location.hash = '/financeiro'; },
 
     // Financeiro
-    finMes: d => { fin.mes = d.tab; if (fin.filtro === 'atrasadas') fin.filtro = 'todas'; render(); },
+    finMes: d => { fin.mes = d.tab; if (fin.filtro === 'atrasadas') fin.filtro = 'todas'; render(); const c = document.getElementById('cf-cobs'); if (c && c.getBoundingClientRect().top > innerHeight) c.scrollIntoView({ behavior:'smooth', block:'start' }); },
+    finAno: d => { fin.ano = d.tab; fin.mes = null; render(); },
+    relAbrir: d => { const tipo = d.tipo || 'geral', cli = d.cli || (tipo === 'extrato' ? fin.cliente || (D.clientes[0] || {}).id || '' : fin.cliente);
+      S.dialog(`<div class="rf-dlg"><div class="rf-form"><h2>Relatório</h2>
+        <label class="f">Tipo<select name="tipo">${REL_TIPOS.map(([k, n]) => `<option value="${k}"${k === tipo ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+        <label class="f">Cliente<select name="cliente"><option value="">Todos os clientes</option>${D.clientes.map(c => `<option value="${c.id}"${c.id === cli ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></label>
+        <label class="f">Período<select name="periodo"><option value="ano">Ano de ${fin.ano || hojeISO().slice(0, 4)}</option><option value="mes">${nomeMes(fin.mes || hojeISO().slice(0, 7), true)}</option><option value="12m">Últimos 12 meses</option><option value="tudo">Todo o período</option><option value="datas">Escolher datas…</option></select></label>
+        <div class="rf-datas" hidden><label class="f">De<input type="date" name="de"></label><label class="f">Até<input type="date" name="ate"></label></div>
+        <label class="f rf-mostrar">Mostrar<select name="mostrar"><option value="todas">Pagas e em aberto</option><option value="abertas">Só em aberto</option><option value="pagas">Só pagas</option></select></label>
+        <div class="rf-bts"><button type="button" class="btn pri" data-act="relPdf">${S.svg('doc')}Baixar PDF</button><button type="button" class="btn" data-act="relPlanilha">${S.svg('baixar')}Planilha</button><button class="btn" value="cancel" formnovalidate>Fechar</button></div></div>
+        <div class="rf-prev"></div></div>`, () => {});
+      const dlg = document.getElementById('dlg'); dlg.classList.add('rf-larga'); relPrevia(); },
+    relPdf: () => relImprimir(relLer()),
+    relPlanilha: () => relCsv(relLer()),
+    relCsvCli: () => { const ano = fin.ano, linhas = [['Cliente', 'Mensalidade', 'Recebido', 'A receber', 'Em atraso'].join(';')], n = v => (Number(v) || 0).toFixed(2).replace('.', ',');
+      D.clientes.filter(c => c.contrato || vivas().some(x => x.organizacao_id === c.id)).forEach(c => { const l = vivas().filter(x => x.organizacao_id === c.id);
+        linhas.push([`"${c.nome.replace(/"/g, '""')}"`, n(c.contrato ? c.contrato.valor_mensal : 0), n(somaV(l.filter(x => x.situacao === 'paga' && String(x.pago_em || '').slice(0, 4) === ano))), n(somaV(l.filter(x => x.vencimento.slice(0, 4) === ano && x.situacao === 'aberta' && !atrasada(x)))), n(somaV(l.filter(atrasada)))].join(';')); });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + linhas.join('\r\n')], { type:'text/csv;charset=utf-8' })); a.download = `Clientes ${ano}.csv`; document.body.appendChild(a); a.click(); a.remove(); },
     finFiltro: d => { fin.filtro = d.tab; render(); },
     avulso: () => { if (!D.clientes.length) return S.toast('Cadastre um cliente antes.');
       S.form('Lançamento avulso', [{ k:'org', label:'Cliente', type:'select', full:true, options:D.clientes.map(c => [c.id, c.nome]) }, { k:'descricao', label:'Descrição', req:true, full:true, ph:'Ex.: Treinamento da equipe' },
@@ -875,6 +990,7 @@
   document.addEventListener('change', e => { if (!e.target.matches('[data-funcao]')) return; const a = e.target.closest('form').querySelector('.acessos'); if (a) a.hidden = e.target.value === 'diretor'; });
   document.addEventListener('change', async e => { const t = e.target;
     if (t.matches('[data-fin-cliente]')) { fin.cliente = t.value; render(); return; }
+    if (t.closest('.rf-form')) { relPrevia(); return; }
     if (t.matches('[data-sup-filtro]')) { sup[t.dataset.supFiltro] = t.value; render(); return; }
     if (t.matches('[data-ch-campo]')) { const box = t.closest('.c-ch-det'), sit = box.querySelector('[data-ch-campo=situacao]').value, pr = box.querySelector('[data-ch-campo=prioridade]').value;
       try { await q(sb.rpc('console_chamado_situacao', { p_chamado:t.dataset.id, p_situacao:sit, p_prioridade:pr })); await recarregar(); render(); S.toast('Chamado atualizado'); } catch (err) { S.toast(S.erro(err)); } } });
