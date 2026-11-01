@@ -281,33 +281,73 @@
   };
 
   // ---------- Um cliente ----------
+  // Aprovado em 01/11/2026 (artifact "Console · cliente"): menu próprio à esquerda (Visão geral, Contrato, Veículos, Equipe,
+  // Dados da empresa, Acessos de suporte) com o mesmo efeito do menu principal; sem os números do topo; mensalidade e último
+  // acesso na linha embaixo do nome; Excluir no ⋯.
+  const cliSec = {};   // seção aberta por cliente
+  const SECOES = [['geral', 'Visão geral', '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>', '#4c9dff'],
+    ['contrato', 'Contrato', '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>', '#3ddc97'],
+    ['veiculos', 'Veículos', '<circle cx="12" cy="12" r="2"/><path d="M8 8a6 6 0 000 8M16 8a6 6 0 010 8M5 5a10 10 0 000 14M19 5a10 10 0 010 14"/>', '#ff7ab6'],
+    ['equipe', 'Equipe', '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0M16 4.5a3.5 3.5 0 010 7M18 14a6 6 0 013.5 6"/>', '#b69cff'],
+    ['dados', 'Dados da empresa', '<path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/>', '#ffd166'],
+    ['acessos', 'Acessos de suporte', '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>', '#f2a65a']];
+  const faltaDados = c => { const d = c.dados || {}; return [['razão social', d.razao_social], ['responsável financeiro', d.responsavel_financeiro], ['e-mails de cobrança', d.emails_cobranca && String(d.emails_cobranca).replace(/[\[\]"\s]/g, '')]].filter(([, v]) => !v).map(([k]) => k); };
   const telaCliente = slug => {
     const c = cliente(slug);
     if (!c) return { titulo:'Cliente não encontrado', sub:'Clientes', acoes:'', corpo:'<div class="card empty"><b>Este cliente não existe</b><a href="#/clientes">Voltar para a lista</a></div>' };
     const susp = c.situacao === 'suspenso', link = `https://sonvi.com.br/${c.slug}/`, prop = pode('proprietario');
-    const kv = (k, v) => `<div><small>${k}</small><span>${v ? esc(v) : '<span class="muted">—</span>'}</span></div>`;
+    const kv = (k, v, falta) => `<div><small>${k}</small><span>${v ? esc(v) : falta ? '<span class="cc-falta">falta</span>' : '<span class="muted">—</span>'}</span></div>`;
+    const sec = cliSec[c.slug] || 'geral', faltam = faltaDados(c), ativos = c.equipe.filter(u => u.ativo).length;
+    const diretores = c.equipe.filter(u => u.diretor && u.ativo), chAb = abertos().filter(ch => ch.organizacao_id === c.id).length;
+    const k = c.contrato, mensal = k && Number(k.valor_mensal) ? `${S.brl(k.valor_mensal)} por mês` : '';
+    const conta = { geral:'', contrato:k ? '' : '<span class="n l">falta</span>', veiculos:`<span class="n">${c.radios.length}</span>`, equipe:`<span class="n">${ativos}</span>`,
+      dados:faltam.length ? `<span class="n l">${faltam.length}</span>` : '', acessos:(c.suporte || []).length ? `<span class="n">${c.suporte.length}</span>` : '' };
+    const nav = `<nav class="cc-nav" aria-label="Partes do cliente"><span class="realce" aria-hidden="true"></span>${SECOES.map(([id, nome, ic, cor]) =>
+      `<a href="#/cliente/${esc(c.slug)}" data-act="cliSec" data-sec="${id}" data-slug="${esc(c.slug)}" class="${id === sec ? 'on' : ''}" style="--c:${cor}"${id === sec ? ' aria-current="true"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg><span>${nome}</span>${conta[id]}</a>`).join('')}</nav>`;
+    const ir = (s, t) => `<a class="c-link" href="#/cliente/${esc(c.slug)}" data-act="cliSec" data-sec="${s}" data-slug="${esc(c.slug)}">${t} ›</a>`;
+    const mini = (tit, txt, s, t, falta) => `<div class="cc-mini"><h3>${falta ? '<span class="pill" style="--tone:var(--orange)">Falta</span>' : ''}${tit}</h3><p>${txt}</p>${ir(s, t)}</div>`;
+    const pisTxt = c.radios.filter(r => r.pis_mes).map(r => `${r.pis_mes} ${esc(r.sigla)}`).join(' · ');
+    const partes = {
+      geral:`<section class="card"><div class="hd"><h2>Visão geral</h2><span>o que falta e o que acontece neste cliente</span></div><div class="cc-minis">
+        ${k ? mini('Contrato', `${mensal} · ${esc(nomeForma(k.forma))}, dia ${k.dia_vencimento}.`, 'contrato', 'Ver contrato') : mini('Contrato', 'Sem mensalidade cadastrada: o Console ainda não cobra este cliente.', 'contrato', prop || pode('financeiro') ? 'Cadastrar contrato' : 'Ver contrato', true)}
+        ${faltam.length ? mini('Dados da empresa', `Falta: ${faltam.join(', ')}.`, 'dados', 'Completar dados', true) : mini('Dados da empresa', `${esc((c.dados || {}).razao_social || c.nome)}${c.cnpj ? ' · CNPJ ' + esc(c.cnpj) : ''}.`, 'dados', 'Ver dados')}
+        ${mini('Veículos', `${plural(c.radios.length, 'veículo', 'veículos')} · ${plural(c.clientes, 'cliente', 'clientes')} cadastrados · ${plural(c.pis_mes, 'PI', 'PIs')} no mês${pisTxt ? ` (${pisTxt})` : ''}.`, 'veiculos', 'Ver veículos')}
+        ${mini('Equipe e suporte', `${plural(ativos, 'usuário ativo', 'usuários ativos')}${diretores.length ? `, diretor ${esc(diretores.map(d => d.nome).join(', '))}` : ', <b>sem diretor ativo</b>'}. ${plural(chAb, 'chamado aberto', 'chamados abertos')}.`, 'equipe', 'Ver equipe', !diretores.length)}
+      </div></section>`,
+      contrato:cartaoContrato(c),
+      veiculos:`<section class="card"><div class="hd"><h2>Veículos</h2><span>${plural(c.radios.length, 'veículo', 'veículos')} · ${plural(c.clientes, 'cliente', 'clientes')} · ${plural(c.pis_mes, 'PI', 'PIs')} no mês</span>${prop ? `<button class="btn sm" data-act="novaRadio" data-id="${c.id}">${S.svg('mais')}Adicionar veículo</button>` : ''}</div>
+        ${c.radios.length ? `<div class="cc-veics">${c.radios.map(r => `<div class="cc-v">${vav(r)}<span class="tx"><b>${esc(r.nome)}</b><small>${esc([r.frequencia, r.cidade].filter(Boolean).join(' · ') || 'sem cidade')}</small></span>${prop ? `<button class="btn tres" data-act="radioMenu" data-id="${r.id}" data-org="${c.slug}" aria-label="Opções da ${esc(r.nome)}">${S.svg('mais3')}</button>` : ''}
+          <span class="cc-v-n"><span><b>${r.clientes}</b> ${r.clientes === 1 ? 'cliente' : 'clientes'}</span><span><b>${r.pis_mes || 0}</b> ${r.pis_mes === 1 ? 'PI' : 'PIs'} no mês</span></span></div>`).join('')}</div>` : '<p class="muted">Nenhum veículo.</p>'}
+        <p class="muted small">Logo, cores, textos do PI e produtos o diretor completa dentro do SONVI.</p></section>`,
+      dados:`<section class="card"><div class="hd"><h2>Dados da empresa</h2>${faltam.length ? `<span class="pill" style="--tone:var(--orange)">${faltam.length} faltando</span>` : ''}${prop ? `<button class="btn sm" data-act="editarCliente" data-id="${c.id}">${S.svg('editar')}Editar dados</button>` : ''}</div>
+        <div class="c-kv">${kv('Nome no SONVI', c.nome)}${kv('Razão social', (c.dados || {}).razao_social, true)}${kv('CNPJ', c.cnpj)}${kv('Endereço', enderecoCompleto(c))}${kv('Responsável financeiro', [(c.dados || {}).responsavel_financeiro, (c.dados || {}).telefone].filter(Boolean).join(' · '), true)}${kv('E-mails de cobrança', faltam.includes('e-mails de cobrança') ? '' : (c.dados || {}).emails_cobranca, true)}${kv('Endereço no SONVI', endereco(c.slug))}${kv('Situação', (SIT[c.situacao] || [c.situacao])[0] + (c.situacao === 'teste' && c.teste_ate ? ' até ' + S.dfmt(c.teste_ate) : ''))}${kv('Chamados abertos', String(chAb))}</div></section>`,
+      equipe:`<section class="card"><div class="hd"><h2>Equipe</h2><span>${plural(ativos, 'usuário ativo', 'usuários ativos')}</span>${prop ? `<button class="btn sm" data-act="novoUsuario" data-id="${c.id}">${S.svg('mais')}Cadastrar usuário</button>` : ''}</div>
+        ${c.equipe.length ? `<div class="list">${c.equipe.map(u => `<div class="${u.ativo ? '' : 'c-inativo'}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome || '—')}</b><small>${esc(funcaoTexto(c, u))}</small><small>${esc(u.email)}${u.celular ? ' · <span class="nowrap">' + esc(u.celular) + '</span>' : ''}</small></span>
+          <span class="c-sit">${situacaoUsuario(u)}</span>${prop ? `<button class="btn tres" data-act="usuarioMenu" data-id="${u.id}" data-org="${c.slug}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button>` : ''}</div>`).join('')}</div>`
+          : '<p class="c-aviso">Este cliente está sem equipe. Use "Cadastrar usuário" e escolha a função de diretor.</p>'}
+        ${diretores.length ? '' : c.equipe.length ? '<p class="c-aviso">Nenhum diretor ativo: o cliente fica sem quem cadastre a equipe e os dados da empresa.</p>' : ''}</section>`,
+      acessos:`<section class="card"><div class="hd"><h2>Acessos de suporte</h2><span class="pill" style="--tone:var(--gray)">o cliente também vê</span></div>${listaSuporte(c.suporte, false)}</section>` };
+    const ult = c.ultimo ? `último acesso ${esc(quando(c.ultimo.quando))} (${esc(c.ultimo.nome)})` : 'nenhum acesso ainda';
     return { titulo:esc(c.nome), sub:'<a href="#/clientes">Clientes</a> › ' + esc(c.nome),
-      acoes:`${pode('proprietario') ? `<button class="btn perigo" data-act="excluirCliente" data-id="${c.id}">${S.svg('lixo')}Excluir</button><button class="btn" data-act="situacao" data-id="${c.id}">${susp ? 'Reativar' : 'Suspender'}</button>` : ''}${pode('proprietario', 'suporte') ? `<a class="btn pri" href="${esc(link)}" target="_blank" rel="noopener">${ICONE.escudo}Entrar como suporte</a>` : ''}`,
-      corpo:`<div class="c-topo">${logoCli(c, 'cli-logo grande')}<span class="tx"><span>${sitPill(c)}</span><a href="${esc(link)}" target="_blank" rel="noopener">${esc(endereco(c.slug))} ↗</a><small class="muted">Cliente desde ${S.dfmt(c.criado_em)}</small></span></div>
-      <div class="c-minis"><div><small>Clientes cadastrados</small><b>${c.clientes}</b><small>${plural(c.radios.length, 'rádio', 'rádios')}</small></div>
-        <div><small>Propostas no mês</small><b>${c.propostas_mes}</b><small>&nbsp;</small></div>
-        <div><small>PIs no mês</small><b>${c.pis_mes}</b><small>${esc(c.radios.filter(r => r.pis_mes).map(r => `${r.pis_mes} ${r.sigla}`).join(' · ') || '—')}</small></div>
-        <div><small>Último acesso</small><b>${c.ultimo ? quando(c.ultimo.quando).split(' às ')[0] : 'nunca'}</b><small>${c.ultimo ? esc((quando(c.ultimo.quando).split(' às ')[1] || '') + ' · ' + c.ultimo.nome) : '&nbsp;'}</small></div></div>
-      <div class="c-grade">
-        ${cartaoContrato(c)}
-        <section class="card"><div class="hd"><h2>Rádios</h2>${prop ? `<button class="btn sm" data-act="novaRadio" data-id="${c.id}">${S.svg('mais')}Adicionar rádio</button>` : ''}</div>
-          ${c.radios.length ? `<div class="list">${c.radios.map(r => `<div>${vav(r)}<span class="tx"><b>${esc(r.nome)}</b><small>${esc([r.frequencia, r.cidade].filter(Boolean).join(' · ') || 'sem cidade')} · ${plural(r.clientes, 'cliente', 'clientes')} · ${plural(r.pis, 'PI', 'PIs')}</small></span>${prop ? `<button class="btn tres" data-act="radioMenu" data-id="${r.id}" data-org="${c.slug}" aria-label="Opções da ${esc(r.nome)}">${S.svg('mais3')}</button>` : ''}</div>`).join('')}</div>` : '<p class="muted">Nenhuma rádio.</p>'}
-          <p class="muted small">Logo, cores, textos do PI e tabela de preços o diretor completa dentro do SONVI.</p></section>
-
-        <section class="card"><div class="hd"><h2>Dados da empresa</h2>${prop ? `<button class="btn sm" data-act="editarCliente" data-id="${c.id}">${S.svg('editar')}Editar dados</button>` : ''}</div>
-          <div class="c-kv">${kv('Nome no SONVI', c.nome)}${kv('Razão social', (c.dados || {}).razao_social)}${kv('CNPJ', c.cnpj)}${kv('Endereço', enderecoCompleto(c))}${kv('Responsável financeiro', [(c.dados || {}).responsavel_financeiro, (c.dados || {}).telefone].filter(Boolean).join(' · '))}${kv('E-mails de cobrança', (c.dados || {}).emails_cobranca)}${kv('Endereço no SONVI', endereco(c.slug))}${kv('Situação', (SIT[c.situacao] || [c.situacao])[0] + (c.situacao === 'teste' && c.teste_ate ? ' até ' + S.dfmt(c.teste_ate) : ''))}${kv('Chamados abertos', String(abertos().filter(ch => ch.organizacao_id === c.id).length))}</div></section>
-        <section class="card c-largo"><div class="hd"><h2>Equipe</h2><span>${plural(c.equipe.filter(u => u.ativo).length, 'usuário ativo', 'usuários ativos')}</span>${prop ? `<button class="btn sm" data-act="novoUsuario" data-id="${c.id}">${S.svg('mais')}Cadastrar usuário</button>` : ''}</div>
-          ${c.equipe.length ? `<div class="list">${c.equipe.map(u => `<div class="${u.ativo ? '' : 'c-inativo'}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome || '—')}</b><small>${esc(funcaoTexto(c, u))}</small><small>${esc(u.email)}${u.celular ? ' · <span class="nowrap">' + esc(u.celular) + '</span>' : ''}</small></span>
-            <span class="c-sit">${situacaoUsuario(u)}</span>${prop ? `<button class="btn tres" data-act="usuarioMenu" data-id="${u.id}" data-org="${c.slug}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button>` : ''}</div>`).join('')}</div>`
-            : '<p class="c-aviso">Este cliente está sem equipe. Use "Cadastrar usuário" e escolha a função de diretor.</p>'}
-          ${c.equipe.some(u => u.diretor && u.ativo) ? '' : c.equipe.length ? '<p class="c-aviso">Nenhum diretor ativo: o cliente fica sem quem cadastre a equipe e os dados da empresa.</p>' : ''}</section>
-        <section class="card c-largo"><div class="hd"><h2>Acessos de suporte</h2><span class="pill" style="--tone:var(--gray)">o cliente também vê</span></div>${listaSuporte(c.suporte, false)}</section>
-      </div>` };
+      acoes:`${prop ? `<button class="btn" data-act="situacao" data-id="${c.id}">${susp ? 'Reativar' : 'Suspender'}</button><button class="btn tres" data-act="cliMenu" data-id="${c.id}" aria-label="Mais opções de ${esc(c.nome)}">${S.svg('mais3')}</button>` : ''}${pode('proprietario', 'suporte') ? `<a class="btn pri" href="${esc(link)}" target="_blank" rel="noopener">${ICONE.escudo}Entrar como suporte</a>` : ''}`,
+      corpo:`<div class="c-topo">${logoCli(c, 'cli-logo grande')}<span class="tx"><span class="cc-linha">${sitPill(c)}<a href="${esc(link)}" target="_blank" rel="noopener">${esc(endereco(c.slug))} ↗</a></span>
+        <small class="muted">Cliente desde ${S.dfmt(c.criado_em)} · ${ult} · mensalidade: ${mensal ? `<b>${mensal}</b>` : '<span class="cc-falta">sem contrato</span>'}</small></span></div>
+      <div class="cc-lay"><div class="cc-lado"><h3 class="cc-tit">Este cliente</h3>${nav}</div><div class="cc-sec">${partes[sec] || partes.geral}</div></div>` };
+  };
+  // O realce do menu do cliente: sai de onde estava (troca de parte) e vai até a parte aberta; acompanha o mouse e o foco
+  let ccY = null;
+  const ccFluido = () => {
+    const nav = cmain.querySelector('.cc-nav'); if (!nav) { ccY = null; return; }
+    const r = nav.querySelector('.realce'), itens = [...nav.querySelectorAll('a')], on = nav.querySelector('a.on');
+    const ir = (a, sem) => { if (!a || getComputedStyle(r).display === 'none') return; if (sem) r.style.transition = 'none';
+      r.style.opacity = 1; r.style.transform = `translateY(${a.offsetTop}px)`; r.style.height = a.offsetHeight + 'px'; if (sem) { r.offsetHeight; r.style.transition = ''; }
+      itens.forEach(x => x.classList.toggle('quente', x === a)); r.classList.toggle('fora', a !== on); if (a === on) ccY = a.offsetTop; };
+    if (ccY !== null && on && getComputedStyle(r).display !== 'none') { r.style.transition = 'none'; r.style.opacity = 1; r.style.height = on.offsetHeight + 'px'; r.style.transform = `translateY(${ccY}px)`; r.offsetHeight; r.style.transition = ''; requestAnimationFrame(() => ir(on)); }
+    else ir(on, true);
+    itens.forEach(a => { a.addEventListener('mouseenter', () => ir(a)); a.addEventListener('focus', () => ir(a)); });
+    nav.addEventListener('mouseleave', () => { ir(on); itens.forEach(x => x.classList.remove('quente')); });
+    nav.addEventListener('focusout', e => { if (!nav.contains(e.relatedTarget)) { ir(on); itens.forEach(x => x.classList.remove('quente')); } });
+    if (on && on.scrollIntoView && nav.scrollWidth > nav.clientWidth) on.scrollIntoView({ block:'nearest', inline:'nearest' });
   };
 
   // ---------- Novo cliente ----------
@@ -523,6 +563,7 @@
     if (v === 'suporte' && id && id !== 'acessos' && window.matchMedia('(max-width:1100px)').matches && S._rolarCh !== id) { S._rolarCh = id; const det = document.getElementById('chDet'); if (det) det.scrollIntoView({ block:'start' }); }
     ultima = chave; document.title = `${t.titulo.replace(/<[^>]+>/g, '')} · Console SONVI`;
     S.mascarar(cmain);
+    ccFluido();
     const pv = cmain.querySelector('[data-previa]'); if (pv) pv.innerHTML = previaCobranca(pv.closest('form'));
   };
   S.render = render;
@@ -643,6 +684,8 @@
         { k:'para', label:'A carteira passa para', type:'select', full:true, options:[...outros.map(x => [x.id, x.nome + (x.diretor ? ' (diretor)' : '')]), ['', 'Ninguém (ficam sem responsável)']] }], { para:(outros.find(x => x.diretor) || outros[0] || {}).id || '' },
         f => (async () => { try { await servidor({ acao:'excluir_usuario', usuario_id:u.id, para:f.para || null }); await recarregar(); render(); S.toast(`Usuário ${u.nome} excluído`); } catch (e) { S.toast(S.erro(e)); } })(), 'Excluir', { editar:true });
       const b = document.querySelector('#dlg button[value=ok]'); if (b) { b.classList.remove('pri'); b.classList.add('perigo'); } },
+    cliSec: d => { cliSec[d.slug] = d.sec; render(); },
+    cliMenu: (d, botao) => S.menu(botao, [{ label:'Excluir cliente', icon:'lixo', act:'excluirCliente', data:{ id:d.id }, perigo:true }]),
     radioMenu: (d, botao) => S.menu(botao, [{ label:'Editar', icon:'editar', act:'radioEditar', data:d }, '-', { label:'Excluir rádio', icon:'lixo', act:'radioExcluir', data:d, perigo:true }]),
     radioEditar: d => { const c = cliente(d.org), r = c.radios.find(x => x.id === d.id);
       S.form(`Editar · ${esc(r.nome)}`, [{ k:'nome', label:'Nome da rádio', req:true, full:true }, { k:'sigla', label:'Sigla do PI', req:true, mask:'sigla' }, { k:'cidade', label:'Cidade / UF' }], r,
