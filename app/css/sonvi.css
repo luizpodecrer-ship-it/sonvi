@@ -3033,6 +3033,7 @@ dialog.em-dlg [hidden] { display:none !important; }
 .md-ac { display:flex; gap:6px; align-items:center; }
 .md-nota { display:flex; gap:8px; align-items:flex-start; margin:16px 0 0; padding-top:14px; border-top:1px solid var(--line); color:var(--ink-2); font-size:13px; }
 .md-nota svg { width:16px; height:16px; flex:none; margin-top:2px; }
+.md-nota.md-limpo { border-top:0; margin:12px 0 0; padding:10px 12px; border-radius:var(--radius-s); background:var(--bg); }
 @media (max-width:760px) { .md-add { grid-template-columns:1fr; } .md-drop { min-height:110px; } .md-i { grid-template-columns:auto minmax(0,1fr); } .md-ac { grid-column:1 / -1; justify-content:flex-end; } }
 .md-card svg { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .md-ac .btn.tres svg { width:16px; height:16px; }

@@ -425,6 +425,7 @@
   const pasta = pi => `${pi.veiculo_id}/${pi.id}`;
   const LINKS = {};   // links das mídias por PI
   const ORIG = {};    // PI original da agência por PI (null = não tem)
+  const LIMPO = {};   // arquivos apagados pela limpeza dos 90 dias (database/074)
   const nMidias = pi => (S.db.midias[pi.id] || []).length + (LINKS[pi.id] || []).length;
   async function carregarMidias(pi) {
     S.db.midias[pi.id] = [];
@@ -438,6 +439,8 @@
       // PI original da agência (database/067): fica à parte, em <veiculo>/<pi>/original/
       const { data:o } = await S.sb.from('pi_originais').select('*').eq('pi_id', pi.id).maybeSingle();
       ORIG[pi.id] = o || null;
+      const { data:lp } = await S.sb.from('midias_limpezas').select('arquivos, em, fim_veiculacao').eq('pi_id', pi.id).maybeSingle();
+      LIMPO[pi.id] = lp || null;
       if (cur() === pi && !ed.sujo) S.render();
     } catch (e) { console.error(e); }
   }
@@ -459,8 +462,9 @@
           <div class="md-link-l"><label class="f"><span class="sr">Descrição</span><input name="titulo" placeholder="Descrição (ex.: VT 30&quot; em alta)" maxlength="200" autocomplete="off"></label><button class="btn pri" type="submit">Adicionar</button></div></form></div>` : '';
     return `${cartaoOriginal(pi)}<section class="card md-card"><div class="hd"><h2>Mídias do PI</h2><span>áudios dos spots, textos de testemunhal</span></div>
       ${add}
+      ${LIMPO[pi.id] ? `<p class="md-nota md-limpo">${S.svg('lixo')}<span>${LIMPO[pi.id].arquivos === 1 ? 'O arquivo deste PI foi apagado' : `Os ${LIMPO[pi.id].arquivos} arquivos deste PI foram apagados`} em ${dfmt(S.dia(LIMPO[pi.id].em))}, 90 dias depois do fim da veiculação${LIMPO[pi.id].fim_veiculacao ? ` (${dfmt(LIMPO[pi.id].fim_veiculacao)})` : ''}. Os links e o PI original da agência continuam.</span></p>` : ''}
       ${itens.length ? `<div class="md-lista">${itens.map(x => x.html).join('')}</div>` : '<p class="muted" style="margin:14px 0 0">Nenhuma mídia ainda.</p>'}
-      <p class="md-nota">${S.svg('email')}<span>Os arquivos e links vão junto no e-mail para a OPEC${v.opec_email ? ` (${esc(v.opec_email)})` : ''}: os arquivos como link para baixar, válido por 30 dias.</span></p></section>`;
+      <p class="md-nota">${S.svg('email')}<span>Os arquivos e links vão junto no e-mail para a OPEC${v.opec_email ? ` (${esc(v.opec_email)})` : ''}: os arquivos como link para baixar, válido por 30 dias. Os arquivos são apagados sozinhos 90 dias depois do fim da veiculação; os links ficam.</span></p></section>`;
   }
   // ---------- PI original da agência (database/067, 31/10/2026) ----------
   // O documento que a agência ou o cliente mandou (às vezes já assinado). Fica à parte das mídias, em <veiculo>/<pi>/original/,
