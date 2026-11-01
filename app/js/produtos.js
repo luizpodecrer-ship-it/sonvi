@@ -234,7 +234,9 @@
   S.projetoEntregasHtml = (d, cls = '') => `<div class="pj-ent ${cls}"><div><b class="pj-lado">Online</b>${entLista(d.online)}</div><div><b class="pj-lado">Dial</b>${entLista(d.dial)}</div></div>`;
   const pjAbertos = new Set();   // projetos com as entregas abertas na lista
   const vistaProjetos = () => {
-    const ps = projProds().filter(p => p.ativo || pode()), at = ps.filter(p => p.ativo), m = modeloProj(), md = dadosDe(m), vals = at.map(p => Number(dadosDe(p).valor) || 0).filter(v => v > 0);
+    // Ordem pelos dias da semana (o primeiro dia do projeto, de segunda a domingo), depois o horário de começo e o nome
+    const chaveDia = p => Math.min(...diasDe(p).map(k => (k + 6) % 7)), chaveHora = p => dadosDe(p).ini || '99:99';
+    const ps = projProds().filter(p => p.ativo || pode()).sort((a, b) => chaveDia(a) - chaveDia(b) || chaveHora(a).localeCompare(chaveHora(b)) || a.nome.localeCompare(b.nome)), at = ps.filter(p => p.ativo), m = modeloProj(), md = dadosDe(m), vals = at.map(p => Number(dadosDe(p).valor) || 0).filter(v => v > 0);
     // Lista (aprovada em 31/10/2026, opção B do artifact "Projetos especiais · exibição"): uma linha por projeto;
     // clicar abre as entregas Online e Dial logo embaixo. No celular, cada linha vira um cartão compacto.
     const dialQ = d => (d.dial || []).reduce((t, x) => t + (Number(x.qtd) || 0), 0);
