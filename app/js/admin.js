@@ -232,9 +232,9 @@
     if (!lix) return '<div class="card"><p class="muted">Buscando a Lixeira…</p></div>';
     const dias = d => Math.max(0, Math.ceil((new Date(d) - Date.now()) / 864e5));
     const linhas = lix.map(l => `<tr><td class="nw">${S.dfmt(S.dia(l.excluido_em))} ${S.hora(l.excluido_em)}</td><td><b class="clamp2">${esc(l.descricao)}</b><small class="muted">${esc(resumoLix(l.resumo))}</small></td><td class="nw">${esc(l.quem) || '—'}</td><td class="nw">${dias(l.apaga_em) === 0 ? 'hoje' : `em ${dias(l.apaga_em)} dia${dias(l.apaga_em) === 1 ? '' : 's'}`}</td>
-      <td class="r"><button class="btn sm" data-act="lixRestaurar" data-id="${l.lote}">${S.svg('voltar')}Restaurar</button></td></tr>`).join('');
-    const cartoes = lix.map(l => `<div><span class="tx"><b>${esc(l.descricao)}</b><small>${S.dfmt(S.dia(l.excluido_em))} ${S.hora(l.excluido_em)} · ${esc(l.quem) || '—'} · apaga ${dias(l.apaga_em) === 0 ? 'hoje' : `em ${dias(l.apaga_em)} dias`}</small><small>${esc(resumoLix(l.resumo))}</small></span><button class="btn sm" data-act="lixRestaurar" data-id="${l.lote}">Restaurar</button></div>`).join('');
-    return `<section class="card"><div class="hd"><h2>Lixeira</h2><span>${lix.length ? `${lix.length} ${lix.length === 1 ? 'item excluído' : 'itens excluídos'}` : 'vazia'}</span></div>
+      <td class="r"><span class="lin-acoes"><button class="btn sm" data-act="lixRestaurar" data-id="${l.lote}">${S.svg('voltar')}Restaurar</button><button class="btn tres" data-act="lixMenu" data-id="${l.lote}" aria-label="Opções de ${esc(l.descricao)}">${S.svg('mais3')}</button></span></td></tr>`).join('');
+    const cartoes = lix.map(l => `<div><span class="tx"><b>${esc(l.descricao)}</b><small>${S.dfmt(S.dia(l.excluido_em))} ${S.hora(l.excluido_em)} · ${esc(l.quem) || '—'} · apaga ${dias(l.apaga_em) === 0 ? 'hoje' : `em ${dias(l.apaga_em)} dias`}</small><small>${esc(resumoLix(l.resumo))}</small></span><span class="lin-acoes"><button class="btn sm" data-act="lixRestaurar" data-id="${l.lote}">Restaurar</button><button class="btn tres" data-act="lixMenu" data-id="${l.lote}" aria-label="Opções de ${esc(l.descricao)}">${S.svg('mais3')}</button></span></div>`).join('');
+    return `<section class="card"><div class="hd"><h2>Lixeira</h2><span class="lix-cab">${S.celular ? '' : lix.length ? `${lix.length} ${lix.length === 1 ? 'item excluído' : 'itens excluídos'}` : 'vazia'}${lix.length ? `<button class="btn sm danger" data-act="lixEsvaziar">${S.svg('lixo')}Esvaziar lixeira</button>` : ''}</span></div>
       <p class="muted small" style="margin:-4px 0 14px">O que é excluído no SONVI fica guardado aqui por 30 dias, com tudo o que foi junto. Restaurar traz de volta como estava. Depois de 30 dias é apagado de vez. Arquivos de mídia enviados no PI não voltam; os links voltam.</p>
       ${!lix.length ? '<p class="muted">Nada foi excluído nos últimos 30 dias.</p>' : S.celular ? `<div class="list">${cartoes}</div>`
         : `<div class="scroll"><table><thead><tr><th>Excluído em</th><th>O que foi excluído</th><th>Quem excluiu</th><th>Apaga de vez</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div>`}</section>`;
@@ -360,6 +360,15 @@
       if (!await S.confirmar(`Restaurar "${l.descricao}"?\n\nVolta tudo o que foi excluído junto (${resumoLix(l.resumo) || 'o item'}), como estava.`, { ok:'Restaurar' })) return;
       await S.run(async () => { await S.q(S.sb.rpc('lixeira_restaurar', { p_lote:Number(l.lote) })); lix = lix.filter(x => x !== l); await S.recarregar(); if (S.agenciasRecarregar) S.agenciasRecarregar(); }, { titulo:'Restaurado', sub:l.descricao });
       carregarLix(); },
+    lixMenu: (d, botao) => S.menu(botao, [{ label:'Restaurar', icon:'voltar', act:'lixRestaurar', data:{ id:d.id } }, { label:'Apagar de vez', icon:'lixo', act:'lixApagar', data:{ id:d.id }, perigo:true }]),
+    // Apagar de vez (um item) e Esvaziar a lixeira (tudo): só o diretor, sem volta (database/075)
+    lixApagar: async d => { const l = (lix || []).find(x => String(x.lote) === String(d.id)); if (!l) return;
+      if (!await S.confirmar(`Apagar de vez "${l.descricao}"?\n\nSai da Lixeira e não pode mais ser restaurado.`, { ok:'Apagar de vez', perigo:true })) return;
+      await S.run(async () => { await S.q(S.sb.rpc('lixeira_esvaziar', { p_lote:Number(l.lote) })); lix = lix.filter(x => x !== l); }, { titulo:'Apagado de vez', sub:l.descricao }); },
+    lixEsvaziar: () => { const n = (lix || []).length; if (!n) return;
+      S.excluirDigitando({ titulo:'Esvaziar a lixeira?', aviso:`${n === 1 ? 'O item' : `Os ${n} itens`} da Lixeira ${n === 1 ? 'é apagado' : 'são apagados'} de vez e não ${n === 1 ? 'pode' : 'podem'} mais ser restaurados.`,
+        rotulo:'Para confirmar, digite ESVAZIAR', dica:'ESVAZIAR', confere:t => t.trim().toUpperCase() === 'ESVAZIAR', botao:'Esvaziar lixeira',
+        onOk:() => S.run(async () => { await S.q(S.sb.rpc('lixeira_esvaziar', { p_lote:null })); lix = []; }, { titulo:'Lixeira vazia', sub:`${n} ${n === 1 ? 'item apagado' : 'itens apagados'} de vez` }) }); },
     admAba: d => { aba = d.tab; celLista = false; if (aba === 'lixeira') carregarLix(); if (aba === 'comissoes' && S.comissoesAbrirConsultor) S.comissoesAbrirConsultor(null); if (aba === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); S.render(); },
     admVeiculo: d => { const v = d.id ? S.veh(d.id) : {};
       S.form(v.id ? esc(v.nome) : 'Novo veículo', [

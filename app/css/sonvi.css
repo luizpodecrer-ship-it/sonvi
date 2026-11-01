@@ -3744,3 +3744,4 @@ form.ver .so-ed, form.ver [data-pd-add], form.ver [data-act="pdFaixaMais"], form
   .pjl-lin { grid-template-columns:minmax(0, 1fr) auto; grid-template-areas:"nome valor" "dias dias" "hora acoes"; gap:8px 10px; padding:14px 8px; }
   .pjl-nome { grid-area:nome; } .pjl-valor { grid-area:valor; } .pjl-dias { grid-area:dias; } .pjl-hora { grid-area:hora; } .pjl-lin .lin-acoes { grid-area:acoes; }
 }
+.lix-cab { display:inline-flex; align-items:center; gap:14px; }
