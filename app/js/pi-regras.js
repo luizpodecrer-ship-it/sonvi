@@ -18,10 +18,15 @@
   // Comissão, honorários e descontos podem ser em % ou em R$
   const share = (rule, base) => rule.type === 'pct' ? base * num(rule.value) / 100 : num(rule.value);
 
-  S.itemCalc = it => {
-    const ins = Object.values(it.days || {}).reduce((s, n) => s + num(n), 0), gross = ins * num(it.unit);
+  // Face de front light, empena e outdoor (it.pormes, 03/11/2026): aluguel do mês, não inserção. Os dias marcados mostram
+  // quando a face fica exposta e o valor é proporcional: valor do mês × dias marcados ÷ dias do mês (per = 'AAAA-MM' da grade).
+  S.diasDoMes = per => per ? new Date(+per.slice(0, 4), +per.slice(5, 7), 0).getDate() : 30;
+  S.itemCalc = (it, per) => {
+    const ins = Object.values(it.days || {}).reduce((s, n) => s + num(n), 0), nd = S.diasDoMes(per);
+    const dias = it.pormes ? Math.min(nd, Object.values(it.days || {}).filter(n => num(n) > 0).length) : 0;
+    const gross = it.pormes ? num(it.unit) * dias / nd : ins * num(it.unit);
     const sub = Math.max(0, gross - share(it.disc, gross));
-    return { ins, gross, sub: it.bonus ? 0 : sub }; // item bonificado não é cobrado
+    return { ins, gross, sub: it.bonus ? 0 : sub, dias, pormes:!!it.pormes }; // item bonificado não é cobrado
   };
 
   // Ação digital (database/034): entregas (texto + quantidade) e um valor só; a rádio define as datas depois.
@@ -55,7 +60,7 @@
   S.liquidoPi = p => Number(p.valor_liquido ?? p.valor_total ?? 0);
   S.calc = pi => {
     const d = pi.dados; let media = 0, bonus = 0, ins = 0, pub = 0, radio = 0, digital = 0;
-    d.grids.forEach(g => g.items.forEach(it => { const c = S.itemCalc(it); ins += c.ins; if (it.bonus) bonus += c.gross; else { media += c.sub; radio += c.sub; } }));
+    d.grids.forEach(g => g.items.forEach(it => { const c = S.itemCalc(it, g.period); ins += c.ins; if (it.bonus) bonus += c.gross; else { media += c.sub; radio += c.sub; } }));
     (d.digital || []).forEach(it => { const c = S.digCalc(it); pub += c.qtd; media += c.sub; digital += c.sub; });
     const discount = Math.min(media, share(d.discount, media));
     const total = media - discount;                                          // o que o cliente paga pela mídia
@@ -116,7 +121,7 @@
   S.multiMes = pi => S.mesesDoPi(pi).length > 1;
   // Mídia cobrada de cada mês (itens não bonificados, com o desconto do item, e ações digitais)
   S.midiaPorMes = pi => { const d = pi.dados || {}, out = {};
-    (d.grids || []).forEach(g => (g.items || []).forEach(it => { if (it.bonus) return; out[g.period] = (out[g.period] || 0) + S.itemCalc(it).sub; }));
+    (d.grids || []).forEach(g => (g.items || []).forEach(it => { if (it.bonus) return; out[g.period] = (out[g.period] || 0) + S.itemCalc(it, g.period).sub; }));
     (d.digital || []).forEach(a => { const m = mesDig(a); out[m] = (out[m] || 0) + S.digCalc(a).sub; });
     return out; };
   S.nomeMes = m => { const [y, mm] = m.split('-').map(Number); return new Date(y, mm - 1, 1).toLocaleDateString('pt-BR', { month:'long' }).replace(/^./, c => c.toUpperCase()) + '/' + String(y).slice(2); };
@@ -164,6 +169,11 @@
       .map(x => ({ nome:String(x.nome).trim(), valor:Number(x.valor), obs:x.obs || '' }));
     if (Number((d.producao || {}).valor) > 0) out.push({ nome:String(d.producao.nome || '').trim() || 'Produção', valor:Number(d.producao.valor), obs:'cobrada uma vez', producao:true });
     return out; };
+  // A linha é uma face cobrada por mês? (produto de mídia exterior por mês e formato que não é a produção)
+  S.COBRA_OOH = { led:'insercao', dooh:'insercao', frontlight:'mes', empena:'mes', outdoor:'mes' };
+  S.oohPorMes = (programa, formato) => { const p = S.db.produtos.find(x => x.tipo === 'programa' && x.secao === 'ooh' && x.nome.trim() === String(programa || '').trim());
+    if (!p || ((p.dados || {}).cobranca || S.COBRA_OOH[p.categoria] || 'mes') !== 'mes') return false;
+    const v = S.variacoesOoh(p).find(x => x.nome === String(formato || '').trim()); return !(v && v.producao); };
   S.preco = (programa, formato) => {
     const nomeP = String(programa || '').trim(), ooh = S.db.produtos.find(x => x.tipo === 'programa' && x.secao === 'ooh' && x.nome.trim() === nomeP);
     if (ooh) { const v = S.variacoesOoh(ooh).find(x => x.nome === String(formato || '').trim()); return v ? { preco:v.valor } : null; }
@@ -187,7 +197,7 @@
     if (!pi.cliente_id) out.push('escolha o cliente');
     const c = S.calc(pi);
     if (!c.ins && !c.pub) out.push('distribua ao menos uma inserção na grade ou coloque uma publicação digital');
-    if (pi.dados.grids.some(g => g.items.some(it => S.itemCalc(it).ins && !num(it.unit) && !it.bonus))) out.push('há itens com inserções e sem valor unitário');
+    if (pi.dados.grids.some(g => g.items.some(it => S.itemCalc(it, g.period).ins && !num(it.unit) && !it.bonus))) out.push('há itens com inserções e sem valor unitário');
     if ((pi.dados.digital || []).some(it => !S.digCalc(it).qtd)) out.push('há ação digital sem entregas');
     return out;
   };
@@ -295,7 +305,8 @@
         if (parseInt(it.por_dia) > 0) { const q = parseInt(it.por_dia); esperado += q * n; if (!n) { semDias.add(i); return; } ok.forEach(t => por(t, q)); return; }
         const mensal = parseInt(it.insercoes) || 0; if (!mensal) return;
         // Face (front light, empena) e produção: a quantidade inteira no primeiro dia de veiculação do mês
-        if (it.mensal || it.unica) { esperado += mensal; if (!n) { semDias.add(i); return; } por(ok[0], mensal); return; }
+        if (it.mensal) { esperado += n; if (!n) { semDias.add(i); return; } ok.forEach(t => por(t, 1)); return; } // face por mês: exposta todos os dias do período (valor proporcional aos dias)
+        if (it.unica) { esperado += mensal; if (!n) { semDias.add(i); return; } por(ok[0], mensal); return; }
         const total = n === cheio || !cheio ? mensal : Math.round(mensal * n / cheio); esperado += total; if (!total) return;
         if (!n) { semDias.add(i); return; }
         const base = Math.floor(total / n), sobra = total - base * n, extra = new Set();

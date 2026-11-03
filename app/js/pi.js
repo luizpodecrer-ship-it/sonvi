@@ -122,7 +122,7 @@
   const ed = S.piEd = { id:null, copia:null, sujo:false };
   const editando = pi => ed.id === pi.id;
   const marcarSujo = () => { if (ed.sujo) return; ed.sujo = true; document.querySelectorAll('.sujo').forEach(el => { el.hidden = false; }); };
-  S.piEntrar = pi => { ed.id = pi.id; ed.copia = JSON.stringify({ titulo:pi.titulo, cliente_id:pi.cliente_id, agencia_id:pi.agencia_id, projeto:pi.projeto, prazo:pi.prazo, dados:pi.dados }); ed.sujo = false; };
+  S.piEntrar = pi => { (pi.dados.grids || []).forEach(g => (g.items || []).forEach(it => { if (it.pormes === undefined && S.oohPorMes(it.f1, it.f2)) it.pormes = true; })); ed.id = pi.id; ed.copia = JSON.stringify({ titulo:pi.titulo, cliente_id:pi.cliente_id, agencia_id:pi.agencia_id, projeto:pi.projeto, prazo:pi.prazo, dados:pi.dados }); ed.sujo = false; };
   const sairEdicao = () => { ed.id = null; ed.copia = null; ed.sujo = false; };
   const desfazer = pi => { if (ed.copia && ed.id === pi.id) Object.assign(pi, JSON.parse(ed.copia)); };
 
@@ -301,7 +301,7 @@
 
   // Projetos especiais e patrocínios lançados na grade (PI feito à mão, 03/11/2026): uma faixa por pacote, com Ajustar e Tirar
   const pacotesDe = g => { const out = []; g.items.forEach(it => { const k = it.projeto ? 'projeto' : it.cota ? 'cota' : ''; if (!k) return; const x = it[k];
-    let e = out.find(o => o.grupo === x.grupo && o.tipo === k); if (!e) out.push(e = { tipo:k, grupo:x.grupo, x, ins:0, sub:0 }); const c = S.itemCalc(it); e.ins += c.ins; e.sub += c.sub; }); return out; };
+    let e = out.find(o => o.grupo === x.grupo && o.tipo === k); if (!e) out.push(e = { tipo:k, grupo:x.grupo, x, ins:0, sub:0 }); const c = S.itemCalc(it, g.period); e.ins += c.ins; e.sub += c.sub; }); return out; };
   const pacotesGrade = (g, em) => { const ps = pacotesDe(g); if (!ps.length) return '';
     return `<div class="g-pac">${ps.map(e => `<div class="g-pac-l"><span class="pill" style="--tone:var(--accent)">${e.tipo === 'projeto' ? 'Projeto especial' : 'Patrocínio'}</span>
       <b>${esc(e.x.nome)}</b><small class="muted">${e.tipo === 'projeto' ? `${esc(S.diasTexto(e.x.dias))}${e.x.horas ? ' · ' + esc(e.x.horas) : ''} · ` : ''}${e.ins} inserções · ${brl(e.sub)}</small>
@@ -313,6 +313,7 @@
   const descEdit = (it, a) => `<span class="duo"><input value="${it.bonus ? '' : nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="${it.bonus ? '—' : '0'}" ${a}${it.bonus ? ' disabled' : ''} aria-label="Desconto"><select data-f="disc.type" data-rerender="1" ${a} aria-label="Tipo de desconto"><option value="pct"${!it.bonus && it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${!it.bonus && it.disc.type === 'brl' ? ' selected' : ''}>R$</option><option value="bon"${it.bonus ? ' selected' : ''}>Bonif.</option></select></span>`;
   const descVer = it => it.bonus ? 'Bonificado' : regra(it.disc);
   // Listas de escolha vindas do cadastro (Tabelas). Um valor antigo que não está mais no cadastro continua aparecendo.
+  const qtdTxt = c => c.pormes ? `${c.dias}<small class="ins-d"> ${c.dias === 1 ? 'dia' : 'dias'}</small>` : c.ins;
   // Formato de um produto de mídia exterior = as faces/variações dele (e a produção), com o preço do próprio produto (03/11/2026)
   const oohDe = prog => S.db.produtos.find(p => p.tipo === 'programa' && p.secao === 'ooh' && p.nome.trim() === String(prog || '').trim());
   const escolha = (tipo, atual, rotulo, prog) => { const at = String(atual || '').trim(), oh = tipo === 'formato' && oohDe(prog);
@@ -373,15 +374,15 @@
     let tIns = 0, tSub = 0; const porDia = {};
     const L = [], M = [], R = [];
     g.items.forEach(it => {
-      const c = S.itemCalc(it); tIns += c.ins; tSub += c.sub; days.forEach(d => { if (it.days[d]) porDia[d] = (porDia[d] || 0) + num(it.days[d]); });
+      const c = S.itemCalc(it, g.period); tIns += c.ins; tSub += c.sub; days.forEach(d => { if (it.days[d]) porDia[d] = (porDia[d] || 0) + num(it.days[d]); });
       L.push(`<div class="ln">${em ? `<button class="x rm" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}" aria-label="Remover linha" title="Remover linha">×</button>
-          <select data-f="f1" data-rerender="1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato', it.f1)}</select>`
+          <select data-f="f1" data-rerender="1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" data-rerender="1" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato', it.f1)}</select>`
         : `<span></span><b class="tx">${esc(it.f1) || '—'}</b><span class="tx muted">${esc(it.f2)}</span>`}</div>`);
       M.push(`<div class="ln dias">${days.map(d => em
         ? `<input class="day${it.days[d] ? ' has' : ''}" inputmode="numeric" data-mask="int" value="${it.days[d] || ''}" data-day="${d}" ${a(it)} aria-label="Dia ${d}">`
-        : `<span class="day${it.days[d] ? ' has' : ''}">${it.days[d] || ''}</span>`).join('')}</div>`);
-      R.push(`<div class="ln vals">${em ? `<button class="ins dist" data-act="piDistribuir" data-g="${g.id}" data-id="${it.id}" title="Distribuir as inserções desta linha" aria-label="Distribuir as inserções de ${esc(it.f1 || 'esta linha')}"><span id="ins-${it.id}">${c.ins}</span></button>` : `<span class="ins" id="ins-${it.id}">${c.ins}</span>`}
-        ${em ? `<input class="n" value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)} aria-label="Valor unitário">${descEdit(it, a(it))}`
+        : `<span class="day${it.days[d] ? ' has' : ''}">${it.days[d] ? (c.pormes ? '✓' : it.days[d]) : ''}</span>`).join('')}</div>`);
+      R.push(`<div class="ln vals">${em ? `<button class="ins dist" data-act="piDistribuir" data-g="${g.id}" data-id="${it.id}" title="Distribuir as inserções desta linha" aria-label="Distribuir as inserções de ${esc(it.f1 || 'esta linha')}"><span id="ins-${it.id}">${qtdTxt(c)}</span></button>` : `<span class="ins" id="ins-${it.id}">${qtdTxt(c)}</span>`}
+        ${em ? `<input class="n" value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)} aria-label="${c.pormes ? 'Valor do mês' : 'Valor unitário'}"${c.pormes ? ' title="Valor do mês: o total é proporcional aos dias marcados"' : ''}>${descEdit(it, a(it))}`
           : `<span class="n">${brl(num(it.unit))}</span><span class="n">${descVer(it)}</span>`}
         <b class="sub" id="sub-${it.id}">${brl(c.sub)}</b></div>`);
     });
@@ -402,19 +403,19 @@
     const aberto = (S.ui.piItem || {})[g.id] || (g.items[0] || {}).id;
     let tIns = 0, tSub = 0;
     const itens = g.items.map(it => {
-      const c = S.itemCalc(it); tIns += c.ins; tSub += c.sub;
-      if (it.id !== aberto) return `<button class="it-res" data-act="piAbrirItem" data-g="${g.id}" data-id="${it.id}"><span class="tx"><b>${esc(it.f1) || 'Programa'}</b><small>${esc(it.f2) || 'formato'} · <span id="ins-${it.id}">${c.ins}</span> inserções</small></span><b id="sub-${it.id}">${brl(c.sub)}</b>${S.svg('seta')}</button>`;
+      const c = S.itemCalc(it, g.period); tIns += c.ins; tSub += c.sub;
+      if (it.id !== aberto) return `<button class="it-res" data-act="piAbrirItem" data-g="${g.id}" data-id="${it.id}"><span class="tx"><b>${esc(it.f1) || 'Programa'}</b><small>${esc(it.f2) || 'formato'} · <span id="ins-${it.id}">${qtdTxt(c)}</span>${c.pormes ? '' : ' inserções'}</small></span><b id="sub-${it.id}">${brl(c.sub)}</b>${S.svg('seta')}</button>`;
       const cal = [...Array(vazio).fill('<span></span>'), ...Array.from({ length:nd }, (_, k) => { const d = k + 1, w = new Date(y, m - 1, d).getDay();
         return em ? `<label class="cd${w === 0 || w === 6 ? ' we' : ''}"><small>${d}</small><input class="day${it.days[d] ? ' has' : ''}" inputmode="numeric" data-mask="int" value="${it.days[d] || ''}" data-day="${d}" ${a(it)} aria-label="Dia ${d}"></label>`
           : `<span class="cd${w === 0 || w === 6 ? ' we' : ''}"><small>${d}</small><span class="day${it.days[d] ? ' has' : ''}">${it.days[d] || ''}</span></span>`; })];
       return `<article class="it-ab">
         <div class="it-cab">
-          ${em ? `<span class="tx"><select data-f="f1" data-rerender="1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato', it.f1)}</select></span>` : `<span class="tx"><b>${esc(it.f1) || '—'}</b><small>${esc(it.f2)}</small></span>`}
+          ${em ? `<span class="tx"><select data-f="f1" data-rerender="1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" data-rerender="1" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato', it.f1)}</select></span>` : `<span class="tx"><b>${esc(it.f1) || '—'}</b><small>${esc(it.f2)}</small></span>`}
           <b id="sub-${it.id}">${brl(c.sub)}</b></div>
         <div class="cal">${WD.map((w, k) => `<small class="${k === 0 || k === 6 ? 'we' : ''}">${w}</small>`).join('')}${cal.join('')}</div>
         ${em ? `<small class="muted" style="text-align:center">Toque no dia e digite quantas inserções, ou</small><button class="btn sm" data-act="piDistribuir" data-g="${g.id}" data-id="${it.id}">${S.svg('paineis')}Distribuir automaticamente</button>` : ''}
-        <div class="it-vals"><label class="f">Quantidade<span class="ro" id="ins-${it.id}">${c.ins}</span></label>
-          <label class="f">Valor unit.${em ? `<input value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)}>` : `<span class="ro">${brl(num(it.unit))}</span>`}</label>
+        <div class="it-vals"><label class="f">Quantidade<span class="ro" id="ins-${it.id}">${qtdTxt(c)}</span></label>
+          <label class="f">${c.pormes ? 'Valor do mês' : 'Valor unit.'}${em ? `<input value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)}>` : `<span class="ro">${brl(num(it.unit))}</span>`}</label>
           <label class="f">Desconto${em ? descEdit(it, a(it)) : `<span class="ro">${descVer(it)}</span>`}</label></div>
         ${em ? `<div class="row mid"><span class="grow"></span><button class="btn sm danger" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}">Remover linha</button></div>` : ''}</article>`;
     }).join('');
@@ -927,12 +928,13 @@
     if (item && d.f === 'f1') { const oh = oohDe(item.f1), f2 = String(item.f2 || '').trim();
       if (oh) { const vs = S.variacoesOoh(oh); if (!vs.some(v => v.nome === f2)) item.f2 = (vs[0] || {}).nome || ''; }
       else if (f2 && !S.db.produtos.some(p => p.tipo === 'formato' && p.nome.trim() === f2)) item.f2 = ''; }
+    if (item && (d.f === 'f1' || d.f === 'f2')) { if (S.oohPorMes(item.f1, item.f2)) item.pormes = true; else delete item.pormes; }
     if (item && (d.f === 'f1' || d.f === 'f2')) { const p = S.preco(item.f1, item.f2); if (p) { item.unit = num(p.preco); document.querySelectorAll(`input[data-f="unit"][data-i="${item.id}"]`).forEach(u => { u.value = nfmt(item.unit); }); } }
     marcarSujo();
     if (d.rerender) { S.render(); return true; }
     // Atualiza só os números calculados, para não perder o foco durante a digitação
     pi.dados.grids.forEach(g => { let ti = 0, ts = 0;
-      g.items.forEach(it => { const c = S.itemCalc(it); ti += c.ins; ts += c.sub; const a = document.getElementById('ins-' + it.id), b = document.getElementById('sub-' + it.id); if (a) a.textContent = c.ins; if (b) b.textContent = brl(c.sub); });
+      g.items.forEach(it => { const c = S.itemCalc(it, g.period); ti += c.ins; ts += c.sub; const a = document.getElementById('ins-' + it.id), b = document.getElementById('sub-' + it.id); if (a) a.innerHTML = qtdTxt(c); if (b) b.textContent = brl(c.sub); });
       const a = document.getElementById('gins-' + g.id), b = document.getElementById('gsub-' + g.id); if (a) a.textContent = ti; if (b) b.textContent = brl(ts); });
     digPeriodos(pi).forEach(per => { let tq = 0, ts = 0;
       pi.dados.digital.filter(it => it.period === per).forEach(it => { const c = S.digCalc(it); tq += c.qtd; ts += c.sub; const b = document.getElementById('dgs-' + it.id); if (b) b.textContent = brl(c.sub); });
@@ -965,8 +967,8 @@
       const [y, m] = g.period.split('-').map(Number), nd = new Date(y, m, 0).getDate(), days = Array.from({ length:nd }, (_, i) => i + 1);
       const fim = d => [0, 6].includes(new Date(y, m - 1, d).getDay());
       let sub = 0, ins = 0;
-      const rows = g.items.map(it => { const k = S.itemCalc(it); sub += k.sub; ins += k.ins; if (!it.bonus) tabela += k.gross; const dv = num(it.disc.value);
-        return `<tr><td class="pg">${esc(it.f1)}${it.faixa ? `<small class="pd-fx">${esc(it.faixa)}</small>` : ''}</td><td>${esc(it.f2)}</td><td class="c"><b>${letter(pi, it.piece)}</b></td>${days.map(d => `<td class="c${fim(d) ? ' fim' : ''}">${it.days[d] || ''}</td>`).join('')}<td class="c"><b>${k.ins}</b></td><td class="r">${nfmt(num(it.unit)) || '0,00'}</td><td class="c">${it.bonus ? 'Bonif.' : dv ? (it.disc.type === 'pct' ? dv + '%' : nfmt(dv)) : '—'}</td><td class="r"><b>${it.bonus ? 'Bonificado' : nfmt(k.sub) || '0,00'}</b></td></tr>`; }).join('');
+      const rows = g.items.map(it => { const k = S.itemCalc(it, g.period); sub += k.sub; if (!k.pormes) ins += k.ins; if (!it.bonus) tabela += k.gross; const dv = num(it.disc.value);
+        return `<tr><td class="pg">${esc(it.f1)}${it.faixa ? `<small class="pd-fx">${esc(it.faixa)}</small>` : ''}</td><td>${esc(it.f2)}</td><td class="c"><b>${letter(pi, it.piece)}</b></td>${days.map(d => `<td class="c${fim(d) ? ' fim' : ''}">${it.days[d] ? (k.pormes ? '✓' : it.days[d]) : ''}</td>`).join('')}<td class="c"><b>${k.pormes ? `${k.dias} dias` : k.ins}</b></td><td class="r">${nfmt(num(it.unit)) || '0,00'}${k.pormes ? '<small class="pd-fx">por mês</small>' : ''}</td><td class="c">${it.bonus ? 'Bonif.' : dv ? (it.disc.type === 'pct' ? dv + '%' : nfmt(dv)) : '—'}</td><td class="r"><b>${it.bonus ? 'Bonificado' : nfmt(k.sub) || '0,00'}</b></td></tr>`; }).join('');
       const varias = pi.dados.grids.length > 1;
       return `${varias ? `<div class="pd-per"><b>${mesCurto(g.period)}</b>${g.praca ? ` · ${esc(g.praca)}` : ''}</div>` : ''}<table class="pd-grade"><colgroup><col class="k-pg"><col class="k-fm"><col class="k-pc">${days.map(() => '<col>').join('')}<col class="k-qt"><col class="k-un"><col class="k-ds"><col class="k-tt"></colgroup>
         <thead><tr><th rowspan="2" class="l">Programa / faixa</th><th rowspan="2" class="l">Formato</th><th rowspan="2">Peça</th>${days.map(d => `<th class="${fim(d) ? 'fim' : ''}">${WD[new Date(y, m - 1, d).getDay()]}</th>`).join('')}<th rowspan="2">Qtd</th><th rowspan="2" class="r">Valor unit.</th><th rowspan="2">Desc.</th><th rowspan="2" class="r">Total</th></tr>

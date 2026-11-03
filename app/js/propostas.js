@@ -358,7 +358,7 @@
     const digital = [];
     digs.forEach(it => { const a = limpo(it); digital.push({ id:uid(), tipo:'acao', canal_id:a.canal_id, perfil:a.perfil, detalhe:a.detalhe, nome:a.nome, entregas:a.entregas, inicio:a.inicio, fim:a.fim, period:a.period, valor:a.valor, valor_tabela:a.valor_tabela, pacote:a.pacote, pacote_id:a.pacote_id }); });
     const grids = r.meses.map(m => ({ id:uid(), period:m.period, praca:veic.cidade || '', items:Object.entries(m.itens).map(([i, days]) => { const it = itens[+i];
-      return { id:uid(), piece:'', f1:it.programa, f2:it.formato, faixa:it.faixa || '', days, unit:Number(it.preco) || 0, disc:{ type:'pct', value:0 }, bonus:false }; }) }));
+      return Object.assign({ id:uid(), piece:'', f1:it.programa, f2:it.formato, faixa:it.faixa || '', days, unit:Number(it.preco) || 0, disc:{ type:'pct', value:0 }, bonus:false }, it.mensal ? { pormes:true } : {}); }) }));
     // Projeto especial: o Dial já está na grade; o Online vai nas observações do PI (sai no PI exportado e no e-mail da OPEC)
     const pjs = [...new Set(itens.filter(it => it.projeto).map(it => it.projeto.grupo))].map(g => itens.find(it => it.projeto && it.projeto.grupo === g).projeto);
     const pjObs = pjs.map(S.projetoObs).filter(Boolean);

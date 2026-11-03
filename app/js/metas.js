@@ -32,7 +32,7 @@
   const fatias = new WeakMap();
   const fatiaMes = (p, mes) => { const d = p.dados || {}; let f = fatias.get(p);
     if (!f || f.d !== d) { let tot = 0; const m = {};
-      (d.grids || []).forEach(g => (g.items || []).forEach(it => { const v = S.itemCalc(it).sub; tot += v; if (g.period) m[g.period] = (m[g.period] || 0) + v; }));
+      (d.grids || []).forEach(g => (g.items || []).forEach(it => { const v = S.itemCalc(it, g.period).sub; tot += v; if (g.period) m[g.period] = (m[g.period] || 0) + v; }));
       (d.digital || []).forEach(a => { const v = S.digCalc(a).sub, k = a.period || String(a.inicio || '').slice(0, 7); tot += v; if (k) m[k] = (m[k] || 0) + v; });
       f = { d, tot, m }; fatias.set(p, f); }
     if (!f.tot) return String(p.criado_em || '').slice(0, 7) === mes ? 1 : 0;

@@ -3785,3 +3785,6 @@ body.compacto .menu-cred { display:none; }
 .g-pac-l b{font-weight:600}
 .g-pac-l small{white-space:nowrap}
 .gc .g-pac{padding:0 0 10px}
+/* Face por mês (front light, empena, outdoor): Qtd. em dias (03/11/2026) */
+.gr-r .vals .ins .ins-d{display:block;font-size:9px;font-weight:500;line-height:1;color:var(--ink-2)}
+.it-res .ins-d,.it-vals .ins-d{font-size:inherit;font-weight:inherit;color:inherit}
