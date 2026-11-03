@@ -28,12 +28,12 @@
   const variacao = (agora, antes) => antes ? Math.round((agora - antes) / antes * 100) : null;
   // Venda do período = a parte de cada PI que vai ao ar nos meses do período (mês de veiculação, 29/10/2026)
   const mesesEntre = (de, ate) => { const r = []; let m = de.slice(0, 7); while (m <= ate.slice(0, 7)) { r.push(m); const [y, n] = m.split('-').map(Number); m = iso(new Date(y, n, 1)).slice(0, 7); } return r; };
-  const noPer = (p, de, ate) => mesesEntre(de, ate).reduce((t, m) => t + S.liquidoPi(p) * S.fatiaMes(p, m), 0);
+  const noPer = (p, de, ate) => mesesEntre(de, ate).reduce((t, m) => t + S.valorNoMes(p, m), 0);
   S.geralCalc = (dados, veiculos, per, hoje = new Date()) => {
     const I = intervalo(per, hoje), dHoje = iso(hoje);
     const pis = dados.pis.filter(p => VENDIDO.includes(p.status)), lanc = dados.lanc;
     const doPer = pis.map(p => ({ p, v:noPer(p, I.de, I.ate) })).filter(x => x.v > 0), doAnt = pis.map(p => ({ p, v:noPer(p, I.ade, I.aate) })).filter(x => x.v > 0);
-    const somaV = l => l.reduce((t, x) => t + x.v, 0), doMesV = m => pis.reduce((t, p) => t + S.liquidoPi(p) * S.fatiaMes(p, m), 0);
+    const somaV = l => l.reduce((t, x) => t + x.v, 0), doMesV = m => pis.reduce((t, p) => t + S.valorNoMes(p, m), 0);
     const ult = meses(-5, hoje), prox = meses(0, hoje);
     const vencido = lanc.filter(l => l.vencimento && l.vencimento < dHoje);
     const total = somaV(doPer);
@@ -56,7 +56,8 @@
       const desde = `${new Date().getFullYear() - 1}-01-01`;
       const [pis, lanc] = await Promise.all([
         S.todos(S.sb.from('pis').select('id, veiculo_id, status, consultor_id, valor_total, valor_liquido, repasse_pct, criado_em, dados').in('status', VENDIDO).gte('criado_em', desde)),
-        S.todos(S.sb.from('lancamentos').select('id, veiculo_id, valor, vencimento, pi_id').eq('sentido', 'receber').is('pago_em', null))]);
+        S.todos(S.sb.from('lancamentos').select('id, veiculo_id, valor, vencimento, pi_id').eq('sentido', 'receber').is('pago_em', null)),
+        S.lancadasBuscar(q => q.gte('mes', desde.slice(0, 7)))]);
       // Consultor de cada parcela (pelo PI), para o "A receber" filtrar por consultor
       const conhecidos = new Map(pis.map(p => [p.id, p.consultor_id]));
       const faltam = [...new Set(lanc.map(l => l.pi_id).filter(id => id && !conhecidos.has(id)))];
@@ -126,7 +127,8 @@
     const pis = dados.pis.filter(p => VENDIDO.includes(p.status));
     const partes = [], acum = [];
     pis.forEach(p => { const v = S.valorNoMes(p, ym); if (v > 0) partes.push({ p, v, h:headDe(p, v), t:S.diaNoMes(p, ym) - 1 });
-      const a = mesesDoPi(p).filter(mm => mm >= ym).reduce((t, mm) => t + S.valorNoMes(p, mm), 0); if (a > 0) acum.push({ p, v:a, h:headDe(p, a) }); });
+      // Acumulado: o lançado no mês + o que os PIs programados já têm para os meses seguintes
+      const a = mesesDoPi(p).filter(mm => mm >= ym).reduce((t, mm) => t + (mm === ym ? S.valorNoMes(p, mm) : S.previstoNoMes(p, mm)), 0); if (a > 0) acum.push({ p, v:a, h:headDe(p, a) }); });
     const porC = {}, porA = {}; partes.forEach(x => { const k = x.p.consultor_id || ''; porC[k] = (porC[k] || 0) + x.v; }); acum.forEach(x => { const k = x.p.consultor_id || ''; porA[k] = (porA[k] || 0) + x.v; });
     const ordem = [...new Set([...Object.keys(porC), ...Object.keys(porA)])].sort((a, b) => (porC[b] || 0) - (porC[a] || 0) || (porA[b] || 0) - (porA[a] || 0));
     const top = ordem.length > 6 ? ordem.slice(0, 5) : ordem, temOutros = ordem.length > top.length;

@@ -35,7 +35,8 @@
         S.todos(S.sb.from('lancamentos').select('id, veiculo_id, pi_id, valor, vencimento, contraparte').eq('sentido', 'receber').is('pago_em', null).not('pi_id', 'is', null)),
         S.todos(S.sb.from('propostas').select('id, consultor_id, situacao, data').gte('data', desde)).catch(() => []),
         S.q(S.sb.from('colaboradores').select('id, usuario_id, nome, funcao, ativo, comissao, comissao_veiculos, veiculos, email, celular')),
-        S.q(S.sb.from('colaborador_comissoes').select('colaborador_id, padrao, por_veiculo, desde').order('desde')).catch(() => [])]);
+        S.q(S.sb.from('colaborador_comissoes').select('colaborador_id, padrao, por_veiculo, desde').order('desde')).catch(() => []),
+        S.lancadasBuscar(q => q.gte('mes', desde.slice(0, 7))).catch(() => [])]);
       const conhecidos = new Set((pis || []).map(p => p.id)), faltam = [...new Set((abertas || []).map(l => l.pi_id).filter(id => !conhecidos.has(id)))];
       for (let i = 0; i < faltam.length; i += 150) (await S.q(S.sb.from('pis').select('id, veiculo_id, numero, titulo, status, consultor_id, cliente_id, agencia_id, valor_total, valor_liquido, criado_em, dados').in('id', faltam.slice(i, i + 150)))).forEach(p => { p.antigo = true; pis.push(p); });
       st.base = { pis:pis || [], abertas:abertas || [], props:props || [], cols:cols || [], hist:hist || [] }; st.em = Date.now();
@@ -80,7 +81,7 @@
     const b = st.base, r = st.meses[mes] || { itens:[] }, metas = (S.metasDoMes && S.metasDoMes(mes)) || [], h = hoje();
     const por = {}, pes = uid => por[uid || ''] || (por[uid || ''] = { uid:uid || '', bruto:0, liq:0, pis:0, meta:0, rec:0, liqPago:0, com:0, prev:0, fila:0, atraso:0, propC:0, propA:0, itens:[], porV:{}, atrasos:[] });
     (b.cols || []).filter(c => c.funcao === 'consultor' && c.ativo && c.usuario_id).forEach(c => pes(c.usuario_id));
-    b.pis.filter(p => !p.antigo).forEach(p => { const f = S.fatiaMes(p, mes); if (!(f > 0)) return; const o = pes(p.consultor_id), liq = S.valorNoMes(p, mes);
+    b.pis.filter(p => !p.antigo).forEach(p => { const f = S.lancada(p.id, mes) ? S.fatiaMes(p, mes) : 0; if (!(f > 0)) return; /* só a venda lançada */ const o = pes(p.consultor_id), liq = S.valorNoMes(p, mes);
       o.bruto += brutoNoMes(p, mes); o.liq += liq; o.pis++; o.porV[p.veiculo_id] = (o.porV[p.veiculo_id] || 0) + liq;
       if (p.consultor_id) { const pc = pctEm(p.consultor_id, p.veiculo_id, p.criado_em); if (pc) o.prev += liq * pc / 100; } });
     metas.forEach(x => { if (x.usuario_id) pes(x.usuario_id).meta += Number(x.meta) || 0; });

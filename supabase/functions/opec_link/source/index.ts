@@ -1,6 +1,7 @@
 // SONVI · função de borda "opec_link" (31/10/2026; database/067). Atende a página pública do PI (app/pi.html), que a OPEC
 // abre pelo link do e-mail, sem login. Quem prova o acesso é o token do link (link_token do PI).
-//   { acao: "abrir", token }                   → situação, PI original da agência (com o giro, database/073) e mídias (links para baixar, 30 dias)
+//   { acao: "abrir", token }                   → situação, PI original da agência (com o giro, database/073) e mídias (links para baixar, 30 dias).
+//                                                Desde 03/11/2026 (database/077): abrir o PI que está com a OPEC já o marca como programado e avisa o consultor.
 //   { acao: "programar", token, nome, desde }  → marca programado (conta como aprovado) e avisa o consultor por e-mail
 //   { acao: "devolver", token, nome, motivo }  → devolve com o motivo e avisa o consultor por e-mail
 // Remetente dos avisos: "OPEC · <veículo>" (regra de 29/10/2026: nunca "SONVI").
@@ -33,7 +34,42 @@ Deno.serve(async (req) => {
     const v: any = (pi as any).veiculos || {};
     const piNo = `PI ${v.sigla || ''} ${String((pi as any).numero).padStart(4, '0')}`;
 
+    const avisar = async (acao: string, nome: string, bb: any) => {
+    const chave = Deno.env.get('RESEND_API_KEY');
+    try {
+      let para = '';
+      if ((pi as any).consultor_id) { const { data: u } = await adm.from('usuarios').select('email').eq('id', (pi as any).consultor_id).maybeSingle(); para = String(u?.email || ''); }
+      if (!emailOk(para)) { const { data: h } = await adm.from('pi_historico').select('usuario_id').eq('pi_id', pi.id).eq('status', 'opec').not('usuario_id', 'is', null).order('em', { ascending: false }).limit(1).maybeSingle();
+        if (h?.usuario_id) { const { data: u } = await adm.from('usuarios').select('email').eq('id', h.usuario_id).maybeSingle(); para = String(u?.email || ''); } }
+      if (chave && emailOk(para)) {
+        const { data: o } = await adm.from('organizacoes').select('slug').eq('id', v.organizacao_id).maybeSingle();
+        const { data: cli } = (pi as any).cliente_id ? await adm.from('pessoas').select('nome').eq('id', (pi as any).cliente_id).maybeSingle() : { data: null };
+        const linkPi = `${o?.slug ? `https://sonvi.com.br/${o.slug}/` : 'https://sonvi.com.br/'}#/pi/${pi.id}`;
+        const prog = acao !== 'devolver', auto = acao === 'auto';
+        const titulo = prog ? `${piNo} foi programado pela OPEC` : `${piNo} foi devolvido pela OPEC`;
+        const linhas: [string, string][] = [['PI', `${piNo} · ${(pi as any).titulo || ''}`], ['Cliente', cli?.nome || '—'], ...(auto ? [] : [['Quem marcou', nome] as [string, string]]),
+          ...(prog && bb.desde ? [['A partir de', String(bb.desde).split('-').reverse().join('/')] as [string, string]] : []),
+          ...(!prog ? [['O que ajustar', String(bb.motivo || '').trim()] as [string, string]] : [])];
+        const cor = /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : '#0055ff';
+        const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:560px">
+          <p style="margin:0 0 6px;font-weight:700">${esc(v.nome)} · ${esc(titulo)}</p>
+          <p style="margin:0 0 18px;color:#3f3f46">${auto ? 'A OPEC abriu o PI pelo link do e-mail e ele ficou programado. Agora é só lançar a venda no sistema.' : prog ? 'A OPEC marcou o PI como programado pelo link do e-mail. Agora é só lançar a venda no sistema.' : 'A OPEC devolveu o PI pelo link do e-mail. Ajuste o PI e envie de novo.'}</p>
+          <table style="width:100%;border-collapse:collapse;border:1px solid #e4e6eb;font-size:14px">${linhas.map(([k, x], i) => `<tr${i ? ' style="border-top:1px solid #eef0f3"' : ''}><td style="padding:9px 14px;color:#6b6b74;white-space:nowrap;vertical-align:top">${esc(k)}</td><td style="padding:9px 14px"><b>${esc(x)}</b></td></tr>`).join('')}</table>
+          <p style="margin:24px 0"><a href="${esc(linkPi)}" style="display:inline-block;background:${esc(cor)};color:#fff;text-decoration:none;font-weight:700;padding:13px 24px;border-radius:8px">${prog ? 'Lançar a venda' : 'Abrir o PI'}</a></p></div>`;
+        const texto = `${titulo}\n\n${linhas.map(([k, x]) => `${k}: ${x}`).join('\n')}\n\n${prog ? 'Lançar a venda' : 'Abrir o PI'}: ${linkPi}`;
+        await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: `"${nomeLimpo('OPEC · ' + (v.nome || ''))}" <pi@sonvi.com.br>`, to: [para.toLowerCase()], subject: titulo, html, text: texto }) });
+      }
+    } catch (e) { console.error('aviso ao consultor', e); }
+    };
+
     if (b.acao === 'abrir') {
+      // Abrir = programado (03/11/2026): o PI que está com a OPEC passa por Aprovado e Programado e o consultor é avisado
+      if (pi.status === 'opec' || pi.status === 'aprovado') {
+        const { data: pr, error: ep } = await adm.rpc('pi_programar_por_link', { p_token: token, p_nome: 'abriu o PI pelo e-mail', p_desde: null });
+        if (ep) console.error('programar ao abrir', ep.message);
+        else if (!pr?.ja) { (pi as any).status = 'programado'; await avisar('auto', '', {}); }
+      }
       const pasta = `${pi.veiculo_id}/${pi.id}`;
       const { data: orig } = await adm.from('pi_originais').select('caminho, nome, tamanho, tipo, assinado, giro').eq('pi_id', pi.id).maybeSingle();
       let original: any = null;
@@ -68,33 +104,7 @@ Deno.serve(async (req) => {
       if (error) return resposta({ erro: error.message }, 400); r = data;
     }
 
-    // Aviso ao consultor do PI (sem consultor: a quem mandou para a OPEC)
-    const chave = Deno.env.get('RESEND_API_KEY');
-    try {
-      let para = '';
-      if ((pi as any).consultor_id) { const { data: u } = await adm.from('usuarios').select('email').eq('id', (pi as any).consultor_id).maybeSingle(); para = String(u?.email || ''); }
-      if (!emailOk(para)) { const { data: h } = await adm.from('pi_historico').select('usuario_id').eq('pi_id', pi.id).eq('status', 'opec').not('usuario_id', 'is', null).order('em', { ascending: false }).limit(1).maybeSingle();
-        if (h?.usuario_id) { const { data: u } = await adm.from('usuarios').select('email').eq('id', h.usuario_id).maybeSingle(); para = String(u?.email || ''); } }
-      if (chave && emailOk(para)) {
-        const { data: o } = await adm.from('organizacoes').select('slug').eq('id', v.organizacao_id).maybeSingle();
-        const { data: cli } = (pi as any).cliente_id ? await adm.from('pessoas').select('nome').eq('id', (pi as any).cliente_id).maybeSingle() : { data: null };
-        const linkPi = `${o?.slug ? `https://sonvi.com.br/${o.slug}/` : 'https://sonvi.com.br/'}#/pi/${pi.id}`;
-        const prog = b.acao === 'programar';
-        const titulo = prog ? `${piNo} foi programado pela OPEC` : `${piNo} foi devolvido pela OPEC`;
-        const linhas: [string, string][] = [['PI', `${piNo} · ${(pi as any).titulo || ''}`], ['Cliente', cli?.nome || '—'], ['Quem marcou', nome],
-          ...(prog && b.desde ? [['A partir de', String(b.desde).split('-').reverse().join('/')] as [string, string]] : []),
-          ...(!prog ? [['O que ajustar', String(b.motivo || '').trim()] as [string, string]] : [])];
-        const cor = /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : '#0055ff';
-        const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:560px">
-          <p style="margin:0 0 6px;font-weight:700">${esc(v.nome)} · ${esc(titulo)}</p>
-          <p style="margin:0 0 18px;color:#3f3f46">${prog ? 'A OPEC marcou o PI como programado pelo link do e-mail. No sistema ele já aparece como Programado.' : 'A OPEC devolveu o PI pelo link do e-mail. Ajuste o PI e envie de novo.'}</p>
-          <table style="width:100%;border-collapse:collapse;border:1px solid #e4e6eb;font-size:14px">${linhas.map(([k, x], i) => `<tr${i ? ' style="border-top:1px solid #eef0f3"' : ''}><td style="padding:9px 14px;color:#6b6b74;white-space:nowrap;vertical-align:top">${esc(k)}</td><td style="padding:9px 14px"><b>${esc(x)}</b></td></tr>`).join('')}</table>
-          <p style="margin:24px 0"><a href="${esc(linkPi)}" style="display:inline-block;background:${esc(cor)};color:#fff;text-decoration:none;font-weight:700;padding:13px 24px;border-radius:8px">Abrir o PI</a></p></div>`;
-        const texto = `${titulo}\n\n${linhas.map(([k, x]) => `${k}: ${x}`).join('\n')}\n\nAbrir o PI: ${linkPi}`;
-        await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: `"${nomeLimpo('OPEC · ' + (v.nome || ''))}" <pi@sonvi.com.br>`, to: [para.toLowerCase()], subject: titulo, html, text: texto }) });
-      }
-    } catch (e) { console.error('aviso ao consultor', e); }
+    await avisar(b.acao === 'programar' ? 'programar' : 'devolver', nome, b);
     return resposta({ ok: true, status: r?.status });
   } catch (e) {
     console.error(e);

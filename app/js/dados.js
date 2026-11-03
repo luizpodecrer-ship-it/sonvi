@@ -131,6 +131,8 @@
     // Pagamento dos PIs (pago, em aberto, atrasado): todos os perfis veem dos PIs que enxergam, sem abrir o Financeiro
     S.db.pagPis = {};
     if (S.APP !== 'music') { try { (await S.todos(S.sb.rpc('pagamento_dos_pis', { p_veiculo:v }), 'pi_id') || []).forEach(r => { S.db.pagPis[r.pi_id] = r; }); } catch (e) { console.error(e); } }
+    // Vendas lançadas do veículo (database/077)
+    if (S.APP !== 'music') { try { S.registrarLancadas(await S.todos(S.sb.from('vendas_lancadas').select('id, pi_id, veiculo_id, mes, valor, lancado_por, lancado_em').eq('veiculo_id', v)), k => (S.db.pis || []).some(p => k.startsWith(p.id + '|'))); } catch (e) { console.error(e); } }
     // Combos do grupo (database/044): valem em todos os veículos da empresa
     if (S.APP !== 'music') { try { S.db.combos = await q(S.sb.from('combos').select('*').order('nome')); } catch (e) { console.error(e); S.db.combos = []; } }
   };

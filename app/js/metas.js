@@ -44,8 +44,10 @@
     (d.digital || []).forEach(a => { const i = String(a.inicio || ''); if ((a.period || i.slice(0, 7)) === mes && i.slice(0, 7) === mes) dia = Math.min(dia, +i.slice(8, 10)); else if ((a.period || i.slice(0, 7)) === mes) dia = Math.min(dia, 1); });
     if (dia === 99) { const c = S.dia ? S.dia(p.criado_em) : String(p.criado_em || '').slice(0, 10); dia = c.slice(0, 7) === mes ? +c.slice(8, 10) : 1; }
     return dia; };
-  const valorNoMes = (p, mes) => Number(p.valor_liquido ?? p.valor_total ?? 0) * fatiaMes(p, mes);
-  S.valorNoMes = valorNoMes;
+  // Venda do mês = só o mês lançado (03/11/2026). S.previstoNoMes = o mesmo valor antes de lançar (para "A lançar")
+  const previstoNoMes = (p, mes) => Number(p.valor_liquido ?? p.valor_total ?? 0) * fatiaMes(p, mes);
+  const valorNoMes = (p, mes) => S.lancada(p.id, mes) ? previstoNoMes(p, mes) : 0;
+  S.valorNoMes = valorNoMes; S.previstoNoMes = previstoNoMes;
   const vendidoDe = (pis, mes, usuario, veiculo) => pis.filter(p => VENDIDO.includes(p.status) && p.consultor_id === usuario && (!veiculo || p.veiculo_id === veiculo))
     .reduce((t, p) => t + valorNoMes(p, mes), 0);
 

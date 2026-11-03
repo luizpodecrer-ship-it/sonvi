@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="css/sonvi.css?v=202611010500">
 <!-- Página que a OPEC abre pelo link do e-mail do PI (sem login; a OPEC não entra no SONVI desde 31/10/2026):
      abrir registra o recebimento (pi_aberto); abas com o PI do veículo, o PI original da agência e as mídias;
-     "Marcar como programado" (conta como aprovado) e "Devolver com o motivo" pela função de borda opec_link (database/067). -->
+     abrir já marca como programado (database/077) e fica "Devolver com o motivo", pela função de borda opec_link. -->
 <style>
   body { display:block; min-height:100%; }
   .pub-barra { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px clamp(16px, 4vw, 40px); padding-top:calc(14px + env(safe-area-inset-top, 0px)); background:color-mix(in srgb, var(--surface) 96%, transparent); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
@@ -105,20 +105,20 @@
     f.style.transform = ''; const k = Math.min(1, el('print').clientWidth / d.offsetWidth);
     f.style.transform = `scale(${k})`; f.style.width = d.offsetWidth * k + 'px'; f.style.height = d.offsetHeight * k + 'px'; };
 
+  // Abrir o link já conta como programado (03/11/2026, database/077): a função opec_link marca e avisa o consultor.
+  // Fica só "Devolver com o motivo", enquanto nenhuma venda do PI foi lançada (o banco confere).
   const painel = (msg, tipo) => {
-    const prog = ['programado', 'faturado'].includes(info.status), aberto = ['opec', 'aprovado'].includes(info.status);
-    const p = info.programado;
+    const prog = ['programado', 'faturado'].includes(info.status), espera = ['opec', 'aprovado'].includes(info.status), p = info.programado;
+    const podeDev = espera || info.status === 'programado';
     el('painel').innerHTML = `
       <div class="op-et"><span class="b f" aria-hidden="true">✓</span><div><b>Recebido</b><small>${info.recebido_em ? quando(info.recebido_em) : 'agora'}</small></div></div>
-      <div class="op-et"><span class="b${prog ? ' f' : ''}" aria-hidden="true">${prog ? '✓' : ''}</span><div><b>Programado</b><small>${prog ? (p ? `${quando(p.em)}${p.nota ? ' · ' + esc(p.nota) : ''}` : 'sim') : 'falta marcar'}</small></div></div>
-      ${aberto ? `<form class="op-acao" id="fProg" novalidate>
-          <label>Seu nome<input name="nome" autocomplete="name" maxlength="80" value="${esc(nomeSalvo())}" required></label>
-          <label>A partir de (opcional)<input name="desde" type="date"></label>
-          <button class="btn ok" type="submit">Marcar como programado</button></form>
-        ${devAberto ? `<form class="op-devform" id="fDev" novalidate><label class="f">O que precisa ser ajustado?<textarea name="motivo" maxlength="1000" required placeholder="Ex.: falta o áudio do spot de 30&quot;; o período no PI da agência é outro."></textarea></label>
+      <div class="op-et"><span class="b${prog ? ' f' : ''}" aria-hidden="true">${prog ? '✓' : ''}</span><div><b>Programado</b><small>${prog ? (p ? quando(p.em) : 'sim') : espera ? 'confirmando…' : '—'}</small></div></div>
+      ${prog && !msg ? '<div class="op-fim muted small">PI recebido e programado. Quem enviou já foi avisado.</div>' : ''}
+      ${podeDev ? (devAberto ? `<form class="op-devform" id="fDev" novalidate>
+          <label class="f">Seu nome<input name="nome" autocomplete="name" maxlength="80" value="${esc(nomeSalvo())}" required></label>
+          <label class="f">O que precisa ser ajustado?<textarea name="motivo" maxlength="1000" required placeholder="Ex.: falta o áudio do spot de 30&quot;; o período no PI da agência é outro."></textarea></label>
           <div class="row"><button class="btn" type="button" id="devVolta">Voltar</button><button class="btn danger" type="submit">Devolver o PI</button></div></form>`
-          : `<div class="op-dev"><button type="button" id="devAbre">Tem algum problema? Devolver com o motivo</button></div>`}`
-        : `<div class="op-fim muted small">${prog && !msg ? 'Tudo certo. Quem enviou o PI já foi avisado.' : ''}</div>`}
+        : `<div class="op-dev"><button type="button" id="devAbre">Tem algum problema? Devolver com o motivo</button></div>`) : ''}
       <div class="op-msg ${tipo || ''}" role="status" id="opMsg">${msg ? esc(msg) : ''}</div>`;
   };
   const aviso = (msg, tipo) => { const m = el('opMsg'); if (!m) return painel(msg, tipo); m.className = 'op-msg ' + (tipo || ''); m.textContent = msg; };
@@ -147,24 +147,16 @@
     if (e.target.id === 'devVolta') { devAberto = false; painel(); }
   });
   el('painel').addEventListener('submit', async e => { e.preventDefault();
-    const fp = el('fProg'), nome = fp.nome.value.trim();
-    if (!nome) { aviso('Escreva o seu nome para registrar quem marcou.', 'erro'); fp.nome.focus(); return; }
+    const f = e.target; if (f.id !== 'fDev') return;
+    const nome = f.nome.value.trim(), motivo = f.motivo.value.trim();
+    if (!nome) { aviso('Escreva o seu nome para registrar quem devolveu.', 'erro'); f.nome.focus(); return; }
+    if (!motivo) { f.motivo.focus(); return; }
     guardaNome(nome);
-    const bt = e.target.querySelector('button[type=submit]'); bt.disabled = true;
+    const bt = f.querySelector('button[type=submit]'); bt.disabled = true;
     try {
-      if (e.target.id === 'fDev') {
-        const motivo = e.target.motivo.value.trim(); if (!motivo) { bt.disabled = false; e.target.motivo.focus(); return; }
-        await opec({ acao:'devolver', nome, motivo });
-        info.status = 'devolvido'; el('situacao').textContent = 'Devolvido para ajuste';
-        el('painel').innerHTML = `<div class="op-msg bom" role="status" style="grid-column:1/-1">PI devolvido. Quem enviou já foi avisado e vai mandar de novo com o ajuste.</div>`;
-        return;
-      }
-      const desde = fp.desde.value || '';
-      const r = await opec({ acao:'programar', nome, desde });
-      info.status = r.status || 'programado';
-      info.programado = { em:new Date().toISOString(), nota:nome + (desde ? ' · a partir de ' + desde.split('-').reverse().join('/') : '') };
-      el('situacao').textContent = SIT[info.status] || ''; devAberto = false;
-      painel(r.ja ? 'Este PI já estava marcado como programado.' : 'Marcado como programado. Quem enviou o PI já foi avisado.', 'bom');
+      await opec({ acao:'devolver', nome, motivo });
+      info.status = 'devolvido'; el('situacao').textContent = 'Devolvido para ajuste';
+      el('painel').innerHTML = `<div class="op-msg bom" role="status" style="grid-column:1/-1">PI devolvido. Quem enviou já foi avisado e vai mandar de novo com o ajuste.</div>`;
     } catch (err) { bt.disabled = false; aviso(err.message, 'erro'); }
   });
 

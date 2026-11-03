@@ -12,7 +12,7 @@
   const ANDAMENTO = ['rascunho', 'opec', 'devolvido', 'aprovado', 'programado'];
   const soma = list => list.reduce((s, p) => s + S.liquidoPi(p), 0);   // sempre o líquido
   // Vendido no mês = a parte de cada PI que vai ao ar no mês (mês de veiculação, 29/10/2026)
-  const somaMes = (list, m) => list.reduce((s, p) => s + S.liquidoPi(p) * S.fatiaMes(p, m), 0);
+  const somaMes = (list, m) => list.reduce((s, p) => s + S.valorNoMes(p, m), 0);   // só a venda lançada
   const val = list => list.reduce((s, x) => s + Number(x.valor || 0), 0);
   const pago = l => Number(l.valor_pago != null && l.valor_pago !== '' ? l.valor_pago : l.valor || 0);
   const mesDe = iso => String(iso || '').slice(0, 7);

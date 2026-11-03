@@ -45,6 +45,13 @@
   };
   // A mesma conta existe no banco (database/061, pi_calculo) e é ela que vale ao gravar: mudou aqui, mude lá.
   // Valor de venda do PI = o líquido (sem a comissão da agência). Todas as somas de venda usam este (03/11/2026)
+  // Vendas lançadas (03/11/2026, database/077): só o mês lançado conta como venda. Registro único de todas as telas
+  // (veículo, Dashboard Gestão, comissões); cada tela que busca PIs busca também os lançamentos deles.
+  S.lancReg = S.lancReg || new Map();
+  S.registrarLancadas = (rows, troca) => { if (troca) [...S.lancReg.keys()].filter(k => troca(k)).forEach(k => S.lancReg.delete(k));
+    (rows || []).forEach(r => S.lancReg.set(r.pi_id + '|' + r.mes, r)); };
+  S.lancada = (piId, mes) => S.lancReg.get(piId + '|' + mes) || null;
+  S.lancadasBuscar = async (filtro) => { const rows = await S.todos(filtro(S.sb.from('vendas_lancadas').select('id, pi_id, veiculo_id, mes, valor, lancado_por, lancado_em'))); S.registrarLancadas(rows); return rows; };
   S.liquidoPi = p => Number(p.valor_liquido ?? p.valor_total ?? 0);
   S.calc = pi => {
     const d = pi.dados; let media = 0, bonus = 0, ins = 0, pub = 0, radio = 0, digital = 0;
