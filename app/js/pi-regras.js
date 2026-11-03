@@ -158,8 +158,16 @@
   // Preço de um programa × formato numa tabela (a vigente, se nenhuma for indicada). Rascunhos nunca entram no PI.
   S.precoNaTabela = (tabelaId, programaId, formatoId) => S.db.precos.find(x => x.tabela_id === tabelaId && x.programa_id === programaId && x.formato_id === formatoId) || null;
   S.ehDigital = p => !!p && p.secao === 'digital';
+  // Mídia exterior (front light, empena, outdoor, LED, DOOH): o preço fica no próprio produto (dados.variacoes e
+  // dados.producao), não na tabela. Devolve [{ nome, valor, obs, producao }] com o que tem preço (03/11/2026).
+  S.variacoesOoh = p => { const d = (p && p.dados) || {}, out = (d.variacoes || []).filter(x => String(x.nome || '').trim() && Number(x.valor) > 0)
+      .map(x => ({ nome:String(x.nome).trim(), valor:Number(x.valor), obs:x.obs || '' }));
+    if (Number((d.producao || {}).valor) > 0) out.push({ nome:String(d.producao.nome || '').trim() || 'Produção', valor:Number(d.producao.valor), obs:'cobrada uma vez', producao:true });
+    return out; };
   S.preco = (programa, formato) => {
-    const p = S.db.produtos.find(x => x.tipo === 'programa' && !S.ehDigital(x) && x.nome.trim() === String(programa || '').trim()), f = S.db.produtos.find(x => x.tipo === 'formato' && !S.ehDigital(x) && x.nome.trim() === String(formato || '').trim());
+    const nomeP = String(programa || '').trim(), ooh = S.db.produtos.find(x => x.tipo === 'programa' && x.secao === 'ooh' && x.nome.trim() === nomeP);
+    if (ooh) { const v = S.variacoesOoh(ooh).find(x => x.nome === String(formato || '').trim()); return v ? { preco:v.valor } : null; }
+    const p = S.db.produtos.find(x => x.tipo === 'programa' && !S.ehDigital(x) && x.nome.trim() === nomeP), f = S.db.produtos.find(x => x.tipo === 'formato' && !S.ehDigital(x) && x.nome.trim() === String(formato || '').trim());
     const t = S.tabelaVigente();
     if (!p || !f || !t) return null;
     return S.precoNaTabela(t.id, p.id, f.id);

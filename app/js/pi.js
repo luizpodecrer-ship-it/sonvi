@@ -283,7 +283,7 @@
         ${chip('Prazo', em ? `<input type="date" value="${pi.prazo || ''}" data-f="prazo">` : `<b>${dfmt(pi.prazo)}</b>`)}</div></section>`;
     const pecas = `<section class="pecas" aria-label="Peças">${d.pieces.map(p => `<span class="peca">${selo(pi, p.id)}${em ? `<input value="${esc(p.name)}" placeholder="Nome da peça" data-f="name" data-piece="${p.id}" data-rerender="1" aria-label="Nome da peça ${letter(pi, p.id)}"><button class="x" data-act="piRmPiece" data-id="${p.id}" aria-label="Remover peça">×</button>` : `<span>${esc(p.name) || 'Peça sem nome'}</span>`}</span>`).join('')}
       ${em ? '<button class="btn sm tracej" data-act="piAddPiece">+ Adicionar peça</button>' : d.pieces.length ? '' : '<span class="muted small">Nenhuma peça cadastrada.</span>'}</section>`;
-    const avisoTab = em && (semCadastro('programa') || semCadastro('formato')) ? `<div class="note info">Para escolher programa e formato na grade, cadastre-os antes em <a data-go="/produtos">Produtos</a>.</div>` : '';
+    const avisoTab = em && (semCadastro('programa') || (semCadastro('formato') && !S.db.produtos.some(p => p.secao === 'ooh' && p.ativo))) ? `<div class="note info">Para escolher programa e formato na grade, cadastre-os antes em <a data-go="/produtos">Produtos</a>.</div>` : '';
     const grades = d.grids.map((g, i) => (S.celular ? gradeCelular : gradeTela)(pi, g, i, em)).join('') + digitalHtml(pi, em)
       + (em ? `<p class="row" style="gap:10px;flex-wrap:wrap"><button class="btn pri" data-act="piAddGrid">+ Adicionar grade</button>${temDigTabela() || temDig ? '<button class="btn" data-act="piAcao" data-op="nova">+ Ação digital</button>' : ''}</p>` : '')
       + entregasHtml(pi);
@@ -307,7 +307,12 @@
   const descEdit = (it, a) => `<span class="duo"><input value="${it.bonus ? '' : nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="${it.bonus ? '—' : '0'}" ${a}${it.bonus ? ' disabled' : ''} aria-label="Desconto"><select data-f="disc.type" data-rerender="1" ${a} aria-label="Tipo de desconto"><option value="pct"${!it.bonus && it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${!it.bonus && it.disc.type === 'brl' ? ' selected' : ''}>R$</option><option value="bon"${it.bonus ? ' selected' : ''}>Bonif.</option></select></span>`;
   const descVer = it => it.bonus ? 'Bonificado' : regra(it.disc);
   // Listas de escolha vindas do cadastro (Tabelas). Um valor antigo que não está mais no cadastro continua aparecendo.
-  const escolha = (tipo, atual, rotulo) => { const lista = S.db.produtos.filter(p => p.tipo === tipo && p.ativo && !S.ehDigital(p)).sort((a, b) => a.nome.localeCompare(b.nome)), at = String(atual || '').trim();
+  // Formato de um produto de mídia exterior = as faces/variações dele (e a produção), com o preço do próprio produto (03/11/2026)
+  const oohDe = prog => S.db.produtos.find(p => p.tipo === 'programa' && p.secao === 'ooh' && p.nome.trim() === String(prog || '').trim());
+  const escolha = (tipo, atual, rotulo, prog) => { const at = String(atual || '').trim(), oh = tipo === 'formato' && oohDe(prog);
+    if (oh) { const vs = S.variacoesOoh(oh), antigo = at && !vs.some(v => v.nome === at) ? `<option value="${esc(at)}" selected>${esc(at)}</option>` : '';
+      return `<option value="">${vs.length ? 'Face / variação' : 'Sem preço cadastrado'}</option>${antigo}${vs.map(v => `<option value="${esc(v.nome)}"${v.nome === at ? ' selected' : ''} title="${esc([v.obs, brl(v.valor)].filter(Boolean).join(' · '))}">${esc(v.nome)} · ${brl(v.valor)}</option>`).join('')}`; }
+    const lista = S.db.produtos.filter(p => p.tipo === tipo && p.ativo && !S.ehDigital(p) && !['projeto', 'projeto_modelo', 'patrocinio'].includes(p.secao)).sort((a, b) => a.nome.localeCompare(b.nome));
     const ops = lista.map(p => `<option value="${esc(p.nome.trim())}"${p.nome.trim() === at ? ' selected' : ''}${p.detalhe ? ` title="${esc(p.detalhe)}"` : ''}>${esc(p.nome.trim())}${p.detalhe && tipo === 'programa' ? ' · ' + esc(p.detalhe) : ''}</option>`).join('');
     const antigo = at && !lista.some(p => p.nome.trim() === at) ? `<option value="${esc(at)}" selected>${esc(at)}</option>` : '';
     return `<option value="">${rotulo}</option>${antigo}${ops}`; };
@@ -364,7 +369,7 @@
     g.items.forEach(it => {
       const c = S.itemCalc(it); tIns += c.ins; tSub += c.sub; days.forEach(d => { if (it.days[d]) porDia[d] = (porDia[d] || 0) + num(it.days[d]); });
       L.push(`<div class="ln">${em ? `<button class="x rm" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}" aria-label="Remover linha" title="Remover linha">×</button>
-          <select data-f="f1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato')}</select>`
+          <select data-f="f1" data-rerender="1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato', it.f1)}</select>`
         : `<span></span><b class="tx">${esc(it.f1) || '—'}</b><span class="tx muted">${esc(it.f2)}</span>`}</div>`);
       M.push(`<div class="ln dias">${days.map(d => em
         ? `<input class="day${it.days[d] ? ' has' : ''}" inputmode="numeric" data-mask="int" value="${it.days[d] || ''}" data-day="${d}" ${a(it)} aria-label="Dia ${d}">`
@@ -398,7 +403,7 @@
           : `<span class="cd${w === 0 || w === 6 ? ' we' : ''}"><small>${d}</small><span class="day${it.days[d] ? ' has' : ''}">${it.days[d] || ''}</span></span>`; })];
       return `<article class="it-ab">
         <div class="it-cab">
-          ${em ? `<span class="tx"><select data-f="f1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato')}</select></span>` : `<span class="tx"><b>${esc(it.f1) || '—'}</b><small>${esc(it.f2)}</small></span>`}
+          ${em ? `<span class="tx"><select data-f="f1" data-rerender="1" ${a(it)} aria-label="Programa">${escolha('programa', it.f1, 'Programa')}</select><select data-f="f2" ${a(it)} aria-label="Formato">${escolha('formato', it.f2, 'Formato', it.f1)}</select></span>` : `<span class="tx"><b>${esc(it.f1) || '—'}</b><small>${esc(it.f2)}</small></span>`}
           <b id="sub-${it.id}">${brl(c.sub)}</b></div>
         <div class="cal">${WD.map((w, k) => `<small class="${k === 0 || k === 6 ? 'we' : ''}">${w}</small>`).join('')}${cal.join('')}</div>
         ${em ? `<small class="muted" style="text-align:center">Toque no dia e digite quantas inserções, ou</small><button class="btn sm" data-act="piDistribuir" data-g="${g.id}" data-id="${it.id}">${S.svg('paineis')}Distribuir automaticamente</button>` : ''}
@@ -909,6 +914,10 @@
     // A agência escolhida traz a sua comissão padrão
     if (d.f === 'agencia_id') pi.dados.commission = { type:'pct', value:val ? num((S.pessoa(val) || {}).comissao) : 0 };
     // Programa + formato puxam o preço vigente da tabela
+    // Trocou o programa: se o formato não serve para ele, a mídia exterior já vem com a primeira face e os outros ficam sem formato
+    if (item && d.f === 'f1') { const oh = oohDe(item.f1), f2 = String(item.f2 || '').trim();
+      if (oh) { const vs = S.variacoesOoh(oh); if (!vs.some(v => v.nome === f2)) item.f2 = (vs[0] || {}).nome || ''; }
+      else if (f2 && !S.db.produtos.some(p => p.tipo === 'formato' && p.nome.trim() === f2)) item.f2 = ''; }
     if (item && (d.f === 'f1' || d.f === 'f2')) { const p = S.preco(item.f1, item.f2); if (p) { item.unit = num(p.preco); document.querySelectorAll(`input[data-f="unit"][data-i="${item.id}"]`).forEach(u => { u.value = nfmt(item.unit); }); } }
     marcarSujo();
     if (d.rerender) { S.render(); return true; }
