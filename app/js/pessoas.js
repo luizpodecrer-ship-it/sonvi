@@ -110,7 +110,7 @@
 
   S.views.clientes = id => {
     // Agências saíram de dentro do veículo (29/10/2026): o cadastro é único do grupo, no Dashboard Gestão (agencias.js)
-    aba = 'cliente'; if (id === 'agencias' && S.me.diretor) queueMicrotask(() => S.admAbrir('agencias'));
+    aba = 'cliente'; if (id === 'agencias') queueMicrotask(() => S.me.diretor ? S.admAbrir('agencias') : S.go('/agencias-v'));
     const cli = aba === 'cliente', q = S.ui.q.toLowerCase(), todas = S.pessoas(aba);
     const fone = p => p.telefone || p.whatsapp || '';
     const gestor = S.pode('diretor', 'gerente'), podeCriar = S.pode('diretor', 'gerente', 'consultor'), outras = radiosDestino().length > 0;

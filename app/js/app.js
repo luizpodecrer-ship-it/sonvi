@@ -10,6 +10,7 @@
     ['dashboard', 'Dashboard', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['followup', 'Follow-up', ['diretor', 'gerente', 'consultor']],
     ['clientes', 'Clientes', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
+    ['agencias-v', 'Agências', ['diretor', 'gerente', 'consultor']],  // dentro do veículo (03/11/2026): cadastra no cadastro único do grupo
     ['propostas', 'Propostas', ['diretor', 'gerente', 'consultor']],
     ['pis', 'PIs', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['opec', 'OPEC', ['diretor', 'opec']],
@@ -91,7 +92,7 @@
     const side = document.getElementById('side'), sideHtml = `<a class="brand" href="#/${inicio}" data-go="/${inicio}" aria-label="${MUSIC ? 'Sonvi Music' : DIR ? 'SONVI · Dashboard Gestão' : 'SONVI · Dashboard'}">${S.logo()}<img class="so-simbolo" src="img/simbolo.svg" width="66" height="78" alt=""></a>
       <button type="button" class="recolher" data-act="menuRecolher" aria-controls="side">${S.svg('recolher')}${S.svg('expandir')}<span class="sr">Recolher menu</span></button>
       ${semVeiculo || geral ? '' : S.seletorVeiculo(veh, DIR)}
-      <nav aria-label="Menu principal">${itens.map(([k, n, , href], i) => { const ex = itens.length > 5 && i >= 4 ? ' extra' : ''; return href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo${ex}" data-ico="${k}">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
+      <nav aria-label="Menu principal">${itens.map(([k, n, , href], i) => { const pos = itens.slice(0, i).filter(n => n[0] !== 'agencias-v').length, ex = itens.length > 5 && (pos >= 4 || k === 'agencias-v') ? ' extra' : ''; return href ? `<a href="${href}" target="_blank" rel="noopener" title="${n} (abre em outra aba)" class="externo${ex}" data-ico="${k}">${S.svg(k)}${n}${S.svg('abrir', 14)}</a>`
         : `<a href="#/${k}" data-go="/${k}" title="${n}" data-ico="${k}" class="${(active === k ? 'on' : '') + ex}"${active === k ? ' aria-current="page"' : ''}>${S.svg(k)}${n}${k === 'opec' && waiting ? `<span class="badge">${waiting}</span>` : ''}${k === 'followup' && atrasos ? `<span class="badge alerta" title="Retornos atrasados">${atrasos}</span>` : ''}</a>`; }).join('')}
       ${itens.length > 5 ? `<button type="button" class="nav-mais" data-act="navMais" aria-haspopup="menu">${S.svg('mais3')}Mais</button>` : ''}
       ${SOON.length ? '<div class="sec">Em breve</div>' : ''}${SOON.map(n => `<span class="soon">${S.svg('programacao')}${n}</span>`).join('')}</nav>
