@@ -266,6 +266,11 @@
     <div class="hr"><small>Valor total</small><b>${brl(c.total)}</b></div><div class="g"><small>Comissão da agência</small><b>${brl(c.commission)}</b></div><div><small>Valor líquido</small><b>${brl(c.net)}</b></div>
     <div class="hr"><small>Bonificação</small><b>${brl(c.bonus)}</b></div><div class="g"><small>Honorários</small><b>${brl(c.fee)}</b></div><div><small>Inserções</small><b>${c.ins}</b></div>${c.pub ? `<div><small>Publicações</small><b>${c.pub}</b></div>` : ''}`;
 
+  // Com a marca de quem o PI sai (03/11/2026): do veículo ou da empresa comercial (Head 14). Vale no PI impresso e no e-mail da OPEC.
+  const marcaDe = pi => (pi && pi.dados && pi.dados.marca) || S.veh(pi.veiculo_id).pi_marca || 'radio';
+  const empNome = () => String((S.db.empresa || {}).nome || 'Empresa comercial').split('·')[0].trim();
+  const marcaNome = pi => marcaDe(pi) === 'comercial' ? empNome() : S.veh(pi.veiculo_id).nome;
+  const marcaOps = (pi, m = marcaDe(pi)) => `<option value="radio"${m === 'radio' ? ' selected' : ''}>${esc(S.veh(pi.veiculo_id).nome)}</option><option value="comercial"${m === 'comercial' ? ' selected' : ''}>${esc(empNome())}</option>`;
   function tabDetails(pi, c, em) {
     const d = pi.dados, ro = em ? '' : ' disabled', v = S.veh(pi.veiculo_id), semAg = pi.agencia_id ? '' : ' disabled';
     const chip = (k, val) => `<span class="ic"><small>${k}</small>${val}</span>`;
@@ -276,7 +281,8 @@
         ${chip('Projeto', em ? `<input value="${esc(pi.projeto)}" placeholder="Ex.: Black Friday 2026" data-f="projeto">` : `<span class="val">${esc(pi.projeto) || '—'}</span>`)}
         ${chip('Cliente', em ? `<select data-f="cliente_id" data-rerender="1">${sel(S.pessoas('cliente'), pi.cliente_id, 'Escolha o cliente')}</select>` : `<span class="val">${esc(S.nome(pi.cliente_id)) || '—'}</span>`)}
         ${chip('Agência', em ? `<select data-f="agencia_id" data-rerender="1">${sel(S.pessoas('agencia'), pi.agencia_id, 'Venda direta')}</select>` : `<span class="val">${esc(S.nome(pi.agencia_id)) || 'Venda direta'}</span>`)}
-        ${chip('Veículo', `<span class="val">${esc(v.nome)}</span>`)}</div>
+        ${chip('Veículo', `<span class="val">${esc(v.nome)}</span>`)}
+        ${S.db.empresa ? chip('PI sai como', em ? `<select data-f="dados.marca" aria-label="PI sai com a marca">${marcaOps(pi)}</select>` : `<span class="val">${esc(marcaNome(pi))}</span>`) : ''}</div>
       <div class="lin cond">${chip('Comissão', em ? duo('dados.commission', d.commission, semAg) : `<b>${pi.agencia_id ? regra(d.commission) : '—'}</b>`)}
         ${chip('Honorários', em ? duo('dados.fee', d.fee, semAg) : `<b>${pi.agencia_id ? regra(d.fee) : '—'}</b>`)}
         ${chip('Desconto geral', em ? duo('dados.discount', d.discount, '') : `<b>${regra(d.discount)}</b>`)}
@@ -656,7 +662,9 @@
         { k:'cliente_id', label:'Cliente', type:'select', req:true, options:[['', 'Escolha o cliente'], ...clientes.map(p => [p.id, p.nome]), [NOVO, '+ Cadastrar novo cliente']] },
         { k:'agencia_id', label:'Agência', type:'select', options:[['', 'Venda direta'], ...S.pessoas('agencia').map(p => [p.id, p.nome])] },
         { html:novoCli },
-        { k:'projeto', label:'Projeto / campanha', full:true }], { cliente_id:clientes.length ? '' : NOVO },
+        { k:'projeto', label:'Projeto / campanha', full:true },
+        ...(S.db.empresa ? [{ k:'marca', label:'PI sai com a marca', type:'select', full:true, options:[['comercial', `${empNome()} (empresa comercial)`], ['radio', `${S.veh().nome} (veículo)`]] }] : [])],
+        { cliente_id:clientes.length ? '' : NOVO, marca:S.veh().pi_marca || 'comercial' },
         v => S.run(async () => {
           if (v.cliente_id === NOVO) { // cadastra o cliente antes de criar o PI (ou usa o que já tem o mesmo CNPJ/CPF)
             const doc = (v.novo_doc || '').trim(), igual = doc && S.pessoas('cliente').find(p => (p.documento || '').replace(/\D/g, '') === doc.replace(/\D/g, ''));
@@ -665,7 +673,8 @@
           }
           const ag = S.pessoa(v.agencia_id) || S.pessoa((S.pessoa(v.cliente_id) || {}).agencia_id);
           if (ag && !v.agencia_id) v.agencia_id = ag.id; // cliente atendido por agência já entra com ela
-          const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:ag ? num(ag.comissao) : 0 }, grids:[{ id:uid(), period:today().slice(0, 7), praca:S.veh().cidade || '', items:[blankItem()] }] } }).dados;
+          const marca = v.marca === 'radio' ? 'radio' : v.marca === 'comercial' ? 'comercial' : (S.veh().pi_marca || 'radio'); delete v.marca;
+          const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:ag ? num(ag.comissao) : 0 }, marca, grids:[{ id:uid(), period:today().slice(0, 7), praca:S.veh().cidade || '', items:[blankItem()] }] } }).dados;
           const pi = S.piNorm(await criar(v, dados)); S.db.pis.push(pi); S.ui.tab = 'detalhes'; S.piEntrar(pi); location.hash = '/pi/' + pi.id;
         }, 'PI criado'), 'Criar PI');
       // Mostra os campos do cliente novo só quando essa opção está escolhida
