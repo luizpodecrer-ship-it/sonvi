@@ -361,7 +361,7 @@
       return { id:uid(), piece:'', f1:it.programa, f2:it.formato, faixa:it.faixa || '', days, unit:Number(it.preco) || 0, disc:{ type:'pct', value:0 }, bonus:false }; }) }));
     // Projeto especial: o Dial já está na grade; o Online vai nas observações do PI (sai no PI exportado e no e-mail da OPEC)
     const pjs = [...new Set(itens.filter(it => it.projeto).map(it => it.projeto.grupo))].map(g => itens.find(it => it.projeto && it.projeto.grupo === g).projeto);
-    const pjObs = pjs.filter(j => (j.online || []).length).map(j => `Projeto especial ${j.nome} · Online (por mês): ${j.online.map(x => `${Number(x.qtd) > 0 ? x.qtd + ' ' : ''}${x.titulo}${x.sub ? ' ' + x.sub : ''}`).join('; ')}.`);
+    const pjObs = pjs.map(S.projetoObs).filter(Boolean);
     const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:ag ? num(ag.comissao) : 0 }, grids, digital, marca:f.marca === 'comercial' ? 'comercial' : 'radio',
       proposta:{ id:p.id, numero:S.propNo(p) }, billing:{ obsClient:[`Conforme proposta comercial nº ${S.propNo(p)}.`, ...pjObs].join('\n') } } }).dados;
     return { dados, c:S.calc({ agencia_id:p.agencia_id, dados }) };
@@ -549,24 +549,26 @@
   // ---------- ações ----------
   const daLista = d => achar(d.id) || (ed.id ? achar(ed.id) : null);
   // Janela do projeto especial: escolher (ou ajustar) dias e valor do mês nesta proposta. atual = o bloco já na proposta.
-  const dlgProjeto = (atual, fim) => { const ps = S.projetosAtivos(), prodDe = id => ps.find(x => x.id === id) || S.db.produtos.find(x => x.id === id);
+  const dlgProjeto = (atual, fim, op = {}) => { const npi = op.pi; /* op.pi = { ult, de, mes }: PI feito à mão (03/11/2026) */ const ps = S.projetosAtivos(), prodDe = id => ps.find(x => x.id === id) || S.db.produtos.find(x => x.id === id);
     const p0 = atual ? prodDe(atual.id) : null; if (atual && !p0) return S.toast('Este projeto não existe mais em Produtos. Tire o projeto e escolha outro.');
     const diasChips = dias => S.SEMANA.map(k => `<label class="pj-chip"><input type="checkbox" name="dia_${k}"${dias.includes(k) ? ' checked' : ''}><span>${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][k]}</span></label>`).join('');
     S.dialog(`<h2>${atual ? 'Ajustar projeto especial' : 'Adicionar projeto especial'}</h2>
       ${atual ? `<input type="hidden" name="projeto" value="${p0.id}"><p class="pj-dlg-nome"><b>${esc(atual.nome)}</b></p>` : `<label class="f">Projeto<select name="projeto" required><option value="">Escolha</option>${ps.map(x => `<option value="${x.id}">${esc(x.nome)} · ${brl((x.dados || {}).valor)}/mês</option>`).join('')}</select></label>`}
-      <div id="prPjBox"${atual ? '' : ' hidden'}><fieldset class="pj-diasf"><legend class="form-sec">Dias nesta proposta</legend><div class="pj-chips" id="prPjDias">${atual ? diasChips(atual.dias) : ''}</div></fieldset>
-        <label class="f">Valor por mês nesta proposta (R$)<input name="valor" data-mask="dec" inputmode="decimal" required value="${atual ? nfmt(atual.valor) : ''}"></label>
+      <div id="prPjBox"${atual ? '' : ' hidden'}><fieldset class="pj-diasf"><legend class="form-sec">Dias ${npi ? 'neste PI' : 'nesta proposta'}</legend><div class="pj-chips" id="prPjDias">${atual ? diasChips(atual.dias) : ''}</div></fieldset>
+        <label class="f">Valor por mês ${npi ? 'neste PI' : 'nesta proposta'} (R$)<input name="valor" data-mask="dec" inputmode="decimal" required value="${atual ? nfmt(atual.valor) : ''}"></label>
         <div id="prPjInfo" class="caixa"></div></div>
-      <p class="muted small">O cadastro do projeto não muda. Aprovada a proposta, o Dial vira as linhas do PI nesses dias (rotativo) e o Online vai nas observações.</p>
+      ${npi ? `<label class="f">A partir do dia<input name="de" type="number" min="1" max="${npi.ult}" value="${npi.de || 1}" required></label>` : ''}
+      <p class="muted small">${npi ? `O cadastro do projeto não muda. O Dial vira linhas da grade de ${esc(npi.mes)} nesses dias, com o valor do mês dividido pelas inserções (começando depois do dia 1, a quantidade e o valor ficam proporcionais). O Online vai nas observações do PI.` : 'O cadastro do projeto não muda. Aprovada a proposta, o Dial vira as linhas do PI nesses dias (rotativo) e o Online vai nas observações.'}</p>
       <div class="row" style="margin-top:18px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${atual ? 'Aplicar' : 'Adicionar'}</button></div>`,
       f => { const pr = prodDe(f.projeto); if (!pr) return; const dias = S.SEMANA.filter(k => f['dia_' + k] === 'on'); if (!dias.length) return S.toast('Marque ao menos um dia da semana.');
-        const valor = num(f.valor); if (!(valor > 0)) return S.toast('Informe o valor do mês.'); fim(pr, { dias, valor }); });
+        const valor = num(f.valor); if (!(valor > 0)) return S.toast('Informe o valor do mês.'); fim(pr, npi ? { dias, valor, de:Math.min(npi.ult, Math.max(1, parseInt(f.de) || 1)) } : { dias, valor }); });
     const dl = document.getElementById('dlg'), info = () => { const pr = prodDe(dl.querySelector('[name="projeto"]').value), box = document.getElementById('prPjInfo'); if (!pr || !box) return; const tab = Number((pr.dados || {}).valor) || 0, v = num(dl.querySelector('[name="valor"]').value);
       box.innerHTML = `${S.projetoEntregasHtml(pr.dados || {}, 'pj-ent-blk')}<small class="muted">Valor de tabela ${brl(tab)}${v > 0 && v < tab - .004 ? ` · desconto ${brl(tab - v)} (${nfmt((1 - v / tab) * 100).replace(/,?0+$/, '')}%)` : ''}</small>`; };
     const sel = dl.querySelector('select[name="projeto"]');
     if (sel) sel.addEventListener('change', () => { const pr = prodDe(sel.value); document.getElementById('prPjBox').hidden = !pr; if (!pr) return;
       document.getElementById('prPjDias').innerHTML = diasChips(S.projetoDias(pr)); dl.querySelector('[name="valor"]').value = nfmt((pr.dados || {}).valor || 0); info(); });
     dl.querySelector('[name="valor"]').addEventListener('input', info); info(); };
+  S.dlgProjeto = dlgProjeto;
   const atualEd = () => (S.route().view === 'propostas' && ed.id ? ed.p : null);
   const comItem = fn => { const p = atualEd(); if (!p || !editavel(achar(p.id))) return; fn(p); sujar(); S.render(); };
   Object.assign(S.actions, {

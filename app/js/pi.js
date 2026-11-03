@@ -293,9 +293,16 @@
       ${S.datalist('dl-praca', [S.veh(pi.veiculo_id).cidade].filter(Boolean))}`;
   }
 
+  // Projetos especiais e patrocínios lançados na grade (PI feito à mão, 03/11/2026): uma faixa por pacote, com Ajustar e Tirar
+  const pacotesDe = g => { const out = []; g.items.forEach(it => { const k = it.projeto ? 'projeto' : it.cota ? 'cota' : ''; if (!k) return; const x = it[k];
+    let e = out.find(o => o.grupo === x.grupo && o.tipo === k); if (!e) out.push(e = { tipo:k, grupo:x.grupo, x, ins:0, sub:0 }); const c = S.itemCalc(it); e.ins += c.ins; e.sub += c.sub; }); return out; };
+  const pacotesGrade = (g, em) => { const ps = pacotesDe(g); if (!ps.length) return '';
+    return `<div class="g-pac">${ps.map(e => `<div class="g-pac-l"><span class="pill" style="--tone:var(--accent)">${e.tipo === 'projeto' ? 'Projeto especial' : 'Patrocínio'}</span>
+      <b>${esc(e.x.nome)}</b><small class="muted">${e.tipo === 'projeto' ? `${esc(S.diasTexto(e.x.dias))}${e.x.horas ? ' · ' + esc(e.x.horas) : ''} · ` : ''}${e.ins} inserções · ${brl(e.sub)}</small>
+      ${em ? `<span class="grow"></span>${e.tipo === 'projeto' ? `<button class="btn sm" data-act="piAjProjeto" data-g="${g.id}" data-grupo="${esc(e.grupo)}">Ajustar</button>` : ''}<button class="btn sm danger" data-act="piRmPacote" data-g="${g.id}" data-grupo="${esc(e.grupo)}" data-tipo="${e.tipo}">Tirar ${e.tipo === 'projeto' ? 'projeto' : 'patrocínio'}</button>` : ''}</div>`).join('')}</div>`; };
   const cabGrade = (g, i, em) => `<div class="g-hd"><h2>Grade ${String.fromCharCode(65 + i)}</h2>
     <label>Período de veiculação ${em ? `<select data-f="period" data-g="${g.id}" data-rerender="1" aria-label="Período de veiculação">${meses(g.period)}</select>` : `<b>${mesExt(g.period)}</b>`}</label>
-    ${em ? `<span class="g-acoes"><button class="btn sm" data-act="piDistribuir" data-g="${g.id}" title="Escolha a quantidade e os dias da semana; o SONVI preenche o mapa">${S.svg('paineis')}Distribuir inserções</button><button class="btn sm" data-act="piRepetir" data-id="${g.id}" title="Copia esta grade para os meses seguintes">${S.svg('copia')}Repetir nos próximos meses</button><button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button></span>` : ''}</div>`;
+    ${em ? `<span class="g-acoes"><button class="btn sm" data-act="piDistribuir" data-g="${g.id}" title="Escolha a quantidade e os dias da semana; o SONVI preenche o mapa">${S.svg('paineis')}Distribuir inserções</button>${S.projetosAtivos && S.projetosAtivos().length ? `<button class="btn sm" data-act="piAddProjeto" data-g="${g.id}" title="Entra com as entregas do Dial nos dias do projeto; o Online vai nas observações">+ Projeto especial</button>` : ''}${S.cotasAtivas && S.cotasAtivas().length ? `<button class="btn sm" data-act="piAddCota" data-g="${g.id}" title="Entra com as inserções da cota, com o valor do mês dividido entre elas">+ Patrocínio</button>` : ''}<button class="btn sm" data-act="piRepetir" data-id="${g.id}" title="Copia esta grade para os meses seguintes">${S.svg('copia')}Repetir nos próximos meses</button><button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button></span>` : ''}</div>${pacotesGrade(g, em)}`;
   // Desconto da linha: em %, em R$ ou a linha inteira bonificada (sem cobrança)
   const descEdit = (it, a) => `<span class="duo"><input value="${it.bonus ? '' : nfmt(num(it.disc.value))}" data-f="disc.value" data-k="num" data-mask="dec" inputmode="decimal" placeholder="${it.bonus ? '—' : '0'}" ${a}${it.bonus ? ' disabled' : ''} aria-label="Desconto"><select data-f="disc.type" data-rerender="1" ${a} aria-label="Tipo de desconto"><option value="pct"${!it.bonus && it.disc.type === 'pct' ? ' selected' : ''}>%</option><option value="brl"${!it.bonus && it.disc.type === 'brl' ? ' selected' : ''}>R$</option><option value="bon"${it.bonus ? ' selected' : ''}>Bonif.</option></select></span>`;
   const descVer = it => it.bonus ? 'Bonificado' : regra(it.disc);
@@ -575,6 +582,22 @@
   document.addEventListener('change', e => { if (e.target.closest && e.target.closest('#dlg') && (e.target.dataset.dist || e.target.closest('[data-dist-dias]'))) distPrevia(distGrade); });
 
   // ---------- ações ----------
+  const ultDia = per => { const [y, m] = per.split('-').map(Number); return new Date(y, m, 0).getDate(); };
+  // Põe os itens de um pacote (projeto ou cota) na grade: distribuídos no mês a partir do dia "de"; troca o pacote do mesmo grupo
+  const lancaPacote = (g, its, de, trocar) => { const r = S.distribuir(its, `${g.period}-${String(de || 1).padStart(2, '0')}`, 1), m = r.meses[0];
+    const novos = m ? Object.entries(m.itens).map(([i, days]) => { const it = its[+i];
+      return Object.assign({ id:uid(), piece:'', f1:it.programa, f2:it.formato, faixa:it.faixa || '', days, unit:Number(it.preco) || 0, disc:{ type:'pct', value:0 }, bonus:false },
+        it.projeto ? { projeto:it.projeto } : {}, it.cota ? { cota:it.cota } : {}); }) : [];
+    if (!novos.length) return S.toast('Nenhum dia do pacote cai no período escolhido: confira os dias e o "a partir do dia".');
+    mexer((pi, d) => { const gg = d.grids.find(y => y.id === g.id); if (!gg) return; const peca = (d.pieces[0] || {}).id || ''; novos.forEach(n => { n.piece = peca; });
+      const vazio = it => !String(it.f1 || '').trim() && !String(it.f2 || '').trim() && !S.itemCalc(it).ins;
+      const k = trocar ? gg.items.findIndex(it => it.projeto && it.projeto.grupo === trocar) : -1;
+      gg.items = gg.items.filter(it => !vazio(it) && !(trocar && it.projeto && it.projeto.grupo === trocar));
+      gg.items.splice(k >= 0 ? Math.min(k, gg.items.length) : gg.items.length, 0, ...novos);
+      const pj = novos[0].projeto, l = pj ? S.projetoObs(pj) : '';
+      if (l && !String(d.billing.obsClient || '').split('\n').some(y => y.trim() === l)) d.billing.obsClient = [String(d.billing.obsClient || '').trim(), l].filter(Boolean).join('\n'); });
+    const ins = novos.reduce((a, n) => a + S.itemCalc(n).ins, 0);
+    S.toast(`${ins} inserções na grade de ${mesExt(g.period)}. Confira e clique em Salvar.`); };
   const mexer = fn => { const pi = cur(); if (!editando(pi)) return; fn(pi, pi.dados); marcarSujo(); S.render(); };
   const criar = (v, dados) => S.q(S.sb.rpc('criar_pi', { p_veiculo:S.ui.vehicleId, p_titulo:v.titulo, p_cliente:v.cliente_id || null, p_agencia:v.agencia_id || null, p_projeto:v.projeto || '', p_dados:dados }));
 
@@ -754,6 +777,35 @@
     piRmGrid: async x => { const pi = cur(), g = pi.dados.grids.find(g => g.id === x.id);
       if (g.items.some(it => S.itemCalc(it).ins) && !await S.confirmar('Remover esta grade com todas as inserções dela?', { ok:'Remover grade', perigo:true })) return;
       mexer((pi, d) => { d.grids = d.grids.filter(g => g.id !== x.id); }); },
+    // Projeto especial e patrocínio no PI feito à mão (03/11/2026): os itens do pacote são distribuídos no mês da grade,
+    // a partir do dia escolhido, como na proposta → PI (S.distribuir); o Online do projeto vai nas observações
+    piAddProjeto: x => { const pi = cur(); if (!editando(pi)) return; const g = pi.dados.grids.find(y => y.id === x.g); if (!g) return;
+      if (!S.projetosAtivos().length) return S.toast('Este veículo ainda não tem projetos especiais. Cadastre em Produtos → Projetos especiais.');
+      S.dlgProjeto(null, (pr, o) => lancaPacote(g, S.itensDoProjeto(pr, o), o.de), { pi:{ ult:ultDia(g.period), de:1, mes:mesExt(g.period) } }); },
+    piAjProjeto: x => { const pi = cur(); if (!editando(pi)) return; const g = pi.dados.grids.find(y => y.id === x.g); if (!g) return;
+      const its = g.items.filter(it => it.projeto && it.projeto.grupo === x.grupo); if (!its.length) return;
+      const de = Math.min(...its.flatMap(it => Object.keys(it.days || {}).filter(d => num(it.days[d]) > 0).map(Number)).concat([ultDia(g.period)]));
+      S.dlgProjeto(its[0].projeto, (pr, o) => lancaPacote(g, S.itensDoProjeto(pr, Object.assign(o, { grupo:x.grupo })), o.de, x.grupo), { pi:{ ult:ultDia(g.period), de, mes:mesExt(g.period) } }); },
+    piAddCota: x => { const pi = cur(); if (!editando(pi)) return; const g = pi.dados.grids.find(y => y.id === x.g); if (!g) return; const cs = S.cotasAtivas();
+      if (!cs.length) return S.toast('Este veículo ainda não tem cotas de patrocínio. Cadastre em Produtos → Patrocínios.');
+      const ult = ultDia(g.period);
+      S.dialog(`<h2>Adicionar patrocínio · ${mesExt(g.period)}</h2>
+        <label class="f">Cota<select name="cota" required><option value="">Escolha</option>${cs.map(c => `<option value="${c.id}">${esc(c.nome)} · ${brl((c.dados || {}).valor)}/mês</option>`).join('')}</select></label>
+        <div id="piCotaInfo" class="caixa" hidden></div>
+        <label class="f">A partir do dia<input name="de" type="number" min="1" max="${ult}" value="1" required></label>
+        <p class="muted small">As inserções da cota viram linhas da grade nos dias e horários dela, com o valor do mês dividido entre elas (começando depois do dia 1, a quantidade e o valor ficam proporcionais). Dá para ajustar qualquer dia depois.</p>
+        <div class="row" style="margin-top:16px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Adicionar</button></div>`,
+        f => { const c = cs.find(y => y.id === f.cota); if (!c) return; const its = S.itensDaCota(c); if (!its.length) return S.toast('Esta cota não tem inserções incluídas.');
+          lancaPacote(g, its, Math.min(ult, Math.max(1, parseInt(f.de) || 1))); });
+      const sel = document.querySelector('#dlg [name="cota"]'), box = document.getElementById('piCotaInfo');
+      sel.addEventListener('change', () => { const c = cs.find(y => y.id === sel.value); box.hidden = !c; if (c) box.innerHTML = `${esc(c.detalhe.split('\n').join(' · ') || 'horário a combinar')}<br><small class="muted">${S.itensDaCota(c).map(y => `${y.insercoes} ${esc(y.formato)}`).join(' · ')} por mês</small>`; }); },
+    piRmPacote: async x => { const pi = cur(); if (!editando(pi)) return; const g = pi.dados.grids.find(y => y.id === x.g); if (!g) return;
+      const it = g.items.find(y => (y[x.tipo] || {}).grupo === x.grupo); if (!it) return;
+      if (!await S.confirmar(`Tirar ${x.tipo === 'projeto' ? 'o projeto' : 'o patrocínio'} "${it[x.tipo].nome}" desta grade?`, { ok:x.tipo === 'projeto' ? 'Tirar projeto' : 'Tirar patrocínio', perigo:true })) return;
+      mexer((p2, d) => { const gg = d.grids.find(y => y.id === x.g); gg.items = gg.items.filter(y => (y[x.tipo] || {}).grupo !== x.grupo);
+        if (!gg.items.length) gg.items.push(blankItem());
+        if (x.tipo === 'projeto' && !d.grids.some(y => y.items.some(z => z.projeto && z.projeto.grupo === x.grupo))) { const l = S.projetoObs(it.projeto);
+          if (l) d.billing.obsClient = String(d.billing.obsClient || '').split('\n').filter(y => y.trim() !== l).join('\n'); } }); },
     piAddItem: x => mexer((pi, d) => { const it = blankItem(), g = d.grids.find(g => g.id === x.id); it.piece = (d.pieces[0] || {}).id || ''; g.items.push(it); S.ui.piItem = Object.assign({}, S.ui.piItem, { [g.id]:it.id }); }),
     piRmItem: x => mexer((pi, d) => { const g = d.grids.find(g => g.id === x.g); g.items = g.items.filter(i => i.id !== x.id); }),
     // Ação digital (digital.js): nova, editar ou tirar; vale depois de Salvar

@@ -616,5 +616,7 @@
     return dial.map((x, k) => { const q = Number(x.qtd), total = k === dial.length - 1 ? resto : r2(q * unit); resto = r2(resto - total);
       return { id:S.uid(), programa_id:p.id, formato_id:null, programa:x.sub ? `${p.nome.trim()} · ${x.sub}` : p.nome.trim(), formato:x.titulo, secao:'projeto', detalhe:x.sub || '',
         dias, faixa:horas, insercoes:q, preco_tabela:unitT, preco:unit, total, projeto }; }); };
+  // Linha das observações do PI com o Online do projeto (proposta → PI e PI feito à mão)
+  S.projetoObs = j => (j.online || []).length ? `Projeto especial ${j.nome} · Online (por mês): ${j.online.map(x => `${Number(x.qtd) > 0 ? x.qtd + ' ' : ''}${x.titulo}${x.sub ? ' ' + x.sub : ''}`).join('; ')}.` : '';
   S.cotasAtivas = () => radioProds().filter(p => p.secao === 'patrocinio' && p.ativo && (dadosDe(p).incluido || []).length);
 })();
