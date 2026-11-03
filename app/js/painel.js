@@ -10,9 +10,9 @@
   const { esc, brl } = S;
   const VENDIDO = ['opec', 'aprovado', 'programado', 'faturado'];          // PI que saiu do comercial conta como venda
   const ANDAMENTO = ['rascunho', 'opec', 'devolvido', 'aprovado', 'programado'];
-  const soma = list => list.reduce((s, p) => s + Number(p.valor_total || 0), 0);
+  const soma = list => list.reduce((s, p) => s + S.liquidoPi(p), 0);   // sempre o líquido
   // Vendido no mês = a parte de cada PI que vai ao ar no mês (mês de veiculação, 29/10/2026)
-  const somaMes = (list, m) => list.reduce((s, p) => s + Number(p.valor_total || 0) * S.fatiaMes(p, m), 0);
+  const somaMes = (list, m) => list.reduce((s, p) => s + S.liquidoPi(p) * S.fatiaMes(p, m), 0);
   const val = list => list.reduce((s, x) => s + Number(x.valor || 0), 0);
   const pago = l => Number(l.valor_pago != null && l.valor_pago !== '' ? l.valor_pago : l.valor || 0);
   const mesDe = iso => String(iso || '').slice(0, 7);
@@ -54,7 +54,7 @@
       rotulo:`${titulo}: ${reais(v)}. ${d.txt}` };
   }
   function filaPis(lista, b) {
-    return Object.assign({ tipo:'fila', numero:String(lista.length), itens:lista.slice(0, 5).map(p => ({ tx:cliente(p), sub:S.piNo(p) + (S.pode('consultor') ? '' : ' · ' + (S.usuario(p.consultor_id) || 'sem consultor')), vl:brl(p.valor_total), tag:b.tag ? b.tag(p) : haDias(p.atualizado_em || p.criado_em), tom:b.tom ? b.tom(p) : diasDesde(p.atualizado_em || p.criado_em) >= 2 ? 'alerta' : '' })) }, b);
+    return Object.assign({ tipo:'fila', numero:String(lista.length), itens:lista.slice(0, 5).map(p => ({ tx:cliente(p), sub:S.piNo(p) + (S.pode('consultor') ? '' : ' · ' + (S.usuario(p.consultor_id) || 'sem consultor')), vl:brl(S.liquidoPi(p)), tag:b.tag ? b.tag(p) : haDias(p.atualizado_em || p.criado_em), tom:b.tom ? b.tom(p) : diasDesde(p.atualizado_em || p.criado_em) >= 2 ? 'alerta' : '' })) }, b);
   }
   function caminho(pis) {
     const etapas = ['rascunho', 'opec', 'devolvido', 'aprovado', 'programado', 'faturado'].map(s => { const l = pis.filter(p => p.status === s); return { nome:S.STATUS[s].label, n:l.length, vl:l.length ? curto(soma(l)) : '—', cor:S.STATUS_COR[s] }; });

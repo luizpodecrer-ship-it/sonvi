@@ -44,6 +44,8 @@
     const pg = S.pagadorPi(pi); return { email:pg.email, origem:pg.email ? 'cadastro' : '', pagador:pg };
   };
   // A mesma conta existe no banco (database/061, pi_calculo) e é ela que vale ao gravar: mudou aqui, mude lá.
+  // Valor de venda do PI = o líquido (sem a comissão da agência). Todas as somas de venda usam este (03/11/2026)
+  S.liquidoPi = p => Number(p.valor_liquido ?? p.valor_total ?? 0);
   S.calc = pi => {
     const d = pi.dados; let media = 0, bonus = 0, ins = 0, pub = 0, radio = 0, digital = 0;
     d.grids.forEach(g => g.items.forEach(it => { const c = S.itemCalc(it); ins += c.ins; if (it.bonus) bonus += c.gross; else { media += c.sub; radio += c.sub; } }));

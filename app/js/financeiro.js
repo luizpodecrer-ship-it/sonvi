@@ -427,10 +427,10 @@
           rows:g, total:['Total', faturados.length, T(2), T(3), T(4), T(5), T(6)],
           ler:['Valor dos PIs: o que o cliente paga pela mídia, já com descontos. Entram os PIs faturados com veiculação no período.', 'Comissão: a parte da agência. Líquido: valor dos PIs menos a comissão, o que fica com a rádio.', 'Recebido e Em aberto: parcelas do líquido já pagas e ainda a receber.'] }; }
       case 'consultor': { const ps = S.db.pis.filter(p => ['aprovado', 'programado', 'faturado'].includes(p.status) && piNoPeriodo(p, I) && (!rel.consultor || p.consultor_id === rel.consultor));
-        const g = agrupa(ps, p => S.usuario(p.consultor_id) || '—').map(([k, xs]) => { const cs = xs.map(S.calc); return { sub:plural(new Set(xs.map(p => p.cliente_id)).size, 'cliente'), c:[k, xs.length, soma(cs, c => c.ins), soma(cs, c => c.total), soma(cs, c => c.net), xs.filter(p => p.status === 'faturado').length] }; }).sort((a, b) => b.c[3] - a.c[3]);
+        const g = agrupa(ps, p => S.usuario(p.consultor_id) || '—').map(([k, xs]) => { const cs = xs.map(S.calc); return { sub:plural(new Set(xs.map(p => p.cliente_id)).size, 'cliente'), c:[k, xs.length, soma(cs, c => c.ins), soma(cs, c => c.total), soma(cs, c => c.net), xs.filter(p => p.status === 'faturado').length] }; }).sort((a, b) => b.c[4] - a.c[4]);
         const T = i => soma(g, r => r.c[i]);
-        return { resumo:[K('Valor vendido', brl(T(3)), plural(ps.length, 'PI'), { dest:true }), K('Líquido da rádio', brl(T(4)), 'depois da comissão de agência'), K('Inserções', T(2).toLocaleString('pt-BR'), 'vendidas no período'), K('Já faturados', String(T(5)), `de ${plural(ps.length, 'PI')}`)],
-          partTit:'Participação nas vendas', part:partDe(g.map(r => [r.c[0], r.c[3]]), T(3)),
+        return { resumo:[K('Vendido (líquido)', brl(T(4)), plural(ps.length, 'PI'), { dest:true }), K('Valor bruto', brl(T(3)), 'antes da comissão de agência'), K('Inserções', T(2).toLocaleString('pt-BR'), 'vendidas no período'), K('Já faturados', String(T(5)), `de ${plural(ps.length, 'PI')}`)],
+          partTit:'Participação nas vendas', part:partDe(g.map(r => [r.c[0], r.c[4]]), T(4)),
           cols:[C('Consultor'), C('PIs', 'num'), C('Inserções', 'num'), C('Valor vendido', 'brl'), C('Líquido da rádio', 'brl'), C('Já faturados', 'num')],
           rows:g, total:['Total', ps.length, T(2), T(3), T(4), T(5)], ler:['PIs aprovados, programados ou faturados com veiculação no período.'] }; }
       case 'caixa': { const [de, ate] = I, ini = de || hoje.slice(0, 8) + '01', fim = ate || somaMeses(hoje, 6), ms = []; for (let m = ini.slice(0, 7); m <= fim.slice(0, 7) && ms.length < 36; m = somaMeses(m + '-01', 1).slice(0, 7)) ms.push(m);

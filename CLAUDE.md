@@ -291,6 +291,11 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - O Supabase entrega no máximo **1.000 linhas por busca** e corta o resto sem avisar. Toda lista que pode crescer usa `S.todos(busca, ordem = 'id')` (dados.js), que busca de 1.000 em 1.000 (`range`) com a ordem por id como desempate: dados do veículo (`carregarVeiculo`: pessoas, produtos, preços, tabelas, PIs, follow-ups, parcelas, propostas), usuários e vínculos, `pagamento_dos_pis`, recarregar de Financeiro/Vendas/Follow-up/Produtos, leituras da OPEC, Dashboard Gestão, Comissões e Combos. **Lista nova que pode passar de 1.000 linhas: use `S.todos`, nunca `S.q` direto.** As funções de borda `vendas` (versão 5) e `followup` (versão 6) têm o mesmo `tudo()`.
 
+## Venda sempre pelo líquido (03/11/2026, pedido do Luiz)
+
+- Todo número de venda no SONVI soma o **valor líquido** do PI (bruto menos a comissão da agência; venda direta = bruto). Regra: `S.liquidoPi(p)` (pi-regras.js, `valor_liquido` do banco) ou `S.calc(pi).net`, vezes `S.fatiaMes(p, mês)` quando é por mês. A parte da Head 14 é 20% desse líquido (ex.: PI de R$ 10.000 com agência de 20% → líquido R$ 8.000 → Head 14 R$ 1.600; direto → R$ 2.000). Todo faturamento é pelo líquido.
+- Usam: lista de PIs (coluna "Líquido" em negrito, "Bruto R$ …" pequeno embaixo quando há agência; total do mês e régua), Dashboard do veículo (Vendido no mês, Consultores, Na OPEC, Em negociação, Para conferir, Prontos para faturar), esteira e lista da OPEC, Dashboard Gestão, metas, Vendas, comissões e o relatório "Vendas por consultor" (destaque no líquido). O bruto continua no PI, no PI impresso e nos relatórios como informação. A proposta continua com o "Investimento mensal" (preço ao cliente). A Receber/Recebido seguem as parcelas (o dinheiro que entra).
+
 ## Números que rolam e FLIP (core.js)
 
 - `S.roloFixo(chave, texto)` escreve um lugar; depois de cada desenho, `S.poeRolos()` (chamado pelo `S.render`) encaixa ali o mesmo elemento de `S.rolo` e rola até o valor novo. `S.flip(S.render)` faz as linhas `[data-flip]` deslizarem até o lugar novo.

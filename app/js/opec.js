@@ -26,20 +26,20 @@
     const esteira = `<section class="card" aria-labelledby="oe-t"><div class="hd"><h2 id="oe-t">Caminho dos PIs</h2>${fila.length ? `<span class="pill fn-forte">Mais antigo esperando há ${velho} dia${velho === 1 ? '' : 's'}</span>` : '<span class="pill fn-neutra">Nada para conferir</span>'}</div>
       <div class="oe-esteira" role="group" aria-label="Etapas (escolha para ver os PIs)">${ETAPAS.map(([k, nome, tom]) => { const xs = daEtapa(k);
         return `<button type="button" class="oe-etapa" data-act="opEtapa" data-v="${k}" style="--c:var(--${tom})" aria-pressed="${etapa === k}"><span class="oe-et"><i aria-hidden="true"></i>${nome}</span>
-          <span class="oe-n">${S.roloFixo('oe-' + k, String(xs.length))}</span><span class="oe-v">${curto(xs.reduce((s, p) => s + Number(p.valor_total || 0), 0))}</span>${k === 'opec' && xs.length ? '<span class="pill fn-ok pf-vivo oe-fila">na fila</span>' : ''}</button>`; }).join('')}</div></section>`;
+          <span class="oe-n">${S.roloFixo('oe-' + k, String(xs.length))}</span><span class="oe-v">${curto(xs.reduce((s, p) => s + S.liquidoPi(p), 0))}</span>${k === 'opec' && xs.length ? '<span class="pill fn-ok pf-vivo oe-fila">na fila</span>' : ''}</button>`; }).join('')}</div></section>`;
 
     const vazio = `<div class="empty"><b>Nada aqui</b>${etapa === 'opec' ? 'Nenhum PI esperando conferência.' : etapa === 'faturado' ? 'Nenhum PI faturado neste mês.' : 'Nenhum PI nesta etapa.'}</div>`;
     const corpo = !lista.length ? vazio : S.celular
       ? `<div class="op-cards">${lista.map(p => { const c = S.calc(p), meses = mesesDe(p);
         return `<div class="op-card" data-flip="${p.id}"><a data-go="/pi/${p.id}" class="op-tit"><small>${S.piNo(p)}</small><b>${esc(p.titulo) || 'Sem título'}</b></a>
           <dl><div><dt>Cliente</dt><dd>${esc(S.nome(p.cliente_id)) || '—'}</dd></div><div><dt>Consultor</dt><dd>${esc(S.usuario(p.consultor_id)) || '—'}</dd></div>
-          <div><dt>Período</dt><dd>${meses || '—'}</dd></div><div><dt>Inserções</dt><dd class="num">${qtd(p, c)}</dd></div><div><dt>Total</dt><dd class="num"><b>${brl(c.total)}</b></dd></div><div><dt>${etapa === 'opec' ? 'Esperando' : 'Desde'}</dt><dd>${espera(p)}</dd></div></dl>
+          <div><dt>Período</dt><dd>${meses || '—'}</dd></div><div><dt>Inserções</dt><dd class="num">${qtd(p, c)}</dd></div><div><dt>Líquido</dt><dd class="num"><b>${brl(c.net)}</b></dd></div><div><dt>${etapa === 'opec' ? 'Esperando' : 'Desde'}</dt><dd>${espera(p)}</dd></div></dl>
           <div class="op-bt">${botoes(p)}</div></div>`; }).join('')}</div>`
-      : `<div class="oe-l oe-cab"><span class="oe-c-no">Nº</span><span>Título</span><span>Cliente</span><span class="oe-c-cons">Consultor</span><span class="oe-c-per">Período</span><span class="r">Inserções</span><span class="r">Total</span><span>${etapa === 'opec' ? 'Esperando' : 'Na etapa'}</span><span><span class="sr">Ações</span></span></div>
+      : `<div class="oe-l oe-cab"><span class="oe-c-no">Nº</span><span>Título</span><span>Cliente</span><span class="oe-c-cons">Consultor</span><span class="oe-c-per">Período</span><span class="r">Inserções</span><span class="r">Líquido</span><span>${etapa === 'opec' ? 'Esperando' : 'Na etapa'}</span><span><span class="sr">Ações</span></span></div>
         ${lista.map(p => { const c = S.calc(p);
           return `<div class="oe-l" data-flip="${p.id}"><span class="muted nw oe-c-no">${S.piNo(p)}</span><span class="oe-quem"><a data-go="/pi/${p.id}"><b>${esc(p.titulo) || 'Sem título'}</b></a><small>${S.piNo(p)}</small></span>
             <span class="oe-cli" title="${esc(S.nome(p.cliente_id))}">${esc(S.nome(p.cliente_id)) || '—'}</span><span class="oe-c-cons nw">${esc(S.usuario(p.consultor_id)) || '—'}</span><span class="oe-c-per nw">${mesesDe(p)}</span>
-            <span class="r">${qtd(p, c)}</span><span class="r oe-num">${brl(c.total)}</span><span>${espera(p)}</span><span class="lin-acoes">${botoes(p)}</span></div>`; }).join('')}`;
+            <span class="r">${qtd(p, c)}</span><span class="r oe-num">${brl(c.net)}</span><span>${espera(p)}</span><span class="lin-acoes">${botoes(p)}</span></div>`; }).join('')}`;
     const listaCard = `<section class="card oe-lista" aria-labelledby="oe-tl"><div class="hd"><h2 id="oe-tl">${nomeEt}</h2><span>${lista.length} PI${lista.length === 1 ? '' : 's'}${etapa === 'opec' && lista.length > 1 ? ' · os mais antigos primeiro' : ''}</span></div>${corpo}</section>`;
 
     // Inserções programadas nos próximos 30 dias (grades dos PIs aprovados, programados e faturados)

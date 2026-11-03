@@ -28,12 +28,12 @@
   const variacao = (agora, antes) => antes ? Math.round((agora - antes) / antes * 100) : null;
   // Venda do período = a parte de cada PI que vai ao ar nos meses do período (mês de veiculação, 29/10/2026)
   const mesesEntre = (de, ate) => { const r = []; let m = de.slice(0, 7); while (m <= ate.slice(0, 7)) { r.push(m); const [y, n] = m.split('-').map(Number); m = iso(new Date(y, n, 1)).slice(0, 7); } return r; };
-  const noPer = (p, de, ate) => mesesEntre(de, ate).reduce((t, m) => t + Number(p.valor_total || 0) * S.fatiaMes(p, m), 0);
+  const noPer = (p, de, ate) => mesesEntre(de, ate).reduce((t, m) => t + S.liquidoPi(p) * S.fatiaMes(p, m), 0);
   S.geralCalc = (dados, veiculos, per, hoje = new Date()) => {
     const I = intervalo(per, hoje), dHoje = iso(hoje);
     const pis = dados.pis.filter(p => VENDIDO.includes(p.status)), lanc = dados.lanc;
     const doPer = pis.map(p => ({ p, v:noPer(p, I.de, I.ate) })).filter(x => x.v > 0), doAnt = pis.map(p => ({ p, v:noPer(p, I.ade, I.aate) })).filter(x => x.v > 0);
-    const somaV = l => l.reduce((t, x) => t + x.v, 0), doMesV = m => pis.reduce((t, p) => t + Number(p.valor_total || 0) * S.fatiaMes(p, m), 0);
+    const somaV = l => l.reduce((t, x) => t + x.v, 0), doMesV = m => pis.reduce((t, p) => t + S.liquidoPi(p) * S.fatiaMes(p, m), 0);
     const ult = meses(-5, hoje), prox = meses(0, hoje);
     const vencido = lanc.filter(l => l.vencimento && l.vencimento < dHoje);
     const total = somaV(doPer);
