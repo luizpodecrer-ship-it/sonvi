@@ -146,12 +146,12 @@
     // Para faturar
     const filtro = st.aba === 'todos' ? fats : fats.filter(x => st.aba === 'faturado' ? (x.sit === 'faturado' || x.sit === 'antigo') : st.aba === 'lancar' ? (x.sit === 'lancar' || x.sit === 'enviar') : x.sit === st.aba);
     const mostra = filtro.slice(0, st.lista);
-    const SIT = { lancar:['A lançar', 'fn-forte'], enviar:['Lançada · falta o pedido', 'fn-forte'], aguardando:['Aguardando o financeiro', 'fn-neutra'], faturado:['Faturado', 'fn-ok'], antigo:['Faturado', 'fn-ok'] };
+    const SIT = { lancar:['A lançar', 'fn-forte'], enviar:['A enviar', 'fn-forte'], aguardando:['Aguardando o financeiro', 'fn-neutra'], faturado:['Faturado', 'fn-ok'], antigo:['Faturado', 'fn-ok'] };
     const linhaFat = x => { const [t, c] = SIT[x.sit], ped = x.ped;
       const det = x.sit === 'faturado' ? `<small>${ped.nota_fiscal ? `NF ${esc(ped.nota_fiscal)} · ` : ''}confirmado em ${dfmt(diaDe(ped.confirmado_em)).slice(0, 5)}${ped.confirmado_por ? ` por ${esc(ped.confirmado_por)}` : ''}</small>`
         : x.sit === 'aguardando' ? `<small>${ped.enviado_em ? `enviado ${dfmt(diaDe(ped.enviado_em)).slice(0, 5)} · lembrete ${dfmt(maisDias(diaDe(ped.enviado_em), 7)).slice(0, 5)}` : 'e-mail não saiu: reenvie'}</small>`
         : x.sit === 'antigo' ? '<small>faturado antes do Vendas, sem pedido</small>'
-        : x.sit === 'lancar' ? S.progPill(x.pi) : x.lanc ? `<small>lançada${x.lanc.lancado_por ? ' por ' + esc(S.usuario(x.lanc.lancado_por) || '') : ''} · envie o pedido ao financeiro</small>` : '';
+        : x.pi.programado_em ? S.progPill(x.pi) : '';
       const acao = x.sit === 'lancar' ? (S.podeLancar(x.pi) ? `<button class="btn sm pri" data-act="vdLancar" data-id="${x.pi.id}" data-mes="${x.ym}">Lançar venda</button>` : '<span class="muted small">consultor lança</span>')
         : x.sit === 'enviar' ? `<button class="btn sm pri" data-act="vdEnviar" data-id="${x.pi.id}" data-mes="${x.mesRef}">Enviar para faturar</button>`
         : x.sit === 'aguardando' ? `<button class="btn sm" data-act="vdReenviar" data-id="${ped.id}">Reenviar</button>`
@@ -164,14 +164,14 @@
     const aba = (k, n, q) => `<button class="${st.aba === k ? 'on' : ''}" data-act="vdAba" data-v="${k}" role="tab" aria-selected="${st.aba === k}">${n} <span class="cont">${q}</span></button>`;
     const semEmail = !String(v.financeiro_email || '').trim();
     const aLancar = fats.filter(x => x.sit === 'lancar' && S.podeLancar(x.pi)).length;
-    const faturar = `<section class="card vd-fat" aria-label="Lançar vendas"><div class="hd"><h2>Lançar vendas · ${mesNome}</h2>
-        <div class="vd-hd-dir"><div class="seg" role="tablist">${aba('todos', 'Todos', fats.length)}${aba('lancar', 'A lançar', cont('lancar') + cont('enviar'))}${aba('aguardando', 'Aguardando', cont('aguardando'))}${aba('faturado', 'Faturados', faturado.length)}</div>
-        ${aLancar > 1 ? `<button class="btn sm pri" data-act="vdLancarTodos" data-mes="${ym}">Lançar as ${aLancar}</button>` : cont('enviar') > 1 ? `<button class="btn sm pri" data-act="vdEnviarTodos" data-mes="${ym}">Enviar os ${cont('enviar')} para faturar</button>` : ''}</div></div>
-      <p class="muted small vd-nota">${semEmail ? `<b class="vd-alerta">Falta o e-mail do financeiro da ${esc(v.nome)}.</b> Cadastre em Administração › Veículos (ou na hora de enviar).` : `A OPEC programou → o consultor ou o diretor lança a venda do mês. A venda lançada entra nos números e o pedido de faturamento vai ao financeiro da ${esc(v.nome)} (${esc(v.financeiro_email)}), que confirma a nota.`}</p>
+    const faturar = `<section class="card vd-fat" aria-label="Lançar vendas"><div class="hd"><h2>Para faturar · ${mesNome}</h2>
+        <div class="vd-hd-dir"><div class="seg" role="tablist">${aba('todos', 'Todos', fats.length)}${aba('enviar', 'A enviar', cont('enviar'))}${aba('aguardando', 'Aguardando', cont('aguardando'))}${aba('faturado', 'Faturados', faturado.length)}</div>
+        ${cont('enviar') > 1 ? `<button class="btn sm pri" data-act="vdEnviarTodos" data-mes="${ym}">Enviar os ${cont('enviar')} para faturar</button>` : ''}</div></div>
+      <p class="muted small vd-nota">${semEmail ? `<b class="vd-alerta">Falta o e-mail do financeiro da ${esc(v.nome)}.</b> Cadastre em Administração › Veículos (ou na hora de enviar).` : `A venda entra sozinha quando a OPEC abre o PI. Quem fatura e emite a nota é o financeiro da ${esc(v.nome)} (${esc(v.financeiro_email)}): a ${esc(emp)} envia o pedido e acompanha a confirmação.`}</p>
       ${fats.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>PI</th><th>Cliente</th><th>Mês veiculado</th><th class="r">Valor</th><th>Situação</th><th><span class="sr">Ações</span></th></tr></thead>
         <tbody>${mostra.map(linhaFat).join('') || `<tr><td colspan="6" class="muted">Nada nesta situação.</td></tr>`}</tbody></table></div>
         ${filtro.length > mostra.length ? `<p class="muted small" style="margin:12px 0 0">Mostrando ${mostra.length} de ${filtro.length} · <a href="#" data-act="vdMais">ver todos</a></p>` : ''}`
-        : `<div class="card empty" style="box-shadow:none;padding:24px"><b>Nada para lançar em ${mesNome}</b>Aparece aqui quando a OPEC programa um PI que vai ao ar no mês.</div>`}</section>`;
+        : `<div class="card empty" style="box-shadow:none;padding:24px"><b>Nada para faturar em ${mesNome}</b>Aparece aqui quando a OPEC abre um PI que vai ao ar no mês.</div>`}</section>`;
 
     // Recebimento dos clientes
     const linhaRec = l => { const s = situacaoParc(l, hoje), pi = piDe(l.pi_id);
@@ -315,7 +315,7 @@
       if (data && data.erro) throw new Error(data.erro); await recarregar(); }, 'Pergunta enviada ao financeiro do veículo'),
     vdMenuPi: (d, botao) => { const pi = S.db.pis.find(p => p.id === d.id), lanc = pi && d.mes && S.lancada(pi.id, d.mes), ped = d.ped && dados.fat.find(f => f.id === d.ped);
       S.menu(botao, [{ label:'Abrir o PI', icon:'pis', act:'finVerPi', data:{ id:d.id } }, ...(d.ped ? [{ label:'Ver o pedido', icon:'doc', act:'vdPedido', data:{ id:d.ped } }] : []),
-        ...(lanc && S.podeLancar(pi) && !(ped && ped.situacao === 'faturado') ? ['-', { label:'Desfazer lançamento', icon:'voltar', act:'vdDesfazer', data:{ id:d.id, mes:d.mes }, perigo:true }] : [])]); },
+]); },
     vdPedido: d => { const f = dados.fat.find(x => x.id === d.id); if (!f) return; const x = f.dados || {}, lin = (a, b) => b ? `<tr><td class="muted">${a}</td><td class="r"><b>${b}</b></td></tr>` : '';
       S.dialog(`<h2>Pedido de faturamento</h2><p class="muted small">${esc(x.pi_no || '')} · ${esc(x.cliente || '')}</p>
         <table>${lin('Mês', esc(x.mes_nome || ''))}${lin('Valor', brl(x.valor))}${lin('Enviado para', esc(f.para))}${lin('Enviado em', f.enviado_em ? new Date(f.enviado_em).toLocaleString('pt-BR') : '')}${lin('Envios', String(f.envios || 0))}

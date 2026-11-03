@@ -26,8 +26,9 @@
   const etiquetaPi = p => p.status === 'opec' ? '<span class="pill fn-ok pf-vivo">Na OPEC</span>' : p.status === 'devolvido' ? '<span class="pill fn-forte">Devolvido</span>'
     : ['rascunho', 'cancelado'].includes(p.status) ? `<span class="pill fn-neutra">${S.STATUS[p.status].label}</span>` : `<span class="pill fn-ok">${S.STATUS[p.status].label}</span>`;
   // Blocos da lista de PIs (03/11/2026): o PI programado pela OPEC fica "A lançar" até a venda do mês ser lançada
-  const grupoPi = (p, ym) => ['aprovado', 'programado', 'faturado'].includes(p.status) ? (S.lancada(p.id, ym) ? 'lan' : 'alancar') : p.status === 'opec' ? 'opec' : 'rasc';
-  const GRUPOS_PI = [['alancar', 'A lançar', true, 'programados pela OPEC'], ['opec', 'Na OPEC', true, 'esperando a OPEC abrir'], ['rasc', 'Rascunho', false, 'rascunhos e devolvidos'], ['lan', 'Vendas lançadas', false, 'contam nos números']];
+  // Desde 03/11/2026 (database/078) a venda entra sozinha quando a OPEC abre o PI: Lançados · A lançar (na OPEC) · Rascunhos
+  const grupoPi = p => ['aprovado', 'programado', 'faturado'].includes(p.status) ? 'lan' : p.status === 'opec' ? 'alancar' : 'rasc';
+  const GRUPOS_PI = [['lan', 'Lançados', true, 'a OPEC abriu · contam nos números'], ['alancar', 'A lançar', true, 'na OPEC · entram quando ela abrir o e-mail'], ['rasc', 'Rascunhos', false, 'rascunhos e devolvidos']];
   document.addEventListener('toggle', e => { const d = e.target; if (d && d.dataset && d.dataset.sf) pm.abertos[d.dataset.sf] = d.open; }, true);
   const pagTom = p => { const r = ((S.db && S.db.pagPis) || {})[p.id]; if (!r) return '';
     return r.situacao === 'pago' ? '<span class="pill fn-neutra">Pago</span>' : r.situacao === 'atrasado' ? '<span class="pill fn-forte">Pagamento atrasado</span>'
@@ -69,17 +70,16 @@
     const linha = p => { const c = S.calc(p), cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id), cons = S.usuario(p.consultor_id), tit = p.titulo || 'Sem título', v = veiculacao(p);
       return `<div class="pl-l click" data-go="/pi/${p.id}" data-flip="${p.id}" role="link" tabindex="0">
         <span class="pl-n">${S.piNo(p)}</span>
-        <span class="pl-t"><b title="${esc(tit)}">${esc(tit)}</b><small>${[p.projeto ? esc(p.projeto) : '', c.ins || !c.pub ? `${c.ins} inserç${c.ins === 1 ? 'ão' : 'ões'}` : '', c.pub ? `${c.pub} entrega${c.pub === 1 ? '' : 's'} digita${c.pub === 1 ? 'l' : 'is'}` : ''].filter(Boolean).join(' · ')}</small>${grupoPi(p, ym) === 'alancar' && S.progPill ? S.progPill(p, true) : ''}</span>
+        <span class="pl-t"><b title="${esc(tit)}">${esc(tit)}</b><small>${[p.projeto ? esc(p.projeto) : '', c.ins || !c.pub ? `${c.ins} inserç${c.ins === 1 ? 'ão' : 'ões'}` : '', c.pub ? `${c.pub} entrega${c.pub === 1 ? '' : 's'} digita${c.pub === 1 ? 'l' : 'is'}` : ''].filter(Boolean).join(' · ')}</small>${grupoPi(p) === 'lan' && S.progPill && p.programado_em ? S.progPill(p, true) : ''}</span>
         <span class="pl-c"><span title="${esc(cli)}">${esc(cli)}</span><small title="${esc(ag || 'Venda direta')}">${ag ? esc(ag) : 'Venda direta'}</small></span>
         <span class="pl-u" title="${esc(cons)}">${cons ? `<span class="av soft" aria-hidden="true">${esc(S.iniciais(cons))}</span><span class="pl-un">${esc(S.celular ? cons : cons.split(' ')[0])}</span>` : '<span class="muted">—</span>'}</span>
         <span class="pl-p"><small>Veiculação</small>${v ? `${dfmt(v[0]).slice(0, 5)} a ${dfmt(v[1]).slice(0, 5)}` : '—'}</span>
-        <span class="pl-i pl-sit">${grupoPi(p, ym) === 'alancar' ? `${S.podeLancar && S.podeLancar(p) ? `<button class="btn sm pri pl-lanca" data-act="vdLancar" data-id="${p.id}" data-mes="${ym}">Lançar venda</button>` : ''}`
-          : grupoPi(p, ym) === 'lan' ? `<span class="pill fn-ok">Venda lançada${(S.lancada(p.id, ym) || {}).lancado_por ? ' · ' + esc((S.usuario(S.lancada(p.id, ym).lancado_por) || '').split(' ')[0]) : ''}</span>${pagTom(p)}` : `${etiquetaPi(p)}${recebidoMini(p)}`}</span>
+        <span class="pl-i pl-sit">${etiquetaPi(p)}${pagTom(p)}${recebidoMini(p)}</span>
         <span class="pl-v"><b title="Valor líquido">${brl(c.net)}</b>${S.fatiaMes(p, ym) < 0.9999 ? `<small>${brl(c.net * S.fatiaMes(p, ym))} em ${mesN}</small>` : ''}${c.commission ? `<small>Bruto ${brl(c.total)}</small>` : ''}</span>
         <span class="pl-m"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></span></div>`; };
     // Sanfona (03/11/2026, modelo "Lançar venda"): A lançar e Na OPEC abertos; Rascunho e Vendas lançadas fechados
     const cab = `<div class="pl-l pl-cab"><span class="pl-n">Nº</span><span class="pl-t">Título</span><span class="pl-c">Cliente · agência</span><span class="pl-u">Consultor</span><span class="pl-p">Veiculação</span><span class="pl-i">Situação</span><span class="pl-v">Líquido</span><span class="pl-m"><span class="sr">Ações</span></span></div>`;
-    const blocos = GRUPOS_PI.map(([k, nome, aberto, dica]) => { const xs = pis.filter(p => grupoPi(p, ym) === k); if (!xs.length) return '';
+    const blocos = GRUPOS_PI.map(([k, nome, aberto, dica]) => { const xs = pis.filter(p => grupoPi(p) === k); if (!xs.length) return '';
       const abre = k in pm.abertos ? pm.abertos[k] : aberto, val = xs.reduce((t, p) => t + S.calc(p).net * S.fatiaMes(p, ym), 0);
       return `<details class="pl-sf pl-sf-${k}" data-sf="${k}"${abre ? ' open' : ''}><summary><span class="pl-sf-barra" aria-hidden="true"></span>${S.svg('seta', 16)}<h3>${nome}</h3><small class="pl-sf-dica">${dica}</small><span class="pl-sf-n">${xs.length} PI${xs.length === 1 ? '' : 's'}</span><b class="pl-sf-v">${brl(val)}</b></summary>
         <div class="pl">${cab}${xs.map(linha).join('')}</div></details>`; }).join('');
@@ -183,7 +183,7 @@
     const fmes = S.multiMes(pi) ? S.mesesDoPi(pi).find(m => !S.mesesFaturados(pi).has(m)) : '';
     // Venda lançada por mês (03/11/2026): o próximo mês ainda não lançado ganha o botão "Lançar venda <mês>"
     const msPi = S.mesesDoPi(pi).length ? S.mesesDoPi(pi) : [String(pi.criado_em || S.today()).slice(0, 7)], alan = msPi.find(m => !S.lancada(pi.id, m));
-    const lancar = alan && S.podeLancar && S.podeLancar(pi) ? b('vdLancar', `Lançar venda ${S.nomeMes(alan).toLowerCase()}`, ` data-id="${pi.id}" data-mes="${alan}"`, true, 'check') : '';
+    const lancar = false && alan ? b('vdLancar', `Lançar venda ${S.nomeMes(alan).toLowerCase()}`, ` data-id="${pi.id}" data-mes="${alan}"`, true, 'check') : '';
     const fatOk = fmes ? !!S.lancada(pi.id, fmes) : msPi.every(m => S.lancada(pi.id, m));
     const faturar = S.pode('diretor', 'financeiro') && fatOk ? b('vdEnviar', fmes ? `Enviar para faturar ${S.nomeMes(fmes).toLowerCase()}` : 'Enviar para faturar', ` data-id="${pi.id}"${fmes ? ` data-mes="${fmes}"` : ''}`, pi.status === 'programado' && !lancar) : '';
     if (pi.status === 'aprovado') return lancar + faturar + (S.pode('diretor', 'opec') ? b('piStatus', 'Marcar como programado', ' data-to="programado"', !lancar, 'check') : '');
