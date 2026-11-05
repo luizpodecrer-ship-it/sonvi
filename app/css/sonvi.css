@@ -3788,3 +3788,7 @@ body.compacto .menu-cred { display:none; }
 /* Face por mês (front light, empena, outdoor): Qtd. em dias (03/11/2026) */
 .gr-r .vals .ins .ins-d{display:block;font-size:9px;font-weight:500;line-height:1;color:var(--ink-2)}
 .it-res .ins-d,.it-vals .ins-d{font-size:inherit;font-weight:inherit;color:inherit}
+/* Ficha do painel de LED no formulário do produto (05/11/2026) */
+.pdt-ficha{display:flex;flex-direction:column;gap:12px;margin-bottom:6px}
+.pdt-ficha .pdt-fsec,[data-ficha-sec]{margin:10px 0 0}
+.pdt-ficha .pdt-foto-campo{margin-bottom:4px}

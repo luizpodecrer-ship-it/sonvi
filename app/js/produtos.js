@@ -12,6 +12,8 @@
 //     por inserção (LED, DOOH): { cobranca:'insercao', unidade, funcionamento, arquivo, variacoes:[{nome, valor}], pontos:[ponto] }
 //     por mês (front light, empena, outdoor): { cobranca:'mes', ponto, variacoes:[{nome, obs, valor}] (faces), producao:{nome, valor} }
 //     ponto = { id, codigo, endereco, cidade, impacto, obs, formato, arquivo, coords, maps, foto }
+//     painel de LED (05/11/2026, database/080): um produto por painel, unidade 'painel', a ficha em dados.ponto
+//       (+ impacto_n, larg, alt, vig_de, vig_ate) e sem dados.pontos; abre direto na ficha (consulta → Editar → Salvar).
 (() => {
   const { esc, brl } = S;
   const pode = () => S.pode('diretor', 'gerente');
@@ -295,28 +297,34 @@
 
   // ---------- mídia exterior ----------
   const ehInsercao = p => (dadosDe(p).cobranca || COBRA[p.categoria]) === 'insercao';
+  // Painel de um ponto só (05/11/2026): cada painel de LED é um produto, com a ficha do mídia kit em dados.ponto
+  const umPonto = p => ehInsercao(p) && !!dadosDe(p).ponto && !(dadosDe(p).pontos || []).length;
+  const fmtM = v => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  const area = (l, a) => Math.floor(l * a * 100 + 1e-9) / 100; // como no mídia kit: 5,12 × 2,88 = 14,74 m²
+  S.formatoPainel = (l, a) => { l = Number(l) || 0; a = Number(a) || 0; return l && a ? `${fmtM(l)} × ${fmtM(a)} m (${fmtM(area(l, a))} m²)` : ''; };
   const foto = (src, w = 64, h = 44, alt = '') => src ? `<img class="pdt-foto" src="${src}" width="${w}" height="${h}" alt="${esc(alt)}" loading="lazy" decoding="async">` : `<span class="pdt-foto vazia" style="width:${w}px;height:${h}px" aria-hidden="true">${S.svg('imagem', 18)}</span>`;
   // Mídia exterior no padrão da rádio (aprovado em 25/10/2026): "Tabela da <veículo>" com Cartões · Mapa de preços, quatro números,
   // filtro por categoria (quando há mais de uma) e, para quem vende por inserção, a comparação por variação. Cartões em grade com
   // miniaturas pequenas dos pontos ao lado do nome, preços com barra proporcional ao maior da tabela e um exemplo da conta.
   const po = { vista:'cartoes', cat:'', varia:'' };
-  const fotosDe = p => { const d = dadosDe(p); return ehInsercao(p) ? (d.pontos || []).map(x => x.foto).filter(Boolean) : [(d.ponto || {}).foto].filter(Boolean); };
-  const unidadesDe = p => { const d = dadosDe(p); return (d.pontos || []).length || Number(d.frota) || 1; };
+  const fotosDe = p => { const d = dadosDe(p); return umPonto(p) ? [(d.ponto || {}).foto].filter(Boolean) : ehInsercao(p) ? (d.pontos || []).map(x => x.foto).filter(Boolean) : [(d.ponto || {}).foto].filter(Boolean); };
+  const unidadesDe = p => { const d = dadosDe(p); return umPonto(p) ? 1 : (d.pontos || []).length || Number(d.frota) || 1; };
   const mini = p => { const fs = fotosDe(p), d = dadosDe(p);
     return `<span class="pdt-mini" aria-hidden="true">${fs.length ? fs.slice(0, 3).map(src => `<img src="${src}" width="36" height="36" alt="" loading="lazy" decoding="async">`).join('') + (fs.length > 3 ? `<span class="q">+${fs.length - 3}</span>` : '')
       : `<span class="q">${ehInsercao(p) ? (d.frota || (d.pontos || []).length || '—') : S.svg('imagem', 16)}</span>`}</span>`; };
   const cartaoOoh = (p, mx) => { const d = dadosDe(p), vs = (d.variacoes || []).filter(x => Number(x.valor) > 0), ins = ehInsercao(p), pr = d.producao || {}, pt = d.ponto || {};
-    const sub = ins ? `por inserção · por dia · por ${unidade(d, 1)}${d.funcionamento ? ' · ' + esc(d.funcionamento) : ''}` : [pt.endereco, pt.cidade].filter(Boolean).map(esc).join(' · ') || 'Endereço não informado';
-    const spec = ins ? (d.obs ? esc(d.obs) : '') : [pt.formato, pt.impacto ? `${esc(pt.impacto)}/dia` : '', pt.impacto_mes ? `${esc(pt.impacto_mes)}/mês` : ''].filter(Boolean).join(' · ');
+    const um = umPonto(p), sub = ins && !um ? `por inserção · por dia · por ${unidade(d, 1)}${d.funcionamento ? ' · ' + esc(d.funcionamento) : ''}` : [pt.endereco, pt.cidade].filter(Boolean).map(esc).join(' · ') || 'Endereço não informado';
+    const spec = ins && !um ? (d.obs ? esc(d.obs) : '') : um ? [pt.formato, pt.impacto ? `${esc(pt.impacto)}/dia` : '', ...(vs.length ? ['por inserção'] : [])].filter(Boolean).join(' · ') : [pt.formato, pt.impacto ? `${esc(pt.impacto)}/dia` : '', pt.impacto_mes ? `${esc(pt.impacto_mes)}/mês` : ''].filter(Boolean).join(' · ');
     const filtra = ins && po.varia;
     const linhas = vs.map(x => `<div class="pdt-pb${filtra && x.nome === po.varia ? ' foco' : ''}"><span title="${esc(x.nome + (x.obs ? ' · ' + x.obs : ''))}">${esc(x.nome)}${x.obs ? `<small> · ${esc(x.obs)}</small>` : ''}</span><span class="pdt-pb-barra" aria-hidden="true"><i style="width:${Math.max(3, x.valor / mx * 100)}%"></i></span><b>${brl(x.valor)}</b></div>`).join('')
       + (!ins && Number(pr.valor) > 0 ? `<div class="pdt-pb prod"><span>${esc(pr.nome || 'Produção')}<small> · uma vez</small></span><span class="pdt-pb-barra" aria-hidden="true"><i style="width:${Math.max(3, pr.valor / mx * 100)}%"></i></span><b>${brl(pr.valor)}</b></div>` : '');
     const n = unidadesDe(p), ref = vs.find(x => x.nome === po.varia) || vs.find(x => /30/.test(x.nome)) || vs[0];
     const conta = !ref ? '' : ins ? `Exemplo: <b>${esc(ref.nome)}</b> · 30 por dia · ${n} ${unidade(d, n)} · 30 dias = <b>${brl(ref.valor * 30 * n * 30)}</b> no mês`
       : `Exemplo: <b>${vs.length > 1 ? 'todas as faces' : esc(ref.nome)}</b> por 1 mês = <b>${brl(vs.reduce((a, x) => a + Number(x.valor), 0))}</b>${Number(pr.valor) > 0 ? ` + produção ${brl(pr.valor)} (uma vez)` : ''}`;
-    const pe = ins ? `<button type="button" class="pdt-ooh-pe" data-go="/produtos/${p.id}"><span>${(d.pontos || []).length ? `${d.pontos.length} ${unidade(d, d.pontos.length)}` : d.frota ? `${d.frota} ${unidade(d, d.frota)} na frota` : 'Cadastrar pontos'}</span><span class="grow"></span><b>Ver pontos</b>${S.svg('seta', 16)}</button>`
+    const pe = um ? `<button type="button" class="pdt-ooh-pe" data-act="pdEditarOoh" data-id="${p.id}"><span>${pt.vig_ate ? `Vigência até ${esc(S.dfmt ? S.dfmt(pt.vig_ate) : pt.vig_ate)}` : 'Ficha do painel'}</span><span class="grow"></span><b>Ver ficha</b>${S.svg('seta', 16)}</button>`
+      : ins ? `<button type="button" class="pdt-ooh-pe" data-go="/produtos/${p.id}"><span>${(d.pontos || []).length ? `${d.pontos.length} ${unidade(d, d.pontos.length)}` : d.frota ? `${d.frota} ${unidade(d, d.frota)} na frota` : 'Cadastrar pontos'}</span><span class="grow"></span><b>Ver pontos</b>${S.svg('seta', 16)}</button>`
       : pode() ? `<button type="button" class="pdt-ooh-pe" data-act="pdEditarOoh" data-id="${p.id}"><span>Ficha do ponto</span><span class="grow"></span><b>Editar ficha</b>${S.svg('seta', 16)}</button>` : '';
-    return `<article class="card pdt-card pdt-ooh2${p.ativo ? '' : ' inativo'}" data-flip="${p.id}"><div class="pdt-ooh-cab">${mini(p)}<div class="pdt-ooh-tx"><h3>${ins ? `<a data-go="/produtos/${p.id}">${esc(p.nome)}</a>` : esc(p.nome)}</h3><small>${sub}</small>${spec ? `<small>${spec}</small>` : ''}</div>
+    return `<article class="card pdt-card pdt-ooh2${p.ativo ? '' : ' inativo'}" data-flip="${p.id}"><div class="pdt-ooh-cab">${mini(p)}<div class="pdt-ooh-tx"><h3>${um ? `<a data-act="pdEditarOoh" data-id="${p.id}">${esc(p.nome)}</a>` : ins ? `<a data-go="/produtos/${p.id}">${esc(p.nome)}</a>` : esc(p.nome)}</h3><small>${sub}</small>${spec ? `<small>${spec}</small>` : ''}</div>
         ${p.ativo ? '' : '<span class="pill fn-neutra">Inativo</span>'}<span class="pdt-tipo">${esc(S.nomeCategoria(p.categoria))}</span>${pode() ? tres('pdMenuOoh', p.id, p.nome) : ''}</div>
       ${linhas ? `<div class="pdt-precos-b${filtra ? ' filtra' : ''}">${linhas}</div>` : '<span class="muted small">Sem preço ainda</span>'}
       ${conta ? `<div class="pdt-conta">${conta}</div>` : ''}${pe}</article>`; };
@@ -334,7 +342,7 @@
     const pIns = todos.filter(ehInsercao), pMes = todos.filter(p => !ehInsercao(p));
     const kpis = insV && !mesV
       ? `<div><small>Produtos ativos</small><b>${S.roloFixo('po1', String(todos.filter(p => p.ativo).length))}</b><span>em ${cats.length} categoria${cats.length === 1 ? '' : 's'}</span></div>
-        <div><small>Pontos</small><b>${S.roloFixo('po2', String(pIns.reduce((a, p) => a + unidadesDe(p), 0)))}</b><span>${pIns.map(p => `${unidadesDe(p)} ${unidade(dadosDe(p), unidadesDe(p))}`).join(' · ') || '—'}</span></div>`
+        <div><small>Pontos</small><b>${S.roloFixo('po2', String(pIns.reduce((a, p) => a + unidadesDe(p), 0)))}</b><span>${(() => { const t = {}; pIns.forEach(p => { const k = dadosDe(p).unidade || 'painel'; t[k] = (t[k] || 0) + unidadesDe(p); }); return Object.entries(t).map(([k, n]) => `${n} ${unidade({ unidade:k }, n)}`).join(' · ') || '—'; })()}</span></div>`
       : `<div><small>Pontos</small><b>${S.roloFixo('po1', String(pMes.length + pIns.reduce((a, p) => a + unidadesDe(p), 0)))}</b><span>${cats.map(k => S.nomeCategoria(k)).join(' · ')}</span></div>
         <div><small>Faces</small><b>${S.roloFixo('po2', String(pMes.reduce((a, p) => a + vals(p).length, 0)))}</b><span>à venda por mês</span></div>`;
     const un = insV && !mesV ? 'por inserção' : 'por mês';
@@ -393,14 +401,30 @@
     const campo = (k, rot, val, ex = '', full) => `<label class="f"${full ? ' style="grid-column:1/-1"' : ''}>${rot}<input name="${k}" value="${esc(val || '')}"${/maps$/.test(k) ? ' inputmode="url" spellcheck="false" autocapitalize="off" autocomplete="off"' : ''}${ex ? ` placeholder="${esc(ex)}"` : ''}></label>`;
     S.dialog(`<h2>${p.id ? esc(p.nome) : 'Novo produto · ' + esc(S.veh().nome)}</h2>
       ${cats.length > 1 ? `<fieldset class="cat-escolha"><legend class="form-sec">Categoria</legend><div class="cat-ops">${cats.map(k => `<label class="cat-op"><input type="radio" name="categoria" value="${k}"${k === cat ? ' checked' : ''}><span>${esc(S.nomeCategoria(k))}</span></label>`).join('')}</div></fieldset>` : `<input type="hidden" name="categoria" value="${cat}">`}
-      <div class="g2"><label class="f" style="grid-column:1/-1">Nome do produto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Painéis de LED, Front light 1001, Empena 001…"></label></div>
+      <div class="g2"><label class="f" style="grid-column:1/-1">Nome do produto<input name="nome" required value="${esc(p.nome)}" placeholder="Ex.: Painel 001, Front light 1001, Empena 001…"></label></div>
       <div class="pdt-bloco" data-cobra="insercao">
+        ${(d.pontos || []).length ? '' : `<div class="pdt-ficha" data-ficha>
+          ${campoFoto(pt.foto)}
+          <div class="form-sec pdt-fsec">Endereço</div>
+          <div class="g2">${campo('fi_endereco', 'Endereço / referência', pt.endereco, 'Av. Fernando Corrêa (ao lado do Hotel Ibis)', true)}${campo('fi_cidade', 'Cidade', pt.cidade, 'Cuiabá')}</div>
+          <div class="form-sec pdt-fsec">Impacto</div>
+          <div class="g2"><label class="f">Veículos por dia<input name="fi_impacto" data-mask="int" inputmode="numeric" value="${esc(String(pt.impacto_n || (String(pt.impacto || '').match(/[\d.]+/) || [''])[0].replace(/\./g, '')))}" placeholder="10000"></label></div>
+          <div class="form-sec pdt-fsec">Formato</div>
+          <div class="g2 pdt-fmt"><label class="f">Largura (m)<input name="fi_larg" data-mask="dec" inputmode="decimal" value="${pt.larg ? S.nfmt(pt.larg) : ''}" placeholder="5,12"></label><label class="f">Altura (m)<input name="fi_alt" data-mask="dec" inputmode="decimal" value="${pt.alt ? S.nfmt(pt.alt) : ''}" placeholder="2,88"></label>
+            <p class="muted small" id="pdM2" style="grid-column:1/-1;margin:0">${pt.larg && pt.alt ? 'Área: ' + fmtM(area(pt.larg, pt.alt)) + ' m²' : pt.formato ? 'Hoje: ' + esc(pt.formato) : 'A área (m²) é calculada sozinha.'}</p></div>
+          <div class="form-sec pdt-fsec">Localização</div>
+          <div class="g2">${campo('fi_coords', 'Coordenadas', pt.coords, '15°36\'05.5"S 56°05\'16.6"W')}${campo('fi_maps', 'Link do Google Maps', pt.maps, 'https://goo.gl/maps/…')}
+            ${pt.maps ? `<p class="small" style="grid-column:1/-1;margin:0"><a href="${esc(/^https?:/.test(pt.maps) ? pt.maps : 'https://' + pt.maps)}" target="_blank" rel="noopener">Abrir no mapa ↗</a></p>` : ''}</div>
+          <div class="form-sec pdt-fsec">Vigência</div>
+          <div class="g2"><label class="f">De<input type="date" name="fi_vig_de" value="${esc(pt.vig_de || '')}"></label><label class="f">Até<input type="date" name="fi_vig_ate" value="${esc(pt.vig_ate || '')}"></label></div>
+</div>`}
+          <div class="form-sec pdt-fsec" data-ficha-sec>Preço e veiculação</div>
         <div class="g2"><label class="f">Vendido por<select name="unidade">${Object.entries(UNIDADE).map(([k, [um]]) => `<option value="${k}"${(d.unidade || 'painel') === k ? ' selected' : ''}>${um}</option>`).join('')}</select></label>
           ${campo('funcionamento', 'Funcionamento', d.funcionamento, 'Todos os dias · 6h às 0h')}${campo('arquivo', 'Arquivo padrão', d.arquivo, 'Vídeo MP4 · 1024 × 768 px', true)}</div>
         <div class="form-sec pdt-fsec">Preço por inserção · por dia · por ponto</div>
         <div class="pdt-rows" id="pdVarIns">${vIns.map((x, i) => linhaVar(x, i, false)).join('')}</div>
         <button type="button" class="btn sm" data-act="pdVarOohMais" data-face="" data-pd-add="1">${S.svg('mais')}Variação</button>
-        <p class="muted small">Os pontos (painéis, ônibus, telas) você cadastra depois, na página do produto.</p></div>
+</div>
       <div class="pdt-bloco" data-cobra="mes">
         <div class="g2">${campo('pt_codigo', 'Código do ponto', pt.codigo, '1001')}${campo('pt_formato', 'Formato', pt.formato, '9,00 × 3,00 m')}
           ${campo('pt_endereco', 'Endereço / referência', pt.endereco, 'Av. República do Líbano · Clube Monte Líbano', true)}${campo('pt_cidade', 'Cidade', pt.cidade, 'Cuiabá')}
@@ -417,12 +441,17 @@
       f => { const k = f.categoria, cobranca = COBRA[k] || 'mes';
         const vars = (pre, face) => Object.keys(f).filter(x => x.startsWith(pre + 'n_')).map(x => x.slice(pre.length + 2)).map(i => ({ nome:(f[pre + 'n_' + i] || '').trim(), obs:face ? (f[pre + 'o_' + i] || '').trim() : undefined, valor:S.num(f[pre + 'v_' + i]) })).filter(x => x.nome);
         const base = Object.assign({}, d, { cobranca });
-        if (cobranca === 'insercao') Object.assign(base, { unidade:f.unidade, funcionamento:(f.funcionamento || '').trim(), arquivo:(f.arquivo || '').trim(), variacoes:vars('ov_', false), pontos:d.pontos || [] });
+        if (cobranca === 'insercao') { Object.assign(base, { unidade:f.unidade, funcionamento:(f.funcionamento || '').trim(), arquivo:(f.arquivo || '').trim(), variacoes:vars('ov_', false), pontos:d.pontos || [] });
+          if (!(d.pontos || []).length && f.unidade === 'painel') { const l = S.num(f.fi_larg), a = S.num(f.fi_alt), imp = parseInt(String(f.fi_impacto || '').replace(/\D/g, '')) || 0;
+            base.ponto = Object.assign({}, pt, { codigo:(f.nome.match(/\d+/) || [''])[0], endereco:(f.fi_endereco || '').trim(), cidade:(f.fi_cidade || '').trim(),
+              impacto_n:imp || null, impacto:imp ? `${imp.toLocaleString('pt-BR')} veículos` : '', larg:l || null, alt:a || null, formato:S.formatoPainel(l, a) || pt.formato || '',
+              coords:(f.fi_coords || '').trim(), maps:(f.fi_maps || '').trim(), vig_de:f.fi_vig_de || '', vig_ate:f.fi_vig_ate || '', foto:f.foto || '', arquivo:(f.arquivo || '').trim() }); }
+          else delete base.ponto; }
         else Object.assign(base, { variacoes:vars('ov_', true), producao:{ nome:(f.pr_nome || '').trim(), valor:S.num(f.pr_valor) },
           ponto:Object.assign({}, pt, { codigo:(f.pt_codigo || '').trim(), formato:(f.pt_formato || '').trim(), endereco:(f.pt_endereco || '').trim(), cidade:(f.pt_cidade || '').trim(), impacto:(f.pt_impacto || '').trim(), impacto_mes:(f.pt_impacto_mes || '').trim(), coords:(f.pt_coords || '').trim(), maps:(f.pt_maps || '').trim(), foto:f.foto || '' }) });
-        S.run(async () => { const r = await S.salvar('produtos', Object.assign({ nome:f.nome.trim(), ativo:f.ativo === 'on', categoria:k, secao:'ooh', dados:base, detalhe:cobranca === 'mes' ? (f.pt_endereco || '').trim() : (f.funcionamento || '').trim() },
+        S.run(async () => { const r = await S.salvar('produtos', Object.assign({ nome:f.nome.trim(), ativo:f.ativo === 'on', categoria:k, secao:'ooh', dados:base, detalhe:cobranca === 'mes' ? (f.pt_endereco || '').trim() : base.ponto ? [base.ponto.endereco, base.ponto.cidade].filter(Boolean).join(' · ') : (f.funcionamento || '').trim() },
           p.id ? { id:p.id } : { veiculo_id:S.ui.vehicleId, tipo:'programa', ordem:oohProds().length }));
-          if (!p.id && cobranca === 'insercao' && r) location.hash = '/produtos/' + r.id; }, 'Produto salvo'); }, { consulta:!!p.id });
+          if (!p.id && cobranca === 'insercao' && !base.ponto && r) location.hash = '/produtos/' + r.id; }, 'Produto salvo'); }, { consulta:!!p.id });
     medio();
     alternarBloco();
   };
@@ -430,9 +459,13 @@
   const alternarBloco = () => { const d = document.getElementById('dlg'), f = d && d.querySelector('form'); if (!f || !f.querySelector('.pdt-bloco')) return;
     const k = (f.querySelector('[name="categoria"]:checked') || f.querySelector('[name="categoria"]')).value, c = COBRA[k] || 'mes';
     const ver = f.classList.contains('ver');
+    const fi = f.querySelector('[data-ficha]'), un = f.querySelector('[name="unidade"]');
     f.querySelectorAll('.pdt-bloco').forEach(b => { const on = b.dataset.cobra === c; b.hidden = !on; b.querySelectorAll('input, select, textarea, button').forEach(el => {
-      if (!on) { el.disabled = true; delete el.dataset.trava; } else if (ver && el.tagName !== 'BUTTON' && el.type !== 'hidden') { el.disabled = true; el.dataset.trava = '1'; } else el.disabled = false; }); }); };
-  document.addEventListener('change', e => { if (e.target.name === 'categoria' && e.target.closest('#dlg')) alternarBloco(); });
+      if (!on) { el.disabled = true; delete el.dataset.trava; } else if (ver && el.tagName !== 'BUTTON' && el.type !== 'hidden') { el.disabled = true; el.dataset.trava = '1'; } else el.disabled = false; }); });
+    if (fi && un) { const on = c === 'insercao' && un.value === 'painel'; fi.hidden = !on; const fsec = f.querySelector('[data-ficha-sec]'); if (fsec) fsec.hidden = !on; if (!on) fi.querySelectorAll('input, button').forEach(el => { el.disabled = true; }); } };
+  document.addEventListener('change', e => { if ((e.target.name === 'categoria' || e.target.name === 'unidade') && e.target.closest('#dlg')) alternarBloco(); });
+  document.addEventListener('input', e => { if (!/^fi_(larg|alt)$/.test(e.target.name || '') || !e.target.closest('#dlg')) return; const f = e.target.form, m = document.getElementById('pdM2');
+    const l = S.num(f.fi_larg.value), a = S.num(f.fi_alt.value); if (m) m.textContent = l && a ? 'Área: ' + fmtM(area(l, a)) + ' m²' : 'A área (m²) é calculada sozinha.'; });
 
   // Foto do ponto: reduzida no navegador (até 1000 px, JPEG) e guardada junto do produto
   const campoFoto = src => `<div class="pdt-foto-campo">${foto(src, 120, 84, 'Foto do ponto')}<div><b>Foto do ponto</b><small class="muted">JPG ou PNG. Sai no mídia kit.</small>
@@ -443,9 +476,9 @@
     img.onload = () => { const e = Math.min(1, 1000 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
       c.width = Math.round(img.naturalWidth * e); c.height = Math.round(img.naturalHeight * e); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', .78)); }; img.src = url; });
-  const trocarFoto = src => { const el = document.querySelector('#dlg .pdt-foto-campo'); if (!el) return; el.outerHTML = campoFoto(src); const d = document.getElementById('dlg'); if (d) d.dataset.sujo = '1'; };
+  const trocarFoto = (src, el) => { el = el || [...document.querySelectorAll('#dlg .pdt-foto-campo')].find(x => !x.closest('[hidden]')); if (!el) return; el.outerHTML = campoFoto(src); const d = document.getElementById('dlg'); if (d) d.dataset.sujo = '1'; };
   document.addEventListener('change', async e => { if (e.target.id !== 'pdFotoArq' || !e.target.files[0]) return;
-    try { trocarFoto(await lerFoto(e.target.files[0])); } catch (er) { S.toast(er.message); } });
+    try { trocarFoto(await lerFoto(e.target.files[0]), e.target.closest('.pdt-foto-campo')); } catch (er) { S.toast(er.message); } });
 
   // Ponto (painel, ônibus, tela) de um produto por inserção
   const formPonto = (p, i) => { const d = dadosDe(p), pts = d.pontos || [], x = i === undefined ? { id:S.uid() } : pts[i];
@@ -466,11 +499,11 @@
   // ---------- tela ----------
   S.views.produtos = id => {
     if (['digital', 'canais'].includes(id) || (id && (S.db.tabelas || []).some(t => t.id === id && S.tipoTabela(t) === 'digital'))) return S.views.cadastros(id);
-    if (!ehRadio()) { const p = id && prod(id); return p && p.secao === 'ooh' && ehInsercao(p) ? vistaPontos(p) : vistaOoh(); }
+    if (!ehRadio()) { const p = id && prod(id); return p && p.secao === 'ooh' && ehInsercao(p) && !umPonto(p) ? vistaPontos(p) : vistaOoh(); }
     if (id === 'patrocinios') return vistaCotas();
     if (id === 'projetos') return vistaProjetos();
     if (id === 'ooh' && catsOoh().length) return vistaOoh();
-    const p = id && prod(id); if (p && p.secao === 'ooh' && ehInsercao(p)) return vistaPontos(p);
+    const p = id && prod(id); if (p && p.secao === 'ooh' && ehInsercao(p) && !umPonto(p)) return vistaPontos(p);
     return vistaRadio();
   };
 
@@ -495,12 +528,12 @@
     pdTirarLinha: (d, b) => { const l = b.closest('.pdt-faixa, .pdt-row'), c = l && l.parentElement; if (!l) return;
       if (c.children.length === 1 && c.id === 'pdFaixas') return S.toast('O produto precisa de ao menos uma faixa (deixe os horários vazios para "a combinar").');
       l.remove(); atualizaRoda(); const dd = document.getElementById('dlg'); if (dd) dd.dataset.sujo = '1'; },
-    pdFotoEscolher: () => document.getElementById('pdFotoArq').click(),
-    pdFotoTirar: () => trocarFoto(''),
+    pdFotoEscolher: (d, b) => { const c = b && b.closest('.pdt-foto-campo'); (c ? c.querySelector('input[type="file"]') : document.getElementById('pdFotoArq')).click(); },
+    pdFotoTirar: (d, b) => trocarFoto('', b && b.closest('.pdt-foto-campo')),
     pdMenu: (d, b) => { const p = prod(d.id); if (!p) return;
       S.menu(b, [{ label:'Editar', icon:'editar', act:'pdEditar', data:{ id:p.id } }, { label:p.ativo ? 'Tirar das novas propostas' : 'Voltar às novas propostas', act:'pdAtivo', data:{ id:p.id } }, '-', { label:'Excluir', act:'pdExcluir', data:{ id:p.id }, perigo:true }]); },
     pdMenuOoh: (d, b) => { const p = prod(d.id); if (!p) return;
-      S.menu(b, [...(ehInsercao(p) ? [{ label:'Ver pontos', act:'pdAbrir', data:{ id:p.id } }] : []), { label:'Editar', icon:'editar', act:'pdEditarOoh', data:{ id:p.id } }, { label:p.ativo ? 'Tirar das novas propostas' : 'Voltar às novas propostas', act:'pdAtivo', data:{ id:p.id } }, '-', { label:'Excluir', act:'pdExcluir', data:{ id:p.id }, perigo:true }]); },
+      S.menu(b, [...(ehInsercao(p) && !umPonto(p) ? [{ label:'Ver pontos', act:'pdAbrir', data:{ id:p.id } }] : []), { label:'Editar', icon:'editar', act:'pdEditarOoh', data:{ id:p.id } }, { label:p.ativo ? 'Tirar das novas propostas' : 'Voltar às novas propostas', act:'pdAtivo', data:{ id:p.id } }, '-', { label:'Excluir', act:'pdExcluir', data:{ id:p.id }, perigo:true }]); },
     pdAbrir: d => { location.hash = '/produtos/' + d.id; },
     pdEditar: d => { const p = prod(d.id); if (!p) return; if (p.secao === 'patrocinio') formCota(p); else if (p.secao === 'projeto') formProjeto(p); else formRadio(p); },
     pjNovo: () => formProjeto(null),
@@ -551,6 +584,7 @@
     if (ehInsercao(p)) { const vr = (d.variacoes || []).find(x => x.nome === o.variacao), pd = parseInt(o.por_dia) || 0; if (!vr || !pd) return [];
       const base = { programa_id:p.id, formato:vr.nome, secao:'ooh', dias, faixa, preco_tabela:Number(vr.valor), preco:Number(vr.valor) };
       const pts = (d.pontos || []).filter(x => (o.pontos || []).includes(x.codigo));
+      if (umPonto(p)) { const x = d.ponto; return [comTotal(Object.assign({ id:S.uid(), programa:p.nome, detalhe:[x.endereco, x.cidade].filter(Boolean).join(' · '), por_dia:pd, insercoes:pd * 30, ooh:{ tipo:'insercao', produto_id:p.id, ponto:x.codigo || p.nome } }, base))]; }
       if (pts.length) return pts.map(x => comTotal(Object.assign({ id:S.uid(), programa:`${cap(unidade(d, 1))} ${x.codigo}`, detalhe:[x.endereco, x.cidade].filter(Boolean).join(' · '), por_dia:pd, insercoes:pd * 30, ooh:{ tipo:'insercao', produto_id:p.id, ponto:x.codigo } }, base)));
       const n = parseInt(o.unidades) || 0; if (!n) return [];
       return [comTotal(Object.assign({ id:S.uid(), programa:`${p.nome} · ${n} ${unidade(d, n)}`, detalhe:d.funcionamento || '', por_dia:pd * n, insercoes:pd * n * 30, ooh:{ tipo:'insercao', produto_id:p.id, unidades:n } }, base))]; }
@@ -587,11 +621,11 @@
         box.innerHTML = `<div class="g2"><label class="f">Duração ou variação<select name="formato">${fs.map(f => `<option value="${f.id}">${esc(f.nome)} · ${brl(precoNa(fo, p, f))}</option>`).join('')}</select></label>
           <label class="f">Inserções por mês<input name="qtd" data-mask="int" inputmode="numeric" value="30" required></label></div><small class="muted">${horario(p)}</small>`; return; }
       const vars = (d.variacoes || []).filter(x => Number(x.valor) > 0);
-      if (ehInsercao(p)) { const pts = d.pontos || [];
+      if (ehInsercao(p)) { const pts = d.pontos || [], um = umPonto(p);
         box.innerHTML = `<div class="g2"><label class="f">Duração<select name="variacao">${vars.map(x => `<option value="${esc(x.nome)}">${esc(x.nome)} · ${brl(x.valor)} por inserção</option>`).join('')}</select></label>
           <label class="f">Inserções por dia (em cada ${unidade(d, 1)})<input name="por_dia" data-mask="int" inputmode="numeric" value="30" required></label></div>
           ${pts.length ? `<fieldset class="cat-escolha"><legend class="form-sec">Onde roda</legend><div class="cat-ops">${pts.map(x => `<label class="cat-op"><input type="checkbox" name="ponto" value="${esc(x.codigo)}" checked><span>${esc(cap(unidade(d, 1)))} ${esc(x.codigo)}${x.cidade ? ` · ${esc(x.cidade)}` : ''}</span></label>`).join('')}</div></fieldset>`
-            : `<label class="f">Quantos ${unidade(d, 2)}<input name="unidades" data-mask="int" inputmode="numeric" value="${d.frota || 1}" required></label>`}
+            : um ? `<small class="muted">${esc([d.ponto.endereco, d.ponto.cidade, d.ponto.formato].filter(Boolean).join(' · '))}</small>` : `<label class="f">Quantos ${unidade(d, 2)}<input name="unidades" data-mask="int" inputmode="numeric" value="${d.frota || 1}" required></label>`}
           <small class="muted">${esc(d.funcionamento || '')}. Na proposta a conta é por mês de 30 dias; no PI, a mesma quantidade todos os dias.</small>`; return; }
       box.innerHTML = `<fieldset class="cat-escolha"><legend class="form-sec">Faces</legend><div class="cat-ops">${vars.map(x => `<label class="cat-op"><input type="checkbox" name="face" value="${esc(x.nome)}" checked><span>${esc(x.nome)}${x.obs ? ` · ${esc(x.obs)}` : ''} · ${brl(x.valor)}/mês</span></label>`).join('')}</div></fieldset>
         ${Number((d.producao || {}).valor) > 0 ? `<label class="chk"><input type="checkbox" name="producao" checked>${esc(d.producao.nome || 'Produção')} · ${brl(d.producao.valor)} por face, cobrada uma vez</label>` : ''}`; };

@@ -373,3 +373,8 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 ## Nome "Head 14" nas telas (05/11/2026)
 
 - Pedido do Luiz: nenhuma tela diz mais "Parte da Head 14"; só "Head 14" (Dashboard Gestão: números "Head 14 no mês" e "Head 14 acumulada", coluna e planilha "Head 14", cartões dos veículos; Vendas: quadro e cartão com o nome da empresa e o percentual).
+
+## Um produto por painel de LED (05/11/2026, `database/080_um_produto_por_painel.sql`)
+
+- Pedido do Luiz: os painéis de LED da Mídia On (4) e da Inside Door (2) viraram um produto cada ("Painel 001"…), com os mesmos preços (VT15"/30"/45"/60") e a ficha do mídia kit em `dados.ponto`: foto, endereço e cidade, impacto (`impacto_n`, veículos/dia), formato largura × altura com a área calculada (truncada como no kit, `S.formatoPainel`), coordenadas e link do Maps ("Abrir no mapa"), vigência de/até (`vig_de`/`vig_ate`; Mídia On 01/01 a 31/12/2026). O produto antigo foi apagado (ficou na Lixeira); nenhuma proposta usava.
+- Formulário de mídia exterior por inserção (`formOoh` em produtos.js): com "Vendido por" = painel e sem `dados.pontos`, mostra a ficha antes de "Preço e veiculação" (`[data-ficha]`, campos `fi_*`); DOOH por ônibus não mostra. Abre para consulta → Editar → Salvar. `umPonto(p)` separa esse produto do antigo com vários pontos (que continua com a página de pontos). Cartão: foto, endereço, formato e impacto, "Vigência até …" e "Ver ficha". Na proposta, o painel entra sozinho (sem escolher pontos), com o endereço no detalhe.
