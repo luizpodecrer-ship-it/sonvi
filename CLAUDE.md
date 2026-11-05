@@ -2,6 +2,10 @@
 
 Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e financeiro. A especificação está em `~/Documents/Sistema de Gestão para Rádios — Documento do Projeto.pdf`.
 
+## Antes de abrir código
+
+- Consulte **`MAPA.md`** (gerado por `python3 ferramentas/mapa.py`): cada arquivo do app com telas, ações, funções `S.`, chamadas ao banco e funções de borda; tabelas, funções e gatilhos do banco com a migração onde estão. Ache ali o arquivo e o nome, e leia só o trecho (Grep, Read com offset). Depois de mudanças grandes, rode o script de novo e publique o `MAPA.md` junto.
+
 ## Linguagem e estrutura
 
 - HTML, CSS e JavaScript puros, sem framework e sem etapa de build. O app abre com dois cliques em `app/index.html`.
