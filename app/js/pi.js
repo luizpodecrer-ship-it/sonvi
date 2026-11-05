@@ -907,6 +907,27 @@
     return true;
   });
 
+  // Atualiza só os números calculados (grades, ações digitais, resumo), sem redesenhar: o foco e o que está sendo digitado ficam
+  const atualizaNumeros = pi => {
+    pi.dados.grids.forEach(g => { let ti = 0, ts = 0;
+      g.items.forEach(it => { const c = S.itemCalc(it, g.period); ti += c.ins; ts += c.sub; const a = document.getElementById('ins-' + it.id), b = document.getElementById('sub-' + it.id); if (a) a.innerHTML = qtdTxt(c); if (b) b.textContent = brl(c.sub); });
+      const a = document.getElementById('gins-' + g.id), b = document.getElementById('gsub-' + g.id); if (a) a.textContent = ti; if (b) b.textContent = brl(ts); });
+    digPeriodos(pi).forEach(per => { let tq = 0, ts = 0;
+      pi.dados.digital.filter(it => it.period === per).forEach(it => { const c = S.digCalc(it); tq += c.qtd; ts += c.sub; const b = document.getElementById('dgs-' + it.id); if (b) b.textContent = brl(c.sub); });
+      const a = document.getElementById('dgq-' + per), b = document.getElementById('dgt-' + per); if (a) a.textContent = tq; if (b) b.textContent = brl(ts); });
+    const c = S.calc(pi), s = document.getElementById('sum'); if (s) s.innerHTML = summary(c);
+    const t = document.getElementById('totalCel'); if (t) t.textContent = brl(c.total);
+  };
+  // Valores, descontos e dias valem já enquanto se digita (05/11/2026: o resumo só mudava ao sair do campo e o desconto apagado
+  // continuava somando na tela); o campo só é formatado ao sair dele (change)
+  document.addEventListener('input', e => { const el = e.target, d = el.dataset || {};
+    if (S.route().view !== 'pi' || !el.closest || !el.closest('#content') || !(d.k === 'num' || d.day) || !d.f && !d.day) return;
+    const pi = cur(); if (!pi || !editando(pi)) return;
+    const grid = d.g && pi.dados.grids.find(g => g.id === d.g), item = grid && d.i && grid.items.find(i => i.id === d.i), dgi = d.dg && pi.dados.digital.find(x => x.id === d.dg);
+    if (d.day) { if (!item) return; const n = Math.max(0, parseInt(el.value) || 0); if (n) item.days[d.day] = n; else delete item.days[d.day];
+      const t = document.getElementById(`dt-${grid.id}-${d.day}`); if (t) t.textContent = grid.items.reduce((a, it) => a + num(it.days[d.day] || 0), 0) || ''; }
+    else setPath(item || dgi || grid || pi, d.f, num(el.value));
+    atualizaNumeros(pi); });
   // ---------- alterações de campo (só valem no modo de edição; vão para a nuvem ao clicar em Salvar) ----------
   const setPath = (obj, path, val) => { const ks = path.split('.'), last = ks.pop(); ks.reduce((o, k) => o[k], obj)[last] = val; };
   S.changes.push((el, d) => {
@@ -932,15 +953,7 @@
     if (item && (d.f === 'f1' || d.f === 'f2')) { const p = S.preco(item.f1, item.f2); if (p) { item.unit = num(p.preco); document.querySelectorAll(`input[data-f="unit"][data-i="${item.id}"]`).forEach(u => { u.value = nfmt(item.unit); }); } }
     marcarSujo();
     if (d.rerender) { S.render(); return true; }
-    // Atualiza só os números calculados, para não perder o foco durante a digitação
-    pi.dados.grids.forEach(g => { let ti = 0, ts = 0;
-      g.items.forEach(it => { const c = S.itemCalc(it, g.period); ti += c.ins; ts += c.sub; const a = document.getElementById('ins-' + it.id), b = document.getElementById('sub-' + it.id); if (a) a.innerHTML = qtdTxt(c); if (b) b.textContent = brl(c.sub); });
-      const a = document.getElementById('gins-' + g.id), b = document.getElementById('gsub-' + g.id); if (a) a.textContent = ti; if (b) b.textContent = brl(ts); });
-    digPeriodos(pi).forEach(per => { let tq = 0, ts = 0;
-      pi.dados.digital.filter(it => it.period === per).forEach(it => { const c = S.digCalc(it); tq += c.qtd; ts += c.sub; const b = document.getElementById('dgs-' + it.id); if (b) b.textContent = brl(c.sub); });
-      const a = document.getElementById('dgq-' + per), b = document.getElementById('dgt-' + per); if (a) a.textContent = tq; if (b) b.textContent = brl(ts); });
-    const c = S.calc(pi), s = document.getElementById('sum'); if (s) s.innerHTML = summary(c);
-    const t = document.getElementById('totalCel'); if (t) t.textContent = brl(c.total);
+    atualizaNumeros(pi);
     return true;
   });
 

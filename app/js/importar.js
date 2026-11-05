@@ -159,7 +159,7 @@
   const insPagas = () => imp.linhas.reduce((t, x) => t + (x.bonus ? 0 : Number(x.ins) || 0), 0);
   const unitDe = x => x.bonus ? 0 : imp.modo === 'fechado' ? (insPagas() ? imp.valor / insPagas() : 0) : x.unit;
   const somas = () => { const bruto = imp.modo === 'fechado' ? Number(imp.valor) || 0 : imp.linhas.reduce((s, x) => s + (x.bonus ? 0 : x.unit * x.ins), 0), com = imp.ag !== '__direta' ? Number(imp.com) || 0 : 0,
-    desc = imp.modo === 'linhas' ? Number(imp.l.desconto_valor) || 0 : 0, total = Math.max(0, bruto - desc); return { bruto, desc, total, com, comissao:total * com / 100, liquido:total - total * com / 100 }; };
+    desc = Number(imp.desc) || 0, total = Math.max(0, bruto - desc); return { bruto, desc, total, com, comissao:total * com / 100, liquido:total - total * com / 100 }; };
   const pendencias = () => imp.cli ? [] : ['o cliente'];
 
   let folha = null, folhaDe = null;   // o visualizador fica montado entre os desenhos da tela
@@ -196,6 +196,7 @@
       <div class="ip-contas">
         <div><small>Valor bruto${imp.meses.length > 1 ? ' do contrato' : ' do mês'}</small>${imp.modo === 'fechado' ? `<input class="ip-valor" data-ip="valor" data-mask="dec" inputmode="decimal" value="${S.nfmt(imp.valor)}" aria-label="Valor bruto do contrato">` : `<b>${brl(s.bruto)}</b>`}</div>
         <div><small>Comissão da agência</small>${imp.ag === '__direta' ? '<b>sem agência</b>' : `<span class="ip-pct"><input data-ip="com" data-mask="dec" inputmode="decimal" value="${S.nfmt(imp.com).replace(/,00$/, '')}" aria-label="Comissão da agência em %">% <b>${brl(s.comissao)}</b></span>`}</div>
+        <div><small>Desconto geral (R$)</small><span class="ip-pct"><input data-ip="desc" data-mask="dec" inputmode="decimal" value="${Number(imp.desc) ? S.nfmt(imp.desc) : ''}" placeholder="0,00" aria-label="Desconto geral em reais"></span>${Number(imp.l.desconto_valor) > 0 && !Number(imp.desc) ? `<small class="muted">o PI da agência cita ${brl(imp.l.desconto_valor)}</small>` : ''}</div>
         <div><small>Líquido para a ${esc(v.nome)}</small><b>${brl(s.liquido)}</b></div>
         <div><small>Confere com o PI</small>${confere ? `<b class="${bate ? 'ip-ok-t' : 'ip-al-t'}">${bate ? S.svg('check') + ' ' : ''}${brl(confere.alvo)}</b>${bate ? '' : `<small class="ip-al-t">o ${confere.rot} da tela é ${brl(confere.nosso)}</small>`}` : '<b class="muted">sem total</b>'}</div></div></section>`;
     const temGrupo = grupoPrincipal(), pg2 = prodDe(temGrupo);
@@ -252,6 +253,7 @@
     else if (k === 'juntar') imp.juntar = el.checked;
     else if (k === 'valor') imp.valor = S.num(el.value);
     else if (k === 'com') imp.com = S.num(el.value);
+    else if (k === 'desc') imp.desc = S.num(el.value);
     else if (k === 'cli') imp.cli = el.value;
     else if (k === 'ag') { imp.ag = el.value; const a = S.pessoa(el.value); if (a && a.comissao !== undefined && !(Number(imp.l.comissao_pct) > 0)) imp.com = S.num(a.comissao); }
     else if (k === 'assinado') { imp.assinado = el.value === 'sim' ? true : el.value === 'nao' ? false : null; return; }
@@ -293,7 +295,7 @@
     const grids = Object.keys(porMes).sort().map(m => ({ id:S.uid(), period:m, praca:v.cidade || '', items:usadas.filter(x => porMes[m][x.k]).map(x => ({
       id:S.uid(), piece:'', f1:nomeSonvi(x), f2:nomeFmt(x), days:porMes[m][x.k], unit:unitDe(x), disc:{ type:'pct', value:0 }, bonus:x.bonus, faixa:x.orig.horario || '' })) }));
     const temAg = imp.ag && imp.ag !== '__direta', pg = l.pagamento || {};
-    const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:temAg ? Number(imp.com) || 0 : 0 }, discount:{ type:'brl', value:imp.modo === 'linhas' ? Number(l.desconto_valor) || 0 : 0 }, grids, marca:imp.marca === 'radio' ? 'radio' : 'comercial',   // escolhido na conferência; padrão: empresa comercial (Head 14), 31/10/2026
+    const dados = S.piNorm({ dados:{ commission:{ type:'pct', value:temAg ? Number(imp.com) || 0 : 0 }, discount:{ type:'brl', value:Number(imp.desc) || 0 }, grids, marca:imp.marca === 'radio' ? 'radio' : 'comercial',   // escolhido na conferência; padrão: empresa comercial (Head 14), 31/10/2026
       billing:{ type:temAg ? 10 : 20, firstDue:/^\d{4}-\d{2}-\d{2}$/.test(pg.vencimento || '') ? pg.vencimento : '', installments:1, method:pg.forma || 'Boleto', obsClient:String(l.observacoes || '').slice(0, 2000) },
       importado:{ numero:String(l.numero_pi || ''), agencia:(l.agencia && l.agencia.nome) || '', arquivo:imp.file.name, em:new Date().toISOString(), total_documento:Number(l.total_bruto) || null, modo:imp.modo } } }).dados;
     const pi = S.piNorm(await S.q(S.sb.rpc('criar_pi', { p_veiculo:S.ui.vehicleId, p_titulo:imp.titulo.trim() || 'PI importado', p_cliente:imp.cli, p_agencia:temAg ? imp.ag : null, p_projeto:'', p_dados:dados })));

@@ -378,3 +378,8 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - Pedido do Luiz: os painéis de LED da Mídia On (4) e da Inside Door (2) viraram um produto cada ("Painel 001"…), com os mesmos preços (VT15"/30"/45"/60") e a ficha do mídia kit em `dados.ponto`: foto, endereço e cidade, impacto (`impacto_n`, veículos/dia), formato largura × altura com a área calculada (truncada como no kit, `S.formatoPainel`), coordenadas e link do Maps ("Abrir no mapa"), vigência de/até (`vig_de`/`vig_ate`; Mídia On 01/01 a 31/12/2026). O produto antigo foi apagado (ficou na Lixeira); nenhuma proposta usava.
 - Formulário de mídia exterior por inserção (`formOoh` em produtos.js): com "Vendido por" = painel e sem `dados.pontos`, mostra a ficha antes de "Preço e veiculação" (`[data-ficha]`, campos `fi_*`); DOOH por ônibus não mostra. Abre para consulta → Editar → Salvar. `umPonto(p)` separa esse produto do antigo com vários pontos (que continua com a página de pontos). Cartão: foto, endereço, formato e impacto, "Vigência até …" e "Ver ficha". Na proposta, o painel entra sozinho (sem escolher pontos), com o endereço no detalhe.
+
+## Desconto do PI (05/11/2026)
+
+- O resumo do PI em edição muda enquanto se digita (valor, desconto da linha, desconto geral, comissão, honorários e dias): `atualizaNumeros` + ouvinte de `input` em pi.js; o campo só é formatado ao sair. Antes o desconto apagado continuava somando na tela até sair do campo.
+- Importar PI não coloca mais o desconto geral sozinho: o bloco Valor tem o campo "Desconto geral (R$)" (vazio = sem desconto, `imp.desc`); quando a leitura achou desconto no PI da agência, aparece só o aviso "o PI da agência cita R$ …".
