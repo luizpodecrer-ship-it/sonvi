@@ -490,6 +490,10 @@ input.day:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-
 .gr-r .duo input { width:50px; height:30px; padding:0 6px; font-size:13px; text-align:right; }
 .gr-r .duo select { height:30px; width:66px; padding:0 18px 0 6px; font-size:13px; background-position:calc(100% - 11px) 55%, calc(100% - 7px) 55%; }
 .gr-r .sub { white-space:nowrap; font-size:13px; }
+/* Ajustar o valor de cada produto da grade (05/11/2026) */
+.gr-r.aj .vals { grid-template-columns:36px 80px 118px 92px 84px; }
+.gr-r .vals .btn.aj { padding:4px 6px; font-size:11px; letter-spacing:.03em; justify-self:end; }
+.aj-ok { color:var(--green); font-weight:600; }
 .gr-r .bon { text-align:center; } .gr-r span.n { font-size:13px; white-space:nowrap; }
 
 /* ---------- PI no celular: cartão com calendário ---------- */
@@ -542,7 +546,7 @@ input.day:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-
   .gr .ln { padding:0 8px; } .gr-l .ln { padding-left:2px; gap:4px; grid-template-columns:18px minmax(0, 1.2fr) minmax(0, 1fr); }
   .gr-l select:not(.pc-sel) { padding-left:6px; padding-right:18px; font-size:12px; background-position:calc(100% - 10px) 55%, calc(100% - 6px) 55%; }
   .gr .dias { gap:1px; } .day, .dh, .dt { width:21px; } .day { height:22px; border-radius:6px; font-size:11px; } .dh { font-size:11px; } .dh b { font-size:11px; }
-  .gr-r .vals { grid-template-columns:30px 72px 108px 84px; gap:4px; } .gr-r input.n { width:72px; } .gr-r .duo input { width:44px; } .gr-r .duo select { width:64px; }
+  .gr-r .vals { grid-template-columns:30px 72px 108px 84px; gap:4px; } .gr-r.aj .vals { grid-template-columns:30px 72px 108px 84px 80px; } .gr-r input.n { width:72px; } .gr-r .duo input { width:44px; } .gr-r .duo select { width:64px; }
 }
 /* Lista de PIs: linhas de uma só altura, colunas alinhadas, textos longos cortados com "…" */
 .pl { display:flex; flex-direction:column; font-variant-numeric:tabular-nums; }

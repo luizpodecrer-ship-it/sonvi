@@ -310,7 +310,7 @@
   const pacotesGrade = (g, em) => { const ps = pacotesDe(g); if (!ps.length) return '';
     return `<div class="g-pac">${ps.map(e => `<div class="g-pac-l"><span class="pill" style="--tone:var(--accent)">${e.tipo === 'projeto' ? 'Projeto especial' : 'Patrocínio'}</span>
       <b>${esc(e.x.nome)}</b><small class="muted">${e.tipo === 'projeto' ? `${esc(S.diasTexto(e.x.dias))}${e.x.horas ? ' · ' + esc(e.x.horas) : ''} · ` : ''}${e.ins} inserções · ${brl(e.sub)}</small>
-      ${em ? `<span class="grow"></span>${e.tipo === 'projeto' ? `<button class="btn sm" data-act="piAjProjeto" data-g="${g.id}" data-grupo="${esc(e.grupo)}">Ajustar</button>` : ''}<button class="btn sm danger" data-act="piRmPacote" data-g="${g.id}" data-grupo="${esc(e.grupo)}" data-tipo="${e.tipo}">Tirar ${e.tipo === 'projeto' ? 'projeto' : 'patrocínio'}</button>` : ''}</div>`).join('')}</div>`; };
+      ${em ? `<span class="grow"></span><button class="btn sm" data-act="${e.tipo === 'projeto' ? 'piAjProjeto' : 'piAjCota'}" data-g="${g.id}" data-grupo="${esc(e.grupo)}">Ajustar</button><button class="btn sm danger" data-act="piRmPacote" data-g="${g.id}" data-grupo="${esc(e.grupo)}" data-tipo="${e.tipo}">Tirar ${e.tipo === 'projeto' ? 'projeto' : 'patrocínio'}</button>` : ''}</div>`).join('')}</div>`; };
   const cabGrade = (g, i, em) => `<div class="g-hd"><h2>Grade ${String.fromCharCode(65 + i)}</h2>
     <label>Período de veiculação ${em ? `<select data-f="period" data-g="${g.id}" data-rerender="1" aria-label="Período de veiculação">${meses(g.period)}</select>` : `<b>${mesExt(g.period)}</b>`}</label>
     ${em ? `<span class="g-acoes"><button class="btn sm" data-act="piDistribuir" data-g="${g.id}" title="Escolha a quantidade e os dias da semana; o SONVI preenche o mapa">${S.svg('paineis')}Distribuir inserções</button>${S.projetosAtivos && S.projetosAtivos().length ? `<button class="btn sm" data-act="piAddProjeto" data-g="${g.id}" title="Entra com as entregas do Dial nos dias do projeto; o Online vai nas observações">+ Projeto especial</button>` : ''}${S.cotasAtivas && S.cotasAtivas().length ? `<button class="btn sm" data-act="piAddCota" data-g="${g.id}" title="Entra com as inserções da cota, com o valor do mês dividido entre elas">+ Patrocínio</button>` : ''}<button class="btn sm" data-act="piRepetir" data-id="${g.id}" title="Copia esta grade para os meses seguintes">${S.svg('copia')}Repetir nos próximos meses</button><button class="x" data-act="piRmGrid" data-id="${g.id}" aria-label="Remover grade" title="Remover grade">×</button></span>` : ''}</div>${pacotesGrade(g, em)}`;
@@ -389,15 +389,15 @@
       R.push(`<div class="ln vals">${em ? `<button class="ins dist" data-act="piDistribuir" data-g="${g.id}" data-id="${it.id}" title="Distribuir as inserções desta linha" aria-label="Distribuir as inserções de ${esc(it.f1 || 'esta linha')}"><span id="ins-${it.id}">${qtdTxt(c)}</span></button>` : `<span class="ins" id="ins-${it.id}">${qtdTxt(c)}</span>`}
         ${em ? `<input class="n" value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)} aria-label="${c.pormes ? 'Valor do mês' : 'Valor unitário'}"${c.pormes ? ' title="Valor do mês: o total é proporcional aos dias marcados"' : ''}>${descEdit(it, a(it))}`
           : `<span class="n">${brl(num(it.unit))}</span><span class="n">${descVer(it)}</span>`}
-        <b class="sub" id="sub-${it.id}">${brl(c.sub)}</b></div>`);
+        <b class="sub" id="sub-${it.id}">${brl(c.sub)}</b>${em ? (it.projeto || it.cota ? '<span></span>' : `<button class="btn sm aj" data-act="piAjItem" data-g="${g.id}" data-id="${it.id}" aria-label="Ajustar o valor de ${esc(it.f1 || 'esta linha')}">Ajustar</button>`) : ''}</div>`);
     });
     const cab = days.map(d => { const w = new Date(y, m - 1, d).getDay(); return `<span class="dh${w === 0 || w === 6 ? ' we' : ''}">${WD[w]}<b>${String(d).padStart(2, '0')}</b></span>`; }).join('');
     return `<section class="card grade">${cabGrade(g, i, em)}
       <div class="gr">
         <div class="gr-l"><div class="ln cb"><span></span><span>Programa</span><span>Formato</span></div>${L.join('')}<div class="ln ft">${em ? `<button class="btn sm" data-act="piAddItem" data-id="${g.id}">+ Adicionar item</button>` : ''}<b>Totais</b></div></div>
         <div class="gr-m"><div class="gr-mi"><div class="ln cb dias">${cab}</div>${M.join('')}<div class="ln ft dias tot">${days.map(d => `<span class="dt" id="dt-${g.id}-${d}">${porDia[d] || ''}</span>`).join('')}</div></div></div>
-        <div class="gr-r"><div class="ln cb vals"><span>Qtd.</span><span class="n">Valor unit.</span><span class="n">Desconto</span><span class="sub">Total</span></div>${R.join('')}
-          <div class="ln ft vals"><b class="ins" id="gins-${g.id}">${tIns}</b><span></span><span></span><b class="sub" id="gsub-${g.id}">${brl(tSub)}</b></div></div>
+        <div class="gr-r${em ? ' aj' : ''}"><div class="ln cb vals"><span>Qtd.</span><span class="n">Valor unit.</span><span class="n">Desconto</span><span class="sub">Total</span>${em ? '<span></span>' : ''}</div>${R.join('')}
+          <div class="ln ft vals"><b class="ins" id="gins-${g.id}">${tIns}</b><span></span><span></span><b class="sub" id="gsub-${g.id}">${brl(tSub)}</b>${em ? '<span></span>' : ''}</div></div>
       </div></section>`;
   }
 
@@ -422,7 +422,7 @@
         <div class="it-vals"><label class="f">Quantidade<span class="ro" id="ins-${it.id}">${qtdTxt(c)}</span></label>
           <label class="f">${c.pormes ? 'Valor do mês' : 'Valor unit.'}${em ? `<input value="${nfmt(num(it.unit))}" data-f="unit" data-k="num" data-mask="dec" inputmode="decimal" placeholder="0,00" ${a(it)}>` : `<span class="ro">${brl(num(it.unit))}</span>`}</label>
           <label class="f">Desconto${em ? descEdit(it, a(it)) : `<span class="ro">${descVer(it)}</span>`}</label></div>
-        ${em ? `<div class="row mid"><span class="grow"></span><button class="btn sm danger" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}">Remover linha</button></div>` : ''}</article>`;
+        ${em ? `<div class="row mid">${it.projeto || it.cota ? '' : `<button class="btn sm" data-act="piAjItem" data-g="${g.id}" data-id="${it.id}">Ajustar valor</button>`}<span class="grow"></span><button class="btn sm danger" data-act="piRmItem" data-g="${g.id}" data-id="${it.id}">Remover linha</button></div>` : ''}</article>`;
     }).join('');
     return `<section class="card grade gc">${cabGrade(g, i, em)}<p class="muted small"><b id="gins-${g.id}">${tIns}</b> inserções · <b id="gsub-${g.id}">${brl(tSub)}</b></p>${itens}
       ${em ? `<button class="btn" data-act="piAddItem" data-id="${g.id}">+ Adicionar item</button>` : ''}</section>`;
@@ -608,8 +608,9 @@
     if (!novos.length) return S.toast('Nenhum dia do pacote cai no período escolhido: confira os dias e o "a partir do dia".');
     mexer((pi, d) => { const gg = d.grids.find(y => y.id === g.id); if (!gg) return; const peca = (d.pieces[0] || {}).id || ''; novos.forEach(n => { n.piece = peca; });
       const vazio = it => !String(it.f1 || '').trim() && !String(it.f2 || '').trim() && !S.itemCalc(it).ins;
-      const k = trocar ? gg.items.findIndex(it => it.projeto && it.projeto.grupo === trocar) : -1;
-      gg.items = gg.items.filter(it => !vazio(it) && !(trocar && it.projeto && it.projeto.grupo === trocar));
+      const doGrupo = it => trocar && ((it.projeto || it.cota || {}).grupo === trocar);
+      const k = trocar ? gg.items.findIndex(doGrupo) : -1;
+      gg.items = gg.items.filter(it => !vazio(it) && !doGrupo(it));
       gg.items.splice(k >= 0 ? Math.min(k, gg.items.length) : gg.items.length, 0, ...novos);
       const pj = novos[0].projeto, l = pj ? S.projetoObs(pj) : '';
       if (l && !String(d.billing.obsClient || '').split('\n').some(y => y.trim() === l)) d.billing.obsClient = [String(d.billing.obsClient || '').trim(), l].filter(Boolean).join('\n'); });
@@ -824,6 +825,46 @@
       const its = g.items.filter(it => it.projeto && it.projeto.grupo === x.grupo); if (!its.length) return;
       const de = Math.min(...its.flatMap(it => Object.keys(it.days || {}).filter(d => num(it.days[d]) > 0).map(Number)).concat([ultDia(g.period)]));
       S.dlgProjeto(its[0].projeto, (pr, o) => lancaPacote(g, S.itensDoProjeto(pr, Object.assign(o, { grupo:x.grupo })), o.de, x.grupo), { pi:{ ult:ultDia(g.period), de, mes:mesExt(g.period) } }); },
+    // Ajustar o valor de um produto da grade (05/11/2026, aprovado no modelo "Ajustar valor do PI"): vale para qualquer produto
+    // de qualquer veículo. O valor negociado do mês é dividido pelas inserções (face por mês: vira o valor do mês da face).
+    piAjItem: x => { const pi = cur(); if (!editando(pi)) return; const g = pi.dados.grids.find(y => y.id === x.g), it = g && g.items.find(y => y.id === x.id); if (!it) return;
+      const c = S.itemCalc(it, g.period), nd = S.diasDoMes(g.period), base = c.pormes ? c.dias / nd : c.ins;
+      if (!(base > 0)) return S.toast(c.pormes ? 'Marque os dias da face antes de ajustar o valor.' : 'Lance as inserções da linha antes de ajustar o valor.');
+      const tabU = num((S.preco(it.f1, it.f2) || {}).preco) || num(it.unit), tab = Math.round(tabU * base * 100) / 100;
+      const nome = [it.f1, it.f2].filter(Boolean).join(' · ') || 'Linha';
+      S.dialog(`<h2>Ajustar · ${esc(it.f1 || 'Linha')}</h2><p class="muted small" style="margin:-6px 0 0">${esc(it.f2 || '')}${it.f2 ? ' · ' : ''}${mesExt(g.period)} · ${c.pormes ? `${c.dias} de ${nd} dias` : `${c.ins.toLocaleString('pt-BR')} inserç${c.ins === 1 ? 'ão' : 'ões'}`}</p>
+        <div class="caixa">Valor de tabela deste produto no mês: <b>${brl(tab)}</b> <span class="muted small">(${c.pormes ? `${brl(tabU)} o mês da face` : `${brl(tabU)} por inserção`})</span></div>
+        <label class="f">Valor negociado no mês (R$)<input name="valor" data-mask="dec" inputmode="decimal" required autocomplete="off" value="${nfmt(Math.round(c.sub * 100) / 100)}"></label>
+        <div class="caixa" id="ajInfo" aria-live="polite"></div>
+        <p class="muted small" style="margin:0">As inserções e os dias não mudam. O cadastro do produto não muda. Depois de aplicar, confira e clique em Salvar.</p>
+        <div class="row" style="margin-top:16px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Aplicar</button></div>`,
+        f => { const v = num(f.valor); if (!(v >= 0) || String(f.valor).trim() === '') return S.toast('Informe o valor do mês.');
+          mexer((p2, d) => { const gg = d.grids.find(y => y.id === g.id), ii = gg && gg.items.find(y => y.id === it.id); if (!ii) return;
+            ii.unit = c.pormes ? v * nd / c.dias : v / c.ins; ii.disc = { type:'pct', value:0 }; });
+          S.toast(`${nome}: ${brl(v)} no mês. Confira e clique em Salvar.`); });
+      const dl = document.getElementById('dlg'), inp = dl.querySelector('[name="valor"]'), box = document.getElementById('ajInfo');
+      const info = () => { const v = num(inp.value), u = c.pormes ? v * nd / c.dias : v / c.ins;
+        box.innerHTML = `${v < tab - .004 ? `<span class="aj-ok">Desconto de ${brl(tab - v)} (${nfmt((1 - v / tab) * 100).replace(/,?0+$/, '')}%)</span> · ` : v > tab + .004 ? 'Acima da tabela · ' : 'Igual à tabela · '}novo ${c.pormes ? 'valor do mês da face' : 'unitário'} ${brl(u)}`; };
+      inp.addEventListener('input', info); info(); inp.select(); },
+    // Ajustar o patrocínio (05/11/2026): valor do mês neste PI e o dia de início, como o projeto especial
+    piAjCota: x => { const pi = cur(); if (!editando(pi)) return; const g = pi.dados.grids.find(y => y.id === x.g); if (!g) return;
+      const its = g.items.filter(it => it.cota && it.cota.grupo === x.grupo); if (!its.length) return;
+      const k = its[0].cota, prod = S.db.produtos.find(p => p.id === k.id); if (!prod) return S.toast('Esta cota não existe mais em Produtos. Tire o patrocínio e escolha outro.');
+      const tab = num((prod.dados || {}).valor), atual = num(k.valor) || tab, ult = ultDia(g.period);
+      const de = Math.min(...its.flatMap(it => Object.keys(it.days || {}).filter(d => num(it.days[d]) > 0).map(Number)).concat([ult]));
+      S.dialog(`<h2>Ajustar patrocínio</h2><p class="pj-dlg-nome"><b>${esc(k.nome)}</b></p>
+        <label class="f">Valor por mês neste PI (R$)<input name="valor" data-mask="dec" inputmode="decimal" required autocomplete="off" value="${nfmt(atual)}"></label>
+        <label class="f">A partir do dia<input name="de" type="number" min="1" max="${ult}" value="${de}" required></label>
+        <div class="caixa" id="ajInfo" aria-live="polite"></div>
+        <p class="muted small" style="margin:0">O cadastro da cota não muda. O valor do mês é dividido pelas inserções dela (começando depois do dia 1, a quantidade e o valor ficam proporcionais).</p>
+        <div class="row" style="margin-top:16px"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">Aplicar</button></div>`,
+        f => { const v = num(f.valor); if (!(v > 0)) return S.toast('Informe o valor do mês.');
+          const novos = S.itensDaCota(prod); if (!novos.length) return S.toast('Esta cota não tem inserções incluídas.');
+          const fat = tab ? v / tab : 1; novos.forEach(n => { n.preco = n.preco * fat; n.total = Math.round(n.total * fat * 100) / 100; n.cota = Object.assign({}, n.cota, { grupo:x.grupo, valor:v, valor_tabela:tab }); });
+          lancaPacote(g, novos, Math.min(ult, Math.max(1, parseInt(f.de) || 1)), x.grupo); });
+      const dl = document.getElementById('dlg'), inp = dl.querySelector('[name="valor"]'), box = document.getElementById('ajInfo');
+      const info = () => { const v = num(inp.value); box.innerHTML = `Valor de tabela ${brl(tab)}${v > 0 && v < tab - .004 ? ` · <span class="aj-ok">desconto ${brl(tab - v)} (${nfmt((1 - v / tab) * 100).replace(/,?0+$/, '')}%)</span>` : ''}`; };
+      inp.addEventListener('input', info); info(); },
     piAddCota: x => { const pi = cur(); if (!editando(pi)) return; const g = pi.dados.grids.find(y => y.id === x.g); if (!g) return; const cs = S.cotasAtivas();
       if (!cs.length) return S.toast('Este veículo ainda não tem cotas de patrocínio. Cadastre em Produtos → Patrocínios.');
       const ult = ultDia(g.period);
