@@ -3136,6 +3136,7 @@ dialog.em-dlg [hidden] { display:none !important; }
 /* Recebido pela OPEC na lista de PIs (057) */
 .pl-sit .pl-rec { display:inline-flex; align-items:center; gap:4px; color:var(--green); font-weight:600; white-space:nowrap; }
 .pl-sit .pl-rec svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2.6; }
+.pl-sit .pl-mot { display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink-3); font-size:12px; }
 
 /* Vendas: números que contam e a variação contra o mês anterior (27/10/2026) */
 .vd-val { font-variant-numeric:tabular-nums; }

@@ -161,8 +161,7 @@
   const totaisMes = (M, ym) => { const ks = Object.keys(M); return { liq:(M[ym] || {}).liq || 0, head:(M[ym] || {}).head || 0,
     acu:ks.filter(m => m >= ym).reduce((t, m) => t + M[m].liq, 0), heada:ks.filter(m => m >= ym).reduce((t, m) => t + M[m].head, 0) }; };
   const KPIS = [{ k:'liq', ic:'financeiro', titulo:'Líquido do mês', sub:true }, { k:'acu', ic:'relatorio', titulo:'Acumulado (mês + seguintes)', sub:true },
-    { k:'head', ic:'empresa', titulo:'Head 14 no mês', sub:true, cls:'cz-kpi-head' }, { k:'heada', ic:'empresa', titulo:'Head 14 acumulada', sub:true, cls:'cz-kpi-head' },
-    { k:'rec', ic:'vendas', titulo:'A faturar / receber', sub:true }];
+    { k:'head', ic:'empresa', titulo:'Head 14 no mês', sub:true, cls:'cz-kpi-head' }, { k:'heada', ic:'empresa', titulo:'Head 14 acumulada', sub:true, cls:'cz-kpi-head' }];   /* 05/11/2026: saiu "A faturar / receber" (o SONVI não acompanha mais pagamento) */
 
   const mesAMes = (M, ym, veiculos) => {
     const hoje = S.mesAtual(), z = { liq:0, head:0, pis:0, porV:{} };
@@ -223,13 +222,13 @@
       const tot = ls.reduce((a, l) => a + l.liq, 0);
       const linhas = ls.slice().sort((a, b) => b.liq - a.liq || a.v.nome.localeCompare(b.v.nome));
       const marca = l => fp.c == null ? '' : idx.get(l.v.id) !== fp.c ? ' gc-fora' : ' gc-on';
-      const sit = l => l.vencido ? S.tag('Pagamento atrasado', 'orange') : l.opec ? S.tag(`${l.opec} na OPEC`, 'blue') : l.liq || l.receber ? S.tag('Em dia', 'green') : S.tag('Sem vendas', 'gray');
+      const sit = l => l.liq ? S.tag('Com vendas', 'green') : S.tag('Sem vendas', 'gray');
       if (!veiculos.length) return '<div class="empty"><b>Nenhum veículo cadastrado</b>Cadastre os veículos em Administração.</div>';
       return `<div class="gc-grade">${linhas.map(l => `<div class="gc${marca(l)}" data-act="geralAbrir" data-id="${l.v.id}" role="link" aria-label="Abrir o Dashboard da ${esc(l.v.nome)}">
         <div class="gc-topo">${S.vav(l.v)}<span class="gc-tx"><b>${esc(l.v.nome)}</b><small>${esc(S.vehSub(l.v) || S.nomeCategoria(S.categoria(l.v)))}</small><span class="gc-sit">${sit(l)}</span></span></div>
         <div class="gc-num"><span><small>Líquido no mês</small><b class="gc-liq">${S.roloFixo('gc-l-' + l.v.id, reais0(l.liq))}</b></span><span class="gc-h"><small>Head 14</small><b>${S.roloFixo('gc-h-' + l.v.id, reais0(l.head))}</b></span></div>
         <span class="gc-barra" aria-hidden="true"><i style="width:${tot ? Math.max(l.liq ? 2 : 0, l.liq / tot * 100).toFixed(1) : 0}%;background:${esc(l.v.cor || 'var(--accent)')}"></i></span>
-        <div class="gc-pe"><span>${l.n} PI${l.n === 1 ? '' : 's'} no mês</span><span class="${l.vencido ? 'fin-laranja' : ''}">${l.vencido ? reais0(l.vencido) + ' vencido' : l.receber ? reais0(l.receber) + ' a receber' : 'Nada a receber'}</span><b class="gc-abrir">Abrir ›</b></div></div>`).join('')}</div>`; };
+        <div class="gc-pe"><span>${l.n} PI${l.n === 1 ? '' : 's'} no mês</span><span>${l.opec ? `${l.opec} aguardando a OPEC abrir` : ''}</span><b class="gc-abrir">Abrir ›</b></div></div>`).join('')}</div>`; };
     painel.corpo = corpo_;
     const lista = `<section class="card gv"><div class="hd gv-hd"><div><h2>Veículos</h2><span class="muted small">Clique num veículo para abrir o Dashboard dele.</span></div><span class="muted small gv-at">atualizado às ${S.hora(cache.em)} · <a data-act="geralAtualizar">Atualizar</a></span></div><div id="gv-corpo">${corpo_()}</div></section>`;
     const metas = S.metasAneis ? S.metasAneis({ mes:ym, pis:cache.pis, vazio:'Nenhuma meta cadastrada para este mês. A meta de cada consultor, por veículo, fica em Administração › Colaboradores.' }) : '';

@@ -7,6 +7,7 @@
   const blankItem = () => ({ id:uid(), piece:'', f1:'', f2:'', days:{}, unit:0, disc:{ type:'pct', value:0 }, bonus:false });
   const comercial = pi => S.pode('diretor', 'gerente') || (S.pode('consultor') && pi.consultor_id === S.me.id);
   const editavel = pi => S.EDITABLE.includes(pi.status) && comercial(pi);
+  const podeCancelar = pi => S.pode('diretor') || S.me.diretor || (S.pode('consultor') && pi.consultor_id === S.me.id);
   const produtos = tipo => S.db.produtos.filter(p => p.tipo === tipo && p.ativo).map(p => p.nome).sort();
 
   // ---------- lista (aprovada em 24/10/2026): PIs do mês, régua das etapas, propostas aprovadas, "no ar" no mês e a lista ----------
@@ -16,41 +17,50 @@
   const MESES_PI = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const nomeMesPi = ym => { const n = MESES_PI[+ym.slice(5) - 1]; return `${n[0].toUpperCase()}${n.slice(1)} ${ym.slice(0, 4)}`; };
   const somaMesPi = (ym, n) => { const [y, m] = ym.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-  const ETAPAS_PI = ['rascunho', 'opec', 'devolvido', 'aprovado', 'programado', 'faturado'];
+  // PI enviado para a OPEC já é venda (05/11/2026, database/081): a régua mostra OPEC abriu · Aguardando abrir · Rascunhos
+  const ENVIADO = ['opec', 'aprovado', 'programado', 'faturado'];
+  const ETAPAS_PI = [['abriu', 'OPEC abriu', 'programado'], ['aguarda', 'Aguardando a OPEC', 'opec'], ['rasc', 'Rascunhos', 'rascunho']];
+  const etapaPi = p => ENVIADO.includes(p.status) ? (abriuEm(p) !== null ? 'abriu' : 'aguarda') : S.EDITABLE.includes(p.status) ? 'rasc' : '';
   const curtoPi = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
   // Primeiro e último dia com inserção (rádio) ou período da ação digital
   const veiculacao = p => { const ds = [];
     (p.dados.grids || []).forEach(g => (g.items || []).forEach(it => Object.entries(it.days || {}).forEach(([d, n]) => { if (Number(n) > 0) ds.push(`${g.period}-${String(d).padStart(2, '0')}`); })));
     (p.dados.digital || []).forEach(a => { if (a.inicio) ds.push(a.inicio); if (a.fim) ds.push(a.fim); });
     if (!ds.length) return null; ds.sort(); return [ds[0], ds[ds.length - 1]]; };
-  const etiquetaPi = p => p.status === 'opec' ? '<span class="pill fn-ok pf-vivo">Na OPEC</span>' : p.status === 'devolvido' ? '<span class="pill fn-forte">Devolvido</span>'
-    : ['rascunho', 'cancelado'].includes(p.status) ? `<span class="pill fn-neutra">${S.STATUS[p.status].label}</span>` : `<span class="pill fn-ok">${S.STATUS[p.status].label}</span>`;
+  const etiquetaPi = p => ENVIADO.includes(p.status) ? seloOpec(p)
+    : p.status === 'devolvido' ? `<span class="pill fn-forte">Devolvido</span>${motivoDev[p.id] ? `<small class="pl-mot" title="${esc(motivoDev[p.id])}">${esc(motivoDev[p.id])}</small>` : ''}`
+    : `<span class="pill fn-neutra">${S.STATUS[p.status].label}</span>`;
+  // Motivo da devolução de cada PI devolvido da lista (uma busca só no histórico)
+  const motivoDev = {}; let devBusca = '';
+  const carregaMotivos = lista => { const ids = lista.filter(p => p.status === 'devolvido' && !(p.id in motivoDev)).map(p => p.id); const k = ids.join(',');
+    if (!ids.length || !S.sb || devBusca === k) return; devBusca = k;
+    S.q(S.sb.from('pi_historico').select('pi_id, nota, em').in('pi_id', ids).eq('status', 'devolvido').order('em', { ascending:false }))
+      .then(l => { ids.forEach(id => { motivoDev[id] = String(((l || []).find(x => x.pi_id === id) || {}).nota || '').replace(/^OPEC pelo link · [^:]*: /, ''); }); if (S.route().view === 'pis') S.render(); })
+      .catch(e => console.error(e)); };
   // Blocos da lista de PIs (03/11/2026): o PI programado pela OPEC fica "A lançar" até a venda do mês ser lançada
   // Desde 03/11/2026 (database/078) a venda entra sozinha quando a OPEC abre o PI: Lançados · A lançar (na OPEC) · Rascunhos
-  const grupoPi = p => ['aprovado', 'programado', 'faturado'].includes(p.status) ? 'lan' : p.status === 'opec' ? 'alancar' : 'rasc';
-  const GRUPOS_PI = [['lan', 'Lançados', true, 'a OPEC abriu · contam nos números'], ['alancar', 'A lançar', true, 'na OPEC · entram quando ela abrir o e-mail'], ['rasc', 'Rascunhos', false, 'rascunhos e devolvidos']];
+  // 05/11/2026: só Enviados (já é venda) e Rascunhos (rascunho e devolvido); cancelados num bloco fechado no fim
+  const grupoPi = p => ENVIADO.includes(p.status) ? 'lan' : p.status === 'cancelado' ? 'can' : 'rasc';
+  const GRUPOS_PI = [['lan', 'Enviados', true, 'já é venda · líquido no mês'], ['rasc', 'Rascunhos', true, 'não contam como venda'], ['can', 'Cancelados', false, 'fora das vendas']];
   document.addEventListener('toggle', e => { const d = e.target; if (d && d.dataset && d.dataset.sf) pm.abertos[d.dataset.sf] = d.open; }, true);
-  const pagTom = p => { const r = ((S.db && S.db.pagPis) || {})[p.id]; if (!r) return '';
-    return r.situacao === 'pago' ? '<span class="pill fn-neutra">Pago</span>' : r.situacao === 'atrasado' ? '<span class="pill fn-forte">Pagamento atrasado</span>'
-      : `<span class="pill fn-neutra">Em aberto${r.proximo ? ` · vence ${S.dfmt(r.proximo).slice(0, 5)}` : ''}</span>`; };
   S.views.pis = () => {
     const hoje = today(), ym = pm.mes || hoje.slice(0, 7), mesN = MESES_PI[+ym.slice(5) - 1], q = (S.ui.q || '').toLowerCase();
     // PIs do mês = os que vão ao ar no mês, com a parte daquele mês (29/10/2026: antes era pelo dia em que o PI foi criado,
     // e uma venda fechada em outubro para novembro deixava novembro zerado). PI de vários meses aparece em cada um.
-    const doMes = S.db.pis.filter(p => p.status !== 'cancelado' && S.fatiaMes(p, ym) > 0);
+    const doMes = S.db.pis.filter(p => S.fatiaMes(p, ym) > 0);
     const totDe = l => l.reduce((s, p) => s + S.calc(p).net * S.fatiaMes(p, ym), 0);   // vendas sempre pelo líquido (03/11/2026)
-    const et = ETAPAS_PI.map(k => { const xs = doMes.filter(p => p.status === k); return { k, nome:S.STATUS[k].label, xs, v:totDe(xs) }; });
+    const et = ETAPAS_PI.map(([k, nome, cls]) => { const xs = doMes.filter(p => etapaPi(p) === k); return { k, nome, cls, xs, v:totDe(xs) }; });
     const sel = et.find(e => e.k === pm.et), base = sel ? sel.xs : doMes;
-    const lancados = base.filter(p => S.lancada(p.id, ym)), tot = sel ? totDe(base) : lancados.reduce((t, p) => t + S.valorNoMes(p, ym), 0);
-    const atrasados = S.db.pis.filter(p => (((S.db.pagPis || {})[p.id]) || {}).situacao === 'atrasado').length, devolvidos = S.db.pis.filter(p => p.status === 'devolvido').length, naOpec = S.db.pis.filter(p => p.status === 'opec').length;
-    const regua = `<div class="pr-regua${sel ? ' filtra' : ''}" role="group" aria-label="Etapas dos PIs de ${mesN} (escolha para filtrar)">${et.filter(e => e.xs.length).map(e => `<button type="button" class="pr-et-${e.k}" data-act="piEtapa" data-v="${e.k}" style="flex-grow:${Math.max(1, Math.round(e.v)) || 1}" aria-pressed="${pm.et === e.k}" aria-label="${e.nome}: ${e.xs.length} PI${e.xs.length === 1 ? '' : 's'}, ${curtoPi(e.v)}" title="${e.nome} · ${curtoPi(e.v)}"></button>`).join('') || '<span class="pr-vazia"></span>'}</div>
-      <div class="pr-leg">${et.map(e => `<button type="button" class="pr-et-${e.k}" data-act="piEtapa" data-v="${e.k}" aria-pressed="${pm.et === e.k}"><i aria-hidden="true"></i><b>${e.nome} · ${e.xs.length}</b><span>${curtoPi(e.v)}</span></button>`).join('')}</div>`;
-    const resumo = `${atrasados ? `<span class="pill fn-forte">${atrasados} com pagamento atrasado</span>` : ''}${devolvidos ? `<span class="pill fn-forte">${devolvidos} devolvido${devolvidos > 1 ? 's' : ''} pela OPEC</span>` : ''}<span class="pill fn-neutra">${naOpec} na OPEC</span>`;
+    const enviados = base.filter(p => ENVIADO.includes(p.status)), tot = sel ? totDe(base) : totDe(enviados);
+    const devolvidos = S.db.pis.filter(p => p.status === 'devolvido').length, aguardam = S.db.pis.filter(p => ENVIADO.includes(p.status) && abriuEm(p) === null).length;
+    const regua = `<div class="pr-regua${sel ? ' filtra' : ''}" role="group" aria-label="PIs de ${mesN} (escolha para filtrar)">${et.filter(e => e.xs.length).map(e => `<button type="button" class="pr-et-${e.cls}" data-act="piEtapa" data-v="${e.k}" style="flex-grow:${Math.max(1, Math.round(e.v)) || 1}" aria-pressed="${pm.et === e.k}" aria-label="${e.nome}: ${e.xs.length} PI${e.xs.length === 1 ? '' : 's'}, ${curtoPi(e.v)}" title="${e.nome} · ${curtoPi(e.v)}"></button>`).join('') || '<span class="pr-vazia"></span>'}</div>
+      <div class="pr-leg">${et.map(e => `<button type="button" class="pr-et-${e.cls}" data-act="piEtapa" data-v="${e.k}" aria-pressed="${pm.et === e.k}"><i aria-hidden="true"></i><b>${e.nome} · ${e.xs.length}</b><span>${curtoPi(e.v)}</span></button>`).join('')}</div>`;
+    const resumo = `${devolvidos ? `<span class="pill fn-forte">${devolvidos} devolvido${devolvidos > 1 ? 's' : ''} pela OPEC</span>` : ''}<span class="pill fn-neutra">${aguardam ? `${aguardam} aguardando a OPEC abrir` : 'A OPEC abriu todos os PIs enviados'}</span>`;
     const topo = `<section class="card fn-mes-card" aria-labelledby="pr-t"><div class="hd"><h2 id="pr-t">PIs do mês</h2><span class="grow"></span>
       <div class="fn-nav" role="group" aria-label="Mês"><button class="btn sm ic" data-act="piMes" data-d="-1" aria-label="Mês anterior" title="Mês anterior (←)">${S.svg('esq')}</button>
         <span class="fn-mes-et" role="status" aria-live="polite"><span>${nomeMesPi(ym)}</span></span>
         <button class="btn sm ic" data-act="piMes" data-d="1" aria-label="Próximo mês" title="Próximo mês (→)">${S.svg('seta')}</button>${ym !== hoje.slice(0, 7) ? '<button class="btn sm" data-act="piMes" data-d="0">Hoje</button>' : ''}</div></div>
-      <div class="pr-topo"><div class="pr-tot"><small>${sel ? sel.nome : `Venda lançada em ${mesN}`}</small><span class="pf-num">${S.roloFixo('prTotal', curtoPi(tot))}</span><small>${sel ? base.length : lancados.length} PI${(sel ? base.length : lancados.length) === 1 ? '' : 's'} · ticket médio ${curtoPi(tot / Math.max(1, sel ? base.length : lancados.length))}</small></div><div>${regua}</div></div>
+      <div class="pr-topo"><div class="pr-tot"><small>${sel ? sel.nome : `Vendido em ${mesN} (líquido)`}</small><span class="pf-num">${S.roloFixo('prTotal', curtoPi(tot))}</span><small>${sel ? base.length : enviados.length} PI${(sel ? base.length : enviados.length) === 1 ? '' : 's'}${sel ? '' : ' enviados'} · ticket médio ${curtoPi(tot / Math.max(1, sel ? base.length : enviados.length))}</small></div><div>${regua}</div></div>
       <div class="fn-resumo" style="margin-top:14px">${resumo}</div></section>`;
     // No ar no mês: o que veicula em algum dia do mês (sem rascunho, devolvido e cancelado)
     const [yy, mm] = ym.split('-').map(Number), nd = new Date(yy, mm, 0).getDate(), d1 = `${ym}-01`, dN = `${ym}-${String(nd).padStart(2, '0')}`;
@@ -66,15 +76,15 @@
         : `<p class="muted">Nenhum PI veiculando em ${mesN}.</p>`}</section>`;
     // Lista do mês
     const pis = base.filter(p => !q || [p.titulo, S.nome(p.cliente_id), S.nome(p.agencia_id), S.usuario(p.consultor_id), p.projeto, S.piNo(p)].join(' ').toLowerCase().includes(q)).sort((a, b) => b.numero - a.numero);
-    carregaLeituras(); vigiarLeituras(pis); vigiarStatus(pis);
+    carregaLeituras(); vigiarLeituras(pis); vigiarStatus(pis); carregaMotivos(pis);
     const linha = p => { const c = S.calc(p), cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id), cons = S.usuario(p.consultor_id), tit = p.titulo || 'Sem título', v = veiculacao(p);
       return `<div class="pl-l click" data-go="/pi/${p.id}" data-flip="${p.id}" role="link" tabindex="0">
         <span class="pl-n">${S.piNo(p)}</span>
-        <span class="pl-t"><b title="${esc(tit)}">${esc(tit)}</b><small>${[p.projeto ? esc(p.projeto) : '', c.ins || !c.pub ? `${c.ins} inserç${c.ins === 1 ? 'ão' : 'ões'}` : '', c.pub ? `${c.pub} entrega${c.pub === 1 ? '' : 's'} digita${c.pub === 1 ? 'l' : 'is'}` : ''].filter(Boolean).join(' · ')}</small>${grupoPi(p) === 'lan' && S.progPill && p.programado_em ? S.progPill(p, true) : ''}</span>
+        <span class="pl-t"><b title="${esc(tit)}">${esc(tit)}</b><small>${[p.projeto ? esc(p.projeto) : '', c.ins || !c.pub ? `${c.ins} inserç${c.ins === 1 ? 'ão' : 'ões'}` : '', c.pub ? `${c.pub} entrega${c.pub === 1 ? '' : 's'} digita${c.pub === 1 ? 'l' : 'is'}` : ''].filter(Boolean).join(' · ')}</small></span>
         <span class="pl-c"><span title="${esc(cli)}">${esc(cli)}</span><small title="${esc(ag || 'Venda direta')}">${ag ? esc(ag) : 'Venda direta'}</small></span>
         <span class="pl-u" title="${esc(cons)}">${cons ? `<span class="av soft" aria-hidden="true">${esc(S.iniciais(cons))}</span><span class="pl-un">${esc(S.celular ? cons : cons.split(' ')[0])}</span>` : '<span class="muted">—</span>'}</span>
         <span class="pl-p"><small>Veiculação</small>${v ? `${dfmt(v[0]).slice(0, 5)} a ${dfmt(v[1]).slice(0, 5)}` : '—'}</span>
-        <span class="pl-i pl-sit">${etiquetaPi(p)}${pagTom(p)}${recebidoMini(p)}</span>
+        <span class="pl-i pl-sit">${etiquetaPi(p)}</span>
         <span class="pl-v"><b title="Valor líquido">${brl(c.net)}</b>${S.fatiaMes(p, ym) < 0.9999 ? `<small>${brl(c.net * S.fatiaMes(p, ym))} em ${mesN}</small>` : ''}${c.commission ? `<small>Bruto ${brl(c.total)}</small>` : ''}</span>
         <span class="pl-m"><button class="btn tres" data-act="piOpcoes" data-id="${p.id}" aria-label="Opções do ${S.piNo(p)}">${S.svg('mais3')}</button></span></div>`; };
     // Sanfona (03/11/2026, modelo "Lançar venda"): A lançar e Na OPEC abertos; Rascunho e Vendas lançadas fechados
@@ -84,7 +94,7 @@
       return `<details class="pl-sf pl-sf-${k}" data-sf="${k}"${abre ? ' open' : ''}><summary><span class="pl-sf-barra" aria-hidden="true"></span>${S.svg('seta', 16)}<h3>${nome}</h3><small class="pl-sf-dica">${dica}</small><span class="pl-sf-n">${xs.length} PI${xs.length === 1 ? '' : 's'}</span><b class="pl-sf-v">${brl(val)}</b></summary>
         <div class="pl">${cab}${xs.map(linha).join('')}</div></details>`; }).join('');
     const vazio = `<div class="empty"><b>Nenhum PI</b>${q ? `Nada com essa busca em ${mesN}.` : sel ? `Nenhum PI nesta etapa em ${mesN}.` : S.db.pis.length ? `Nenhum PI no ar em ${mesN}.` : 'Os pedidos desta rádio aparecem aqui.'}</div>`;
-    const listaCard = `<section class="card pl-card" aria-labelledby="pr-tl"><div class="hd fn-par-hd"><h2 id="pr-tl">PIs de ${mesN}</h2><span>${pis.length} · ${brl(totDe(pis))} líquido</span></div>
+    const listaCard = `<section class="card pl-card" aria-labelledby="pr-tl"><div class="hd fn-par-hd"><h2 id="pr-tl">PIs de ${mesN}</h2><span>${pis.filter(p => p.status !== 'cancelado').length} · ${brl(totDe(pis.filter(p => p.status !== 'cancelado')))} líquido</span></div>
       <div class="fn-filtros">${sel ? `<button class="fn-chip pr-chip pr-et-${sel.k}" data-act="piEtapa" data-v="${sel.k}" aria-label="Tirar o filtro ${sel.nome}"><i aria-hidden="true"></i>${sel.nome}${S.svg('fechar', 14)}</button>` : ''}
         <label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por número, título, cliente, agência ou consultor" aria-label="Buscar PIs"></label></div>
       ${pis.length ? `<div class="pl-sfs">${blocos}</div>` : vazio}
@@ -179,16 +189,7 @@
   const flow = pi => {
     const b = (act, label, extra = '', pri = true, icon = '') => `<button class="btn${pri === true ? ' pri' : pri ? ' ' + pri : ''}" data-act="${act}"${extra}>${icon ? S.svg(icon) : ''}${label}</button>`;
     if (S.EDITABLE.includes(pi.status)) return comercial(pi) ? b('piSend', pi.status === 'devolvido' ? 'Reenviar para a OPEC' : 'Enviar para a OPEC', '', true, 'seta') : '';
-    if (pi.status === 'opec') return S.pode('diretor', 'opec') ? b('piReturn', 'Devolver', '', 'warn', 'voltar') + b('piStatus', 'Aprovar PI', ' data-to="aprovado"', true, 'check') : '';
-    const fmes = S.multiMes(pi) ? S.mesesDoPi(pi).find(m => !S.mesesFaturados(pi).has(m)) : '';
-    // Venda lançada por mês (03/11/2026): o próximo mês ainda não lançado ganha o botão "Lançar venda <mês>"
-    const msPi = S.mesesDoPi(pi).length ? S.mesesDoPi(pi) : [String(pi.criado_em || S.today()).slice(0, 7)], alan = msPi.find(m => !S.lancada(pi.id, m));
-    const lancar = false && alan ? b('vdLancar', `Lançar venda ${S.nomeMes(alan).toLowerCase()}`, ` data-id="${pi.id}" data-mes="${alan}"`, true, 'check') : '';
-    const fatOk = fmes ? !!S.lancada(pi.id, fmes) : msPi.every(m => S.lancada(pi.id, m));
-    const faturar = S.pode('diretor', 'financeiro') && fatOk ? b('vdEnviar', fmes ? `Enviar para faturar ${S.nomeMes(fmes).toLowerCase()}` : 'Enviar para faturar', ` data-id="${pi.id}"${fmes ? ` data-mes="${fmes}"` : ''}`, pi.status === 'programado' && !lancar) : '';
-    if (pi.status === 'aprovado') return lancar + faturar + (S.pode('diretor', 'opec') ? b('piStatus', 'Marcar como programado', ' data-to="programado"', !lancar, 'check') : '');
-    if (pi.status === 'programado') return lancar + faturar;
-    if (pi.status === 'faturado') return lancar;
+    // PI enviado (05/11/2026): sem aprovar, programar nem faturar; o que resta fica no menu ⋯ (Reenviar e-mail, Duplicar, Cancelar)
     if (pi.status === 'cancelado') return S.pode('diretor', 'gerente') ? b('piStatus', 'Reabrir como rascunho', ' data-to="rascunho"', false) : '';
     return '';
   };
@@ -200,10 +201,11 @@
     const em = editando(pi), c = S.calc(pi), h = S.db.hist[pi.id];
     if (!h) carregarHistorico(pi);
     if (!S.db.midias[pi.id]) carregarMidias(pi);
-    const devol = pi.status === 'devolvido' && h ? h.find(x => x.status === 'devolvido') : null;
+    const devol = pi.status === 'devolvido' && h ? h.find(x => x.status === 'devolvido') : null, canc = pi.status === 'cancelado' && h ? h.find(x => x.status === 'cancelado') : null;
     const notas = `${devol && devol.nota ? `<div class="note"><b>Devolvido pela OPEC:</b> ${esc(devol.nota)}</div>` : ''}
       ${!editavel(pi) && S.EDITABLE.includes(pi.status) ? '<div class="note info">Este PI é de outro consultor ou o seu perfil só pode consultar.</div>' : ''}
-      ${!S.EDITABLE.includes(pi.status) && pi.status !== 'cancelado' ? '<div class="note info">Este PI já saiu do rascunho: está somente para consulta.</div>' : ''}`;
+      ${ENVIADO.includes(pi.status) ? '<div class="note info">PI enviado: já conta como venda e fica só para consulta. Para mudar algo, a OPEC devolve pelo link (volta para Rascunho) ou você cancela e faz outro.</div>' : ''}
+      ${pi.status === 'cancelado' && canc ? `<div class="note"><b>${esc(canc.nota || 'Cancelado')}</b></div>` : ''}`;
     carregaLeituras(); marcarAbertoOpec(pi); vigiarLeituras([pi]); vigiarStatus([pi]);
     const nMid = nMidias(pi);
     const abas = `<nav class="abas" aria-label="Abas do PI">${[['detalhes', 'Detalhes'], ['faturamento', 'Faturamento'], ['midias', `Mídias${nMid ? ` <span class="cont">${nMid}</span>` : ''}`], ['historico', 'Histórico']].map(([t, n]) => `<button class="${S.ui.tab === t ? 'on' : ''}" data-act="piTab" data-tab="${t}">${n}</button>`).join('')}</nav>`;
@@ -212,7 +214,7 @@
     const acoes = em
       ? `<span class="sujo" ${ed.sujo ? '' : 'hidden'}><i></i>Alterações não salvas</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piCancelar">Cancelar</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn pri" data-act="piSalvar">${S.svg('check')}Salvar</button>`
       : `<span class="muted small salvo">${salvoEm(pi)}</span><button class="btn tres" data-act="piOpcoes" data-id="${pi.id}" aria-label="Mais opções">${S.svg('mais3')}</button><button class="btn" data-act="piVer">${S.svg('olho')}Visualizar</button><button class="btn" data-act="piExport">${S.svg('baixar')}Exportar PI</button>${editavel(pi) ? `<button class="btn" data-act="piEditar">${S.svg('editar')}Editar</button>` : ''}${flow(pi)}`;
-    return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${S.pill(pi.status)}${['aprovado', 'programado'].includes(pi.status) && S.progPill ? S.progPill(pi) : ''}${recebidoPill(pi)}${origPill(pi)}${S.pagPi(pi)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
+    return { title:`<span class="sub"><a data-go="/pis">PIs</a>${S.svg('seta', 14)}<b style="color:var(--ink);font-weight:500">${S.piNo(pi)}</b>${ENVIADO.includes(pi.status) ? `<span class="pill" style="--tone:var(--accent)">Enviado · venda de ${esc(vendaDe(pi))}</span>${seloOpec(pi, true)}` : S.pill(pi.status)}${origPill(pi)}<span>· ${esc(S.usuario(pi.consultor_id))}</span></span>${titulo}`,
       actions:acoes, body:abas + notas + body };
   };
 
@@ -227,10 +229,15 @@
   const leituraDe = pi => { const x = leituras[pi.id]; if (!x) return null;
     const envio = (S.db.hist[pi.id] || []).filter(h => h.status === 'opec').map(h => h.em).sort().pop();
     return envio && new Date(x.aberto_em) < new Date(envio) ? null : x; };
-  const recebidoPill = pi => { if (pi.status !== 'opec') return '';
-    const x = leituraDe(pi), quando = x ? `${dfmt(S.dia(x.aberto_em)).slice(0, 5)} ${S.hora(x.aberto_em)}` : '';
-    return x ? `<span class="pill" style="--tone:var(--green)" title="Aberto por ${esc(x.por)}${x.aberturas > 1 ? ` · ${x.aberturas} vezes` : ''}">${S.svg('check')}Recebido pela OPEC · ${quando}</span>`
-      : `<span class="pill" style="--tone:var(--gray)" title="Fica &quot;Recebido&quot; quando a OPEC abrir o PI pelo e-mail ou no SONVI">OPEC ainda não abriu</span>`; };
+  // Selo da OPEC (05/11/2026): verde "OPEC abriu · data hora" ou cinza "Aguardando a OPEC abrir". Só informa: não muda o valor.
+  // Abriu = leitura do link depois do último envio, ou o PI já marcado programado (abrir o link marca sozinho, opec_link).
+  const abriuEm = p => { const x = leituraDe(p); if (x) return x.aberto_em; return ['aprovado', 'programado', 'faturado'].includes(p.status) ? (p.programado_em || '') : null; };
+  const seloOpec = (p, longo) => { if (!ENVIADO.includes(p.status)) return ''; const em = abriuEm(p), x = leituraDe(p);
+    return em !== null ? `<span class="pill" style="--tone:var(--green)"${x ? ` title="Aberto por ${esc(x.por || 'OPEC')}${x.aberturas > 1 ? ` · ${x.aberturas} vezes` : ''}"` : ''}>${S.svg('check')}OPEC abriu${em ? ` · ${dfmt(S.dia(em)).slice(0, 5)}${longo ? ' às' : ''} ${S.hora(em)}` : ''}</span>`
+      : `<span class="pill" style="--tone:var(--gray)" title="Fica verde quando a OPEC abrir o PI pelo link do e-mail">Aguardando a OPEC abrir</span>`; };
+  S.seloOpec = seloOpec;
+  const vendaDe = pi => { const ms = S.mesesDoPi(pi).length ? S.mesesDoPi(pi) : [String(pi.criado_em || today()).slice(0, 7)];
+    const n = m => MESES_PI[+m.slice(5) - 1]; return ms.length === 1 ? n(ms[0]) : `${n(ms[0])} a ${n(ms[ms.length - 1])}`; };
   // Enquanto algum PI "Na OPEC" ainda não foi aberto, confere de novo a cada 20 s (a OPEC pode abrir com a tela aberta aqui)
   let releTimer = 0;
   const vigiarLeituras = lista => { if (releTimer || !lista.some(p => p.status === 'opec' && !leituraDe(p))) return;
@@ -244,9 +251,7 @@
         if (mudou && !ed.sujo) S.render(); else vigiarStatus(lista);
       } catch (e) { console.error(e); } }, 30000); };
   S.vigiarStatusPis = vigiarStatus;
-  const recebidoMini = p => { if (p.status !== 'opec') return ''; const x = leituraDe(p);
-    return x ? `<small class="pl-rec">${S.svg('check')}Recebido ${dfmt(S.dia(x.aberto_em)).slice(0, 5)} ${S.hora(x.aberto_em)}</small>` : '<small class="muted">OPEC ainda não abriu</small>'; };
-  S.recebidoMini = recebidoMini;
+  S.recebidoMini = p => seloOpec(p);
   const marcarAbertoOpec = pi => { if (pi.status !== 'opec' || !S.pode('opec') || marcados.has(pi.id) || !S.sb) return; marcados.add(pi.id);
     S.q(S.sb.rpc('pi_aberto_opec', { p_pi:pi.id })).then(() => { leitVeic = null; carregaLeituras(); }).catch(e => console.error(e)); };
 
@@ -686,15 +691,16 @@
     },
     // Menu "três pontinhos" do PI (na lista e dentro do PI): só mostra o que vale para o status e o perfil
     piOpcoes: (d, botao) => {
-      const pi = S.db.pis.find(p => p.id === d.id), gestor = S.pode('diretor', 'gerente'), dentro = S.route().view === 'pi', id = { id:pi.id };
+      const pi = S.db.pis.find(p => p.id === d.id), dentro = S.route().view === 'pi', id = { id:pi.id };
       const itens = [];
       if (!dentro) itens.push({ label:'Abrir', icon:'abrir', act:'piAbrir', data:id });
       if (editavel(pi) && !editando(pi)) itens.push({ label:'Editar', icon:'editar', act:'piEditarId', data:id });
       if (S.EDITABLE.includes(pi.status) && comercial(pi)) itens.push({ label:pi.status === 'devolvido' ? 'Reenviar para a OPEC' : 'Enviar para a OPEC', icon:'seta', act:'piEnviarId', data:id });
       itens.push({ label:'Enviar por WhatsApp', icon:'whats', act:'piWhats', data:id });
+      if (ENVIADO.includes(pi.status) && comercial(pi)) itens.push({ label:'Reenviar e-mail à OPEC', icon:'email', act:'piReenviarEmail', data:id });
       if (comercial(pi)) itens.push({ label:'Duplicar', icon:'copia', act:'piDuplicar', data:id });
       const fim = [];
-      if (gestor && !['cancelado', 'faturado', 'rascunho'].includes(pi.status)) fim.push({ label:'Cancelar PI', icon:'voltar', act:'piCancelarPI', data:id, perigo:true });
+      if (ENVIADO.includes(pi.status) && podeCancelar(pi)) fim.push({ label:'Cancelar PI…', icon:'voltar', act:'piCancelarPI', data:id, perigo:true });
       if (S.me.diretor || (S.pode('consultor') && pi.consultor_id === S.me.id)) fim.push({ label:'Excluir PI', icon:'lixo', act:'piExcluirTudo', data:id, perigo:true });
       else if (pi.status === 'rascunho' && comercial(pi)) fim.push({ label:'Excluir', icon:'lixo', act:'piExcluir', data:id, perigo:true });
       S.menu(botao, fim.length ? [...itens, '-', ...fim] : itens);
@@ -713,7 +719,24 @@
     },
     piDuplicar: d => { const pi = S.db.pis.find(p => p.id === d.id);
       S.run(async () => { const novo = S.piNorm(await criar({ titulo:pi.titulo + ' (cópia)', cliente_id:pi.cliente_id, agencia_id:pi.agencia_id, projeto:pi.projeto }, JSON.parse(JSON.stringify(pi.dados)))); S.db.pis.push(novo); S.piEntrar(novo); S.ui.tab = 'detalhes'; location.hash = '/pi/' + novo.id; }, 'PI duplicado'); },
-    piCancelarPI: async d => { const pi = S.db.pis.find(p => p.id === d.id); if (await S.confirmar(`Cancelar o ${S.piNo(pi)}? Ele sai da OPEC e do faturamento.`, { ok:'Cancelar o PI', voltar:'Manter', perigo:true })) S.setStatus(pi, 'cancelado'); },
+    // Cancelar PI enviado (05/11/2026, database/081): diretor ou o consultor do PI, com o motivo; a venda sai e a OPEC recebe e-mail
+    piCancelarPI: d => { const pi = S.db.pis.find(p => p.id === d.id); if (!pi || !podeCancelar(pi)) return;
+      const v = S.veh(pi.veiculo_id), liq = ENVIADO.includes(pi.status) ? S.calc(pi).net : 0;
+      S.dialog(`<h2>Cancelar ${S.piNo(pi)}?</h2>
+        <p class="muted" style="margin-top:-6px">O valor de <b>${brl(liq)}</b> sai de Vendas, Dashboards, metas, Head 14 e comissões de ${esc(vendaDe(pi))}. ${v.opec_email ? `A OPEC da ${esc(v.nome)} recebe um e-mail (${esc(v.opec_email)}) para tirar da programação.` : `A ${esc(v.nome)} não tem e-mail da OPEC cadastrado: avise a OPEC você mesmo.`}</p>
+        <label class="f">Motivo (vai no e-mail para a OPEC)<textarea name="motivo" required maxlength="1000" placeholder="Ex.: o cliente desistiu da campanha."></textarea></label>
+        <div class="row"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Voltar</button><button class="btn danger" value="ok">Cancelar PI</button></div>`,
+        f => S.run(async () => {
+          const r = await S.q(S.sb.rpc('cancelar_pi', { p_pi:pi.id, p_motivo:f.motivo.trim() }));
+          pi.status = 'cancelado'; delete S.db.hist[pi.id]; [...S.lancReg.keys()].filter(k => k.startsWith(pi.id + '|')).forEach(k => S.lancReg.delete(k));
+          if (editando(pi)) sairEdicao();
+          let avisou = false;
+          try { const { data } = await S.sb.functions.invoke('opec_link', { body:{ acao:'cancelado', token:(r && r.token) || pi.link_token } }); avisou = !!(data && data.enviado); } catch (e) { console.error(e); }
+          S.toast(avisou ? `${S.piNo(pi)} cancelado. A OPEC recebeu o aviso por e-mail.` : `${S.piNo(pi)} cancelado. O e-mail para a OPEC não foi: avise a OPEC você mesmo.`);
+          S.render();
+        }));
+      const ta = document.querySelector('#dlg [name="motivo"]'); if (ta) ta.focus(); },
+    piReenviarEmail: d => { const pi = S.db.pis.find(p => p.id === d.id); if (pi && ENVIADO.includes(pi.status) && comercial(pi)) enviarOpec(pi); },
     piExcluir: async d => { const pi = S.db.pis.find(p => p.id === d.id);
       if (!await S.confirmar(`Excluir o ${S.piNo(pi)} (${pi.titulo || 'sem título'})? Fica 30 dias na Lixeira, onde o diretor pode restaurar.`, { ok:'Excluir PI', perigo:true })) return;
       S.run(async () => { if (ed.id === pi.id) sairEdicao(); await S.excluir('pis', pi.id);
@@ -856,15 +879,15 @@
     const html = `<div class="pi-envio" data-papel="${S.veh(pi.veiculo_id).pi_papel === 'a4' ? 'a4' : 'legal'}">${document.getElementById('print').innerHTML}</div>`; document.getElementById('print').innerHTML = ''; return html; };
   const mesesPi = pi => { const ps = [...new Set([...pi.dados.grids.map(g => g.period), ...pi.dados.digital.map(it => it.period)])].sort(); return !ps.length ? '—' : ps.length === 1 ? mesCurto(ps[0]) : `${mesCurto(ps[0])} a ${mesCurto(ps[ps.length - 1])}`; };
   function enviarOpec(pi) {
-    const v = S.veh(pi.veiculo_id), c = S.calc(pi), token = pi.link_token || novoToken(), link = linkPi(token), reenvio = pi.status === 'devolvido';
+    const v = S.veh(pi.veiculo_id), c = S.calc(pi), token = pi.link_token || novoToken(), link = linkPi(token), reenvio = pi.status === 'devolvido', soEmail = ENVIADO.includes(pi.status);
     const faixas = [...new Set(pi.dados.grids.flatMap(g => g.items.map(it => it.faixa)).filter(Boolean))];
     const ag = S.nome(pi.agencia_id), obs = String(pi.dados.billing.obsClient || '').trim();
     const msg = [`Olá, OPEC!`, '', `${reenvio ? 'Segue de novo, com os ajustes,' : 'Segue para conferência'} o ${S.piNo(pi)} · ${pi.titulo}.`,
       `Cliente: ${S.nome(pi.cliente_id) || '—'}${ag ? ` (agência ${ag})` : ''}`, `Período: ${mesesPi(pi)}`, c.ins || !c.pub ? `Inserções: ${c.ins}` : '', c.pub ? `Ação digital: ${pi.dados.digital.map(a => `${S.acaoTitulo(a)} · ${S.acaoCanal(a)} · ${S.acaoEntregasTxt(a)} · ${S.acaoPeriodo(a)}`).join('; ')} (a rádio define as datas)` : '',
-      faixas.length ? `Faixa: ${faixas.join(', ')}` : '', obs ? `Observações: ${obs}` : '', '', ORIG[pi.id] ? 'Abrir o PI, ver o PI original da agência e marcar como programado:' : 'Abrir o PI e marcar como programado:', link, '', S.quemAssina(pi.consultor_id) || S.empCurto(), v.nome]
+      faixas.length ? `Faixa: ${faixas.join(', ')}` : '', obs ? `Observações: ${obs}` : '', '', ORIG[pi.id] ? 'Abrir o PI e ver o PI original da agência:' : 'Abrir o PI:', link, '', S.quemAssina(pi.consultor_id) || S.empCurto(), v.nome]
       .filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
-    S.dialog(`<h2>${reenvio ? 'Reenviar' : 'Enviar'} ${S.piNo(pi)} para a OPEC</h2>
-      <p class="muted" style="margin-top:-6px">O SONVI manda o e-mail para a OPEC com o link do PI: ela abre sem login, confere, baixa o PDF e marca como programado ali mesmo (ou devolve com o motivo). O PI passa para <b>Na OPEC</b> e você recebe um e-mail quando ela marcar. Se a OPEC responder o e-mail, a resposta chega para você.</p>
+    S.dialog(`<h2>${soEmail ? 'Reenviar o e-mail do' : reenvio ? 'Reenviar' : 'Enviar'} ${S.piNo(pi)} ${soEmail ? 'à' : 'para a'} OPEC</h2>
+      <p class="muted" style="margin-top:-6px">${soEmail ? 'Manda de novo o mesmo PI, com o mesmo link. Nada muda no PI nem na venda.' : `O SONVI manda o e-mail para a OPEC com o link do PI: ela abre sem login, confere e baixa o PDF (ou devolve com o motivo). <b>Ao enviar, o valor líquido já entra em Vendas</b>, no mês em que vai ao ar. Quando a OPEC abrir, o PI ganha o selo verde "OPEC abriu". Se a OPEC responder o e-mail, a resposta chega para você.`}</p>
       ${ORIG[pi.id] ? `<p class="muted small" style="margin:-4px 0 0">${S.svg('doc', 14)} Vai junto, à parte: <b>PI original da agência</b> (${esc(ORIG[pi.id].nome)}${ORIG[pi.id].assinado === true ? ', assinado' : ORIG[pi.id].assinado === false ? ', sem assinatura' : ''})${(ORIG[pi.id].tamanho || 0) <= 10 * 1048576 ? ', anexado ao e-mail' : ', pelo link'}.</p>` : ''}
       <label class="f">E-mail da OPEC<input name="email" type="email" autocomplete="off" value="${esc(v.opec_email || '')}" placeholder="opec@suaradio.com.br"></label>
       ${!v.opec_email ? (S.pode('diretor') ? `<label class="row mid" style="gap:10px;margin-top:-6px;font-size:14px;color:var(--ink-2);flex-wrap:nowrap"><input type="checkbox" name="guardar" checked>Guardar como o e-mail da OPEC da ${esc(v.nome)}</label>` : '<p class="muted small" style="margin-top:-8px">Peça ao diretor para cadastrar o e-mail da OPEC em Administração → Veículos; aí ele já vem preenchido.</p>') : ''}
@@ -885,12 +908,12 @@
         try {
           if (editando(pi)) { if (ed.sujo) await gravar(pi); sairEdicao(); }
           if (guardar) await S.salvar('veiculos', { id:v.id, opec_email:email.toLowerCase() });
-          const r = await S.q(S.sb.rpc('enviar_pi_opec', { p_pi:pi.id, p_html:htmlEnvio(pi), p_token:token }));
-          Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id];
+          if (!soEmail) { const r = await S.q(S.sb.rpc('enviar_pi_opec', { p_pi:pi.id, p_html:htmlEnvio(pi), p_token:token }));
+            Object.assign(pi, S.piNorm(r)); delete S.db.hist[pi.id]; }
         } catch (err) { console.error(err); S.toast(S.erro(err)); S.render(); return; }
         S.toast('Enviando o e-mail para a OPEC…'); S.render();
         try { const r = await S.enviarEmail({ tipo:'pi_opec', id:pi.id, para:email, assunto, texto }); S.toast(`${S.piNo(pi)} enviado para a OPEC (${email})${r && r.gerentes ? (r.gerentes === 1 ? '. O gerente recebeu cópia.' : `. Os ${r.gerentes} gerentes receberam cópia.`) : ''}`); }
-        catch (err) { console.error(err); S.emailManual(email, assunto, texto, `O ${S.piNo(pi)} já está Na OPEC, mas o e-mail não foi: ${err.message}`); }
+        catch (err) { console.error(err); S.emailManual(email, assunto, texto, `O ${S.piNo(pi)} já foi enviado e conta como venda, mas o e-mail não foi: ${err.message}`); }
       })();
     });
   }

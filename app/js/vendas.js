@@ -1,10 +1,7 @@
-// SONVI · Vendas (aprovado em 27/10/2026, mockup "SONVI · Vendas"; database/055, função de borda "vendas").
-// No lugar do Financeiro no menu: quem fatura, emite a nota e recebe é o financeiro de cada veículo; a Head 14 faz a
-// gestão comercial e acompanha. Por mês: vendido (com a meta), faturado pelo veículo, recebido dos clientes e a parte
-// da Head 14; "Para faturar" (Enviar para faturar → e-mail ao financeiro do veículo com link seguro; ele confirma com o
-// nº da nota), "Recebimento dos clientes" (o SONVI pergunta "o cliente pagou?" no vencimento e uma vez por semana),
-// "Parte da Head 14" (prevista, devida, recebida; repasse no dia 25 do mês seguinte) e "Comissões".
-// A tela antiga do Financeiro continua em #/financeiro (relatórios, baixa manual, avulso), fora do menu.
+// SONVI · Vendas (aprovado em 27/10/2026; simplificado em 05/11/2026, mockup "PI simples", database/081).
+// PI enviado para a OPEC já é venda: Vendido (líquido, no mês em que vai ao ar), Head 14 (sobre o vendido), Comissões e
+// "OPEC abriu x de y", com a tabela dos PIs vendidos no mês. Saíram "Para faturar" e "Recebimento dos clientes"
+// (o SONVI não acompanha mais faturamento nem pagamento). A tela antiga do Financeiro continua em #/financeiro, fora do menu.
 (() => {
   const { esc, brl, dfmt, num, nfmt } = S;
   const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -103,29 +100,21 @@
     const vendidos = pis.filter(p => VENDIDO.includes(p.status)).map(p => ({ p, v:S.valorNoMes(p, ym) })).filter(x => x.v > 0);
     const vendido = vendidos.reduce((s, x) => s + x.v, 0);
     const metas = S.metasDoMes ? S.metasDoMes(ym) : null, meta = (metas || []).filter(x => x.veiculo_id === S.ui.vehicleId).reduce((s, x) => s + Number(x.meta), 0);
-    // 2. faturamento
-    const fats = linhasFaturar(ym), cont = k => fats.filter(x => x.sit === k).length;
-    const faturado = fats.filter(x => x.sit === 'faturado' || x.sit === 'antigo'), vFat = faturado.reduce((s, x) => s + x.valor, 0);
-    // 3. recebimento
-    const rec = linhasReceber(ym, hoje), doMes = rec.filter(l => l.vencimento.slice(0, 7) === ym && l.vencimento <= (ym === hoje.slice(0, 7) ? hoje : ym + '-31'));
-    const recebido = doMes.filter(l => l.pago_em).reduce((s, l) => s + pago(l), 0), venceu = doMes.reduce((s, l) => s + (l.pago_em ? pago(l) : Number(l.valor)), 0);
-    const atrasadas = rec.filter(l => !l.pago_em && l.vencimento < hoje), vAtr = atrasadas.reduce((s, l) => s + Number(l.valor), 0);
-    // 4. parte da Head 14
-    const piDe = id => pis.find(p => p.id === id);
-    const pagosMes = S.db.lancamentos.filter(l => l.sentido === 'receber' && l.pi_id && l.pago_em && l.pago_em.slice(0, 7) === ym && piDe(l.pi_id));
-    const parteDe = l => { const pi = piDe(l.pi_id); return pago(l) * fatorLiquido(pi) * pctH14(pi) / 100; };
-    const devida = pagosMes.reduce((s, l) => s + parteDe(l), 0), prevista = vendidos.reduce((s, x) => s + x.v * pctH14(x.p) / 100, 0);
+    // 2. parte da Head 14 (05/11/2026: sobre o vendido; não há mais acompanhamento de pagamento)
+    const prevista = vendidos.reduce((s, x) => s + x.v * pctH14(x.p) / 100, 0);
     const reps = dados.rep.filter(r => r.mes === ym), recebidaH = reps.reduce((s, r) => s + Number(r.valor), 0);
     const [ry, rm] = somaMes(ym, 1).split('-'), diaRep = String((S.db.empresa || {}).repasse_dia || 25).padStart(2, '0'), vencRep = `${diaRep}/${rm}/${ry}`;
     const emp = S.empCurto ? S.empCurto() : 'Head 14', pct = Math.round(pctH14());
     const pctW = (a, b) => b ? Math.max(0, Math.min(100, Math.round(a / b * 100))) : 0;
+    // 3. comissões do mês (database/081: percentual do consultor × líquido do mês da venda), só deste veículo
+    const cm = comDoMes(ym), itensCom = (cm ? cm.itens || [] : []).filter(i => i.veiculo_id === S.ui.vehicleId), totCom = itensCom.reduce((s, i) => s + (Number(i.comissao) || 0), 0);
+    // 4. OPEC abriu x de y (PIs enviados que vão ao ar no mês)
+    const abriu = p => /OPEC abriu/.test(S.seloOpec ? S.seloOpec(p) : ''), nAbriu = vendidos.filter(x => abriu(x.p)).length;
 
     // Mês anterior, para a variação de cada número (cartões que contam até o valor, adaptados de um "StatCard" em React)
     const ant = somaMes(ym, -1), mesAnt = MESES[+ant.slice(5) - 1];
-    const vendAnt = pis.filter(p => VENDIDO.includes(p.status)).reduce((s, p) => s + S.valorNoMes(p, ant), 0);
-    const fatAnt = linhasFaturar(ant).filter(x => x.sit === 'faturado' || x.sit === 'antigo').reduce((s, x) => s + x.valor, 0);
-    const recAnt = S.db.lancamentos.filter(l => l.sentido === 'receber' && l.pi_id && l.pago_em && (l.vencimento || '').slice(0, 7) === ant).reduce((s, l) => s + pago(l), 0);
-    const devAnt = S.db.lancamentos.filter(l => l.sentido === 'receber' && l.pi_id && l.pago_em && l.pago_em.slice(0, 7) === ant && piDe(l.pi_id)).reduce((s, l) => s + parteDe(l), 0);
+    const vendAntL = pis.filter(p => VENDIDO.includes(p.status)).map(p => ({ p, v:S.valorNoMes(p, ant) })), vendAnt = vendAntL.reduce((s, x) => s + x.v, 0);
+    const h14Ant = vendAntL.reduce((s, x) => s + x.v * pctH14(x.p) / 100, 0);
     const tile = (chave, rot, val, antes, linhas, cls = '') => {
       const d = antes ? Math.round((val - antes) / antes * 100) : null, sobe = d === null || d >= 0;
       const seta = sobe ? '<path d="M7 17 17 7M9 7h8v8"/>' : '<path d="M7 7l10 10M17 9v8H9"/>';
@@ -137,79 +126,47 @@
     const resumo = `<section class="card vd-mes" aria-label="Resumo do mês"><div class="hd"><h2>Vendas do mês</h2>
         <div class="vd-nav"><button class="btn sm" data-act="vdMes" data-d="-1" aria-label="Mês anterior">‹</button><b>${nomeMesLongo(ym)}</b><button class="btn sm" data-act="vdMes" data-d="1" aria-label="Próximo mês">›</button>${st.mes ? '<button class="btn sm" data-act="vdMes" data-d="0">Hoje</button>' : ''}</div></div>
       <div class="vd-tiles">
-        ${tile('vend', 'Venda lançada', vendido, vendAnt, `<span class="muted small">${vendidos.length} ${vendidos.length === 1 ? 'PI lançado' : 'PIs lançados'} em ${mesNome}</span>${cont('lancar') ? `<span class="vd-pills"><span class="pill fn-forte">${cont('lancar')} a lançar · ${brl(fats.filter(x => x.sit === 'lancar').reduce((t, x) => t + S.previstoNoMes(x.pi, ym), 0))}</span></span>` : ''}${meta ? `<div class="prog" role="progressbar" aria-valuenow="${pctW(vendido, meta)}" aria-valuemin="0" aria-valuemax="100" aria-label="Meta do mês"><i style="width:${pctW(vendido, meta)}%"></i></div><span class="muted small">${pctW(vendido, meta)}% da meta da equipe (${brl(meta)})</span>` : ''}`)}
-        ${tile('fat', 'Faturado pelo veículo', vFat, fatAnt, `<span class="muted small">${faturado.length} de ${fats.length} confirmados</span><span class="vd-pills">${cont('aguardando') ? `<span class="pill fn-neutra">${cont('aguardando')} aguardando o financeiro</span>` : ''}${cont('enviar') ? `<span class="pill fn-forte">${cont('enviar')} a enviar</span>` : ''}${cont('lancar') ? `<span class="pill fn-neutra">${cont('lancar')} a lançar</span>` : ''}</span>`)}
-        ${tile('rec', 'Recebido dos clientes', recebido, recAnt, `<span class="muted small">do que venceu em ${mesNome} (${brl(venceu)})</span>${atrasadas.length ? `<span class="vd-pills"><span class="pill fn-forte">${atrasadas.length} ${atrasadas.length === 1 ? 'atrasada' : 'atrasadas'} · ${brl(vAtr)}</span></span>` : ''}`)}
-        ${tile('h14', `${esc(emp)} (${pct}%)`, devida, devAnt, `<span class="muted small">devida pelo que os clientes pagaram</span><span class="muted small">Prevista: ${brl(prevista)} · repasse vence ${vencRep}</span>`, ' vd-h14')}
+        ${tile('vend', 'Vendido (líquido)', vendido, vendAnt, `<span class="muted small">${vendidos.length} ${vendidos.length === 1 ? 'PI enviado' : 'PIs enviados'}${meta ? ` · meta ${brl(meta)}` : ''}</span>${meta ? `<div class="prog" aria-hidden="true"><i style="width:${pctW(vendido, meta)}%"></i></div>` : ''}`)}
+        ${tile('h14', `${esc(emp)} (${pct}%)`, prevista, h14Ant, `<span class="muted small">sobre o vendido · repasse vence ${vencRep}</span>`, ' vd-h14')}
+        ${tile('com', 'Comissões', totCom, 0, `<span class="muted small">${cm ? 'pelo % de cada consultor' : 'buscando…'}</span>`)}
+        <div class="vd-tile" role="group" aria-label="OPEC abriu ${nAbriu} de ${vendidos.length} PIs"><span class="vd-rot">OPEC abriu</span><b class="vd-val">${nAbriu} de ${vendidos.length}</b><span class="muted small">${vendidos.length - nAbriu ? `${vendidos.length - nAbriu} aguardando abrir` : vendidos.length ? 'todos abertos' : 'nenhum PI enviado'}</span></div>
       </div></section>`;
 
-    // Para faturar
-    const filtro = st.aba === 'todos' ? fats : fats.filter(x => st.aba === 'faturado' ? (x.sit === 'faturado' || x.sit === 'antigo') : st.aba === 'lancar' ? (x.sit === 'lancar' || x.sit === 'enviar') : x.sit === st.aba);
-    const mostra = filtro.slice(0, st.lista);
-    const SIT = { lancar:['A lançar', 'fn-forte'], enviar:['A enviar', 'fn-forte'], aguardando:['Aguardando o financeiro', 'fn-neutra'], faturado:['Faturado', 'fn-ok'], antigo:['Faturado', 'fn-ok'] };
-    const linhaFat = x => { const [t, c] = SIT[x.sit], ped = x.ped;
-      const det = x.sit === 'faturado' ? `<small>${ped.nota_fiscal ? `NF ${esc(ped.nota_fiscal)} · ` : ''}confirmado em ${dfmt(diaDe(ped.confirmado_em)).slice(0, 5)}${ped.confirmado_por ? ` por ${esc(ped.confirmado_por)}` : ''}</small>`
-        : x.sit === 'aguardando' ? `<small>${ped.enviado_em ? `enviado ${dfmt(diaDe(ped.enviado_em)).slice(0, 5)} · lembrete ${dfmt(maisDias(diaDe(ped.enviado_em), 7)).slice(0, 5)}` : 'e-mail não saiu: reenvie'}</small>`
-        : x.sit === 'antigo' ? '<small>faturado antes do Vendas, sem pedido</small>'
-        : x.pi.programado_em ? S.progPill(x.pi) : '';
-      const acao = x.sit === 'lancar' ? (S.podeLancar(x.pi) ? `<button class="btn sm pri" data-act="vdLancar" data-id="${x.pi.id}" data-mes="${x.ym}">Lançar venda</button>` : '<span class="muted small">consultor lança</span>')
-        : x.sit === 'enviar' ? `<button class="btn sm pri" data-act="vdEnviar" data-id="${x.pi.id}" data-mes="${x.mesRef}">Enviar para faturar</button>`
-        : x.sit === 'aguardando' ? `<button class="btn sm" data-act="vdReenviar" data-id="${ped.id}">Reenviar</button>`
-        : `<button class="btn sm tres" data-act="vdMenuPi" data-id="${x.pi.id}" data-mes="${x.ym}" data-ped="${ped ? ped.id : ''}" aria-label="Mais opções do ${esc(S.piNo(x.pi))}">⋯</button>`;
-      return `<tr><td class="nw"><a data-go="/pi/${x.pi.id}" style="color:var(--ink)"><b>${esc(S.piNo(x.pi))}</b></a><small class="vd-cort" title="${esc(x.pi.titulo || '')}">${esc(x.pi.titulo || 'Sem título')}</small></td>
-        <td>${esc(S.nome(x.pi.cliente_id))}<small>${esc(S.usuario(x.pi.consultor_id) || '')}</small></td>
-        <td class="nw">${S.nomeMes(x.ym)}<small>${x.multi ? `mês ${x.idx} de ${x.n}` : 'mês único'}</small></td>
-        <td class="r nw">${brl(x.valor)}<small>${x.venc ? `vence ${dfmt(x.venc).slice(0, 5)}` : 'vencimento a combinar'}</small></td>
-        <td class="vd-sit"><span class="pill ${c}">${t}</span>${det}</td><td class="r">${acao}</td></tr>`; };
-    const aba = (k, n, q) => `<button class="${st.aba === k ? 'on' : ''}" data-act="vdAba" data-v="${k}" role="tab" aria-selected="${st.aba === k}">${n} <span class="cont">${q}</span></button>`;
-    const semEmail = !String(v.financeiro_email || '').trim();
-    const aLancar = fats.filter(x => x.sit === 'lancar' && S.podeLancar(x.pi)).length;
-    const faturar = `<section class="card vd-fat" aria-label="Lançar vendas"><div class="hd"><h2>Para faturar · ${mesNome}</h2>
-        <div class="vd-hd-dir"><div class="seg" role="tablist">${aba('todos', 'Todos', fats.length)}${aba('enviar', 'A enviar', cont('enviar'))}${aba('aguardando', 'Aguardando', cont('aguardando'))}${aba('faturado', 'Faturados', faturado.length)}</div>
-        ${cont('enviar') > 1 ? `<button class="btn sm pri" data-act="vdEnviarTodos" data-mes="${ym}">Enviar os ${cont('enviar')} para faturar</button>` : ''}</div></div>
-      <p class="muted small vd-nota">${semEmail ? `<b class="vd-alerta">Falta o e-mail do financeiro da ${esc(v.nome)}.</b> Cadastre em Administração › Veículos (ou na hora de enviar).` : `A venda entra sozinha quando a OPEC abre o PI. Quem fatura e emite a nota é o financeiro da ${esc(v.nome)} (${esc(v.financeiro_email)}): a ${esc(emp)} envia o pedido e acompanha a confirmação.`}</p>
-      ${fats.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>PI</th><th>Cliente</th><th>Mês veiculado</th><th class="r">Valor</th><th>Situação</th><th><span class="sr">Ações</span></th></tr></thead>
-        <tbody>${mostra.map(linhaFat).join('') || `<tr><td colspan="6" class="muted">Nada nesta situação.</td></tr>`}</tbody></table></div>
-        ${filtro.length > mostra.length ? `<p class="muted small" style="margin:12px 0 0">Mostrando ${mostra.length} de ${filtro.length} · <a href="#" data-act="vdMais">ver todos</a></p>` : ''}`
-        : `<div class="card empty" style="box-shadow:none;padding:24px"><b>Nada para faturar em ${mesNome}</b>Aparece aqui quando a OPEC abre um PI que vai ao ar no mês.</div>`}</section>`;
+    // PIs vendidos no mês
+    const ord = vendidos.slice().sort((a, b) => b.v - a.v), mostra = ord.slice(0, st.lista);
+    const linhaV = x => `<tr><td class="nw"><a data-go="/pi/${x.p.id}" style="color:var(--ink)"><b>${esc(S.piNo(x.p))}</b></a><small class="vd-cort" title="${esc(x.p.titulo || '')}">${esc(x.p.titulo || 'Sem título')}</small></td>
+        <td>${esc(S.nome(x.p.cliente_id) || '—')}<small>${esc(S.nome(x.p.agencia_id) || 'venda direta')}</small></td><td>${esc(S.usuario(x.p.consultor_id) || '—')}</td>
+        <td>${S.seloOpec ? S.seloOpec(x.p) : ''}</td><td class="r nw"><b>${brl(x.v)}</b>${x.v < S.calc(x.p).net - 0.01 ? `<small>de ${brl(S.calc(x.p).net)}</small>` : ''}</td><td class="r nw">${brl(x.v * pctH14(x.p) / 100)}</td></tr>`;
+    const tabela = `<section class="card vd-fat" aria-label="PIs vendidos"><div class="hd"><h2>PIs vendidos · ${mesNome}</h2><span class="muted small">PI enviado para a OPEC já é venda, no mês em que vai ao ar</span></div>
+      ${ord.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>PI</th><th>Cliente</th><th>Consultor</th><th>OPEC</th><th class="r">Líquido no mês</th><th class="r">${esc(emp)}</th></tr></thead>
+        <tbody>${mostra.map(linhaV).join('')}</tbody></table></div>
+        ${ord.length > mostra.length ? `<p class="muted small" style="margin:12px 0 0">Mostrando ${mostra.length} de ${ord.length} · <a href="#" data-act="vdMais">ver todos</a></p>` : ''}`
+        : `<div class="card empty" style="box-shadow:none;padding:24px"><b>Nenhuma venda em ${mesNome}</b>Aparece aqui quando um PI que vai ao ar no mês é enviado para a OPEC.</div>`}</section>`;
 
-    // Recebimento dos clientes
-    const linhaRec = l => { const s = situacaoParc(l, hoje), pi = piDe(l.pi_id);
-      return `<tr><td><b class="vd-cort" title="${esc(l.contraparte)}">${esc(l.contraparte)}</b><small>${esc(S.usuario((pi || {}).consultor_id) || '')}</small></td>
-        <td class="nw">${pi ? esc(S.piNo(pi)) : '—'}<small>${l.mes_ref ? S.nomeMes(l.mes_ref) : `parcela ${l.parcela || 1}`}${/· restante$/.test(l.descricao || '') ? ' · restante' : ''}</small></td>
-        <td class="nw">${dfmt(l.vencimento)}</td><td class="r nw">${brl(l.pago_em ? pago(l) : l.valor)}</td>
-        <td><span class="pill ${s.cls}">${s.txt}</span></td><td class="nw vd-aviso">${avisoParc(l, hoje)}</td>
-        <td class="r"><span class="lin-acoes">${!l.pago_em && l.vencimento <= hoje ? `<button class="btn sm" data-act="vdPerguntar" data-id="${l.id}">Perguntar agora</button>` : ''}<button class="btn sm tres" data-act="vdMenuParc" data-id="${l.id}" aria-label="Mais opções da parcela de ${esc(l.contraparte)}">⋯</button></span></td></tr>`; };
-    const receber = `<section class="card vd-rec" aria-label="Recebimento dos clientes"><div class="hd"><h2>Recebimento dos clientes</h2>
-        <span class="muted small">Quem confirma é o financeiro do veículo, pelo e-mail. A pergunta se repete uma vez por semana até a resposta.</span></div>
-      ${rec.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>Cliente</th><th>PI · mês</th><th>Vencimento</th><th class="r">Valor</th><th>Situação</th><th>Último aviso</th><th><span class="sr">Ações</span></th></tr></thead>
-        <tbody>${rec.map(linhaRec).join('')}</tbody></table></div>` : `<p class="muted" style="margin:0">Nenhuma parcela de cliente vence em ${mesNome}.</p>`}</section>`;
-
-    // Parte da Head 14
+    // Head 14
     const barra = (rot, val, w, cor) => `<div class="vd-bar"><div class="vd-bar-t"><span>${rot}</span><b>${brl(val)}</b></div><div class="prog"><i style="width:${w}%;background:${cor}"></i></div></div>`;
-    const topo = Math.max(prevista, devida, recebidaH, 1);
+    const topo = Math.max(prevista, recebidaH, 1);
     const parte = `<section class="card vd-h14c" aria-label="${esc(emp)}"><div class="hd"><h2>${esc(emp)} · ${mesNome}</h2><span class="pill fn-neutra">${pct}% do líquido</span></div>
-      ${barra('Prevista (pelo vendido)', prevista, pctW(prevista, topo), 'var(--t-claro)')}${barra('Devida (os clientes pagaram)', devida, pctW(devida, topo), 'var(--t-forte)')}${barra(`Recebida pela ${esc(emp)}`, recebidaH, pctW(recebidaH, topo), 'var(--t-escuro)')}
+      ${barra('Sobre o vendido', prevista, pctW(prevista, topo), 'var(--t-forte)')}${barra(`Recebida pela ${esc(emp)}`, recebidaH, pctW(recebidaH, topo), 'var(--t-escuro)')}
       ${reps.length ? `<div class="vd-reps">${reps.map(r => `<span>${dfmt(r.recebido_em)} · <b>${brl(r.valor)}</b>${r.observacao ? ` · ${esc(r.observacao)}` : ''}<button class="btn sm tres" data-act="vdRepExcluir" data-id="${r.id}" aria-label="Excluir este repasse">×</button></span>`).join('')}</div>` : ''}
-      <div class="vd-pe"><span>Repasse de ${mesNome}: <b>${brl(Math.max(0, devida - recebidaH))}</b> a receber · vence <b>${vencRep}</b></span><button class="btn sm" data-act="vdRepasse" data-mes="${ym}" data-v="${Math.max(0, devida - recebidaH).toFixed(2)}">Registrar repasse recebido</button></div></section>`;
+      <div class="vd-pe"><span>Repasse de ${mesNome}: <b>${brl(Math.max(0, prevista - recebidaH))}</b> a receber · vence <b>${vencRep}</b></span><button class="btn sm" data-act="vdRepasse" data-mes="${ym}" data-v="${Math.max(0, prevista - recebidaH).toFixed(2)}">Registrar repasse recebido</button></div></section>`;
 
-    // Comissões (31/10/2026): percentual cadastrado de cada consultor × líquido pago, a conta do banco (comissoes_do_mes, database/068),
-    // só as parcelas deste veículo. O fechamento do mês fica em Administração › Vendas e comissões.
-    const cm = comDoMes(ym), porCons = {};
-    const pc = uid => porCons[uid || ''] || (porCons[uid || ''] = { uid, vend:0, rec:0, com:0, pcts:new Set() });
+    // Comissões: percentual cadastrado de cada consultor × líquido vendido no mês (comissoes_do_mes, database/068 e 081)
+    const porCons = {};
+    const pc = uid => porCons[uid || ''] || (porCons[uid || ''] = { uid, vend:0, com:0, pcts:new Set() });
     vendidos.forEach(x => { pc(x.p.consultor_id).vend += x.v; });
-    (cm ? cm.itens || [] : []).filter(i => i.veiculo_id === S.ui.vehicleId).forEach(i => { const o = pc(i.consultor_id); o.rec += Number(i.valor_pago) || 0; o.com += Number(i.comissao) || 0; if (i.pct !== null) o.pcts.add(Number(i.pct)); });
+    itensCom.forEach(i => { const o = pc(i.consultor_id); o.com += Number(i.comissao) || 0; if (i.pct !== null) o.pcts.add(Number(i.pct)); });
     const consList = Object.values(porCons).sort((a, b) => b.vend - a.vend);
-    const pctsTxt = o => o.pcts.size ? [...o.pcts].map(n => String(n).replace('.', ',') + '%').join(' · ') + ' do líquido pago' : 'pelo percentual cadastrado';
+    const pctsTxt = o => o.pcts.size ? [...o.pcts].map(n => String(n).replace('.', ',') + '%').join(' · ') + ' do líquido' : 'pelo percentual cadastrado';
     const comissoes = `<section class="card vd-com" aria-label="Comissões"><div class="hd"><h2>Comissões · ${mesNome}</h2>${cm && cm.fechamento ? '<span class="pill fn-ok">mês fechado</span>' : '<span class="muted small">fechamento no mês seguinte</span>'}</div>
-      ${!cm ? '<p class="muted" style="margin:0">Buscando as comissões…</p>' : consList.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>Consultor</th><th class="r">Vendido</th><th class="r">Recebido</th><th class="r">Comissão</th></tr></thead><tbody>
-        ${consList.map(o => `<tr><td><b>${esc(o.uid ? S.usuario(o.uid) || 'Consultor' : 'Sem responsável')}</b><small>${o.uid ? pctsTxt(o) : 'PIs sem consultor'}</small></td><td class="r nw">${brl(o.vend)}</td><td class="r nw">${brl(o.rec)}</td><td class="r nw"><b>${o.uid ? brl(o.com) : '—'}</b></td></tr>`).join('')}</tbody></table></div>`
-        : `<p class="muted" style="margin:0">Sem vendas nem recebimentos em ${mesNome}.</p>`}
-      <p class="muted small" style="margin:12px 0 0">A comissão cresce conforme os clientes pagam: cada consultor recebe o percentual do cadastro sobre o valor líquido que o cliente pagou no mês.${S.me.diretor ? ' Fechamento e extratos em <a href="#/admin" data-act="vdComissoes">Administração › Vendas e comissões</a>.' : ''}</p></section>`;
+      ${!cm ? '<p class="muted" style="margin:0">Buscando as comissões…</p>' : consList.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>Consultor</th><th class="r">Vendido</th><th class="r">Comissão</th></tr></thead><tbody>
+        ${consList.map(o => `<tr><td><b>${esc(o.uid ? S.usuario(o.uid) || 'Consultor' : 'Sem responsável')}</b><small>${o.uid ? pctsTxt(o) : 'PIs sem consultor'}</small></td><td class="r nw">${brl(o.vend)}</td><td class="r nw"><b>${o.uid ? brl(o.com) : '—'}</b></td></tr>`).join('')}</tbody></table></div>`
+        : `<p class="muted" style="margin:0">Sem vendas em ${mesNome}.</p>`}
+      <p class="muted small" style="margin:12px 0 0">Cada consultor recebe o percentual do cadastro sobre o valor líquido dos PIs que vão ao ar no mês.${S.me.diretor ? ' Fechamento e extratos em <a href="#/admin" data-act="vdComissoes">Administração › Vendas e comissões</a>.' : ''}</p></section>`;
 
     return { title:`<span class="sub">${esc(v.nome)}</span>Vendas`,
       actions:`<button class="btn" data-act="vdRelatorios">${S.svg('relatorio')}Relatórios</button>`,
-      body:`${resumo}${faturar}${receber}<div class="cols vd-cols">${parte}${comissoes}</div>` };
+      body:`${resumo}${tabela}<div class="cols vd-cols">${parte}${comissoes}</div>` };
   };
 
   // ---------- enviar para faturar ----------

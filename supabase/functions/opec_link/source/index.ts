@@ -4,6 +4,9 @@
 //                                                Desde 03/11/2026 (database/077): abrir o PI que está com a OPEC já o marca como programado (a venda entra sozinha, database/078) e avisa o consultor.
 //   { acao: "programar", token, nome, desde }  → marca programado (conta como aprovado) e avisa o consultor por e-mail
 //   { acao: "devolver", token, nome, motivo }  → devolve com o motivo e avisa o consultor por e-mail
+//   { acao: "cancelado", token }               → (05/11/2026, database/081) o PI acabou de ser cancelado no SONVI por cancelar_pi:
+//                                                avisa a OPEC do veículo para tirar da programação (PI, cliente, período, motivo e quem cancelou).
+//                                                Só manda se o PI está cancelado e o cancelamento tem menos de 15 minutos.
 // Remetente dos avisos: "OPEC · <veículo>" (regra de 29/10/2026: nunca "SONVI").
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -28,7 +31,7 @@ Deno.serve(async (req) => {
     const b = await req.json().catch(() => ({}));
     const token = String(b.token || '');
     if (!/^[0-9a-f-]{36}$/i.test(token)) return resposta({ erro: 'Link incompleto.' }, 400);
-    const { data: pi } = await adm.from('pis').select('id, numero, titulo, status, veiculo_id, consultor_id, cliente_id, veiculos(nome, sigla, cor, organizacao_id)')
+    const { data: pi } = await adm.from('pis').select('id, numero, titulo, status, veiculo_id, consultor_id, cliente_id, dados, veiculos(nome, sigla, cor, organizacao_id, opec_email)')
       .eq('link_token', token).not('envio_html', 'is', null).maybeSingle();
     if (!pi) return resposta({ erro: 'PI não encontrado.' }, 404);
     const v: any = (pi as any).veiculos || {};
@@ -46,14 +49,14 @@ Deno.serve(async (req) => {
         const { data: cli } = (pi as any).cliente_id ? await adm.from('pessoas').select('nome').eq('id', (pi as any).cliente_id).maybeSingle() : { data: null };
         const linkPi = `${o?.slug ? `https://sonvi.com.br/${o.slug}/` : 'https://sonvi.com.br/'}#/pi/${pi.id}`;
         const prog = acao !== 'devolver', auto = acao === 'auto';
-        const titulo = prog ? `${piNo} foi programado pela OPEC` : `${piNo} foi devolvido pela OPEC`;
+        const titulo = auto ? `${piNo}: a OPEC abriu o PI` : prog ? `${piNo} foi programado pela OPEC` : `${piNo} foi devolvido pela OPEC`;
         const linhas: [string, string][] = [['PI', `${piNo} · ${(pi as any).titulo || ''}`], ['Cliente', cli?.nome || '—'], ...(auto ? [] : [['Quem marcou', nome] as [string, string]]),
           ...(prog && bb.desde ? [['A partir de', String(bb.desde).split('-').reverse().join('/')] as [string, string]] : []),
           ...(!prog ? [['O que ajustar', String(bb.motivo || '').trim()] as [string, string]] : [])];
         const cor = /^#[0-9a-f]{6}$/i.test(v.cor || '') ? v.cor : '#0055ff';
         const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:560px">
           <p style="margin:0 0 6px;font-weight:700">${esc(v.nome)} · ${esc(titulo)}</p>
-          <p style="margin:0 0 18px;color:#3f3f46">${auto ? 'A OPEC abriu o PI pelo link do e-mail: ele ficou programado e a venda já entrou no sistema.' : prog ? 'A OPEC marcou o PI como programado pelo link do e-mail e a venda já entrou no sistema.' : 'A OPEC devolveu o PI pelo link do e-mail. Ajuste o PI e envie de novo.'}</p>
+          <p style="margin:0 0 18px;color:#3f3f46">${auto ? 'A OPEC abriu o PI pelo link do e-mail.' : prog ? 'A OPEC marcou o PI como programado pelo link do e-mail e a venda já entrou no sistema.' : 'A OPEC devolveu o PI pelo link do e-mail. Ajuste o PI e envie de novo.'}</p>
           <table style="width:100%;border-collapse:collapse;border:1px solid #e4e6eb;font-size:14px">${linhas.map(([k, x], i) => `<tr${i ? ' style="border-top:1px solid #eef0f3"' : ''}><td style="padding:9px 14px;color:#6b6b74;white-space:nowrap;vertical-align:top">${esc(k)}</td><td style="padding:9px 14px"><b>${esc(x)}</b></td></tr>`).join('')}</table>
           <p style="margin:24px 0"><a href="${esc(linkPi)}" style="display:inline-block;background:${esc(cor)};color:#fff;text-decoration:none;font-weight:700;padding:13px 24px;border-radius:8px">Abrir o PI</a></p></div>`;
         const texto = `${titulo}\n\n${linhas.map(([k, x]) => `${k}: ${x}`).join('\n')}\n\nAbrir o PI: ${linkPi}`;
@@ -88,6 +91,36 @@ Deno.serve(async (req) => {
       const prog = (hs || []).find((h: any) => h.status === 'programado');
       return resposta({ ok: true, status: pi.status, numero: piNo, veiculo: v.nome, cor: v.cor || '', recebido_em: lei?.aberto_em || null,
         programado: prog ? { em: prog.em, nota: String(prog.nota || '').replace(/^OPEC pelo link · /, '') } : null, original, midias });
+    }
+
+    if (b.acao === 'cancelado') {
+      if (pi.status !== 'cancelado') return resposta({ erro: 'Este PI não está cancelado.' }, 400);
+      const { data: h } = await adm.from('pi_historico').select('nota, em, usuario_id').eq('pi_id', pi.id).eq('status', 'cancelado').order('em', { ascending: false }).limit(1).maybeSingle();
+      if (!h || Date.now() - new Date(h.em).getTime() > 15 * 60 * 1000) return resposta({ erro: 'Cancelamento não encontrado.' }, 400);
+      const chave = Deno.env.get('RESEND_API_KEY');
+      const para = String(v.opec_email || '').split(/[,;\s]+/).map((e: string) => e.trim().toLowerCase()).filter(emailOk);
+      if (!chave || !para.length) return resposta({ ok: true, enviado: false });
+      const nota = String(h.nota || ''), m = nota.match(/^Cancelado por (.*?): ([\s\S]*)$/);
+      const quem = (m ? m[1] : '').trim(), motivo = (m ? m[2] : nota).trim();
+      const { data: cli } = (pi as any).cliente_id ? await adm.from('pessoas').select('nome').eq('id', (pi as any).cliente_id).maybeSingle() : { data: null };
+      const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+      const d: any = (pi as any).dados || {}, ms = new Set<string>();
+      (d.grids || []).forEach((g: any) => { if (/^\d{4}-\d{2}$/.test(g.period || '') && (g.items || []).some((it: any) => Object.values(it.days || {}).some((n: any) => Number(n) > 0))) ms.add(g.period); });
+      (d.digital || []).forEach((a: any) => { const k = a.period || String(a.inicio || '').slice(0, 7); if (/^\d{4}-\d{2}$/.test(k)) ms.add(k); });
+      const lista = [...ms].sort(), mesTxt = (k: string) => `${MESES[+k.slice(5) - 1]}/${k.slice(0, 4)}`;
+      const periodo = !lista.length ? '—' : lista.length === 1 ? mesTxt(lista[0]) : `${mesTxt(lista[0])} a ${mesTxt(lista[lista.length - 1])}`;
+      const titulo = `${piNo} cancelado · tirar da programação`;
+      const linhas: [string, string][] = [['PI', `${piNo} · ${(pi as any).titulo || ''}`], ['Cliente', cli?.nome || '—'], ['Período', periodo], ['Motivo', motivo || '—'], ['Cancelado por', quem || '—']];
+      const html = `<div style="font:15px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#15171c;max-width:560px">
+          <p style="margin:0 0 6px;font-weight:700">${esc(v.nome)} · ${esc(titulo)}</p>
+          <p style="margin:0 0 18px;color:#3f3f46">Este PI foi cancelado. Por favor, tire as inserções da programação.</p>
+          <table style="width:100%;border-collapse:collapse;border:1px solid #e4e6eb;font-size:14px">${linhas.map(([k, x], i) => `<tr${i ? ' style="border-top:1px solid #eef0f3"' : ''}><td style="padding:9px 14px;color:#6b6b74;white-space:nowrap;vertical-align:top">${esc(k)}</td><td style="padding:9px 14px"><b>${esc(x)}</b></td></tr>`).join('')}</table></div>`;
+      const texto = `${titulo}\n\nEste PI foi cancelado. Por favor, tire as inserções da programação.\n\n${linhas.map(([k, x]) => `${k}: ${x}`).join('\n')}`;
+      const de = nomeLimpo([quem, v.nome].filter(Boolean).join(' · '));
+      const rr = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: `"${de}" <pi@sonvi.com.br>`, to: para, subject: titulo, html, text: texto }) });
+      if (!rr.ok) { console.error('aviso de cancelamento', await rr.text()); return resposta({ ok: true, enviado: false }); }
+      return resposta({ ok: true, enviado: true });
     }
 
     if (b.acao !== 'programar' && b.acao !== 'devolver') return resposta({ erro: 'Ação desconhecida.' }, 400);

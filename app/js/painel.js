@@ -1,8 +1,8 @@
 // SONVI · Dashboard do veículo (tela inicial, antes "Painel"), conforme o perfil de quem está logado.
 // Desde 24/10/2026 em sete blocos que se reacomodam (casillero.js, estilos .cx-*): o bloco escolhido vai para o espaço
 // grande, mostra o detalhe e o atalho para a tela do assunto. A escolha fica guardada enquanto a pessoa usa o SONVI.
-//   Diretor: vendido, Na OPEC, caminho dos PIs, recebido no mês, follow-up da equipe, consultores e propostas.
-//   Gerente: igual, com "Em negociação" no lugar do recebido (o gerente não vê o financeiro).
+//   Diretor e gerente: vendido, aguardando a OPEC abrir, caminho dos PIs, em negociação, follow-up da equipe, consultores e propostas
+//   (05/11/2026: saiu "Recebido no mês"; o SONVI não acompanha mais pagamento).
 //   Consultor: o próprio vendido, hoje, retornos, visitas, os próprios PIs, carteira esquecida e propostas.
 //   OPEC: para conferir, aprovados, caminho, conferidos no mês, programados, devolvidos e chegada por semana.
 //   Financeiro: a receber, vencidas, prontos para faturar, recebido no mês, recebimentos, NF pendentes e inadimplência.
@@ -57,7 +57,8 @@
     return Object.assign({ tipo:'fila', numero:String(lista.length), itens:lista.slice(0, 5).map(p => ({ tx:cliente(p), sub:S.piNo(p) + (S.pode('consultor') ? '' : ' · ' + (S.usuario(p.consultor_id) || 'sem consultor')), vl:brl(S.liquidoPi(p)), tag:b.tag ? b.tag(p) : haDias(p.atualizado_em || p.criado_em), tom:b.tom ? b.tom(p) : diasDesde(p.atualizado_em || p.criado_em) >= 2 ? 'alerta' : '' })) }, b);
   }
   function caminho(pis) {
-    const etapas = ['rascunho', 'opec', 'devolvido', 'aprovado', 'programado', 'faturado'].map(s => { const l = pis.filter(p => p.status === s); return { nome:S.STATUS[s].label, n:l.length, vl:l.length ? curto(soma(l)) : '—', cor:S.STATUS_COR[s] }; });
+    const etapas = [['rascunho', 'Rascunho', ['rascunho']], ['devolvido', 'Devolvido', ['devolvido']], ['opec', 'Aguardando abrir', ['opec']], ['programado', 'OPEC abriu', ['aprovado', 'programado', 'faturado']]]
+      .map(([s, nome, sts]) => { const l = pis.filter(p => sts.includes(p.status)); return { nome, n:l.length, vl:l.length ? curto(soma(l)) : '—', cor:S.STATUS_COR[s] }; });
     const n = pis.filter(p => ANDAMENTO.includes(p.status)).length;
     return { tipo:'etapas', titulo:'Caminho dos PIs', icone:'pis', numero:String(n), apoio:n === 1 ? 'PI em andamento' : 'PIs em andamento', etapas, link:{ rota:'/pis', texto:'Ver PIs' },
       rotulo:`Caminho dos PIs: ${n} em andamento. ` + etapas.filter(e => e.n).map(e => `${e.nome} ${e.n}`).join(', ') };
@@ -93,11 +94,10 @@
       return { u, v:somaMes(meus, m), n:meus.length, feitas:ag.filter(a => S.fuFeito(a)).length, plan:ag.length }; }).sort((a, b) => b.v - a.v);
     return [
       Object.assign(vendido(pis, 'Vendido no mês', { rota:'/pis', texto:'Ver PIs' }), { id:'a' }),
-      filaPis(opec, { id:'b', titulo:'Na OPEC', vivo:opec.length ? true : false, icone:'opec', apoio:opec.length ? `${reais(soma(opec))} aguardando` : 'Nenhum PI aguardando', vazio:'Nenhum PI aguardando conferência.',
-        link:dir ? { rota:'/opec', texto:'Abrir fila' } : { rota:'/pis', texto:'Ver PIs' }, rotulo:`Na OPEC: ${plural(opec.length, 'PI', 'PIs')}, ${reais(soma(opec))} aguardando` }),
+      filaPis(opec, { id:'b', titulo:'Aguardando a OPEC abrir', vivo:opec.length ? true : false, icone:'opec', apoio:opec.length ? `${reais(soma(opec))} já vendidos` : 'A OPEC abriu todos', vazio:'A OPEC já abriu todos os PIs enviados.',
+        link:dir ? { rota:'/opec', texto:'Abrir fila' } : { rota:'/pis', texto:'Ver PIs' }, rotulo:`Aguardando a OPEC abrir: ${plural(opec.length, 'PI', 'PIs')}, ${reais(soma(opec))}` }),
       Object.assign(caminho(pis), { id:'c' }),
-      dir ? Object.assign(recebidoNoMes('Recebido no mês'), { id:'d' })
-        : filaPis(neg, { id:'d', titulo:'Em negociação', icone:'propostas', apoio:`${reais(soma(neg))} em rascunho ou devolvidos`, vazio:'Nenhum PI em rascunho ou devolvido.', tag:p => S.STATUS[p.status].label, tom:p => p.status === 'devolvido' ? 'alerta' : '',
+      filaPis(neg, { id:'d', titulo:'Em negociação', icone:'propostas', apoio:`${reais(soma(neg))} em rascunho ou devolvidos`, vazio:'Nenhum PI em rascunho ou devolvido.', tag:p => S.STATUS[p.status].label, tom:p => p.status === 'devolvido' ? 'alerta' : '',
           link:{ rota:'/pis', texto:'Ver PIs' }, rotulo:`Em negociação: ${plural(neg.length, 'PI', 'PIs')}, ${reais(soma(neg))}` }),
       Object.assign(followup(S.db.agenda, 'Follow-up da equipe'), { id:'e' }),
       { id:'f', tipo:'pessoas', titulo:'Consultores', icone:'clientes', cuenta:plural(cons.length, 'consultor', 'consultores'), vazio:'Nenhum consultor neste veículo.',

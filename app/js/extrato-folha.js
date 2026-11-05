@@ -30,21 +30,21 @@
     const porV = {}; (d.itens || []).forEach(i => { (porV[i.veiculo_id || ''] = porV[i.veiculo_id || ''] || []).push(i); });
     const blocos = Object.entries(porV).map(([vid, its]) => { const v = (d.veiculos || {})[vid] || {}, cv = hex(v.cor, '#6b6f7a');
       return `<div class="ex2-sec"><h4><span class="ex2-vsel" style="background:${cv}">${esc(String(v.sigla || '').slice(0, 4))}</span>${esc(v.nome || 'Veículo')}</h4>
-        <table><thead><tr><th>Pago em</th><th>Cliente</th><th class="r ex2-esc">Líquido pago</th>${c.pcts.length > 1 ? '<th class="r ex2-esc">%</th>' : ''}<th class="r">Comissão</th></tr></thead><tbody>
-        ${its.map(i => `<tr><td class="nw">${dfmt(i.pago_em).slice(0, 5)}</td><td>${esc(i.cliente)}<small>${esc(i.pi_no)}${i.mes_ref ? ` · ${MESES[+String(i.mes_ref).slice(5) - 1]}` : ''}</small></td><td class="r ex2-esc">${brl(i.liquido)}</td>${c.pcts.length > 1 ? `<td class="r ex2-esc">${pctTxt(i.pct)}</td>` : ''}<td class="r"><b>${brl(i.comissao)}</b></td></tr>`).join('')}</tbody></table>
+        <table><thead><tr><th>Mês</th><th>Cliente</th><th class="r ex2-esc">Líquido no mês</th>${c.pcts.length > 1 ? '<th class="r ex2-esc">%</th>' : ''}<th class="r">Comissão</th></tr></thead><tbody>
+        ${its.map(i => `<tr><td class="nw">${cap(mesNome(i.mes_pago || i.mes_ref || d.mes))}</td><td>${esc(i.cliente)}<small>${esc(i.pi_no)}</small></td><td class="r ex2-esc">${brl(i.liquido)}</td>${c.pcts.length > 1 ? `<td class="r ex2-esc">${pctTxt(i.pct)}</td>` : ''}<td class="r"><b>${brl(i.comissao)}</b></td></tr>`).join('')}</tbody></table>
         ${Object.keys(porV).length > 1 ? `<div class="ex2-subt">Subtotal <b>${brl(its.reduce((t, i) => t + Number(i.comissao || 0), 0))}</b></div>` : ''}</div>`; }).join('');
     const metaPct = c.meta ? Math.round(c.vend / c.meta * 100) : null;
-    const atr = c.atrasos.length ? `<div class="ex2-atr"><b>Cliente${c.atrasos.length > 1 ? 's' : ''} em atraso:</b> ${c.atrasos.slice(0, 4).map(a => `${esc(a.cliente)}, ${brl0(a.valor)}${a.venc ? ` (venceu ${dfmt(a.venc).slice(0, 5)})` : ''}`).join('; ')}${c.atrasos.length > 4 ? ` e mais ${c.atrasos.length - 4}` : ''}. Quando pagar, a comissão entra no mês do pagamento.</div>` : '';
+    const atr = '';   /* 05/11/2026: o SONVI não acompanha mais pagamento (comissão no mês em que o PI vai ao ar, database/081) */
     return `<article class="ex2" style="--ex-cor:${cor};--ex-cor2:${cor2};--ex-soft:${tom(cor, .09)};--ex-soft2:${tom(cor, .13)}">
       <div class="ex2-topo"><span class="ex2-logo">${logo ? `<img src="${esc(logo)}" alt="${esc(nomeEmp)}">` : `<b>${esc(nomeEmp)}</b>`}</span><span class="ex2-tit"><b>Extrato de comissão</b>${cap(m)} de ${String(d.mes).slice(0, 4)}</span></div>
-      <div class="ex2-cab"><div class="ex2-pessoa"><span class="ex2-av">${esc(ini(d.nome))}</span><span><b>${esc(d.nome)}</b><small>Consultor${c.pct !== null ? ` · comissão de ${pctTxt(c.pct)} do líquido pago` : ''}</small></span></div>
+      <div class="ex2-cab"><div class="ex2-pessoa"><span class="ex2-av">${esc(ini(d.nome))}</span><span><b>${esc(d.nome)}</b><small>Consultor${c.pct !== null ? ` · comissão de ${pctTxt(c.pct)} do líquido` : ''}</small></span></div>
         <span class="ex2-quando">${d.fechado_em ? `Fechado em ${dfmt(String(d.fechado_em).slice(0, 10))}` : 'Mês em andamento'}</span></div>
       <div class="ex2-hero"><div><small>${d.situacao === 'previa' ? `Sua comissão de ${m} até agora` : `Sua comissão de ${m}`}</small><div class="ex2-valor">${brl(c.com)}</div>
-        <div class="ex2-conta">${c.pct !== null ? `${pctTxt(c.pct)} de ` : ''}${brl(c.liq)} que os seus clientes pagaram${c.liq !== c.rec ? ` (líquido de ${brl(c.rec)})` : ''} no mês</div></div>${sit}</div>
-      <div class="ex2-cards"><div class="ex2-c"><small>Recebido dos clientes</small><b>${brl0(c.rec)}</b><span>${(d.itens || []).length} parcela${(d.itens || []).length === 1 ? '' : 's'} paga${(d.itens || []).length === 1 ? '' : 's'}</span></div>
+        <div class="ex2-conta">${c.pct !== null ? `${pctTxt(c.pct)} de ` : ''}${brl(c.liq)} líquido dos PIs que vão ao ar no mês</div></div>${sit}</div>
+      <div class="ex2-cards"><div class="ex2-c"><small>PIs que geram comissão</small><b>${(d.itens || []).length}</b><span>enviados para a OPEC, no ar no mês</span></div>
         <div class="ex2-c"><small>Vendido no mês</small><b>${brl0(c.vend)}</b>${metaPct !== null ? `<span class="ex2-barra"><i style="width:${Math.min(100, metaPct)}%"${metaPct >= 100 ? ' class="ok"' : ''}></i></span><span>${metaPct}% da meta de ${brl0(c.meta)}</span>` : '<span>valor líquido que vai ao ar no mês</span>'}</div>
-        <div class="ex2-c"><small>Comissão a caminho</small><b>${brl0(c.fila)}</b><span>quando os clientes pagarem o que falta</span></div></div>
-      ${blocos || '<p class="ex2-vazio">Nenhum cliente pagou no mês ainda.</p>'}
+        <div class="ex2-c"><small>Percentual</small><b>${c.pct !== null ? pctTxt(c.pct) : '—'}</b><span>sobre o valor líquido</span></div></div>
+      ${blocos || '<p class="ex2-vazio">Nenhum PI no ar no mês ainda.</p>'}
       <div class="ex2-total"><span>Total da comissão</span><b>${brl(c.com)}</b></div>
       ${atr}
       ${op.assinaturas === false ? '' : `<div class="ex2-ass"><div>${esc(nomeEmp)}</div><div>${esc(d.nome)}</div></div>`}
@@ -54,8 +54,8 @@
   const whats = (d, { saudacao = '', link = '', assinatura = '' } = {}) => { const c = contas(d), m = mesNome(d.mes), metaPct = c.meta ? Math.round(c.vend / c.meta * 100) : null;
     const sit = d.situacao === 'paga' ? `✅ Paga em ${dfmt(d.pago_em).slice(0, 5)}` : d.situacao === 'fechado' ? '🔒 Mês fechado · comissão a pagar' : '⏳ Prévia: o mês ainda está aberto e o valor pode mudar';
     return [saudacao || `Olá, ${String(d.nome || '').split(' ')[0]}! 👋`, '', `*Extrato de comissão · ${cap(m)}/${String(d.mes).slice(0, 4)}*`, '',
-      `💰 Comissão: *${brl(c.com)}*`, `📥 Recebido dos clientes: ${brl(c.rec)}${c.pct !== null ? ` (${pctTxt(c.pct)})` : ''}`,
-      `📈 Vendido no mês: ${brl(c.vend)}${metaPct !== null ? ` · meta ${metaPct}%` : ''}`, ...(c.fila ? [`⏭️ Comissão a caminho: ${brl(c.fila)}`] : []), sit,
+      `💰 Comissão: *${brl(c.com)}*`, `🧾 ${(d.itens || []).length} PI${(d.itens || []).length === 1 ? '' : 's'} no mês${c.pct !== null ? ` · ${pctTxt(c.pct)} do líquido` : ''}`,
+      `📈 Vendido no mês: ${brl(c.vend)}${metaPct !== null ? ` · meta ${metaPct}%` : ''}`, sit,
       ...(link ? ['', 'Veja o extrato completo:', link] : []), ...(assinatura ? ['', assinatura] : [])].join('\n'); };
 
   window.SONVI_EXTRATO = { html, whats, contas };
