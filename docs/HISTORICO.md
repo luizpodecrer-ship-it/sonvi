@@ -369,3 +369,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - Não criar contas nem entrar com senha pelo app durante testes. Regras do banco se testam por SQL dentro de um bloco que termina em erro (nada fica gravado); telas se testam preenchendo `S.me` e `S.db` em memória.
 
 `prototipos/pi.html` é o primeiro protótipo do PI, em arquivo único e sem nuvem; o módulo oficial é `app/js/pi.js`.
+
+## Nome "Head 14" nas telas (05/11/2026)
+
+- Pedido do Luiz: nenhuma tela diz mais "Parte da Head 14"; só "Head 14" (Dashboard Gestão: números "Head 14 no mês" e "Head 14 acumulada", coluna e planilha "Head 14", cartões dos veículos; Vendas: quadro e cartão com o nome da empresa e o percentual).

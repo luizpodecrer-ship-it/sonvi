@@ -161,7 +161,7 @@
   const totaisMes = (M, ym) => { const ks = Object.keys(M); return { liq:(M[ym] || {}).liq || 0, head:(M[ym] || {}).head || 0,
     acu:ks.filter(m => m >= ym).reduce((t, m) => t + M[m].liq, 0), heada:ks.filter(m => m >= ym).reduce((t, m) => t + M[m].head, 0) }; };
   const KPIS = [{ k:'liq', ic:'financeiro', titulo:'Líquido do mês', sub:true }, { k:'acu', ic:'relatorio', titulo:'Acumulado (mês + seguintes)', sub:true },
-    { k:'head', ic:'empresa', titulo:'Parte da Head 14 no mês', sub:true, cls:'cz-kpi-head' }, { k:'heada', ic:'empresa', titulo:'Parte da Head 14 acumulada', sub:true, cls:'cz-kpi-head' },
+    { k:'head', ic:'empresa', titulo:'Head 14 no mês', sub:true, cls:'cz-kpi-head' }, { k:'heada', ic:'empresa', titulo:'Head 14 acumulada', sub:true, cls:'cz-kpi-head' },
     { k:'rec', ic:'vendas', titulo:'A faturar / receber', sub:true }];
 
   const mesAMes = (M, ym, veiculos) => {
@@ -171,11 +171,11 @@
     for (let m = ini; m <= fim; m = somaMes(m, 1)) { const x = M[m] || z; corre += x.liq; linhas.push({ m, x, acu:corre }); }
     const barraV = x => { const t = x.liq || 0; return `<span class="hc-bv" aria-hidden="true">${t ? veiculos.filter(v => x.porV[v.id]).map(v => `<i style="width:${(x.porV[v.id] / t * 100).toFixed(2)}%;background:${esc(v.cor || 'var(--accent)')}" title="${esc(v.nome)}"></i>`).join('') : ''}</span>`; };
     const porVtxt = x => veiculos.filter(v => x.porV[v.id]).map(v => `${v.nome} ${Math.round(x.porV[v.id] / x.liq * 100)}%`).join(', ');
-    return `<section class="card hc" aria-labelledby="hc-t"><div class="hd"><h2 id="hc-t">Mês a mês</h2><span class="muted small">clique num mês para ver o painel dele</span></div><div class="scroll"><table class="hc-tab"><thead><tr><th>Mês</th><th class="r">PIs</th><th class="r">Líquido do mês</th><th class="r">Parte Head 14</th><th class="r">Acumulado</th><th class="hc-pv">Por veículo</th></tr></thead><tbody>
+    return `<section class="card hc" aria-labelledby="hc-t"><div class="hd"><h2 id="hc-t">Mês a mês</h2><span class="muted small">clique num mês para ver o painel dele</span></div><div class="scroll"><table class="hc-tab"><thead><tr><th>Mês</th><th class="r">PIs</th><th class="r">Líquido do mês</th><th class="r">Head 14</th><th class="r">Acumulado</th><th class="hc-pv">Por veículo</th></tr></thead><tbody>
       ${linhas.map(({ m, x, acu }) => `<tr class="click${m === ym ? ' hc-sel' : ''}" data-act="geralMes" data-v="${m}"${m === ym ? ' aria-current="true"' : ''}><td class="nw"><b>${nomeM(m)}</b></td><td class="r nw">${x.pis || '—'}</td><td class="r nw">${x.liq ? brl(x.liq) : '—'}</td><td class="r nw">${x.head ? brl(x.head) : '—'}</td><td class="r nw muted">${brl(acu)}</td><td class="hc-pv">${barraV(x)}${x.liq ? `<span class="sr">${esc(porVtxt(x))}</span>` : ''}</td></tr>`).join('')}</tbody></table></div></section>`;
   };
   const ctrlCsv = () => { const M = S.controleHead(cache, S.db.veiculos), ms = Object.keys(M).sort(), n = v => (Math.round(v * 100) / 100).toFixed(2).replace('.', ',');
-    let corre = 0; const linhas = [['Mês', 'PIs', 'Líquido do mês', 'Parte Head 14', 'Acumulado', ...S.db.veiculos.map(v => v.nome)].join(';')];
+    let corre = 0; const linhas = [['Mês', 'PIs', 'Líquido do mês', 'Head 14', 'Acumulado', ...S.db.veiculos.map(v => v.nome)].join(';')];
     ms.forEach(m => { const x = M[m]; corre += x.liq; linhas.push([nomeM(m), x.pis, n(x.liq), n(x.head), n(corre), ...S.db.veiculos.map(v => n(x.porV[v.id] || 0))].join(';')); });
     const b = new Blob(['﻿' + linhas.join('\n')], { type:'text/csv;charset=utf-8' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'controle-head14.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
 
@@ -227,7 +227,7 @@
       if (!veiculos.length) return '<div class="empty"><b>Nenhum veículo cadastrado</b>Cadastre os veículos em Administração.</div>';
       return `<div class="gc-grade">${linhas.map(l => `<div class="gc${marca(l)}" data-act="geralAbrir" data-id="${l.v.id}" role="link" aria-label="Abrir o Dashboard da ${esc(l.v.nome)}">
         <div class="gc-topo">${S.vav(l.v)}<span class="gc-tx"><b>${esc(l.v.nome)}</b><small>${esc(S.vehSub(l.v) || S.nomeCategoria(S.categoria(l.v)))}</small><span class="gc-sit">${sit(l)}</span></span></div>
-        <div class="gc-num"><span><small>Líquido no mês</small><b class="gc-liq">${S.roloFixo('gc-l-' + l.v.id, reais0(l.liq))}</b></span><span class="gc-h"><small>Parte Head 14</small><b>${S.roloFixo('gc-h-' + l.v.id, reais0(l.head))}</b></span></div>
+        <div class="gc-num"><span><small>Líquido no mês</small><b class="gc-liq">${S.roloFixo('gc-l-' + l.v.id, reais0(l.liq))}</b></span><span class="gc-h"><small>Head 14</small><b>${S.roloFixo('gc-h-' + l.v.id, reais0(l.head))}</b></span></div>
         <span class="gc-barra" aria-hidden="true"><i style="width:${tot ? Math.max(l.liq ? 2 : 0, l.liq / tot * 100).toFixed(1) : 0}%;background:${esc(l.v.cor || 'var(--accent)')}"></i></span>
         <div class="gc-pe"><span>${l.n} PI${l.n === 1 ? '' : 's'} no mês</span><span class="${l.vencido ? 'fin-laranja' : ''}">${l.vencido ? reais0(l.vencido) + ' vencido' : l.receber ? reais0(l.receber) + ' a receber' : 'Nada a receber'}</span><b class="gc-abrir">Abrir ›</b></div></div>`).join('')}</div>`; };
     painel.corpo = corpo_;
