@@ -345,7 +345,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `excluir_agencia_grupo` (058) · app: agencias.js
 - `excluir_cliente_completo` (048 → 052) · app: pessoas.js
 - `excluir_lancamento_diretor` (050) · app: financeiro.js
-- `excluir_pi_completo` (050 → 052) · app: pi.js
+- `excluir_pi_completo` (050 → 052 → 082) · app: pi.js
 - `excluir_proposta_completa` (050 → 051 → 052) · app: propostas.js
 - `excluir_tabela` (037) · app: cadastros.js
 - `extrato_para_envio` (068) · app: —
@@ -437,6 +437,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `suporte_org` (026) · app: —
 - `tabela_produtos` (043) · app: —
 - `tabelas_preco_protege` (013 → 035 → 043) · app: —
+- `ultimo_acesso_pela_sessao` (082) · app: —
 - `usuario_so_nas_minhas` (023 → 026) · app: —
 - `ve_chamado` (030) · app: —
 - `ve_colaboradores` (046) · app: —
@@ -452,7 +453,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 
 ### Gatilhos (tabela, migração)
 
-`ao_criar_usuario` (auth, 001), `ao_entrar` (auth, 060), `colaboradores_metas_hist` (colaboradores, 049), `contrato_email_do_cliente` (console_contratos, 032), `lixeira_guarda` (comissao_fechamentos, 068), `mus_programacao_protege` (mus_programacao, 006), `musicas_protege` (musicas, 006), `pi_originais_veiculo` (pi_originais, 067), `pis_calcula` (pis, 062), `pis_programado_em` (pis, 077), `pis_protege` (pis, 001), `pis_repasse` (pis, 049), `pis_venda_sozinha` (pis, 078), `produtos_variacao_em_uso` (produtos, 059), `propostas_protege` (propostas, 017), `tabelas_preco_protege` (tabelas_preco, 013), `veiculos_agencias` (veiculos, 058), `veiculos_categoria_principal` (veiculos, 040)
+`ao_criar_usuario` (auth, 001), `ao_entrar` (auth, 060), `colaboradores_metas_hist` (colaboradores, 049), `contrato_email_do_cliente` (console_contratos, 032), `lixeira_guarda` (comissao_fechamentos, 068), `mus_programacao_protege` (mus_programacao, 006), `musicas_protege` (musicas, 006), `pi_originais_veiculo` (pi_originais, 067), `pis_calcula` (pis, 062), `pis_programado_em` (pis, 077), `pis_protege` (pis, 001), `pis_repasse` (pis, 049), `pis_venda_sozinha` (pis, 078), `produtos_variacao_em_uso` (produtos, 059), `propostas_protege` (propostas, 017), `tabelas_preco_protege` (tabelas_preco, 013), `ultimo_acesso_sessao` (auth, 082), `veiculos_agencias` (veiculos, 058), `veiculos_categoria_principal` (veiculos, 040)
 
 ## Onde ficam os `S.` (função → arquivo)
 
