@@ -52,28 +52,56 @@
     const et = ETAPAS_PI.map(([k, nome, cls]) => { const xs = doMes.filter(p => etapaPi(p) === k); return { k, nome, cls, xs, v:totDe(xs) }; });
     const sel = et.find(e => e.k === pm.et), base = sel ? sel.xs : doMes;
     const enviados = base.filter(p => ENVIADO.includes(p.status)), tot = sel ? totDe(base) : totDe(enviados);
-    const devolvidos = S.db.pis.filter(p => p.status === 'devolvido').length, aguardam = S.db.pis.filter(p => ENVIADO.includes(p.status) && abriuEm(p) === null).length;
-    const regua = `<div class="pr-regua${sel ? ' filtra' : ''}" role="group" aria-label="PIs de ${mesN} (escolha para filtrar)">${et.filter(e => e.xs.length).map(e => `<button type="button" class="pr-et-${e.cls}" data-act="piEtapa" data-v="${e.k}" style="flex-grow:${Math.max(1, Math.round(e.v)) || 1}" aria-pressed="${pm.et === e.k}" aria-label="${e.nome}: ${e.xs.length} PI${e.xs.length === 1 ? '' : 's'}, ${curtoPi(e.v)}" title="${e.nome} · ${curtoPi(e.v)}"></button>`).join('') || '<span class="pr-vazia"></span>'}</div>
-      <div class="pr-leg">${et.map(e => `<button type="button" class="pr-et-${e.cls}" data-act="piEtapa" data-v="${e.k}" aria-pressed="${pm.et === e.k}"><i aria-hidden="true"></i><b>${e.nome} · ${e.xs.length}</b><span>${curtoPi(e.v)}</span></button>`).join('')}</div>`;
-    const resumo = `${devolvidos ? `<span class="pill fn-forte">${devolvidos} devolvido${devolvidos > 1 ? 's' : ''} pela OPEC</span>` : ''}<span class="pill fn-neutra">${aguardam ? `${aguardam} aguardando a OPEC abrir` : 'A OPEC abriu todos os PIs enviados'}</span>`;
-    const topo = `<section class="card fn-mes-card" aria-labelledby="pr-t"><div class="hd"><h2 id="pr-t">PIs do mês</h2><span class="grow"></span>
+    // Resumo do mês (07/11/2026, modelo "Novo PIs do mês" aprovado): Vendido · Situação dos PIs (filtra a lista) · Meta.
+    // Saiu "No ar em <mês>". Cores do veículo (--accent/--accent-2) e efeitos em CSS (.pm-*).
+    const [yy, mm] = ym.split('-').map(Number);
+    const meusPis = !S.me.diretor && S.pode('consultor') && !S.pode('diretor', 'gerente');
+    const vendDoMes = m => S.db.pis.filter(p => ENVIADO.includes(p.status)).reduce((s, p) => s + S.calc(p).net * S.fatiaMes(p, m), 0);
+    const meses6 = [5, 4, 3, 2, 1, 0].map(k => somaMesPi(ym, -k)), serie = meses6.map(vendDoMes), ant = serie[4];
+    const varPct = ant > 0 ? Math.round((serie[5] - ant) / ant * 100) : null, mesAntN = MESES_PI[+meses6[4].slice(5) - 1];
+    const mx = Math.max(1, ...serie), pts = serie.map((v, k) => [k * 40, 40 - v / mx * 34 + 2]);
+    const linhaS = pts.map((pt, k) => `${k ? 'L' : 'M'}${pt[0]} ${pt[1].toFixed(1)}`).join(' ');
+    const spark = `<svg class="pm-spark" viewBox="0 0 200 46" preserveAspectRatio="none" role="img" aria-label="Vendido nos últimos 6 meses: ${meses6.map((m, k) => `${MESES_PI[+m.slice(5) - 1]} ${curtoPi(serie[k])}`).join(', ')}">
+      <defs><linearGradient id="pmGa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-2)" stop-opacity=".45"/><stop offset="1" stop-color="var(--accent-2)" stop-opacity="0"/></linearGradient></defs>
+      <path class="pm-area" d="${linhaS} L200 46 L0 46Z"/><path class="pm-lin" d="${linhaS}" pathLength="400"/><circle cx="${pts[5][0] - 3}" cy="${pts[5][1].toFixed(1)}" r="4"/></svg>`;
+    const seta = s => `<span class="pm-seta ${s ? 'sobe' : 'desce'}" aria-hidden="true"><svg viewBox="0 0 24 24">${s ? '<path d="M7 17 17 7M9 7h8v8"/>' : '<path d="M7 7l10 10M17 9v8H9"/>'}</svg></span>`;
+    const variacao = varPct === null ? `<span class="pm-var">${serie[5] ? `sem vendas em ${mesAntN} para comparar` : `sem vendas em ${mesN} ainda`}</span>`
+      : `<span class="pm-var">${seta(varPct >= 0)}<b class="${varPct >= 0 ? 'sobe' : 'desce'}">${varPct > 0 ? '+' : ''}${varPct}%</b> em relação a ${mesAntN}</span>`;
+    const nEnv = enviados.length;
+    const blVend = `<div class="pm-bloco" aria-label="Vendido no mês"><span class="pm-rot">${sel ? `${esc(sel.nome)} · líquido` : 'Vendido no mês · líquido'}</span>
+      <span class="pm-num">${S.roloFixo('prTotal', curtoPi(tot))}</span>${sel ? `<span class="pm-var">${base.length} PI${base.length === 1 ? '' : 's'} nesta situação</span>` : variacao + spark}
+      <div class="pm-mini"><div><small>PIs enviados</small><b>${nEnv}</b></div><div><small>Ticket médio</small><b>${curtoPi(nEnv ? totDe(enviados) / nEnv : 0)}</b></div></div></div>`;
+    const totEt = et.reduce((s, e) => s + e.v, 0) || 1, CLS = { abriu:'pm-abriu', aguarda:'pm-aguarda', rasc:'pm-rasc' }, CURTO = { abriu:'OPEC abriu', aguarda:'Aguardando', rasc:'Rascunhos' };
+    const barra = `<div class="pm-barra" role="img" aria-label="${et.map(e => `${e.nome} ${e.xs.length}`).join(', ')}">${et.filter(e => e.v > 0).map((e, k) => `<i class="${CLS[e.k]}" style="flex:${Math.round(e.v)};--d:${k * .15}s"></i>`).join('') || '<i class="pm-vazio"></i>'}</div>`;
+    const cartoes = et.map((e, k) => `<button type="button" class="pm-etapa" data-act="piEtapa" data-v="${e.k}" aria-pressed="${pm.et === e.k}" aria-label="${e.nome}: ${e.xs.length} PI${e.xs.length === 1 ? '' : 's'}, ${curtoPi(e.v)}. ${pm.et === e.k ? 'Clique para tirar o filtro' : 'Clique para filtrar a lista'}">
+        <span class="pm-et-t"><i class="${CLS[e.k]}" aria-hidden="true"></i>${CURTO[e.k]}</span><span class="pm-et-q"><b>${e.xs.length}</b><span>PI${e.xs.length === 1 ? '' : 's'}</span></span>
+        <span class="pm-et-v">${curtoPi(e.v)}</span><span class="pm-et-p" aria-hidden="true"><u class="${CLS[e.k]}" style="width:${Math.round(e.v / totEt * 100)}%;--d:${k * .15}s"></u></span></button>`).join('');
+    const esperando = S.db.pis.filter(p => ENVIADO.includes(p.status) && abriuEm(p) === null && (!meusPis || p.consultor_id === S.me.id))
+      .sort((a, b) => String(a.atualizado_em || a.criado_em).localeCompare(String(b.atualizado_em || b.criado_em)));
+    const diasDe = d => Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 864e5));
+    const devolvidos = S.db.pis.filter(p => p.status === 'devolvido' && (!meusPis || p.consultor_id === S.me.id));
+    const avisos = `${esperando.length ? `<div class="pm-dica"><span class="pm-pulso" aria-hidden="true"></span><span>${esperando.length === 1 ? `<b>${S.piNo(esperando[0])}</b> está esperando a OPEC abrir${(n => n ? ` há ${n} dia${n === 1 ? '' : 's'}` : ' desde hoje')(diasDe(esperando[0].atualizado_em || esperando[0].criado_em))}` : `<b>${esperando.length} PIs</b> esperando a OPEC abrir; o mais antigo é o <b>${S.piNo(esperando[0])}</b>`}</span><a data-go="/pi/${esperando[0].id}">Ver PI ›</a></div>` : ''}
+      ${devolvidos.length ? `<div class="pm-dica pm-dev"><span class="pm-pulso" aria-hidden="true"></span><span><b>${devolvidos.length} PI${devolvidos.length === 1 ? '' : 's'} devolvido${devolvidos.length === 1 ? '' : 's'}</b> pela OPEC para ajustar</span><a data-go="/pi/${devolvidos[0].id}">Ver PI ›</a></div>` : ''}`;
+    const blSit = `<div class="pm-bloco pm-sit" aria-label="Situação dos PIs"><span class="pm-rot">Situação dos PIs · clique para filtrar a lista</span>${barra}<div class="pm-etapas">${cartoes}</div>${avisos}</div>`;
+    // Meta: a do veículo (soma dos consultores); para o consultor, a dele
+    const metas = S.metasDoMes ? S.metasDoMes(ym) : [];
+    let blMeta;
+    if (!metas) blMeta = `<div class="pm-bloco" data-metas-espera aria-busy="true"><span class="pm-rot">${meusPis ? 'Minha meta' : 'Meta do mês'}</span><p class="pm-meta-txt">Buscando a meta…</p></div>`;
+    else { const meta = metas.filter(x => x.veiculo_id === S.ui.vehicleId && (!meusPis || x.usuario_id === S.me.id)).reduce((s, x) => s + Number(x.meta || 0), 0);
+      const feito = meusPis ? S.db.pis.filter(p => ENVIADO.includes(p.status) && p.consultor_id === S.me.id).reduce((s, p) => s + S.calc(p).net * S.fatiaMes(p, ym), 0) : vendDoMes(ym);
+      const pct = meta ? Math.round(feito / meta * 100) : 0, C = 339.3, off = C - C * Math.min(1, pct / 100);
+      const fim = new Date(yy, mm, 0), hojeD = new Date(); hojeD.setHours(0, 0, 0, 0);
+      const resta = ym === hoje.slice(0, 7) ? Math.round((fim - hojeD) / 864e5) + 1 : ym > hoje.slice(0, 7) ? fim.getDate() : 0;
+      blMeta = `<div class="pm-bloco" aria-label="${meusPis ? 'Minha meta' : 'Meta do mês'}"><span class="pm-rot">${meusPis ? 'Minha meta' : 'Meta do mês'}</span>
+        ${meta ? `<div class="pm-anel${pct >= 100 ? ' bateu' : ''}"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="pmGm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent-2)"/></linearGradient></defs><circle class="pm-fundo" cx="60" cy="60" r="54"/><circle class="pm-arco" cx="60" cy="60" r="54" style="--off:${off.toFixed(1)}"/></svg>
+          <div><b>${pct}%</b><small>da meta</small></div></div>
+          <p class="pm-meta-txt"><b>${curtoPi(feito)}</b> de <b>${curtoPi(meta)}</b><br>${feito >= meta ? 'meta batida' : `faltam ${curtoPi(meta - feito)}${resta ? ` · ${resta} dia${resta === 1 ? '' : 's'}` : ''}`}</p>`
+        : `<p class="pm-meta-txt pm-sem">Sem meta cadastrada para ${mesN}.${S.me.diretor ? '<br>Cadastre em Administração › Colaboradores.' : ''}</p>`}</div>`; }
+    const topo = `<section class="card fn-mes-card pm-card" aria-labelledby="pr-t"><div class="hd"><h2 id="pr-t">PIs de ${mesN}</h2><span class="grow"></span>
       <div class="fn-nav" role="group" aria-label="Mês"><button class="btn sm ic" data-act="piMes" data-d="-1" aria-label="Mês anterior" title="Mês anterior (←)">${S.svg('esq')}</button>
         <span class="fn-mes-et" role="status" aria-live="polite"><span>${nomeMesPi(ym)}</span></span>
         <button class="btn sm ic" data-act="piMes" data-d="1" aria-label="Próximo mês" title="Próximo mês (→)">${S.svg('seta')}</button>${ym !== hoje.slice(0, 7) ? '<button class="btn sm" data-act="piMes" data-d="0">Hoje</button>' : ''}</div></div>
-      <div class="pr-topo"><div class="pr-tot"><small>${sel ? sel.nome : `Vendido em ${mesN} (líquido)`}</small><span class="pf-num">${S.roloFixo('prTotal', curtoPi(tot))}</span><small>${sel ? base.length : enviados.length} PI${(sel ? base.length : enviados.length) === 1 ? '' : 's'}${sel ? '' : ' enviados'} · ticket médio ${curtoPi(tot / Math.max(1, sel ? base.length : enviados.length))}</small></div><div>${regua}</div></div>
-      <div class="fn-resumo" style="margin-top:14px">${resumo}</div></section>`;
-    // No ar no mês: o que veicula em algum dia do mês (sem rascunho, devolvido e cancelado)
-    const [yy, mm] = ym.split('-').map(Number), nd = new Date(yy, mm, 0).getDate(), d1 = `${ym}-01`, dN = `${ym}-${String(nd).padStart(2, '0')}`;
-    const noAr = S.db.pis.filter(p => !['rascunho', 'devolvido', 'cancelado'].includes(p.status)).map(p => ({ p, v:veiculacao(p) })).filter(x => x.v && x.v[0] <= dN && x.v[1] >= d1).sort((a, b) => a.v[0].localeCompare(b.v[0]));
-    const dia = d => d < d1 ? 1 : d > dN ? nd : +d.slice(8);
-    const hojeX = hoje.slice(0, 7) === ym ? (+hoje.slice(8) - .5) / nd * 100 : -1;
-    const insMes = p => (p.dados.grids || []).filter(g => g.period === ym).reduce((s, g) => s + (g.items || []).reduce((t, it) => t + Object.values(it.days || {}).reduce((u, n) => u + (Number(n) || 0), 0), 0), 0);
-    const noArCard = `<section class="card" aria-labelledby="ga-t"><div class="hd"><h2 id="ga-t">No ar em ${mesN}</h2><span>${noAr.length} PI${noAr.length === 1 ? '' : 's'} veiculando${hojeX >= 0 ? ' · a linha marca hoje' : ''}</span></div>
-      ${noAr.length ? `<div class="ga-g"><div class="ga-l ga-cab"><span>PI</span><span class="ga-dias"><span>1</span><span>${Math.round(nd / 2)}</span><span>${nd}</span></span><span class="r">Inserções no mês</span></div>
-        ${(pm.todos ? noAr : noAr.slice(0, 8)).map(({ p, v }, i) => { const a = dia(v[0]), b = dia(v[1]);
-          return `<a class="ga-l" data-go="/pi/${p.id}" title="${S.piNo(p)} · ${dfmt(v[0])} a ${dfmt(v[1])}"><span class="ga-q"><b>${esc(p.titulo) || 'Sem título'}</b><small>${esc(S.nome(p.cliente_id)) || S.piNo(p)}</small></span>
-            <span class="ga-trilho"><span class="ga-barra pr-et-${p.status}" style="left:${(a - 1) / nd * 100}%;width:${Math.max(1.5, (b - a + 1) / nd * 100)}%;--i:${i}"></span>${hojeX >= 0 ? `<span class="ga-hoje" style="left:${hojeX}%"></span>` : ''}</span><span class="r ga-n">${insMes(p).toLocaleString('pt-BR')}</span></a>`; }).join('')}</div>${noAr.length > 8 ? `<button class="btn sm" style="margin-top:12px" data-act="piNoArTodos">${pm.todos ? 'Mostrar menos' : `Ver todos (${noAr.length})`}</button>` : ''}`
-        : `<p class="muted">Nenhum PI veiculando em ${mesN}.</p>`}</section>`;
+      <div class="pm-grade">${blVend}${blSit}${blMeta}</div></section>`;
     // Lista do mês
     const pis = base.filter(p => !q || [p.titulo, S.nome(p.cliente_id), S.nome(p.agencia_id), S.usuario(p.consultor_id), p.projeto, S.piNo(p)].join(' ').toLowerCase().includes(q)).sort((a, b) => b.numero - a.numero);
     carregaLeituras(); vigiarLeituras(pis); vigiarStatus(pis); carregaMotivos(pis);
@@ -95,13 +123,13 @@
         <div class="pl">${cab}${xs.map(linha).join('')}</div></details>`; }).join('');
     const vazio = `<div class="empty"><b>Nenhum PI</b>${q ? `Nada com essa busca em ${mesN}.` : sel ? `Nenhum PI nesta etapa em ${mesN}.` : S.db.pis.length ? `Nenhum PI no ar em ${mesN}.` : 'Os pedidos desta rádio aparecem aqui.'}</div>`;
     const listaCard = `<section class="card pl-card" aria-labelledby="pr-tl"><div class="hd fn-par-hd"><h2 id="pr-tl">PIs de ${mesN}</h2><span>${pis.filter(p => p.status !== 'cancelado').length} · ${brl(totDe(pis.filter(p => p.status !== 'cancelado')))} líquido</span></div>
-      <div class="fn-filtros">${sel ? `<button class="fn-chip pr-chip pr-et-${sel.k}" data-act="piEtapa" data-v="${sel.k}" aria-label="Tirar o filtro ${sel.nome}"><i aria-hidden="true"></i>${sel.nome}${S.svg('fechar', 14)}</button>` : ''}
+      <div class="fn-filtros">${sel ? `<button class="fn-chip pr-chip pr-et-${sel.cls}" data-act="piEtapa" data-v="${sel.k}" aria-label="Tirar o filtro ${sel.nome}"><i aria-hidden="true"></i>${sel.nome}${S.svg('fechar', 14)}</button>` : ''}
         <label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por número, título, cliente, agência ou consultor" aria-label="Buscar PIs"></label></div>
       ${pis.length ? `<div class="pl-sfs">${blocos}</div>` : vazio}
-      <p class="fn-dica"><kbd>←</kbd> <kbd>→</kbd> trocam o mês · clique numa etapa da régua para filtrar · <kbd>Esc</kbd> tira o filtro</p></section>`;
+      <p class="fn-dica"><kbd>←</kbd> <kbd>→</kbd> trocam o mês · clique num cartão da Situação dos PIs para filtrar · <kbd>Esc</kbd> tira o filtro</p></section>`;
     queueMicrotask(animaPis);
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>Pedidos de Inserção`, actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn" data-act="piNew" title="Para casos sem proposta">PI sem proposta</button><button class="btn" data-act="piImportar" title="PI pronto que o cliente ou a agência mandou (PDF, foto ou planilha)">${S.svg('baixar')}Importar PI</button><button class="btn pri" data-act="prNova">${S.svg('mais')}Nova proposta</button>` : '',   // a venda começa pela proposta (29/10/2026)
-      body:topo + (S.propostasParaPi ? S.propostasParaPi() : '') + noArCard + listaCard };
+      body:topo + (S.propostasParaPi ? S.propostasParaPi() : '') + listaCard };
   };
   // A régua cresce com mola (do zero na entrada; depois, da fatia anterior até a nova) e o nome do mês desliza
   function animaPis() {
@@ -114,7 +142,6 @@
   }
   window.addEventListener('hashchange', () => { if (!/^#\/pis\/?$/.test(location.hash)) reguaAntes = null; });
   Object.assign(S.actions, {
-    piNoArTodos: () => { pm.todos = !pm.todos; S.render(); },
     piEtapa: d => { pm.et = pm.et === d.v ? '' : d.v; S.flip(S.render); },
     piMes: d => { const hoje = today().slice(0, 7), atual = pm.mes || hoje, alvo = +d.d ? somaMesPi(atual, +d.d) : hoje;
       if (alvo === atual) return; viraMesPi = alvo > atual ? 1 : -1; pm.mes = alvo === hoje ? '' : alvo; pm.et = ''; pm.todos = false; S.flip(S.render); },

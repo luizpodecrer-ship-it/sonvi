@@ -155,9 +155,9 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Define `S.`: BILLING, COBRA_OOH, DIA_LETRA, DIA_NOME, PAG_PI, PI_CONDICOES_PADRAO, PROP_CONDICOES_PADRAO, SEMANA, SITUACAO_TABELA, billingEntries, calc, diasDoMes, diasDoTexto, diasTexto, digCalc, distribuir, distribuirMes, ehDigital, emailCobrancaDe, empCurto, faixaDoTexto, fatDia, itemCalc, itemDaTabela, lancReg, lancada, lancadasBuscar, lancamentosDoPi, lancamentosDoPiMes, liquidoPi, mesesDoPi, mesesFaturados, midiaPorMes, multiMes, nomeMes, oohPorMes, pagPi, pagadorPi, parcels, piCondicoes, piNorm, piProblems, preco, precoNaTabela, propNo, propTotais, propVence, propostaComPi, qtdItem, quemAssina, reajustar, registrarLancadas, repassePct, situacaoTabela, somaDias, tabelaVigente, tipoTabela, variacoesOoh, veiculosDaProposta, vencMes
 - Tabelas lidas/gravadas: vendas_lancadas
 
-### pi.js · 1118 linhas
+### pi.js · 1145 linhas
 - Telas (`S.views`): pi, pis
-- Ações (`data-act`): piAbrir, piAbrirItem, piAcao, piAddCota, piAddGrid, piAddItem, piAddPiece, piAddProjeto, piAjItem, piBaixar, piCancelar, piCancelarPI, piDistribuir, piDuplicar, piEditar, piEditarId, piEntDesfazer, piEntPublicar, piEnviarId, piEtapa, piExcluir, piExcluirTudo, piExport, piMes, piNew, piNoArTodos, piOpcoes, piOrigMenu, piOrigTirar, piOrigVer, piReenviarEmail, piRepetir, piRmGrid, piRmItem, piRmLink, piRmMidia, piRmPacote, piRmPiece, piSalvar, piTab, piVer, piVerResumo, piWhats
+- Ações (`data-act`): piAbrir, piAbrirItem, piAcao, piAddCota, piAddGrid, piAddItem, piAddPiece, piAddProjeto, piAjItem, piBaixar, piCancelar, piCancelarPI, piDistribuir, piDuplicar, piEditar, piEditarId, piEntDesfazer, piEntPublicar, piEnviarId, piEtapa, piExcluir, piExcluirTudo, piExport, piMes, piNew, piOpcoes, piOrigMenu, piOrigTirar, piOrigVer, piReenviarEmail, piRepetir, piRmGrid, piRmItem, piRmLink, piRmMidia, piRmPacote, piRmPiece, piSalvar, piTab, piVer, piVerResumo, piWhats
 - Define `S.`: buildPrint, guardarOriginal, leiturasUsar, piEd, piEntrar, piEntregasPendentes, recebidoMini, seloOpec, setStatus, vigiarStatusPis
 - Banco (rpc): cancelar_pi, criar_pi, enviar_pi_opec, excluir_pi_completo, marcar_entrega, mudar_status_pi, pi_aberto_opec, vinculos_do_pi
 - Tabelas lidas/gravadas: midias_limpezas, pi_historico, pi_leituras, pi_links, pi_originais, pis
