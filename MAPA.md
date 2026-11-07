@@ -105,7 +105,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Tabelas lidas/gravadas: agenda
 - Funções de borda: followup
 
-### geral.js · 250 linhas
+### geral.js · 271 linhas
 - Telas (`S.views`): geral
 - Ações (`data-act`): ctrlCsv, geralAbrir, geralAtualizar, geralMes
 - Define `S.`: carregarGeral, controleHead, geralCalc, geralCubo, geralLimpar, geralUsar

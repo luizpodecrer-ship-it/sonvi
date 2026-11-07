@@ -163,15 +163,36 @@
   const KPIS = [{ k:'liq', ic:'financeiro', titulo:'Líquido do mês', sub:true }, { k:'acu', ic:'relatorio', titulo:'Acumulado (mês + seguintes)', sub:true },
     { k:'head', ic:'empresa', titulo:'Head 14 no mês', sub:true, cls:'cz-kpi-head' }, { k:'heada', ic:'empresa', titulo:'Head 14 acumulada', sub:true, cls:'cz-kpi-head' }];   /* 05/11/2026: saiu "A faturar / receber" (o SONVI não acompanha mais pagamento) */
 
+  // Mês a mês (07/11/2026, proposta "Ano em colunas"): 12 colunas do ano empilhadas por veículo, linha do acumulado,
+  // mês aberto em destaque, dica com o detalhe ao passar o mouse; clicar leva o Dashboard ao mês. Estilos .ha-* em sonvi.css.
+  let haVisto = '';
   const mesAMes = (M, ym, veiculos) => {
-    const hoje = S.mesAtual(), z = { liq:0, head:0, pis:0, porV:{} };
-    const ini = [ym, ...Object.keys(M).filter(m => m >= `${hoje.slice(0, 4)}-01`)].sort()[0], fim = [ym, ...Object.keys(M)].sort().pop();
-    const linhas = []; let corre = Object.keys(M).filter(m => m < ini).reduce((t, m) => t + M[m].liq, 0);
-    for (let m = ini; m <= fim; m = somaMes(m, 1)) { const x = M[m] || z; corre += x.liq; linhas.push({ m, x, acu:corre }); }
-    const barraV = x => { const t = x.liq || 0; return `<span class="hc-bv" aria-hidden="true">${t ? veiculos.filter(v => x.porV[v.id]).map(v => `<i style="width:${(x.porV[v.id] / t * 100).toFixed(2)}%;background:${esc(v.cor || 'var(--accent)')}" title="${esc(v.nome)}"></i>`).join('') : ''}</span>`; };
-    const porVtxt = x => veiculos.filter(v => x.porV[v.id]).map(v => `${v.nome} ${Math.round(x.porV[v.id] / x.liq * 100)}%`).join(', ');
-    return `<section class="card hc" aria-labelledby="hc-t"><div class="hd"><h2 id="hc-t">Mês a mês</h2><span class="muted small">clique num mês para ver o painel dele</span></div><div class="scroll"><table class="hc-tab"><thead><tr><th>Mês</th><th class="r">PIs</th><th class="r">Líquido do mês</th><th class="r">Head 14</th><th class="r">Acumulado</th><th class="hc-pv">Por veículo</th></tr></thead><tbody>
-      ${linhas.map(({ m, x, acu }) => `<tr class="click${m === ym ? ' hc-sel' : ''}" data-act="geralMes" data-v="${m}"${m === ym ? ' aria-current="true"' : ''}><td class="nw"><b>${nomeM(m)}</b></td><td class="r nw">${x.pis || '—'}</td><td class="r nw">${x.liq ? brl(x.liq) : '—'}</td><td class="r nw">${x.head ? brl(x.head) : '—'}</td><td class="r nw muted">${brl(acu)}</td><td class="hc-pv">${barraV(x)}${x.liq ? `<span class="sr">${esc(porVtxt(x))}</span>` : ''}</td></tr>`).join('')}</tbody></table></div></section>`;
+    const ano = ym.slice(0, 4), meses = Array.from({ length:12 }, (_, k) => `${ano}-${String(k + 1).padStart(2, '0')}`), z = { liq:0, head:0, pis:0, porV:{} };
+    const xs = meses.map(m => M[m] || z), mx = Math.max(1, ...xs.map(x => x.liq));
+    let corre = 0; const acu = xs.map(x => (corre += x.liq)), totAno = corre || 1, headAno = xs.reduce((s, x) => s + x.head, 0);
+    const comVenda = xs.filter(x => x.liq > 0), melhor = xs.reduce((b, x, k) => x.liq > (xs[b] || z).liq ? k : b, 0);
+    const curto = v => v >= 1e6 ? `R$ ${(v / 1e6).toFixed(1).replace('.', ',')} mi` : v >= 1e3 ? `R$ ${(v / 1e3).toFixed(v >= 1e5 ? 0 : 1).replace('.', ',').replace(',0', '')} mil` : reais0(v);
+    const usados = veiculos.filter(v => xs.some(x => x.porV[v.id]));
+    const cor = v => esc(v.cor || 'var(--accent)');
+    const grade = [1, .5].map(f => `<span class="ha-gl" style="bottom:${f * 100}%"><small>${curto(mx * f)}</small></span>`).join('');
+    const pts = acu.map((a, k) => [(k + .5) / 12 * 100, a / totAno * 100]);
+    const linha = `<svg class="ha-acu" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="haGa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-2)" stop-opacity=".22"/><stop offset="1" stop-color="var(--accent-2)" stop-opacity="0"/></linearGradient></defs>
+      <path class="ha-acu-a" d="M${pts[0][0]} 100 ${pts.map(p => `L${p[0].toFixed(2)} ${(100 - p[1]).toFixed(2)}`).join(' ')} L${pts[11][0]} 100Z"/><path class="ha-acu-l" d="${pts.map((p, k) => `${k ? 'L' : 'M'}${p[0].toFixed(2)} ${(100 - p[1]).toFixed(2)}`).join(' ')}" vector-effect="non-scaling-stroke"/></svg>
+      ${pts.map((p, k) => xs[k].liq || k === 11 ? `<i class="ha-ponto${meses[k] === ym ? ' on' : ''}" style="left:${p[0]}%;bottom:${p[1]}%" aria-hidden="true"></i>` : '').join('')}`;
+    const colunas = meses.map((m, k) => { const x = xs[k], h = x.liq / mx * 100, on = m === ym;
+      const pilha = x.liq ? usados.filter(v => x.porV[v.id]).map(v => `<i style="flex:${x.porV[v.id].toFixed(2)};background:${cor(v)}"></i>`).join('') : '';
+      const dica = `<span class="ha-dica" role="tooltip"><b>${nomeM(m)}</b>${x.liq ? `<span class="ha-dl"><span>Líquido</span><b>${reais0(x.liq)}</b></span><span class="ha-dl"><span>Head 14</span><b>${reais0(x.head)}</b></span><span class="ha-dl"><span>PIs</span><b>${x.pis}</b></span>
+        ${usados.filter(v => x.porV[v.id]).map(v => `<span class="ha-dv"><i style="background:${cor(v)}"></i>${esc(v.nome)}<b>${Math.round(x.porV[v.id] / x.liq * 100)}%</b></span>`).join('')}` : '<span class="ha-dl"><span>Sem vendas</span></span>'}<span class="ha-dl ha-dacu"><span>Acumulado no ano</span><b>${reais0(acu[k])}</b></span></span>`;
+      return `<button type="button" class="ha-col${on ? ' on' : ''}${x.liq ? '' : ' zero'}" data-act="geralMes" data-v="${m}"${on ? ' aria-current="true"' : ''} aria-label="${nomeM(m)}: ${x.liq ? `${reais0(x.liq)} líquido, ${x.pis} PI${x.pis === 1 ? '' : 's'}` : 'sem vendas'}. Abrir este mês" style="--d:${(k * .04).toFixed(2)}s">
+        <span class="ha-tr" style="--h:${x.liq ? Math.max(2.5, h).toFixed(2) : 0}%">${on && x.liq ? `<span class="ha-val">${curto(x.liq)}</span>` : ''}<span class="ha-pilha">${pilha}</span>${dica}</span><small>${MESL[k].slice(0, 3).toLowerCase()}</small></button>`; }).join('');
+    const tile = (rot, val, sub, cls = '') => `<div class="ha-t${cls}"><small>${rot}</small><b>${val}</b>${sub ? `<span>${sub}</span>` : ''}</div>`;
+    const anima = haVisto !== ano; haVisto = ano;   /* as colunas só crescem na primeira vez (o painel redesenha várias vezes) */
+    return `<section class="card ha${anima ? ' ha-entra' : ''}" aria-labelledby="ha-t"><div class="hd ha-hd"><div><h2 id="ha-t">Mês a mês · ${ano}</h2><span class="muted small">Líquido de cada mês por veículo · a linha é o acumulado do ano · clique numa coluna para abrir o mês</span></div><span class="grow"></span>
+        <div class="ha-ano" role="group" aria-label="Ano"><button type="button" class="hc-seta" data-act="geralMes" data-v="${somaMes(ym, -12)}" aria-label="Ano anterior">${S.svg('esq', 16)}</button><b>${ano}</b><button type="button" class="hc-seta" data-act="geralMes" data-v="${somaMes(ym, 12)}" aria-label="Próximo ano">${S.svg('seta', 16)}</button></div></div>
+      <div class="ha-corpo"><div class="ha-graf"><div class="ha-area">${grade}${linha}<div class="ha-cols">${colunas}</div></div>
+          ${usados.length ? `<div class="ha-leg">${usados.map(v => `<span><i style="background:${cor(v)}"></i>${esc(v.nome)}</span>`).join('')}<span class="ha-leg-acu"><i></i>Acumulado</span></div>` : ''}</div>
+        <div class="ha-tiles">${tile(`Acumulado em ${ano}`, reais0(corre), `${comVenda.length} ${comVenda.length === 1 ? 'mês' : 'meses'} com venda`, ' ha-big')}${tile('Head 14 no ano', reais0(headAno), `${String(S.repassePct()).replace('.', ',')}% do líquido`, ' ha-head')}
+          ${tile('Média por mês', reais0(comVenda.length ? corre / comVenda.length : 0), 'nos meses com venda')}${tile('Melhor mês', xs[melhor].liq ? MESL[melhor] : '—', xs[melhor].liq ? reais0(xs[melhor].liq) : '')}</div></div></section>`;
   };
   const ctrlCsv = () => { const M = S.controleHead(cache, S.db.veiculos), ms = Object.keys(M).sort(), n = v => (Math.round(v * 100) / 100).toFixed(2).replace('.', ',');
     let corre = 0; const linhas = [['Mês', 'PIs', 'Líquido do mês', 'Head 14', 'Acumulado', ...S.db.veiculos.map(v => v.nome)].join(';')];
