@@ -144,9 +144,9 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 ### painel.js · 205 linhas
 - Telas (`S.views`): dashboard
 
-### pessoas.js · 398 linhas
+### pessoas.js · 426 linhas
 - Telas (`S.views`): clientes
-- Ações (`data-act`): cliOrdem, pesCnpj, pesEditar, pesExcluir, pesIgnorar, pesLevar, pesMenu, pesNovo, pesTrazer
+- Ações (`data-act`): cliOrdem, cliPagina, pesCnpj, pesEditar, pesExcluir, pesIgnorar, pesLevar, pesMenu, pesNovo, pesTrazer
 - Define `S.`: dadosDoCnpj
 - Banco (rpc): atualizar_cadastros_irmaos, cliente_de_outro, excluir_agencia_completa, excluir_cliente_completo, levar_pessoa, vinculos_da_agencia, vinculos_do_cliente
 - Tabelas lidas/gravadas: pessoas
