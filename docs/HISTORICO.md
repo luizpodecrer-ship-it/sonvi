@@ -160,6 +160,7 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 - Celular: barra de abas mostra 4 itens + "Mais" (o resto, com o número de pendências); Clientes, Agências e OPEC viram cartões; alvos de toque de 44 px.
 - Cor da rádio: cada veículo tem logo quadrado (500 × 500, coluna `logo` em `veiculos`) e uma `cor` tirada do logo. `S.temaRadio` troca o `--accent` do sistema pela cor da rádio selecionada (ajustada para manter contraste); o logo e a cor saem no PI. Sem logo, fica o azul SONVI. Cores de status continuam fixas.
 - Todo o sistema é responsivo, sem exceção: cada tela precisa funcionar bem no celular (375 px), em notebook (1366–1440 px) e em tela grande (1920 px). No celular a barra lateral vira barra de abas flutuante, tabelas viram listas ou cartões e grades de dias viram calendário; em telas menores o conteúdo se reorganiza, nunca fica cortado.
+- Formulário largo (08/11/2026, aprovado pelo Luiz, modelo "Cadastro de cliente"): `S.form(..., { largo:true, rodapeEsq })` abre a janela `dialog.fm-largo` (até 1080 px) com grade `.g4` de 4 colunas (2 até 980 px, 1 até 640 px); campos `{ sec:'Título' }` viram títulos de seção `.fm-sec`; `span:N` ocupa N colunas. Rodapé `S.rodapeEdicao(ok, cancelar, esq)` sempre numa linha, preso embaixo: Excluir à esquerda (só ícone no celular), Descartar/Salvar ou Fechar/Editar à direita. Primeiro uso: cadastro de clientes e anunciantes (`pessoas.js`, seções Empresa · Endereço · Contato · Comercial · Observações).
 
 ## Follow-up (no lugar da Agenda)
 

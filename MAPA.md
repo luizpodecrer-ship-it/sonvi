@@ -61,7 +61,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 
 ### config.js · 10 linhas
 
-### core.js · 672 linhas
+### core.js · 675 linhas
 - Ações (`data-act`): formEditar, logoCor, logoEscolher, logoRemover, pgIr
 - Define `S.`: APP, CAMPO_EXEMPLO, CAMPO_MASCARA, CATEGORIAS, COR_PADRAO, EDITABLE, ICON, MASK, MUSIC_PERFIS, PERFIS, STATUS, STATUS_COR, _menu, _toast, brl, buscarCep, campoLogo, categoria, categorias, confirmar, consultores, coresDoLogo, credito, datalist, dfmt, dia, dialog, edicaoConta, edicaoInicio, erroNoCampo, esc, excluirDigitando, fecharMenu, flip, focarPrimeiro, form, go, hora, iniciais, lerLogo, listaEditavel, logo, logoReserva, marcaEditando, mascarar, menu, menuDesliza, nfmt, nome, nomeCategoria, num, opts, paginar, pessoa, pessoas, piNo, pill, pode, poeBolas, poeRolos, responsaveis, rodapeEdicao, roloFixo, route, salvo, segDesliza, selo, svg, tag, temCategoria, temaRadio, toast, today, travarForm, uid, usuario, vav, veh, vehSub
 
@@ -144,7 +144,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 ### painel.js · 205 linhas
 - Telas (`S.views`): dashboard
 
-### pessoas.js · 346 linhas
+### pessoas.js · 350 linhas
 - Telas (`S.views`): clientes
 - Ações (`data-act`): cliFil, pesCnpj, pesEditar, pesExcluir, pesIgnorar, pesLevar, pesMenu, pesNovo, pesTrazer
 - Define `S.`: dadosDoCnpj

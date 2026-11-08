@@ -116,29 +116,33 @@
     const bloco = novo && cad.destinos.length ? [{ html:`<div class="cad-bloco" style="grid-column:1/-1"><div class="cad-hd"><b>Cadastrar também em</b><small>${S.pode('consultor') ? 'Aparecem os veículos que você atende' : 'Aparecem os veículos em que você trabalha'}</small></div>
         ${blocoRadios({ tipo, consultor:p.consultor_id, agencia:p.agencia_id })}
         <small class="muted">Nome, CNPJ, endereço e contatos vão iguais. ${cliente ? 'A situação vai igual; consultor, PIs e financeiro ficam separados em cada veículo.' : 'Os PIs e o financeiro ficam separados em cada veículo.'}</small></div>` }] : [];
+    // Formulário largo em seções (08/11/2026, pedido do Luiz, modelo "Cadastro de cliente"): 4 colunas no computador, 1 no celular;
+    // Excluir, Descartar e Salvar numa linha só, no rodapé.
+    const podeExcluir = !novo && (gestor || (S.pode('consultor') && (!cliente || p.consultor_id === S.me.id)));
     const campos = [
-      { k:'nome', label:cliente ? 'Nome fantasia ou nome' : 'Nome da agência', req:true, ph:cliente ? 'Ex.: Supermercado Três Irmãos' : 'Ex.: Agência Ponto Alto' },
+      { sec:'Empresa' },
+      { k:'nome', label:cliente ? 'Nome fantasia ou nome' : 'Nome da agência', req:true, ph:cliente ? 'Ex.: Supermercado Três Irmãos' : 'Ex.: Agência Ponto Alto', span:2 },
       { k:'pessoa', label:'Tipo', type:'select', options:[['pj', 'Pessoa jurídica'], ['pf', 'Pessoa física']] },
-      { k:'documento', label:'CNPJ / CPF' }, buscar('pesCnpj', 'Preencher pelo CNPJ'),
+      cliente ? { k:'situacao', label:'Situação', type:'select', options:Object.entries(SIT).map(([k, v]) => [k, v[0]]) } : { k:'comissao', label:'Comissão padrão (%)' },
+      { k:'documento', label:'CNPJ / CPF' }, buscar('pesCnpj', 'Preencher pelo CNPJ'), { k:'razao_social', label:'Razão social', span:2 },
       ...(novo ? [{ html:'<div id="cadAchado" style="grid-column:1/-1" hidden></div>' }] : []),
-      { k:'razao_social', label:'Razão social' }, { k:'inscricao_estadual', label:'Inscrição estadual' },
-      { k:'cep', label:'CEP' }, { k:'cidade', label:'Cidade / UF' },
-      { k:'endereco', label:'Endereço', full:true },
+      { k:'inscricao_estadual', label:'Inscrição estadual' }, ...(cliente ? [{ k:'segmento', label:'Segmento' }] : []),
+      { sec:'Endereço' },
+      { k:'cep', label:'CEP' }, { k:'cidade', label:'Cidade / UF' }, { k:'endereco', label:'Endereço', span:2 },
+      { sec:'Contato' },
       { k:'telefone', label:'Telefone' }, { k:'whatsapp', label:'WhatsApp' }, { k:'email', label:'E-mail', type:'email' },
       { k:'email_faturamento', label:'E-mail de faturamento', type:'email', ph:'financeiro@empresa.com.br' },
       ...(cliente ? [
-        { k:'segmento', label:'Segmento' }, { k:'contato_decide', label:'Contato que decide' }, { k:'contato_assina', label:'Contato que assina' },
+        { sec:'Comercial' },
         { k:'agencia_id', label:'Agência', type:'select', options:[['', 'Sem agência'], ...S.pessoas('agencia').map(a => [a.id, a.nome])] },
-        { k:'situacao', label:'Situação', type:'select', options:Object.entries(SIT).map(([k, v]) => [k, v[0]]) },
-        ...(gestor ? [{ k:'consultor_id', label:'Consultor responsável', type:'select', options:[['', 'Sem consultor'], ...S.responsaveis().map(u => [u.id, u.nome]), ...(p.consultor_id && !S.responsaveis().some(u => u.id === p.consultor_id) ? [[p.consultor_id, (S.usuario(p.consultor_id) || 'Responsável atual') + ' (sem acesso a este veículo)']] : [])] }] : [])
-      ] : [{ k:'comissao', label:'Comissão padrão (%)' }]),
+        ...(gestor ? [{ k:'consultor_id', label:'Consultor responsável', type:'select', options:[['', 'Sem consultor'], ...S.responsaveis().map(u => [u.id, u.nome]), ...(p.consultor_id && !S.responsaveis().some(u => u.id === p.consultor_id) ? [[p.consultor_id, (S.usuario(p.consultor_id) || 'Responsável atual') + ' (sem acesso a este veículo)']] : [])] }] : []),
+        { k:'contato_decide', label:'Contato que decide' }, { k:'contato_assina', label:'Contato que assina' }] : []),
       { k:'observacoes', label:'Observações', type:'textarea' },
-      ...bloco,
-      ...(!novo && (gestor || (S.pode('consultor') && (!cliente || p.consultor_id === S.me.id))) ? [{ html:`<div style="grid-column:1/-1"><button class="btn sm danger" value="excluir" formnovalidate>Excluir cadastro</button></div>` }] : [])];
-    S.form(novo ? (cliente ? 'Novo cliente' : 'Nova agência') : esc(p.nome), campos, p, v => salvar(p, v, { cliente, gestor, novo, tipo }));
+      ...bloco];
+    S.form(novo ? (cliente ? 'Novo cliente' : 'Nova agência') : esc(p.nome), campos, p, v => salvar(p, v, { cliente, gestor, novo, tipo }), 'Salvar',
+      { largo:true, rodapeEsq:podeExcluir ? `<button class="btn danger" value="excluir" formnovalidate aria-label="Excluir cadastro" title="Excluir cadastro">${S.svg('lixo')}<span>Excluir cadastro</span></button>` : '' });
     const d = document.getElementById('dlg'), ok = d.onclose;
-    if (bloco.length) d.classList.add('medio');
-    d.onclose = async () => { d.classList.remove('medio'); if (d.returnValue === 'excluir') excluirPessoa(p, cliente); else ok(); };
+    d.onclose = async () => { if (d.returnValue === 'excluir') excluirPessoa(p, cliente); else ok(); };
     contarRadios();
   }
 

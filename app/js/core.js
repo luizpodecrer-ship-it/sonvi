@@ -224,8 +224,8 @@ S.dialog = (html, onOk, opts = {}) => {
 };
 // ---------- consulta → Editar → Descartar / Salvar (padrão de todas as janelas de cadastro) ----------
 // Rodapé das duas fases: na consulta, Fechar + Editar; editando, "N alterações não salvas" + Descartar + Salvar.
-S.rodapeEdicao = (ok = 'Salvar', cancelar = 'Descartar') => `<div class="row so-ver"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Fechar</button><button type="button" class="btn pri" data-act="formEditar">${S.svg('editar')}Editar</button></div>
-    <div class="row so-editar"><span class="ed-pend" aria-live="polite"></span><span class="grow"></span><button class="btn" value="cancel" formnovalidate>${cancelar}</button><button class="btn pri" value="ok">${ok}</button></div>`;
+S.rodapeEdicao = (ok = 'Salvar', cancelar = 'Descartar', esq = '') => `<div class="row so-ver">${esq}<span class="grow"></span><button class="btn" value="cancel" formnovalidate>Fechar</button><button type="button" class="btn pri" data-act="formEditar">${S.svg('editar')}Editar</button></div>
+    <div class="row so-editar">${esq}<span class="ed-pend" aria-live="polite"></span><span class="grow"></span><button class="btn" value="cancel" formnovalidate>${cancelar}</button><button class="btn pri" value="ok">${ok}</button></div>`;
 // Trava a janela para consulta: campos desabilitados (marcados para voltar), botões de edição escondidos (.so-ed, por CSS)
 S.travarForm = form => { form.classList.add('ver');
   form.querySelectorAll('input, select, textarea').forEach(el => { if (!el.disabled && el.type !== 'hidden') { el.disabled = true; el.dataset.trava = '1'; } }); };
@@ -312,9 +312,12 @@ S.form = (title, fields, v, onOk, ok = 'Salvar', opts = {}) => {
     if (f.type === 'textarea') return `<textarea ${a}>${S.esc(val)}</textarea>`;
     if (f.type === 'checkbox') return `<input type="checkbox" ${a}${val ? ' checked' : ''}>`;
     return `<input type="${f.type === 'time' ? 'text' : f.type || 'text'}" ${a} value="${S.esc(val)}"${f.id ? ` id="${f.id}"` : ''}>`; };
-  const row = f => f.html || `<label class="f${f.type === 'checkbox' ? ' chk' : ''}"${f.full || f.type === 'textarea' ? ' style="grid-column:1/-1"' : ''}>${f.type === 'checkbox' ? inp(f) + S.esc(f.label) : S.esc(f.label) + inp(f)}</label>`;
-  S.dialog(`<h2>${title}</h2><div class="g2">${fields.map(row).join('')}</div>
-    ${S.rodapeEdicao(ok, v.id ? 'Descartar' : 'Cancelar')}`, onOk);
+  // Formulário largo (08/11/2026, cadastro de clientes): opts.largo = grade de 4 colunas em seções ({ sec:'Empresa' }), campos com span;
+  // opts.rodapeEsq = botões à esquerda do rodapé (ex.: Excluir cadastro), tudo numa linha só. No celular volta a uma coluna.
+  const row = f => f.sec ? `<h3 class="fm-sec">${S.esc(f.sec)}</h3>` : f.html || `<label class="f${f.type === 'checkbox' ? ' chk' : ''}"${f.full || f.type === 'textarea' ? ' style="grid-column:1/-1"' : f.span ? ` style="grid-column:span ${f.span}"` : ''}>${f.type === 'checkbox' ? inp(f) + S.esc(f.label) : S.esc(f.label) + inp(f)}</label>`;
+  S.dialog(`<h2>${title}</h2><div class="${opts.largo ? 'g4' : 'g2'}">${fields.map(row).join('')}</div>
+    ${S.rodapeEdicao(ok, v.id ? 'Descartar' : 'Cancelar', opts.rodapeEsq || '')}`, onOk);
+  if (opts.largo) document.getElementById('dlg').classList.add('fm-largo');
   if (ver) document.querySelector('#dlg form').classList.add('ver');
   else if (v.id) { S.marcaEditando(document.getElementById('dlg')); S.edicaoInicio(document.getElementById('dlg')); }
   document.getElementById('dlg').dataset.guarda = '1'; // formulário: pergunta antes de descartar o que foi digitado
