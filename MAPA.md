@@ -137,7 +137,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Banco (rpc): mus_iniciar
 - Tabelas lidas/gravadas: mus_config, mus_programacao, mus_vinhetas, musicas
 
-### opec.js · 61 linhas
+### opec.js · 92 linhas
 - Telas (`S.views`): opec
 - Ações (`data-act`): opEtapa
 

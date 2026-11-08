@@ -1,60 +1,91 @@
-// SONVI · OPEC: só acompanhamento (05/11/2026, mockup "PI simples", database/081). PI enviado para a OPEC já é venda;
+// SONVI · OPEC: só acompanhamento (05/11/2026, database/081). PI enviado para a OPEC já é venda;
 // a OPEC não entra no SONVI e abrir o PI pelo link do e-mail só acende o selo verde "OPEC abriu".
-// Duas etapas: Aguardando a OPEC abrir → OPEC abriu (PIs no ar ou por vir). Embaixo, as inserções dos próximos 30 dias.
-// Estilos .oe-* em sonvi.css.
+// Refeita em 08/11/2026 (pedido do Luiz, modelo "OPEC organizada"; o gráfico de inserções por dia saiu a pedido dele):
+// em cima, quatro números que rolam (próximos 30 dias);
+// embaixo, as abas Aguardando a OPEC abrir · OPEC abriu (pílula que desliza), busca e consultor, e a lista com a
+// barra de veiculação de cada PI (de quando a quando, quanto já foi ao ar). Estilos .op2-* em sonvi.css.
 (() => {
   const { esc, brl } = S;
-  let etapa = 'aguarda';
+  const st = { etapa:'aguarda', q:'', cons:'' };
   const ENVIADO = ['opec', 'aprovado', 'programado', 'faturado'];
-  const ETAPAS = [['aguarda', 'Aguardando a OPEC abrir', 't-escuro'], ['abriu', 'OPEC abriu', 't-forte']];
+  const ETAPAS = [['aguarda', 'Aguardando a OPEC abrir'], ['abriu', 'OPEC abriu']];
+  const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const quieto = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   const abriu = p => /OPEC abriu/.test(S.seloOpec ? S.seloOpec(p) : '');
-  const noArOuPorVir = p => { const ms = S.mesesDoPi(p); return !ms.length || ms[ms.length - 1] >= S.today().slice(0, 7); };
-  // Inserções da rádio e, se houver, publicações digitais (com quantas ainda estão sem data)
-  const qtd = (p, c) => `${c.ins}${c.pub ? ` + ${c.pub} pub.` : ''}${c.pub && ['aprovado'].includes(p.status) && S.piEntregasPendentes && S.piEntregasPendentes(p) ? `<small class="muted" style="display:block">${S.piEntregasPendentes(p)} sem data</small>` : ''}`;
-  const mesesDe = p => [...new Set([...p.dados.grids, ...(p.dados.digital || [])].map(g => g.period))].sort().map(x => x.split('-').reverse().join('/')).join(', ');
   const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  // Desde quando o PI está na etapa: a última mudança dele (na OPEC ninguém edita o PI)
+  const dm = d => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
   const desde = p => S.dia(p.atualizado_em || p.criado_em);
   const diasDesde = p => Math.max(0, Math.round((new Date(S.today()) - new Date(desde(p))) / 864e5));
+  // Dias com inserção de cada PI (das grades): { '2026-11-08': 12, ... }
+  const diasDoPi = p => { const m = {}; (p.dados.grids || []).forEach(g => (g.items || []).forEach(it => Object.entries(it.days || {}).forEach(([d, n]) => {
+    if (!(Number(n) > 0)) return; const k = `${g.period}-${String(d).padStart(2, '0')}`; m[k] = (m[k] || 0) + Number(n); }))); return m; };
+  const noArOuPorVir = p => { const ds = Object.keys(diasDoPi(p)).sort(); if (ds.length) return ds[ds.length - 1] >= S.today(); const ms = S.mesesDoPi(p); return !ms.length || ms[ms.length - 1] >= S.today().slice(0, 7); };
   const daEtapa = k => S.db.pis.filter(p => ENVIADO.includes(p.status) && (k === 'abriu' ? abriu(p) && noArOuPorVir(p) : !abriu(p)));
-  const curto = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  // Entrada animada que continua entre redesenhos (regra do SONVI: atraso negativo --t)
+  const inicio = {};
+  const entrada = vk => { const agora = performance.now(); if (!(vk in inicio)) inicio[vk] = agora; const t = agora - inicio[vk]; return t > 2600 ? '' : ` op2-entra" style="--t:-${Math.round(t)}ms`; };
 
   S.views.opec = () => {
-    const fila = daEtapa('aguarda'), velho = Math.max(0, ...fila.map(diasDesde)), nomeEt = ETAPAS.find(e => e[0] === etapa)[1];
-    const lista = daEtapa(etapa).sort((a, b) => desde(a).localeCompare(desde(b)) || a.numero - b.numero);
-    const botoes = p => `<button class="btn sm" data-go="/pi/${p.id}">Abrir PI</button>`;
-    const selo = p => S.seloOpec ? S.seloOpec(p) : '';
-    const espera = p => { const d = diasDesde(p); return etapa === 'aguarda' ? `<span class="oe-idade" title="Chegou em ${S.dfmt(desde(p))}"><span aria-hidden="true"><i style="width:${Math.min(100, d / 7 * 100)}%"></i></span>${d ? `há ${d} dia${d > 1 ? 's' : ''}` : 'hoje'}</span>` : `<span class="muted nw">desde ${S.dfmt(desde(p)).slice(0, 5)}</span>`; };
+    const hoje = S.today(), enviados = S.db.pis.filter(p => ENVIADO.includes(p.status)), dias = new Map(enviados.map(p => [p.id, diasDoPi(p)]));
+    // 1. Programação dos próximos 30 dias
+    const h = new Date(hoje + 'T12:00'), d30 = Array.from({ length:30 }, (_, i) => iso(new Date(h.getFullYear(), h.getMonth(), h.getDate() + i)));
+    const porDia = d30.map(d => { const ps = enviados.filter(p => dias.get(p.id)[d]); return { d, n:ps.reduce((s, p) => s + dias.get(p.id)[d], 0), ps }; });
+    const tot = porDia.reduce((s, x) => s + x.n, 0), pico = porDia.reduce((a, x) => x.n > a.n ? x : a, porDia[0]);
+    const noArHoje = porDia[0].ps.length, ent = entrada('op|' + (S.ui.vehicleId || ''));
+    const kpi = (k, rot, val, sub, i) => `<div class="op2-k" style="--d:${150 + i * 80}ms"><span>${rot}</span><b>${S.roloFixo('op2-' + k, val)}</b><small>${sub}</small></div>`;
+    const prog = `<section class="card op2-prog" aria-labelledby="op2-tp"><div class="hd"><h2 id="op2-tp">Próximos 30 dias</h2><span class="muted small">das grades dos PIs enviados</span></div>
+      <div class="op2-prog-c${ent}">
+        <div class="op2-ks">${kpi('tot', 'Inserções em 30 dias', tot.toLocaleString('pt-BR'), `${enviados.filter(p => porDia.some(x => dias.get(p.id)[x.d])).length} PIs no período`, 0)}
+          ${kpi('hoje', 'Hoje', String(porDia[0].n), `${noArHoje} ${noArHoje === 1 ? 'PI no ar' : 'PIs no ar'}`, 1)}
+          ${kpi('pico', 'Dia mais cheio', pico.n ? dm(pico.d) : '—', pico.n ? `${pico.n} inserções · ${SEM[new Date(pico.d + 'T12:00').getDay()]}` : 'nada programado', 2)}
+          ${kpi('fila', 'Aguardando abrir', String(daEtapa('aguarda').length), daEtapa('aguarda').length ? (n => n ? `mais antigo há ${n} dia${n > 1 ? 's' : ''}` : 'chegaram hoje')(Math.max(...daEtapa('aguarda').map(diasDesde))) : 'a OPEC abriu todos', 3)}</div>
+      </div></section>`;
 
-    const esteira = `<section class="card" aria-labelledby="oe-t"><div class="hd"><h2 id="oe-t">Caminho dos PIs</h2>${fila.length ? `<span class="pill fn-forte">Mais antigo esperando há ${velho} dia${velho === 1 ? '' : 's'}</span>` : '<span class="pill fn-neutra">A OPEC abriu todos</span>'}</div>
-      <div class="oe-esteira" role="group" aria-label="Etapas (escolha para ver os PIs)">${ETAPAS.map(([k, nome, tom]) => { const xs = daEtapa(k);
-        return `<button type="button" class="oe-etapa" data-act="opEtapa" data-v="${k}" style="--c:var(--${tom})" aria-pressed="${etapa === k}"><span class="oe-et"><i aria-hidden="true"></i>${nome}</span>
-          <span class="oe-n">${S.roloFixo('oe-' + k, String(xs.length))}</span><span class="oe-v">${curto(xs.reduce((s, p) => s + S.liquidoPi(p), 0))}</span>${k === 'aguarda' && xs.length ? '<span class="pill fn-ok pf-vivo oe-fila">esperando</span>' : ''}</button>`; }).join('')}</div></section>`;
+    // 2. Abas, filtros e lista
+    const q = st.q.trim().toLowerCase();
+    const filtra = l => l.filter(p => (!st.cons || p.consultor_id === st.cons)
+      && (!q || [p.titulo, S.piNo(p), S.nome(p.cliente_id), S.nome(p.agencia_id), S.usuario(p.consultor_id)].some(t => String(t || '').toLowerCase().includes(q))));
+    const conta = Object.fromEntries(ETAPAS.map(([k]) => [k, filtra(daEtapa(k))]));
+    const lista = conta[st.etapa].slice().sort((a, b) => st.etapa === 'aguarda' ? desde(a).localeCompare(desde(b)) || a.numero - b.numero : b.numero - a.numero);
+    const abas = `<div class="op2-abas" role="tablist" aria-label="Etapa">${ETAPAS.map(([k, n]) => `<button type="button" role="tab" data-act="opEtapa" data-v="${k}" aria-selected="${st.etapa === k}" class="${k}">
+        <i class="op2-pt" aria-hidden="true"></i><span>${n.replace(' a OPEC abrir', '<span class="op2-lg"> a OPEC abrir</span>')}</span><span class="op2-cnt">${conta[k].length}</span></button>`).join('')}<span class="op2-pil" aria-hidden="true"></span></div>`;
+    const consultores = [...new Set(enviados.map(p => p.consultor_id).filter(Boolean))];
+    const filtros = `<div class="op2-fil"><label class="op2-busca">${S.svg('busca', 16)}<input type="search" data-opq placeholder="Buscar PI, cliente, agência ou consultor" value="${esc(st.q)}" aria-label="Buscar"></label>
+      <select data-opcons aria-label="Consultor"><option value="">Todos os consultores</option>${consultores.map(id => `<option value="${id}"${st.cons === id ? ' selected' : ''}>${esc(S.usuario(id) || 'Consultor')}</option>`).join('')}</select>
+</div>`;
+    // Barra de veiculação: do primeiro ao último dia com inserção; a parte que já foi ao ar fica cheia, hoje marcado
+    const veic = p => { const ds = Object.keys(dias.get(p.id)).sort(); if (!ds.length) { const ms = S.mesesDoPi(p); return `<span class="op2-v"><small>${ms.map(m => m.split('-').reverse().join('/')).join(', ') || '—'}</small></span>`; }
+      const a = ds[0], b = ds[ds.length - 1], T = Math.max(1, (new Date(b) - new Date(a)) / 864e5), feito = Math.min(1, Math.max(0, (new Date(hoje) - new Date(a)) / 864e5 / T));
+      const est = hoje < a ? 'vem' : hoje > b ? 'fim' : 'ar', marca = est === 'ar' ? `<u style="left:${(feito * 100).toFixed(1)}%"></u>` : '';
+      return `<span class="op2-v ${est}"><small><b>${dm(a)}</b> → <b>${dm(b)}</b><em>${est === 'vem' ? (n => n === 1 ? 'começa amanhã' : `começa em ${n} dias`)(Math.round((new Date(a) - new Date(hoje)) / 864e5)) : est === 'fim' ? 'terminou' : 'no ar'}</em></small>
+        <span class="op2-vt"><i style="width:${(est === 'vem' ? 0 : feito * 100).toFixed(1)}%"></i>${marca}</span></span>`; };
+    const espera = p => { const d = diasDesde(p); return st.etapa === 'aguarda'
+      ? `<span class="op2-esp${d >= 3 ? ' velho' : ''}"><i aria-hidden="true"></i>${d ? `há ${d} dia${d > 1 ? 's' : ''}` : 'chegou hoje'}</span>` : (S.seloOpec ? S.seloOpec(p) : ''); };
+    const ins = p => { const c = S.calc(p); return `${c.ins.toLocaleString('pt-BR')}${c.pub ? ` + ${c.pub} pub.` : ''}`; };
+    const linha = (p, i) => `<a class="op2-l" data-go="/pi/${p.id}" data-flip="${p.id}" style="--d:${Math.min(i, 12) * 40}ms">
+        <span class="op2-pi"><b title="${esc(p.titulo || '')}">${esc(p.titulo) || 'Sem título'}</b><small><span class="op2-no">${esc(S.piNo(p))}</span>${esc(S.nome(p.cliente_id) || '—')}${p.agencia_id ? ` · ${esc(S.nome(p.agencia_id))}` : ''}</small></span>
+        <span class="op2-cons"><span class="av soft" aria-hidden="true">${esc(S.iniciais(S.usuario(p.consultor_id) || '?'))}</span><span>${esc(String(S.usuario(p.consultor_id) || '—').split(' ')[0])}</span></span>
+        ${veic(p)}<span class="op2-n r"><b>${ins(p)}</b><small>inserções</small></span><span class="op2-n r"><b>${brl(S.calc(p).net)}</b><small>líquido</small></span>
+        <span class="op2-st">${espera(p)}</span><span class="op2-ir" aria-hidden="true">${S.svg('seta', 16)}</span></a>`;
+    const vazio = `<div class="empty"><b>${q || st.cons ? 'Nenhum PI com esse filtro' : 'Nada aqui'}</b>${q || st.cons ? 'Tire o filtro para ver todos.' : st.etapa === 'aguarda' ? 'A OPEC já abriu todos os PIs enviados.' : 'Nenhum PI aberto pela OPEC no ar ou por vir.'}</div>`;
+    const listaCard = `<section class="card op2-lista" aria-label="PIs enviados para a OPEC"><div class="op2-topo">${abas}${filtros}</div>
+      <p class="op2-res">${lista.length} ${lista.length === 1 ? 'PI' : 'PIs'}${st.etapa === 'aguarda' && lista.length > 1 ? ' · os que esperam há mais tempo primeiro' : st.etapa === 'abriu' ? ' · no ar ou por vir, os mais novos primeiro' : ''} · ${brl(lista.reduce((s, p) => s + S.calc(p).net, 0))} líquido</p>
+      ${lista.length ? `<div class="op2-cab" aria-hidden="true"><span>PI</span><span>Consultor</span><span>Veiculação</span><span class="r">Inserções</span><span class="r">Líquido</span><span>${st.etapa === 'aguarda' ? 'Esperando' : 'OPEC'}</span><span></span></div>
+        <div class="op2-ls${entrada(`opl|${S.ui.vehicleId}|${st.etapa}|${st.cons}`)}">${lista.map(linha).join('')}</div>` : vazio}</section>`;
 
-    const vazio = `<div class="empty"><b>Nada aqui</b>${etapa === 'aguarda' ? 'A OPEC já abriu todos os PIs enviados.' : 'Nenhum PI aberto pela OPEC no ar ou por vir.'}</div>`;
-    const corpo = !lista.length ? vazio : S.celular
-      ? `<div class="op-cards">${lista.map(p => { const c = S.calc(p), meses = mesesDe(p);
-        return `<div class="op-card" data-flip="${p.id}"><a data-go="/pi/${p.id}" class="op-tit"><small>${S.piNo(p)}</small><b>${esc(p.titulo) || 'Sem título'}</b></a>${selo(p)}
-          <dl><div><dt>Cliente</dt><dd>${esc(S.nome(p.cliente_id)) || '—'}</dd></div><div><dt>Consultor</dt><dd>${esc(S.usuario(p.consultor_id)) || '—'}</dd></div>
-          <div><dt>Período</dt><dd>${meses || '—'}</dd></div><div><dt>Inserções</dt><dd class="num">${qtd(p, c)}</dd></div><div><dt>Líquido</dt><dd class="num"><b>${brl(c.net)}</b></dd></div><div><dt>${etapa === 'aguarda' ? 'Esperando' : 'Desde'}</dt><dd>${espera(p)}</dd></div></dl>
-          <div class="op-bt">${botoes(p)}</div></div>`; }).join('')}</div>`
-      : `<div class="oe-l oe-cab"><span class="oe-c-no">Nº</span><span>Título</span><span>Cliente</span><span class="oe-c-cons">Consultor</span><span class="oe-c-per">Período</span><span class="r">Inserções</span><span class="r">Líquido</span><span>${etapa === 'aguarda' ? 'Esperando' : 'Na etapa'}</span><span><span class="sr">Ações</span></span></div>
-        ${lista.map(p => { const c = S.calc(p);
-          return `<div class="oe-l" data-flip="${p.id}"><span class="muted nw oe-c-no">${S.piNo(p)}</span><span class="oe-quem"><a data-go="/pi/${p.id}"><b>${esc(p.titulo) || 'Sem título'}</b></a><small>${S.piNo(p)}</small>${selo(p)}</span>
-            <span class="oe-cli" title="${esc(S.nome(p.cliente_id))}">${esc(S.nome(p.cliente_id)) || '—'}</span><span class="oe-c-cons nw">${esc(S.usuario(p.consultor_id)) || '—'}</span><span class="oe-c-per nw">${mesesDe(p)}</span>
-            <span class="r">${qtd(p, c)}</span><span class="r oe-num">${brl(c.net)}</span><span>${espera(p)}</span><span class="lin-acoes">${botoes(p)}</span></div>`; }).join('')}`;
-    const listaCard = `<section class="card oe-lista" aria-labelledby="oe-tl"><div class="hd"><h2 id="oe-tl">${nomeEt}</h2><span>${lista.length} PI${lista.length === 1 ? '' : 's'}${etapa === 'aguarda' && lista.length > 1 ? ' · os mais antigos primeiro' : ''}</span></div>${corpo}</section>`;
-
-    // Inserções programadas nos próximos 30 dias (grades dos PIs enviados)
-    const h = new Date(S.today() + 'T12:00'), d30 = Array.from({ length:30 }, (_, i) => iso(new Date(h.getFullYear(), h.getMonth(), h.getDate() + i))), ins = d30.map(() => 0);
-    S.db.pis.filter(p => ENVIADO.includes(p.status)).forEach(p => (p.dados.grids || []).forEach(g => (g.items || []).forEach(it => Object.entries(it.days || {}).forEach(([dia, n]) => {
-      const i = d30.indexOf(`${g.period}-${String(dia).padStart(2, '0')}`); if (i >= 0) ins[i] += Number(n) || 0; }))));
-    const mx = Math.max(1, ...ins), totIns = ins.reduce((s, n) => s + n, 0);
-    const grade = `<section class="card" aria-labelledby="oe-ti"><div class="hd"><h2 id="oe-ti">Inserções programadas</h2><span>próximos 30 dias · ${totIns.toLocaleString('pt-BR')} inserções</span></div>
-      ${totIns ? `<div class="oe-ins" role="img" aria-label="Inserções por dia nos próximos 30 dias: ${totIns} no total">${ins.map((n, i) => `<i class="${i ? '' : 'hoje'}" style="height:${Math.max(n ? 4 : 0, n / mx * 100)}%;--i:${i}" title="${S.dfmt(d30[i]).slice(0, 5)}: ${n} inserç${n === 1 ? 'ão' : 'ões'}"></i>`).join('')}</div>
-        <div class="oe-ins-x"><span>Hoje</span><span>+15 dias</span><span>+30 dias</span></div>` : '<p class="muted">Nenhuma inserção nas grades dos PIs enviados para os próximos 30 dias.</p>'}</section>`;
-
-    return { title:`<span class="sub">${esc(S.veh().nome)}</span>OPEC`, actions:'', body:esteira + listaCard + grade };
+    queueMicrotask(poePil);
+    return { title:`<span class="sub">${esc(S.veh().nome)}</span>OPEC`, actions:'', body:prog + listaCard };
   };
-  S.actions.opEtapa = d => { if (etapa === d.v) return; etapa = d.v; S.flip(S.render); };
+  // Pílula das abas: desliza com mola até a aba escolhida
+  let pilEm = null;
+  const poePil = () => { const a = document.querySelector('.op2-abas'); if (!a) { pilEm = null; return; } const pil = a.querySelector('.op2-pil'), b = a.querySelector('[aria-selected="true"]'); if (!pil || !b) return;
+    const x = b.offsetLeft, w = b.offsetWidth; pil.style.width = w + 'px'; pil.style.transform = `translateX(${x}px)`;
+    if (pilEm && (pilEm.x !== x || pilEm.w !== w) && !quieto() && pil.animate) pil.animate([{ transform:`translateX(${pilEm.x}px)`, width:pilEm.w + 'px' }, { transform:`translateX(${x}px)`, width:w + 'px' }], { duration:520, easing:'cubic-bezier(.34,1.4,.5,1)' });
+    pilEm = { x, w }; };
+  S.actions.opEtapa = d => { if (st.etapa === d.v) return; st.etapa = d.v; S.flip(S.render); };
+  document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-opcons]'); if (s) { st.cons = s.value; S.flip(S.render); } });
+  let tq = 0;
+  document.addEventListener('input', e => { const s = e.target.closest && e.target.closest('[data-opq]'); if (!s) return; st.q = s.value; clearTimeout(tq);
+    tq = setTimeout(() => { const pos = s.selectionStart; S.render(); const n = document.querySelector('[data-opq]'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (er) { /* tipo search */ } } }, 180); });
 })();
