@@ -106,7 +106,7 @@
   // Um mês de veiculação escolhido no alto. Cubo veículo × consultor × dia com o líquido (S.valorNoMes), a parte da Head 14 e o nº de PIs;
   // o acumulado (mês + seguintes) por veículo × consultor; e as parcelas do mês ainda não pagas. Os 5 consultores com mais venda no
   // mês (depois os do acumulado) têm fatia própria e o resto vira "Outros".
-  const f2 = { mes:null };
+  const f2 = { mes:null, aba:'vendas' };   /* aba: vendas | equipe (Follow-up da equipe, 07/11/2026) */
   const somaMes = (ym, n) => { const [y, m] = ym.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
   const MESL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const nomeM = ym => `${MESL[+ym.slice(5) - 1]}/${ym.slice(2, 4)}`, minM = ym => MESL[+ym.slice(5) - 1].toLowerCase();
@@ -199,13 +199,46 @@
     ms.forEach(m => { const x = M[m]; corre += x.liq; linhas.push([nomeM(m), x.pis, n(x.liq), n(x.head), n(corre), ...S.db.veiculos.map(v => n(x.porV[v.id] || 0))].join(';')); });
     const b = new Blob(['﻿' + linhas.join('\n')], { type:'text/csv;charset=utf-8' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'controle-head14.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
 
+  // Follow-up da equipe (07/11/2026): contatos e propostas de todos os veículos da empresa (o banco só entrega o que o diretor pode ver)
+  let fuCache = null, fuBuscando = false;
+  const carregarEquipe = async forcar => {
+    if (fuBuscando || (!forcar && fuCache && Date.now() - fuCache.em < TTL)) return;
+    fuBuscando = true;
+    try {
+      const desde = new Date(Date.now() - 100 * 864e5).toISOString();
+      const [ag1, ag2, props] = await Promise.all([
+        S.todos(S.sb.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, quando, assunto, situacao, resposta, motivo, resultado, registrado_em, realizado').gte('quando', desde)),
+        S.todos(S.sb.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, quando, assunto, situacao, resposta, motivo, resultado, registrado_em, realizado').eq('situacao', 'agendado').lt('quando', desde)),
+        S.todos(S.sb.from('propostas').select('id, veiculo_id, consultor_id, cliente_id, situacao, criado_em, enviada_em, aprovada_em, valor_total').gte('criado_em', desde))]);
+      const agenda = [...new Map([...ag1, ...ag2].map(a => [a.id, a])).values()];
+      const ids = [...new Set(agenda.map(a => a.cliente_id).filter(Boolean))], nomes = new Map();
+      for (let i = 0; i < ids.length; i += 200) (await S.q(S.sb.from('pessoas').select('id, nome').in('id', ids.slice(i, i + 200)))).forEach(p => nomes.set(p.id, p.nome));
+      fuCache = { em:Date.now(), agenda, propostas:props, nomes };
+    } catch (err) { console.error(err); S.toast(S.erro(err)); if (!fuCache) fuCache = { em:Date.now(), agenda:[], propostas:[], nomes:new Map(), erro:true }; }
+    finally { fuBuscando = false; if (S.route().view === 'geral' && f2.aba === 'equipe') S.render(); }
+  };
+  const equipeHtml = () => {
+    if (!fuCache || Date.now() - fuCache.em > TTL) carregarEquipe();
+    if (!fuCache) return '<div class="card empty"><b>Buscando o follow-up da equipe</b>Juntando os contatos de todos os veículos…</div>';
+    const vs = S.db.veiculos, idV = new Set(vs.map(v => v.id));
+    const consultores = [...new Set(S.db.vinculos.filter(v => v.perfil === 'consultor' && idV.has(v.veiculo_id)).map(v => v.usuario_id))]
+      .map(id => { const u = S.db.usuarios.find(x => x.id === id); return u && u.ativo !== false ? { id, nome:u.nome || u.email, celular:u.celular, email:u.email, veiculos:S.db.vinculos.filter(v => v.usuario_id === id && v.perfil === 'consultor').map(v => v.veiculo_id) } : null; })
+      .filter(Boolean).sort((a, b) => a.nome.localeCompare(b.nome));
+    return S.fuEquipeGestao ? S.fuEquipeGestao({ agenda:fuCache.agenda, propostas:fuCache.propostas, nomes:fuCache.nomes, consultores, veiculos:vs }) : '';
+  };
+
   S.views.geral = () => {
+    /* Link do e-mail do fim do dia (#/geral/equipe) abre direto na aba Follow-up da equipe */
+    if (S.route().id === 'equipe') { f2.aba = 'equipe'; try { history.replaceState(null, '', '#/geral'); } catch (e) { /* sem histórico */ } }
     const nome = String(S.me.nome || S.me.email || '').trim().split(/[\s@]+/)[0];
     const ym = f2.mes || S.mesAtual(), hojeM = S.mesAtual();
     const nav = `<div class="hc-mes" role="group" aria-label="Mês de veiculação"><button type="button" class="hc-seta" data-act="geralMes" data-v="${somaMes(ym, -1)}" aria-label="Mês anterior">${S.svg('esq', 16)}</button><b aria-live="polite">${nomeM(ym)}</b><button type="button" class="hc-seta" data-act="geralMes" data-v="${somaMes(ym, 1)}" aria-label="Próximo mês">${S.svg('seta', 16)}</button></div>
       ${ym !== hojeM ? `<button type="button" class="btn sm" data-act="geralMes" data-v="${hojeM}">Hoje</button>` : ''}<button type="button" class="btn sm" data-act="ctrlCsv">Baixar planilha</button>`;
-    const topo = { title:`${saudacao()}, ${esc(nome)}`, actions:`<div class="hc-acoes">${nav}</div>` };
-    const intro = '<p class="geral-intro">Acompanhe as vendas, a OPEC e o financeiro de todos os veículos.</p>';
+    const abaEq = f2.aba === 'equipe';
+    const abasG = `<div class="seg gq-abas" role="tablist" aria-label="Dashboard Gestão">${[['vendas', 'Vendas'], ['equipe', 'Follow-up da equipe']].map(([k, n]) => `<button type="button" role="tab" class="${f2.aba === k ? 'on' : ''}" data-act="geralAba" data-v="${k}" aria-selected="${f2.aba === k}">${n}</button>`).join('')}</div>`;
+    const topo = { title:`${saudacao()}, ${esc(nome)}`, actions:abaEq ? '' : `<div class="hc-acoes">${nav}</div>` };
+    if (abaEq) return Object.assign(topo, { body:`<p class="geral-intro">Acompanhe os contatos, a agenda e as propostas de todos os consultores, em todos os veículos.</p>${abasG}${equipeHtml()}` });
+    const intro = '<p class="geral-intro">Acompanhe as vendas e a OPEC de todos os veículos.</p>' + abasG;
     if (!cache || Date.now() - cache.em > TTL) S.carregarGeral();
     if (!cache) return Object.assign(topo, { body:`${intro}<div class="card empty"><b>Buscando os números</b>Somando as vendas e o financeiro de todos os veículos…</div>` });
 
@@ -258,6 +291,9 @@
 
   Object.assign(S.actions, {
     geralMes: d => { f2.mes = d.v === S.mesAtual() ? null : d.v; S.render(); },
+    geralAba: d => { if (f2.aba === d.v) return; f2.aba = d.v; S.render(); window.scrollTo(0, 0); },
+    geralFollowup: () => { f2.aba = 'equipe'; S.go('/geral'); },
+    geralVerAgenda: async d => { if (S.fuVerAgendaDe) S.fuVerAgendaDe(d.id); await S.abrirVeiculo(d.v, '/followup'); },
     geralCat: d => { f.cat = d.v; S.render(); },
     ctrlCsv: () => ctrlCsv(),
     geralAtualizar: () => { if (S.metasLimpar) S.metasLimpar(); S.carregarGeral(true).then(() => S.toast('Números atualizados')); },

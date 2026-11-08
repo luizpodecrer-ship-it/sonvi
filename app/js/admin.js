@@ -220,6 +220,65 @@
     const doc = box.querySelector('.prdoc'), k = Math.min(1, (box.parentElement.clientWidth - 28) / doc.offsetWidth); box.style.transform = `scale(${k})`; box.style.width = doc.offsetWidth * k + 'px'; box.style.height = doc.offsetHeight * k + 'px'; };
 
   S.admAbrir = k => { aba = k; celLista = false; if (k === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); if (S.route().view !== 'admin') S.go('/admin'); else S.render(); };
+  // Resumo do dia (07/11/2026, database/083, modelo "Resumo do fim do dia" aprovado): horário, dias, e-mail das 7h30,
+  // WhatsApp (aguardando o número SONVI Avisos) e quem recebe por qual canal. Cada mudança grava na hora.
+  let rd = null, rdBusca = false, rdErro = '';
+  const carregarRd = () => { if (rdBusca || !S.sb) return; rdBusca = true; rdErro = '';
+    S.q(S.sb.rpc('resumo_config_ler')).then(r => { rd = r || null; }).catch(e => { console.error(e); rdErro = S.erro(e); })
+      .finally(() => { rdBusca = false; if (S.route().view === 'admin') S.render(); }); };
+  S.rdUsar = r => { rd = r; };   // testes
+  const DIAS_RD = [[1, 'Seg'], [2, 'Ter'], [3, 'Qua'], [4, 'Qui'], [5, 'Sex'], [6, 'Sáb'], [0, 'Dom']];
+  const SIT_RD = { enviado:['Enviado', 'green'], falhou:['Falhou', 'red'], voltou_email:['Foi por e-mail', 'orange'] };
+  const telaResumo = () => {
+    if (!rd) { if (!rdBusca && !rdErro) carregarRd();
+      return `<section class="card"><div class="hd"><h2>Resumo do dia</h2></div><p class="muted" style="margin:0">${rdErro ? esc(rdErro) : 'Buscando a configuração…'}</p></section>`; }
+    const wa = !!rd.whatsapp_ativo, dias = new Set(rd.dias || []);
+    const sw = (atr, on, rot) => `<input type="checkbox" role="switch" class="sw-liga" ${atr}${on ? ' checked' : ''} aria-label="${esc(rot)}">`;
+    const canal = p => `<select class="rd-canal" data-rd-canal="${p.id}" aria-label="Canal do resumo de ${esc(p.nome)}"${p.ativo === false ? ' disabled' : ''}>${[['email', 'E-mail'], ['whatsapp', 'WhatsApp'], ['ambos', 'Os dois']].map(([k, n]) =>
+      `<option value="${k}"${p.canal === k ? ' selected' : ''}${k !== 'email' && !wa ? ' disabled' : ''}>${n}${k !== 'email' && !wa ? ' (aguardando número)' : ''}</option>`).join('')}</select>`;
+    const pessoas = (rd.pessoas || []).map(p => `<div class="rd-p${p.ativo === false ? ' off' : ''}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome || p.email))}</span>
+        <span class="rd-p-tx"><b>${esc(p.nome) || '—'}</b><small>${p.perfil === 'diretor' ? 'Diretor · resumo da equipe' : 'Consultor · o próprio dia'}${p.email ? ' · ' + esc(p.email) : ''}</small></span>
+        <span class="rd-p-ctl">${sw(`data-rd-ativo="${p.id}"`, p.ativo !== false, 'Resumo de ' + (p.nome || ''))}${canal(p)}</span></div>`).join('');
+    const envios = (rd.envios || []).slice(0, 12);
+    const listaEnv = envios.length ? `<div class="rd-env">${envios.map(e => { const s = SIT_RD[e.situacao] || [e.situacao, 'gray'];
+        return `<div><span class="nw">${S.dfmt(e.dia).slice(0, 5)} ${e.em ? S.hora(e.em) : ''}</span><span class="rd-env-q"><b>${esc(e.nome)}</b><small>${/diretor/.test(e.tipo) ? 'Resumo da equipe' : /consultor/.test(e.tipo) && /^fim/.test(e.tipo) ? 'Resumo do dia' : 'Agenda das 7h30'} · ${e.canal === 'whatsapp' ? 'WhatsApp' : 'E-mail'}${e.erro ? ' · ' + esc(e.erro) : ''}</small></span>${S.tag(s[0], s[1])}</div>`; }).join('')}</div>`
+      : '<p class="muted small" style="margin:0">Nenhum resumo enviado nos últimos 7 dias.</p>';
+    return `<section class="card rd" aria-labelledby="rd-t"><div class="hd"><h2 id="rd-t">Resumo do dia</h2><span class="muted small">só o diretor vê esta tela</span></div>
+      <p class="muted small" style="margin:-4px 0 6px">No fim do dia, cada consultor recebe o próprio dia (contatos, atrasados, amanhã e meta) e o diretor recebe o resumo da equipe de todos os veículos.</p>
+      <div class="rd-lin"><label for="rd-hora" class="rd-r">Horário do envio<small>horário de Cuiabá</small></label>
+        <select id="rd-hora" data-rd-hora>${[17, 18, 19, 20].map(h => `<option value="${h}"${rd.hora === h ? ' selected' : ''}>${h}:00</option>`).join('')}</select></div>
+      <div class="rd-lin"><span class="rd-r" id="rd-dias-t">Dias<small>feriado não muda nada</small></span>
+        <div class="chips" role="group" aria-labelledby="rd-dias-t">${DIAS_RD.map(([d, n]) => `<label><input type="checkbox" data-rd-dia="${d}"${dias.has(d) ? ' checked' : ''}><span>${n}</span></label>`).join('')}</div></div>
+      <div class="rd-lin"><span class="rd-r">E-mail das 7h30<small>agenda do dia, pela manhã</small></span>
+        <label class="rd-sw">${sw('data-rd-manha', rd.manha, 'E-mail das 7h30')}<span>${rd.manha ? 'Ligado' : 'Desligado'}</span></label></div>
+      <div class="rd-lin"><span class="rd-r">WhatsApp<small>número SONVI Avisos</small></span>
+        <span>${wa ? S.tag('Ativo', 'green') : `${S.tag('Aguardando número', 'orange')}<small class="muted rd-wa">Enquanto isso, tudo sai por e-mail.</small>`}</span></div>
+      <div class="rd-lin rd-topo"><span class="rd-r">Quem recebe<small>resumo ligado e canal de cada pessoa</small></span><div class="rd-pes">${pessoas || '<p class="muted small" style="margin:0">Ninguém cadastrado ainda.</p>'}</div></div>
+      <div class="rd-lin"><span class="rd-r">Testar<small>o resumo da equipe de hoje</small></span><span><button class="btn" data-act="fuAmostra">${S.svg('email')}Mandar uma amostra para mim agora</button></span></div>
+    </section>
+    <section class="card"><div class="hd"><h2>Últimos envios</h2><span class="muted small">7 dias</span></div>${listaEnv}</section>`;
+  };
+  // Grava a configuração da empresa (horário, dias, 7h30) com o que está na tela
+  const salvarRd = async () => {
+    const tela = document.querySelector('.rd'); if (!tela || !rd) return;
+    const hora = +tela.querySelector('[data-rd-hora]').value, dias = [...tela.querySelectorAll('[data-rd-dia]:checked')].map(i => +i.dataset.rdDia);
+    const manha = tela.querySelector('[data-rd-manha]').checked;
+    if (!dias.length) { S.toast('Escolha pelo menos um dia da semana.'); S.render(); return; }
+    try { await S.q(S.sb.rpc('resumo_config_salvar', { p_hora:hora, p_dias:dias, p_manha:manha })); Object.assign(rd, { hora, dias, manha }); S.toast('Resumo do dia atualizado.'); }
+    catch (e) { S.toast(S.erro(e)); }
+    S.render(); };
+  const salvarPessoa = async id => {
+    const p = (rd.pessoas || []).find(x => x.id === id); if (!p) return;
+    const ativo = document.querySelector(`[data-rd-ativo="${id}"]`).checked, canal = document.querySelector(`[data-rd-canal="${id}"]`).value;
+    try { await S.q(S.sb.rpc('resumo_pessoa_salvar', { p_usuario:id, p_ativo:ativo, p_canal:canal })); Object.assign(p, { ativo, canal });
+      S.toast(ativo ? `${String(p.nome || '').split(' ')[0]} recebe o resumo por ${canal === 'ambos' ? 'e-mail e WhatsApp' : canal === 'whatsapp' ? 'WhatsApp' : 'e-mail'}.` : `${String(p.nome || '').split(' ')[0]} não recebe mais o resumo.`); }
+    catch (e) { S.toast(S.erro(e)); }
+    S.render(); };
+  document.addEventListener('change', ev => { const t = ev.target; if (!t.closest || !t.closest('.rd')) return;
+    if (t.matches('[data-rd-hora], [data-rd-dia], [data-rd-manha]')) salvarRd();
+    else if (t.matches('[data-rd-ativo]')) salvarPessoa(t.dataset.rdAtivo);
+    else if (t.matches('[data-rd-canal]')) salvarPessoa(t.dataset.rdCanal); });
+
   // Lixeira (31/10/2026, database/063): o que foi excluído fica 30 dias guardado; o diretor restaura o lote inteiro
   let lix = null, lixBusca = false;
   const carregarLix = () => { lixBusca = true; S.q(S.sb.rpc('lixeira_lista')).then(l => { lix = l || []; if (S.route().view === 'admin') S.render(); })
@@ -245,7 +304,7 @@
     // Menu vertical de seções (aprovado em 29/10/2026, quadro "SONVI · Agências, controle e metas", telas 7 e 8): grupos Grupo,
     // Pessoas e Cadastros, cada item com ícone, nome, uma linha de apoio e a quantidade. No celular, a lista é a primeira tela.
     const SECOES = [['Grupo', [['empresa', 'Empresa comercial', 'Dados e modelo da proposta', 'empresa', null], ['veiculos', 'Veículos', 'Quem fatura, OPEC e financeiro', 'veiculos', S.db.veiculos.length]]],
-      ['Pessoas', [['colaboradores', 'Colaboradores', 'Equipe, metas e comissão', 'clientes', S.db.colaboradores ? S.db.colaboradores.filter(c => c.ativo).length : null], ['comissoes', 'Vendas e comissões', 'Por consultor, mês a mês', 'vendas', null], ['usuarios', 'Usuários e acessos', 'Quem entra e o que vê', 'chave', S.db.usuarios.length]]],
+      ['Pessoas', [['colaboradores', 'Colaboradores', 'Equipe, metas e comissão', 'clientes', S.db.colaboradores ? S.db.colaboradores.filter(c => c.ativo).length : null], ['comissoes', 'Vendas e comissões', 'Por consultor, mês a mês', 'vendas', null], ['usuarios', 'Usuários e acessos', 'Quem entra e o que vê', 'chave', S.db.usuarios.length], ['resumo', 'Resumo do dia', rd ? `E-mail às ${rd.hora}h para a equipe` : 'E-mail do fim do dia', 'relogio', null]]],
       ['Cadastros', [['agencias', 'Agências', 'Vale em todos os veículos', 'agencias', S.agenciasN ? S.agenciasN() : null], ['lixeira', 'Lixeira', 'Excluídos nos últimos 30 dias', 'lixo', lix ? lix.length : null]]]];
     if (!ehGer()) { if (!lix && !lixBusca) carregarLix(); if (!S.db.colaboradores) carregarColab(); if (S.agenciasN && S.agenciasN() === null) S.agenciasTela(); }   // contadores do menu
     const naCel = !ehGer() && S.celular && celLista;
@@ -311,6 +370,8 @@
       body = S.comissoesTela().body;
     } else if (aba === 'lixeira') {
       body = telaLixeira();
+    } else if (aba === 'resumo') {
+      body = telaResumo();
     } else if (aba === 'agencias') {
       // Agências do grupo (29/10/2026): cadastro único, vale em todos os veículos (agencias.js)
       body = S.agenciasTela().body;
@@ -332,7 +393,7 @@
     // Os acessos da equipe SONVI saíram daqui em 25/10/2026: ficam no Dashboard Gestão › Suporte (chamados.js)
     if (ehGer()) return { title:`<span class="sub">${esc(minhas().map(v => v.nome).join(' · '))}</span>Usuários`, actions:`<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`,
       body:`<p class="muted small" style="margin:0 0 14px">Você cadastra e edita consultores, OPEC, financeiro, programadores e locutores das rádios em que é gerente. Gerentes e diretores ficam com o diretor.</p>${body}` };
-    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'lixeira' || aba === 'comissoes' ? '' : aba === 'agencias' ? `<button class="btn pri" data-act="agNova">${S.svg('mais')}Nova agência</button>` : aba === 'empresa' ? `<button class="btn pri" data-act="admEmpresa">${S.svg('editar')}Editar dados</button>` : aba === 'colaboradores' ? `<button class="btn" data-act="admAba" data-tab="comissoes">${S.svg('vendas')}Vendas e comissões</button><button class="btn pri" data-act="colNovo">${S.svg('mais')}Novo colaborador</button>` : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:S.celular ? `<a href="#/admin" class="ad-voltar" data-act="admVoltar">${S.svg('esq', 16)}Administração</a>${body}` : `<div class="ad-lay">${menuAd}<div class="ad-corpo">${body}</div></div>` };
+    return { title:'<span class="sub">Grupo</span>Administração', actions:aba === 'lixeira' || aba === 'comissoes' || aba === 'resumo' ? '' : aba === 'agencias' ? `<button class="btn pri" data-act="agNova">${S.svg('mais')}Nova agência</button>` : aba === 'empresa' ? `<button class="btn pri" data-act="admEmpresa">${S.svg('editar')}Editar dados</button>` : aba === 'colaboradores' ? `<button class="btn" data-act="admAba" data-tab="comissoes">${S.svg('vendas')}Vendas e comissões</button><button class="btn pri" data-act="colNovo">${S.svg('mais')}Novo colaborador</button>` : aba === 'veiculos' ? `<button class="btn pri" data-act="admVeiculo">${S.svg('mais')}Novo veículo</button>` : `<button class="btn pri" data-act="admUsuario">${S.svg('mais')}Cadastrar usuário</button>`, body:S.celular ? `<a href="#/admin" class="ad-voltar" data-act="admVoltar">${S.svg('esq', 16)}Administração</a>${body}` : `<div class="ad-lay">${menuAd}<div class="ad-corpo">${body}</div></div>` };
   };
 
   // Categoria do veículo no formulário: Frequência e Rede afiliada só aparecem para rádio
@@ -369,7 +430,7 @@
       S.excluirDigitando({ titulo:'Esvaziar a lixeira?', aviso:`${n === 1 ? 'O item' : `Os ${n} itens`} da Lixeira ${n === 1 ? 'é apagado' : 'são apagados'} de vez e não ${n === 1 ? 'pode' : 'podem'} mais ser restaurados.`,
         rotulo:'Para confirmar, digite ESVAZIAR', dica:'ESVAZIAR', confere:t => t.trim().toUpperCase() === 'ESVAZIAR', botao:'Esvaziar lixeira',
         onOk:() => S.run(async () => { await S.q(S.sb.rpc('lixeira_esvaziar', { p_lote:null })); lix = []; }, { titulo:'Lixeira vazia', sub:`${n} ${n === 1 ? 'item apagado' : 'itens apagados'} de vez` }) }); },
-    admAba: d => { aba = d.tab; celLista = false; if (aba === 'lixeira') carregarLix(); if (aba === 'comissoes' && S.comissoesAbrirConsultor) S.comissoesAbrirConsultor(null); if (aba === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); S.render(); },
+    admAba: d => { aba = d.tab; celLista = false; if (aba === 'lixeira') carregarLix(); if (aba === 'resumo') { rd = null; rdErro = ''; carregarRd(); } if (aba === 'comissoes' && S.comissoesAbrirConsultor) S.comissoesAbrirConsultor(null); if (aba === 'agencias' && S.agenciasRecarregar) S.agenciasRecarregar(); S.render(); },
     admVeiculo: d => { const v = d.id ? S.veh(d.id) : {};
       S.form(v.id ? esc(v.nome) : 'Novo veículo', [
         { html:campoCategoria(v, !!v.id && !d.editar) },
