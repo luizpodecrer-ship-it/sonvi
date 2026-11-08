@@ -4286,3 +4286,15 @@ input.sw-liga:focus-visible { outline:2px solid var(--accent); outline-offset:2p
 @media (max-width:640px) { .ag2-barra { flex-direction:column; align-items:stretch; } .ag2-fil { overflow-x:auto; flex-wrap:nowrap; } .ag2-fil button { flex:none; } .ag2-ord select { flex:1; } }
 @media (prefers-reduced-motion: reduce) { .ag2 * { animation:none !important; } }
 .pl-sf .cl-pag { margin:8px 0 6px; padding-top:14px; }
+/* Clientes no padrão de Agências (08/11/2026, pessoas.js): mesmas linhas .ag2-*, com Consultor e Situação */
+.cl2 .ag2-barra { align-items:center; }
+.cl2-dir { display:inline-flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.cl2-dir > select { height:36px; min-height:36px; width:auto; padding:0 32px 0 12px; border-radius:999px; font-weight:600; }
+.ag2-cab.cl2-l, .ag2-l.cl2-l { grid-template-columns:minmax(0, 2.2fr) 120px minmax(0, 1fr) minmax(0, 1.5fr) 150px 96px 40px; }
+.cl2-cons { display:flex; align-items:center; gap:8px; min-width:0; font-size:13.5px; } .cl2-cons > span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cl2-cons .av { width:28px; height:28px; font-size:11px; flex:none; }
+.cl2 .ag2-cel-n { justify-items:end; gap:4px; }
+@media (max-width:1400px) { .ag2-cab.cl2-l, .ag2-l.cl2-l { grid-template-columns:minmax(0, 2fr) 110px minmax(0, 1.4fr) 140px 96px 40px; } .ag2-cab.cl2-l > :nth-child(3), .ag2-l.cl2-l > .ag2-cid { display:none; } }
+@media (max-width:1100px) { .ag2-cab.cl2-l, .ag2-l.cl2-l { grid-template-columns:minmax(0, 2fr) minmax(0, 1.4fr) 140px 96px 40px; } .ag2-cab.cl2-l > :nth-child(2), .ag2-l.cl2-l > :nth-child(2) { display:none; } }
+@media (max-width:640px) { .cl2-dir { width:100%; } .cl2-dir > select, .cl2-dir .ag2-ord { flex:1; } }
+@media (max-width:640px) { .ag2-barra > * { min-width:0; max-width:100%; } .ag2-fil { max-width:100%; scrollbar-width:none; } .cl2-dir .ag2-ord { display:flex; } .cl2-dir .ag2-ord select { min-width:0; } }
