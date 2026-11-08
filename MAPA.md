@@ -144,7 +144,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 ### painel.js · 205 linhas
 - Telas (`S.views`): dashboard
 
-### pessoas.js · 350 linhas
+### pessoas.js · 353 linhas
 - Telas (`S.views`): clientes
 - Ações (`data-act`): cliFil, pesCnpj, pesEditar, pesExcluir, pesIgnorar, pesLevar, pesMenu, pesNovo, pesTrazer
 - Define `S.`: dadosDoCnpj

@@ -1066,19 +1066,33 @@ dialog.medio { width:min(880px, 96vw); }
 .cad-hd b { font:600 17px/1.3 var(--display); }
 .cad-hd small, .cad-rot { color:var(--ink-2); font-size:12px; }
 .cad-rot { font-weight:700; letter-spacing:.06em; }
-.cad-radios { display:flex; flex-direction:column; gap:10px; }
-.cad-radio { padding:14px 16px; border:1px solid var(--line); border-radius:var(--radius-m); background:var(--surface); transition:border-color .2s, background .2s; }
-.cad-radio:has(input[name^="x_rad_"]:checked), label.cad-radio:has(input:checked) { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 4%, var(--surface)); }
-.cad-top { display:flex; align-items:center; gap:12px; cursor:pointer; font-weight:400; color:var(--ink); }
-.cad-top input { width:20px; height:20px; accent-color:var(--accent); flex:none; margin:0; }
-.cad-top b, .cad-radio > b { font-size:15px; }
-.cad-radio .vav, .cad-achado .vav { width:32px; height:32px; font-size:11px; flex:none; }
-.cad-radio.ja { display:flex; align-items:center; gap:12px; background:var(--fill); }
-.cad-ja { margin-left:auto; display:inline-flex; align-items:center; gap:6px; color:var(--green); font-weight:600; font-size:13px; }
+.cad-radios { display:flex; flex-direction:column; gap:12px; }
+/* Marcador redondo "radio" (modelo enviado pelo Luiz em 08/11/2026, nas cores do SONVI): caixa de marcar escondida, bolinha que enche */
+.radio { --on:var(--accent); position:relative; display:inline-flex; align-items:center; gap:10px; min-height:44px; cursor:pointer;
+  font:600 12px var(--font); letter-spacing:.08em; text-transform:uppercase; color:var(--ink); -webkit-tap-highlight-color:transparent; }
+.radio input { position:absolute; opacity:0; width:0; height:0; margin:0; }
+.radio .dot { position:relative; width:22px; height:22px; flex:none; border-radius:50%; border:2px solid color-mix(in srgb, var(--ink) 45%, var(--surface));
+  background:transparent; transition:border-color .25s ease, background .25s ease, box-shadow .25s ease; }
+.radio .dot::after { content:""; position:absolute; inset:4px; border-radius:50%; background:var(--on); transform:scale(0); transition:transform .25s cubic-bezier(.22, 1, .36, 1); }
+.radio input:checked + .dot { border-color:var(--on); }
+.radio input:checked + .dot::after { transform:scale(1); }
+.radio input:focus-visible + .dot { outline:2px solid var(--accent); outline-offset:2px; }
+.radio:hover .dot { border-color:var(--on); }
+@media (prefers-reduced-motion:reduce) { .radio .dot, .radio .dot::after { transition:none; } }
+.cad-linha { display:flex; flex-wrap:wrap; align-items:center; gap:4px 26px; }
+.cad-radio .vav, .cad-achado .vav, .cad-det-t .vav { width:26px; height:26px; font-size:9px; flex:none; }
+.cad-radio.ja { cursor:default; color:var(--ink-3); }
+.cad-radio.ja > svg { width:22px; height:22px; padding:3px; border-radius:50%; background:color-mix(in srgb, var(--green) 14%, var(--surface)); color:var(--green); flex:none; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; }
 .cad-ja svg, .cad-ag svg, .cad-achado.ok svg { width:16px; height:16px; flex:none; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
-.cad-det { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:12px 0 0 32px; }
-.cad-radio:not(:has(input[name^="x_rad_"]:checked)) .cad-det { display:none; }
-.cad-det .f { display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--ink-2); }
+.cad-dets { display:flex; flex-direction:column; gap:8px; }
+.cad-dets:not(:has(.cad-det:not([hidden]))) { display:none; }
+.cad-det { display:grid; grid-template-columns:200px minmax(0, 1fr) minmax(0, 1.4fr); gap:14px; align-items:start; padding:12px 14px; border-radius:var(--radius-m); background:var(--fill); animation:cad-abre .3s cubic-bezier(.22, 1, .36, 1) backwards; }
+.cad-det[hidden] { display:none; }
+.cad-det-t { display:flex; align-items:center; gap:10px; min-height:44px; margin-top:26px; font-size:14px; }
+@keyframes cad-abre { from { opacity:0; transform:translateY(-4px); } }
+@media (prefers-reduced-motion:reduce) { .cad-det { animation:none; } }
+@media (max-width:760px) { .cad-det { grid-template-columns:minmax(0, 1fr); gap:10px; } .cad-det-t { margin-top:0; } }
+.cad-det .f { display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--ink-2); min-width:0; }
 .cad-det select { width:100%; }
 .cad-fixo { min-height:44px; display:flex; align-items:center; padding:0 14px; border-radius:var(--radius-s); background:var(--fill); color:var(--ink); font-size:15px; }
 .cad-ag { min-height:44px; display:flex; gap:8px; padding:9px 14px; border-radius:var(--radius-s); font-size:13px; line-height:1.3; color:var(--ink); }
@@ -4349,7 +4363,7 @@ input.sw-liga:focus-visible { outline:2px solid var(--accent); outline-offset:2p
 dialog.fm-largo { width:min(1080px, 96vw); }
 dialog.fm-largo form { padding:28px 32px 0; gap:18px; }
 .g4 { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px 18px; align-items:end; }
-.g4 input, .g4 select { width:100%; }
+.g4 input:not([type=checkbox]):not([type=radio]), .g4 select { width:100%; }
 .g4 .fm-sec { grid-column:1 / -1; display:flex; align-items:center; gap:12px; margin:10px 0 -2px; font:600 12px var(--font); letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); }
 .g4 .fm-sec::after { content:""; flex:1; border-top:1px solid var(--line); }
 .g4 .fm-sec:first-child { margin-top:0; }
@@ -4365,4 +4379,5 @@ dialog.fm-largo form > .row .btn { white-space:nowrap; }
   dialog.fm-largo form > .row { gap:8px; } dialog.fm-largo form > .row .btn { padding-left:14px; padding-right:14px; }
   dialog.fm-largo form > .row .btn.danger { width:44px; padding:0; justify-content:center; flex:none; } dialog.fm-largo form > .row .btn.danger span { display:none; }
   dialog.fm-largo form > .row .btn.danger svg { margin:0; }
+  dialog.fm-largo form > .row .btn { white-space:normal; line-height:1.2; min-width:0; } dialog.fm-largo form > .row .btn.pri { flex:1 1 auto; }
 }

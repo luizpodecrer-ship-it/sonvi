@@ -44,18 +44,20 @@
     return la ? `<span class="cad-ag ok">${S.svg('check')}<span><b>${esc(a.nome)}</b> já está em ${esc(nomeRadio(v))}: o cliente vai ligado a ela.</span></span>`
       : `<span class="cad-ag falta"><span><b>${esc(a.nome)}</b> ainda não está em ${esc(nomeRadio(v))}.</span><label class="chk"><input type="checkbox" name="x_ag_${v}" checked>Cadastrar a agência também</label></span>`;
   };
+  // Veículos numa linha só (08/11/2026, pedido do Luiz: marcador redondo "radio"); consultor e agência de cada veículo marcado aparecem embaixo.
   const blocoRadios = ({ tipo, consultor, agencia, ja = new Set(), marcar = false }) => {
-    const linhas = cad.destinos.map(v => {
-      if (ja.has(v.id)) return `<div class="cad-radio ja">${S.vav(v)}<b>${esc(v.nome)}</b><span class="cad-ja">${S.svg('check')}Já cadastrado</span></div>`;
+    const chips = cad.destinos.map(v => ja.has(v.id)
+      ? `<span class="radio cad-radio ja" title="Já cadastrado em ${esc(v.nome)}">${S.svg('check')}${S.vav(v)}<span class="lbl">${esc(v.nome)}</span></span>`
+      : `<label class="radio cad-radio"><input type="checkbox" name="x_rad_${v.id}"${marcar ? ' checked' : ''}><span class="dot"></span>${S.vav(v)}<span class="lbl">${esc(v.nome)}</span></label>`).join('');
+    const dets = tipo !== 'cliente' ? '' : cad.destinos.filter(v => !ja.has(v.id)).map(v => {
       const pf = perfilEm(v.id), cons = consultoresDe(v.id);
       const padrao = cons.some(u => u.id === consultor) ? consultor : '';
-      const campoCons = tipo !== 'cliente' ? '' : pf === 'consultor'
-        ? `<div class="f">Consultor neste veículo<span class="cad-fixo">${esc(S.me.nome || S.me.email)} (você)</span></div>`
-        : `<label class="f">Consultor neste veículo<select name="x_cons_${v.id}"><option value="">Sem consultor</option>${cons.map(u => `<option value="${u.id}"${u.id === padrao ? ' selected' : ''}>${esc(u.nome)}</option>`).join('')}</select></label>`;
-      return `<div class="cad-radio"><label class="cad-top"><input type="checkbox" name="x_rad_${v.id}"${marcar ? ' checked' : ''}>${S.vav(v)}<b>${esc(v.nome)}</b></label>
-        ${tipo === 'cliente' ? `<div class="cad-det">${campoCons}<div class="f">Agência neste veículo<div data-cad-ag="${v.id}">${situacaoAgencia(v.id, agencia)}</div></div></div>` : ''}</div>`;
+      const campoCons = pf === 'consultor'
+        ? `<div class="f">Consultor<span class="cad-fixo">${esc(S.me.nome || S.me.email)} (você)</span></div>`
+        : `<label class="f">Consultor<select name="x_cons_${v.id}"><option value="">Sem consultor</option>${cons.map(u => `<option value="${u.id}"${u.id === padrao ? ' selected' : ''}>${esc(u.nome)}</option>`).join('')}</select></label>`;
+      return `<div class="cad-det" data-cad-det="${v.id}"${marcar ? '' : ' hidden'}><div class="cad-det-t">${S.vav(v)}<b>${esc(v.nome)}</b></div>${campoCons}<div class="f">Agência<div data-cad-ag="${v.id}">${situacaoAgencia(v.id, agencia)}</div></div></div>`;
     }).join('');
-    return `<div class="cad-radios">${linhas}</div>`;
+    return `<div class="cad-radios"><div class="cad-linha">${chips}</div>${dets ? `<div class="cad-dets">${dets}</div>` : ''}</div>`;
   };
   const destinosMarcados = f => cad.destinos.filter(v => f['x_rad_' + v.id] === 'on')
     .map(v => ({ veiculo_id:v.id, consultor_id:f['x_cons_' + v.id] || null, criar_agencia:f['x_ag_' + v.id] === 'on' }));
@@ -222,7 +224,7 @@
     const total = irmaos.length + 1;
     S.dialog(`<h2>Atualizar também nos outros veículos?</h2><p class="muted" style="margin-top:-8px">${esc(antes.nome)} também está ${irmaos.length > 1 ? 'nestes veículos' : 'neste veículo'}. Marque onde atualizar.</p>
       <div><small class="cad-rot">O QUE MUDOU</small>${linhas}</div>
-      <div class="cad-radios">${irmaos.map(r => `<label class="cad-radio cad-top"><input type="checkbox" name="x_${r.id}" checked>${S.vav(S.veh(r.veiculo_id))}<b>${esc(nomeRadio(r.veiculo_id))}</b></label>`).join('')}</div>
+      <div class="cad-radios"><div class="cad-linha">${irmaos.map(r => `<label class="radio cad-radio"><input type="checkbox" name="x_${r.id}" checked><span class="dot"></span>${S.vav(S.veh(r.veiculo_id))}<span class="lbl">${esc(nomeRadio(r.veiculo_id))}</span></label>`).join('')}</div></div>
       <small class="muted">Só os dados cadastrais vão para os outros veículos. Consultor, situação, agência e observações de cada veículo continuam como estão.</small>
       <div class="row cad-acoes"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Só em ${esc(S.veh().nome)}</button><button class="btn pri" value="ok" data-cad-total>Atualizar nos ${total} veículos</button></div>`,
     f => { const ids = irmaos.filter(r => f['x_' + r.id] === 'on').map(r => r.id); if (!ids.length) return;
@@ -258,7 +260,7 @@
   }
   document.addEventListener('change', e => {
     const d = document.getElementById('dlg'); if (!d || !d.open || !d.contains(e.target)) return;
-    if (e.target.closest('.cad-radios')) contarRadios();
+    if (e.target.closest('.cad-radios')) { if (e.target.name?.startsWith('x_rad_')) { const det = d.querySelector(`[data-cad-det="${e.target.name.slice(6)}"]`); if (det) det.hidden = !e.target.checked; } contarRadios(); }
     if (e.target.name === 'agencia_id') d.querySelectorAll('[data-cad-ag]').forEach(el => { el.innerHTML = situacaoAgencia(el.dataset.cadAg, e.target.value); });
   });
 
@@ -292,7 +294,8 @@
       <small class="muted">Trazer os dados de lá preenche o formulário. Você confere${aba === 'cliente' ? ' e escolhe o consultor deste veículo' : ''}.</small>
       <div class="row"><button type="button" class="btn sm pri" data-act="pesTrazer">Trazer os dados de ${esc(nomeRadio(a.veiculo_id))}</button><button type="button" class="btn sm" data-act="pesIgnorar">Não, é outro cadastro</button></div></div></div>`;
     // A rádio de onde veio já tem o cadastro: some do "Cadastrar também em"
-    achados.forEach(r => { const c = document.querySelector(`#dlg input[name="x_rad_${r.veiculo_id}"]`); if (c) { c.checked = false; c.closest('.cad-radio').classList.add('ja'); c.closest('.cad-radio').innerHTML = `${S.vav(S.veh(r.veiculo_id))}<b>${esc(nomeRadio(r.veiculo_id))}</b><span class="cad-ja">${S.svg('check')}Já cadastrado</span>`; } });
+    achados.forEach(r => { const c = document.querySelector(`#dlg input[name="x_rad_${r.veiculo_id}"]`); if (c) { c.checked = false; const det = document.querySelector(`#dlg [data-cad-det="${r.veiculo_id}"]`); if (det) det.remove();
+      c.closest('.cad-radio').outerHTML = `<span class="radio cad-radio ja" title="Já cadastrado em ${esc(nomeRadio(r.veiculo_id))}">${S.svg('check')}${S.vav(S.veh(r.veiculo_id))}<span class="lbl">${esc(nomeRadio(r.veiculo_id))}</span></span>`; } });
     contarRadios();
   }
 
