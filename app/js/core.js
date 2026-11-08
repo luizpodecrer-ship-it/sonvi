@@ -539,6 +539,42 @@ S.poeRolos = () => document.querySelectorAll('[data-rolo-fixo]').forEach(lugar =
   const k = lugar.dataset.roloFixo, t = lugar.dataset.roloTxt; let r = rolosFixos[k];
   if (!r) { const el = document.createElement('span'); el.className = 'rl-fixo'; r = rolosFixos[k] = { el, rolo:S.rolo ? S.rolo(el) : null, novo:true }; }
   lugar.replaceWith(r.el); if (r.rolo) r.rolo.poe(t, r.novo); else r.el.textContent = t; r.novo = false; });
+// Paginação padrão do SONVI (08/11/2026; nasceu em Clientes, aprovada para todas as listas longas): 15 por página (10 · 15 · 25),
+// "Mostrando 1–15 de 44 <itens>", Anterior/Próxima e os números num trilho com a bolinha na cor do veículo que desliza com mola.
+// Uso: const pg = S.paginar('chave', lista, 'agências', filtrosTexto); desenhe pg.itens e ponha pg.html no fim da lista.
+// Mudou filtrosTexto (busca, filtros, ordem) → volta à página 1. Até 10 itens o rodapé some. Estilos .cl-pag* em sonvi.css.
+const pgEst = {}, PG_POR = [10, 15, 25];
+const pgNums = (a, n) => { if (n <= 7) return Array.from({ length:n }, (_, i) => i + 1);
+  const d = S.celular ? 1 : 2, r = [1]; let ini = Math.max(2, a - d), fim = Math.min(n - 1, a + d);
+  if (a <= 3) fim = Math.min(n - 1, 1 + d * 2); if (a >= n - 2) ini = Math.max(2, n - d * 2);
+  if (ini > 2) r.push('…'); for (let i = ini; i <= fim; i++) r.push(i); if (fim < n - 1) r.push('…'); r.push(n); return r; };
+S.paginar = (k, lista, palavra = 'itens', filtros = '') => {
+  const e = pgEst[k] || (pgEst[k] = { pg:1, por:15, f:filtros, bola:null });
+  if (e.f !== filtros) { e.pg = 1; e.f = filtros; }
+  const n = Math.max(1, Math.ceil(lista.length / e.por)); if (e.pg > n) e.pg = n;
+  const de = (e.pg - 1) * e.por, itens = lista.slice(de, de + e.por), ka = S.esc(k);
+  const html = lista.length <= PG_POR[0] ? '' : `<div class="cl-pag" data-pg="${ka}">
+    <p class="cl-pag-info" aria-live="polite">Mostrando <b>${de + 1}–${de + itens.length}</b> de <b>${lista.length}</b> ${palavra}</p>
+    ${n > 1 ? `<nav class="cl-pag-nav" aria-label="Páginas">
+      <button type="button" class="cl-pag-seta" data-act="pgIr" data-k="${ka}" data-v="${e.pg - 1}"${e.pg === 1 ? ' disabled' : ''} aria-label="Página anterior">${S.svg('esq', 16)}<span>Anterior</span></button>
+      <span class="cl-pag-nums"><span class="cl-pag-bola" aria-hidden="true"></span>${pgNums(e.pg, n).map(x => x === '…' ? '<span class="cl-pag-rt" aria-hidden="true">…</span>'
+        : `<button type="button" data-act="pgIr" data-k="${ka}" data-v="${x}"${x === e.pg ? ' aria-current="page"' : ''} aria-label="Página ${x}">${x}</button>`).join('')}</span>
+      <button type="button" class="cl-pag-seta" data-act="pgIr" data-k="${ka}" data-v="${e.pg + 1}"${e.pg === n ? ' disabled' : ''} aria-label="Próxima página"><span>Próxima</span>${S.svg('seta', 16)}</button></nav>` : ''}
+    <label class="cl-pag-por"><span>Por página</span><select data-pgpor="${ka}" aria-label="Itens por página">${PG_POR.map(x => `<option value="${x}"${e.por === x ? ' selected' : ''}>${x}</option>`).join('')}</select></label></div>`;
+  return { itens, html, de };
+};
+// Depois do desenho: a bolinha vai até a página aberta (desliza a partir de onde estava)
+S.poeBolas = () => document.querySelectorAll('[data-pg]').forEach(box => { const e = pgEst[box.dataset.pg]; const nav = box.querySelector('.cl-pag-nums');
+  if (!e || !nav) return; const bola = nav.querySelector('.cl-pag-bola'), b = nav.querySelector('[aria-current="page"]'); if (!bola || !b) return;
+  const x = b.offsetLeft, w = b.offsetWidth; bola.style.width = w + 'px'; bola.style.transform = `translateX(${x}px)`;
+  if (e.bola && e.bola.x !== x && !matchMedia('(prefers-reduced-motion: reduce)').matches && bola.animate)
+    bola.animate([{ transform:`translateX(${e.bola.x}px)` }, { transform:`translateX(${x}px)` }], { duration:560, easing:'cubic-bezier(.34,1.45,.5,1)' });
+  e.bola = { x, w }; });
+S.actions = S.actions || {};
+S.actions.pgIr = d => { const e = pgEst[d.k], v = +d.v; if (!e || !v || v === e.pg) return; e.pg = v; S.render();
+  const box = document.querySelector(`[data-pg="${CSS.escape(d.k)}"]`), card = box && box.closest('.card'); if (card && card.getBoundingClientRect().top < 0) card.scrollIntoView({ behavior:'smooth', block:'start' }); };
+document.addEventListener('change', ev => { const s = ev.target.closest && ev.target.closest('[data-pgpor]'); if (!s) return; const e = pgEst[s.dataset.pgpor]; if (!e) return;
+  const primeiro = (e.pg - 1) * e.por; e.por = +s.value || 15; e.pg = Math.floor(primeiro / e.por) + 1; e.bola = null; S.render(); });
 // FLIP de lista: guarda onde estava cada [data-flip], redesenha e faz as linhas deslizarem até o lugar novo (as novas sobem de leve)
 S.flip = desenhar => {
   const antes = new Map(); document.querySelectorAll('[data-flip]').forEach(e => antes.set(e.dataset.flip, e.getBoundingClientRect().top));

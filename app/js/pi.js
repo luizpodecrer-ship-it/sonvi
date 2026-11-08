@@ -118,9 +118,10 @@
     // Sanfona (03/11/2026, modelo "Lançar venda"): A lançar e Na OPEC abertos; Rascunho e Vendas lançadas fechados
     const cab = `<div class="pl-l pl-cab"><span class="pl-n">Nº</span><span class="pl-t">Título</span><span class="pl-c">Cliente · agência</span><span class="pl-u">Consultor</span><span class="pl-p">Veiculação</span><span class="pl-i">Situação</span><span class="pl-v">Líquido</span><span class="pl-m"><span class="sr">Ações</span></span></div>`;
     const blocos = GRUPOS_PI.map(([k, nome, aberto, dica]) => { const xs = pis.filter(p => grupoPi(p) === k); if (!xs.length) return '';
+      const pgG = S.paginar(`pis|${S.ui.vehicleId}|${k}`, xs, 'PIs', [ym, pm.et, q].join('|'));   /* paginação padrão (08/11/2026), em cada grupo */
       const abre = k in pm.abertos ? pm.abertos[k] : aberto, val = xs.reduce((t, p) => t + S.calc(p).net * S.fatiaMes(p, ym), 0);
       return `<details class="pl-sf pl-sf-${k}" data-sf="${k}"${abre ? ' open' : ''}><summary><span class="pl-sf-barra" aria-hidden="true"></span>${S.svg('seta', 16)}<h3>${nome}</h3><small class="pl-sf-dica">${dica}</small><span class="pl-sf-n">${xs.length} PI${xs.length === 1 ? '' : 's'}</span><b class="pl-sf-v">${brl(val)}</b></summary>
-        <div class="pl">${cab}${xs.map(linha).join('')}</div></details>`; }).join('');
+        <div class="pl">${cab}${pgG.itens.map(linha).join('')}</div>${pgG.html}</details>`; }).join('');
     const vazio = `<div class="empty"><b>Nenhum PI</b>${q ? `Nada com essa busca em ${mesN}.` : sel ? `Nenhum PI nesta etapa em ${mesN}.` : S.db.pis.length ? `Nenhum PI no ar em ${mesN}.` : 'Os pedidos desta rádio aparecem aqui.'}</div>`;
     const listaCard = `<section class="card pl-card" aria-labelledby="pr-tl"><div class="hd fn-par-hd"><h2 id="pr-tl">PIs de ${mesN}</h2><span>${pis.filter(p => p.status !== 'cancelado').length} · ${brl(totDe(pis.filter(p => p.status !== 'cancelado')))} líquido</span></div>
       <div class="fn-filtros">${sel ? `<button class="fn-chip pr-chip pr-et-${sel.cls}" data-act="piEtapa" data-v="${sel.k}" aria-label="Tirar o filtro ${sel.nome}"><i aria-hidden="true"></i>${sel.nome}${S.svg('fechar', 14)}</button>` : ''}

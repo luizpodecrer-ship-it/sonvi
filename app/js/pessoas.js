@@ -71,19 +71,7 @@
   // Lista aprovada em 25/10/2026 (adaptada do recurso "Escalafón" da Moxen, licença permite uso dentro do produto; estilos .cl-* em sonvi.css):
   // só a lista, que se ordena pelos títulos. Cada linha viaja do lugar velho ao novo com mola e em cascata; as que sobem passam por cima,
   // com sombra. Uma pílula salta ao título que manda, a seta gira ao inverter e as outras colunas ficam mais fracas. Tons do veículo.
-  const cf = { sit:'todos', cons:'', por:'nome', sentido:'asc', pg:1, porPg:15, qAnt:'', aba:'' };
-  // Paginação da lista (07/11/2026, pedido do Luiz): 15 por página (10 · 15 · 25), números com a bolinha que desliza com mola até a página aberta
-  const PORPG = [10, 15, 25];
-  const paginas = (a, n) => { if (n <= 7) return Array.from({ length:n }, (_, i) => i + 1);
-    const d = S.celular ? 1 : 2, r = [1]; let ini = Math.max(2, a - d), fim = Math.min(n - 1, a + d);
-    if (a <= 3) fim = Math.min(n - 1, 1 + d * 2); if (a >= n - 2) ini = Math.max(2, n - d * 2);
-    if (ini > 2) r.push('…'); for (let i = ini; i <= fim; i++) r.push(i); if (fim < n - 1) r.push('…'); r.push(n); return r; };
-  let bolaEm = null;
-  const poeBola = () => { const nav = document.querySelector('.cl-pag-nums'); if (!nav) { bolaEm = null; return; }
-    const bola = nav.querySelector('.cl-pag-bola'), b = nav.querySelector('[aria-current="page"]'); if (!bola || !b) return;
-    const x = b.offsetLeft, w = b.offsetWidth; bola.style.width = w + 'px'; bola.style.transform = `translateX(${x}px)`;
-    if (bolaEm && bolaEm.x !== x && !quieto() && bola.animate) bola.animate([{ transform:`translateX(${bolaEm.x}px)` }, { transform:`translateX(${x}px)` }], PILULA);
-    bolaEm = { x, w }; };
+  const cf = { sit:'todos', cons:'', por:'nome', sentido:'asc' };
   // Colunas: [chave, título, sentido de partida, classe]
   const colunas = cli => [['nome', cli ? 'Cliente' : 'Agência', 'asc', ''], ...(cli ? [['cons', 'Consultor', 'asc', 'cl-c-cons']] : []), ['cidade', 'Cidade', 'asc', 'cl-c-cid'],
     ['tel', 'Telefone', 'asc', 'cl-c-tel'], ...(cli ? [['sit', 'Situação', 'asc', 'cl-c-sit']] : [])];
@@ -139,9 +127,9 @@
         return (r || a.nome.localeCompare(b.nome, 'pt-BR')) * (cf.sentido === 'asc' ? 1 : -1); });
     // Lista reorganizada (31/10/2026, pedido do Luiz): sem Comprado e Última compra; telefone em coluna própria, CNPJ embaixo do nome
     // Página: volta para a 1 quando muda a busca ou a lista; nunca passa da última
-    if (cf.qAnt !== q || cf.aba !== aba) { cf.pg = 1; cf.qAnt = q; cf.aba = aba; }
-    const nPg = Math.max(1, Math.ceil(lista.length / cf.porPg)); if (cf.pg > nPg) cf.pg = nPg;
-    const de = (cf.pg - 1) * cf.porPg, pagina = lista.slice(de, de + cf.porPg);
+    /* paginação padrão (S.paginar, core.js): volta à página 1 quando muda busca, filtros ou ordem */
+    const pgC = S.paginar(`cli|${S.ui.vehicleId}|${aba}`, lista, cli ? (lista.length === 1 ? 'cliente' : 'clientes') : (lista.length === 1 ? 'agência' : 'agências'), [q, cf.sit, cf.cons, cf.por, cf.sentido].join('|'));
+    const pagina = pgC.itens;
     const palavra = cli ? (lista.length === 1 ? 'cliente' : 'clientes') : (lista.length === 1 ? 'agência' : 'agências');
     const nSit = k => lista.filter(p => p.situacao === k).length;
     const resumo = cli ? [`${lista.length} ${palavra}`, ...[['ativo', 'ativo', 'ativos'], ['prospect', 'prospect', 'prospects'], ['inativo', 'inativo', 'inativos']].filter(([k]) => nSit(k)).map(([k, a, b]) => `${nSit(k)} ${nSit(k) === 1 ? a : b}`)].join(' · ') : `${lista.length} ${palavra}`;
@@ -159,14 +147,7 @@
     const cab = `<div class="cl-fila cl-tit" role="row"><span class="cl-pilula" aria-hidden="true"></span>${cols.map(([k, n, s, cl]) => `<span role="columnheader" class="${cl}" data-col="${k}" aria-sort="${cf.por === k ? (cf.sentido === 'asc' ? 'ascending' : 'descending') : 'none'}"><button type="button" data-act="cliOrdem" data-v="${k}" data-sentido="${s}">${n}${SETA}</button></span>`).join('')}<span role="columnheader" class="cl-acao"><span class="sr">Opções</span></span></div>`;
     const cel = p => `<div class="cl-cel-l" data-flip="${p.id}" data-act="pesEditar" data-id="${p.id}"><span class="cl-nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><span><b>${esc(p.nome)}</b><small>${esc([cli ? nomeCons(p).split(' ')[0] : '', p.cidade].filter(Boolean).join(' · ') || '—')}</small></span></span>
       <span class="cl-dir">${cli ? sitPill(p) : ''}</span></div>`;
-    const pag = lista.length <= PORPG[0] ? '' : `<div class="cl-pag">
-      <p class="cl-pag-info" aria-live="polite">Mostrando <b>${de + 1}–${de + pagina.length}</b> de <b>${lista.length}</b> ${palavra}</p>
-      ${nPg > 1 ? `<nav class="cl-pag-nav" aria-label="Páginas de ${cli ? 'clientes' : 'agências'}">
-        <button type="button" class="cl-pag-seta" data-act="cliPagina" data-v="${cf.pg - 1}"${cf.pg === 1 ? ' disabled' : ''} aria-label="Página anterior">${S.svg('esq', 16)}<span>Anterior</span></button>
-        <span class="cl-pag-nums"><span class="cl-pag-bola" aria-hidden="true"></span>${paginas(cf.pg, nPg).map(n => n === '…' ? '<span class="cl-pag-rt" aria-hidden="true">…</span>'
-          : `<button type="button" data-act="cliPagina" data-v="${n}"${n === cf.pg ? ' aria-current="page"' : ''} aria-label="Página ${n}">${n}</button>`).join('')}</span>
-        <button type="button" class="cl-pag-seta" data-act="cliPagina" data-v="${cf.pg + 1}"${cf.pg === nPg ? ' disabled' : ''} aria-label="Próxima página"><span>Próxima</span>${S.svg('seta', 16)}</button></nav>` : ''}
-      <label class="cl-pag-por"><span>Por página</span><select data-clipor aria-label="${cli ? 'Clientes' : 'Agências'} por página">${PORPG.map(n => `<option value="${n}"${cf.porPg === n ? ' selected' : ''}>${n}</option>`).join('')}</select></label></div>`;
+    const pag = pgC.html;
     const filtrado = q || cf.sit !== 'todos' || cf.cons;
     const vazio = `<div class="empty"><b>Nenhum cadastro${filtrado ? ' encontrado' : ''}</b>${filtrado ? 'Experimente outro filtro ou outra busca.' : S.pode('consultor') && cli ? 'Aqui aparecem os clientes da sua carteira.' : podeCriar ? (cli ? 'Cadastre o primeiro cliente pelo botão "Novo cliente".' : 'Cadastre a primeira agência pelo botão "Nova agência".') : ''}</div>`;
     const filtros = `<div class="cl-barra"><label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por nome, CNPJ, cidade ou segmento" aria-label="Buscar ${cli ? 'clientes' : 'agências'}"></label>
@@ -176,16 +157,12 @@
       <div class="cl-cab"><div><h2 id="cl-t">${cli ? 'Clientes' : 'Agências'}</h2><p>${resumo}</p></div>${S.celular ? '' : `<span class="cl-estado" aria-live="polite">${estado}</span>`}</div>
       ${!lista.length ? vazio : S.celular ? `<div class="cl-cel-lista">${pagina.map(cel).join('')}</div>${pag}`
         : `<div class="cl-tab ${cli ? 'cl-cli' : 'cl-ag'}" role="table" aria-labelledby="cl-t" data-por="${cf.por}">${cab}<div class="cl-corpo" role="rowgroup">${pagina.map(linha).join('')}</div></div>${pag}`}</section>`;
-    queueMicrotask(() => { poePilula(true); poeBola(); });
+    queueMicrotask(() => poePilula(true));
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>${cli ? 'Clientes' : 'Agências'}`, actions:podeCriar ? `<button class="btn pri" data-act="pesNovo">${S.svg('mais')}${cli ? 'Novo cliente' : 'Nova agência'}</button>` : '',
       body:card };
   };
-  S.actions.cliPagina = d => { const v = +d.v; if (!v || v === cf.pg) return; cf.pg = v; S.render();
-    const c = document.querySelector('.cl-card'); if (c && c.getBoundingClientRect().top < 0) c.scrollIntoView({ behavior:quieto() ? 'auto' : 'smooth', block:'start' }); };
-  S.actions.cliOrdem = d => { cf.pg = 1; const k = d.v; cf.sentido = cf.por === k ? (cf.sentido === 'asc' ? 'desc' : 'asc') : d.sentido; cf.por = k; viaja(); };
-  document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-clif]'); if (!s) return; cf[s.dataset.clif] = s.value; cf.pg = 1; S.flip(S.render); });
-  document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-clipor]'); if (!s) return; const primeiro = (cf.pg - 1) * cf.porPg;
-    cf.porPg = +s.value || 15; cf.pg = Math.floor(primeiro / cf.porPg) + 1; bolaEm = null; S.render(); });
+  S.actions.cliOrdem = d => { const k = d.v; cf.sentido = cf.por === k ? (cf.sentido === 'asc' ? 'desc' : 'asc') : d.sentido; cf.por = k; viaja(); };
+  document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-clif]'); if (!s) return; cf[s.dataset.clif] = s.value; S.flip(S.render); });
 
   // ---------- formulário ----------
   async function formulario(p) {

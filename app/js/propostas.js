@@ -104,7 +104,8 @@
     const q = (S.ui.q || '').toLowerCase();
     const vis = (gs ? gs.it : doMes).filter(p => !q || [S.propNo(p), S.nome(p.cliente_id), S.nome(p.agencia_id), resumo(p), S.usuario(p.consultor_id)].join(' ').toLowerCase().includes(q))
       .sort((a, b) => b.ano - a.ano || b.numero - a.numero);
-    const linhas = vis.map(p => { const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id);
+    const pgP = S.paginar('prop|' + S.ui.vehicleId, vis, vis.length === 1 ? 'proposta' : 'propostas', [ym, pf.sit, q].join('|'));   /* paginação padrão (08/11/2026) */
+    const linhas = pgP.itens.map(p => { const cli = S.nome(p.cliente_id) || 'Sem cliente', ag = S.nome(p.agencia_id);
       return `<div class="prl-l click" data-go="/propostas/${p.id}" data-flip="${p.id}" role="link" tabindex="0">
         <span class="prl-n">${S.propNo(p)}</span>
         <span class="prl-c"><b title="${esc(cli)}">${esc(cli)}</b><small>${[ag ? esc(ag) : 'Direto', esc(S.usuario(p.consultor_id) || '')].filter(Boolean).join(' · ')}</small></span>
@@ -117,7 +118,7 @@
     const listaCard = `<section class="card prl" aria-labelledby="pf-tl"><div class="hd fn-par-hd"><h2 id="pf-tl">Propostas de ${mesN}</h2><span>${vis.length} · ${brl(somaV(vis))} por mês</span></div>
       <div class="fn-filtros">${gs ? `<button class="fn-chip" data-act="prSit" data-v="${gs.k}" style="--c:var(--${gs.tom})" aria-label="Tirar o filtro ${gs.nome}"><i aria-hidden="true"></i>${gs.nome}${S.svg('fechar', 14)}</button>` : ''}
         <label class="fin-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar por número, cliente, agência, consultor ou item" aria-label="Buscar propostas"></label></div>
-      ${vis.length ? `<div class="prl-l prl-cab"><span class="prl-n">Nº</span><span class="prl-c">Cliente</span><span class="prl-i">Itens</span><span class="prl-q">Caminho</span><span class="prl-v">Investimento mensal</span><span class="prl-s">Situação</span><span class="prl-a"><span class="sr">Ações</span></span></div>${linhas}` : vazio}
+      ${vis.length ? `<div class="prl-l prl-cab"><span class="prl-n">Nº</span><span class="prl-c">Cliente</span><span class="prl-i">Itens</span><span class="prl-q">Caminho</span><span class="prl-v">Investimento mensal</span><span class="prl-s">Situação</span><span class="prl-a"><span class="sr">Ações</span></span></div>${linhas}${pgP.html}` : vazio}
       <p class="fn-dica"><kbd>←</kbd> <kbd>→</kbd> trocam o mês · <kbd>1</kbd>–<kbd>4</kbd> filtram pela situação · <kbd>Esc</kbd> tira o filtro</p></section>`;
     queueMicrotask(animaFunil);
     const podeCriar = S.pode('diretor', 'gerente', 'consultor');
