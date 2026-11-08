@@ -183,6 +183,8 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - 07/11/2026: saiu o botão "Relatórios" da tela Vendas (todos os veículos). Ele mandava para o Financeiro, que não está no menu desde que o SONVI deixou de acompanhar faturamento, e a tela caía no Dashboard.
 
+- **Vendas refeita como "Minhas vendas"** (aprovada pelo Luiz em 07/11/2026, modelo "Vendas do consultor"; vendas.js, estilos `.vx-*`): o consultor (e o gerente) ganhou Vendas no menu (app.js). Consultor vê só as dele (filtro `consultor_id`; comissões e metas já vêm só dele do banco). Topo: anel da meta do veículo (quanto falta, dias úteis, por dia) e quatro números que contam (Vendido com variação, Minha comissão ou Head 14 na visão da equipe, PIs enviados com "OPEC abriu", Ticket médio). Últimos 6 meses em colunas com a linha da meta (clique leva ao mês, `vdIrMes`) e maiores clientes em barras. Diretor: seletor "Toda a equipe / consultor" (`st.cons`, `data-vxcons`), bloco Equipe com barra até a meta (`vdCons`) e a faixa enxuta da Head 14 com "Registrar recebimento" (`vdRepasse`). Saíram os cartões Head 14 (barras) e Comissões. Animações: `vxAnima` (crescem do último valor mostrado, `--p`).
+
 ## Tabela de preços (histórico; desde 24/10/2026 a rádio usa Produtos, e só o Digital continua com tabelas e vigência)
 
 - `app/js/cadastros.js`: grade com programas nas linhas, agrupados em seções (`produtos.secao`: programa, quadro, rotativo), e formatos nas colunas. Formato cobrado por duração (`cobranca` = duracao, spot 15"/30"...) ou com preço único (`unico`, ex.: testemunhal), numa coluna à parte. "Dias e horário" aceita uma linha por faixa. Migração em `database/009_secoes_e_preco_unico.sql`.

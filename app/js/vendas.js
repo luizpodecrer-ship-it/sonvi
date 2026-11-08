@@ -1,4 +1,4 @@
-// SONVI · Vendas (aprovado em 27/10/2026; simplificado em 05/11/2026, mockup "PI simples", database/081).
+// SONVI · Vendas (aprovado em 27/10/2026; simplificado em 05/11/2026; refeita em 07/11/2026 como "Minhas vendas" do consultor, modelo "Vendas do consultor").
 // PI enviado para a OPEC já é venda: Vendido (líquido, no mês em que vai ao ar), Head 14 (sobre o vendido), Comissões e
 // "OPEC abriu x de y", com a tabela dos PIs vendidos no mês. Saíram "Para faturar" e "Recebimento dos clientes"
 // (o SONVI não acompanha mais faturamento nem pagamento). A tela antiga do Financeiro continua em #/financeiro, fora do menu.
@@ -6,7 +6,7 @@
   const { esc, brl, dfmt, num, nfmt } = S;
   const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const VENDIDO = ['opec', 'aprovado', 'programado', 'faturado'], FATURAVEL = ['aprovado', 'programado', 'faturado'];
-  const st = { mes:'', aba:'todos', lista:8 };
+  const st = { mes:'', aba:'todos', lista:8, cons:'' };
   const dados = { veic:null, fat:[], rep:[], col:[], carregando:false, ok:false };
   const somaMes = (ym, n) => { const [y, m] = ym.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
   const nomeMesLongo = ym => { const n = MESES[+ym.slice(5) - 1]; return `${n[0].toUpperCase()}${n.slice(1)} ${ym.slice(0, 4)}`; };
@@ -20,9 +20,10 @@
     const v = S.ui.vehicleId; if (!v || dados.carregando || (!forcar && dados.ok && dados.veic === v)) return;
     dados.carregando = true;
     try {
+      const so = !S.me.diretor && !S.pode('diretor', 'gerente', 'financeiro');   /* consultor: só o percentual de comissão */
       const [fat, rep, col] = await Promise.all([
-        S.todos(S.sb.from('fat_pedidos').select('id, pi_id, mes_ref, situacao, dados, para, criado_em, enviado_em, envios, nota_fiscal, observacao, confirmado_por, confirmado_em').eq('veiculo_id', v)),
-        S.q(S.sb.from('repasses').select('*').eq('veiculo_id', v).order('recebido_em')),
+        so ? [] : S.todos(S.sb.from('fat_pedidos').select('id, pi_id, mes_ref, situacao, dados, para, criado_em, enviado_em, envios, nota_fiscal, observacao, confirmado_por, confirmado_em').eq('veiculo_id', v)),
+        so ? [] : S.q(S.sb.from('repasses').select('*').eq('veiculo_id', v).order('recebido_em')).catch(() => []),
         S.q(S.sb.from('colaboradores').select('usuario_id, nome, comissao, comissao_veiculos')).catch(() => [])]);
       Object.assign(dados, { veic:v, fat:fat || [], rep:rep || [], col:col || [], ok:true });
     } catch (e) { console.error(e); S.toast(S.erro(e)); }
@@ -92,82 +93,135 @@
     return l.vencimento > hoje ? 'pergunta no vencimento' : 'pergunta amanhã cedo';
   };
 
-  // ---------- tela ----------
+  // ---------- tela (refeita em 07/11/2026, pedido do Luiz: "Minhas vendas" para o consultor, mais organizada e com gráficos animados) ----------
+  // Consultor: só as vendas dele (meta em anel, números do mês, 6 meses em colunas, maiores clientes, PIs com a comissão de cada um).
+  // Diretor e gerente: a equipe toda (ou um consultor escolhido no seletor), com "Equipe no mês" e a faixa da Head 14 (repasse).
+  // Animações: anel, colunas e barras crescem do último valor mostrado até o novo (vxAnima), nunca a cada desenho igual.
+  const memo = {};
+  const vxAnima = () => { const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.querySelectorAll('[data-vx-k]').forEach(el => { const k = el.dataset.vxK, alvo = Number(el.dataset.p) || 0, de = memo[k] ?? 0;
+      memo[k] = alvo; if (quieto || de === alvo) { el.style.setProperty('--p', alvo); return; }
+      el.style.setProperty('--p', de); void el.getBoundingClientRect(); requestAnimationFrame(() => el.style.setProperty('--p', alvo)); }); };
+  const pv = k => memo[k] ?? 0;
+  const uteisRestantes = ym => { const hoje = S.today(); if (ym < hoje.slice(0, 7)) return 0;
+    const [y, m] = ym.split('-').map(Number), fim = new Date(y, m, 0).getDate(); let n = 0;
+    for (let d = ym === hoje.slice(0, 7) ? +hoje.slice(8) + 1 : 1; d <= fim; d++) { const w = new Date(y, m - 1, d).getDay(); if (w > 0 && w < 6) n++; } return n; };
+  const brl0 = n => 'R$ ' + Math.round(Number(n) || 0).toLocaleString('pt-BR');
+  const primeiroNome = n => String(n || '').trim().split(/\s+/)[0];
   S.views.vendas = () => {
     carregar(false);
     const hoje = S.today(), ym = st.mes || hoje.slice(0, 7), v = S.veh(), mesNome = MESES[+ym.slice(5) - 1], pis = S.db.pis;
-    // 1. vendido no mês (parte de cada PI que vai ao ar no mês, no líquido) e a meta
-    const vendidos = pis.filter(p => VENDIDO.includes(p.status)).map(p => ({ p, v:S.valorNoMes(p, ym) })).filter(x => x.v > 0);
-    const vendido = vendidos.reduce((s, x) => s + x.v, 0);
-    const metas = S.metasDoMes ? S.metasDoMes(ym) : null, meta = (metas || []).filter(x => x.veiculo_id === S.ui.vehicleId).reduce((s, x) => s + Number(x.meta), 0);
-    // 2. parte da Head 14 (05/11/2026: sobre o vendido; não há mais acompanhamento de pagamento)
+    const ehCons = !S.me.diretor && S.pode('consultor') && !S.pode('diretor', 'gerente');
+    const quem = ehCons ? S.me.id : (st.cons || ''), equipe = !quem;
+    const meu = p => !quem || p.consultor_id === quem;
+    const vendDe = m => pis.filter(p => VENDIDO.includes(p.status) && meu(p)).map(p => ({ p, v:S.valorNoMes(p, m) })).filter(x => x.v > 0);
+    const somaV = l => l.reduce((s, x) => s + x.v, 0);
+    const vendidos = vendDe(ym), vendido = somaV(vendidos);
+    const ant = somaMes(ym, -1), mesAnt = MESES[+ant.slice(5) - 1], vendAnt = somaV(vendDe(ant));
+    // Meta deste veículo (do consultor, ou a soma da equipe)
+    const metas = S.metasDoMes ? S.metasDoMes(ym) : null, metasV = (metas || []).filter(x => x.veiculo_id === S.ui.vehicleId);
+    const metaDe = uid => metasV.filter(x => x.usuario_id === uid).reduce((s, x) => s + Number(x.meta), 0);
+    const meta = quem ? metaDe(quem) : metasV.reduce((s, x) => s + Number(x.meta), 0);
+    // Comissão (comissoes_do_mes): do consultor ou da equipe, neste veículo
+    const cm = comDoMes(ym), itensV = (cm ? cm.itens || [] : []).filter(i => i.veiculo_id === S.ui.vehicleId);
+    const comDe = uid => itensV.filter(i => i.consultor_id === uid).reduce((s, i) => s + (Number(i.comissao) || 0), 0);
+    const totCom = quem ? comDe(quem) : itensV.reduce((s, i) => s + (Number(i.comissao) || 0), 0);
+    const pctDe = uid => { const i = itensV.find(x => x.consultor_id === uid && x.pct !== null && x.pct !== undefined); if (i) return Number(i.pct);
+      const c = dados.col.find(x => x.usuario_id === uid); if (!c) return null; const cv = (c.comissao_veiculos || {})[S.ui.vehicleId]; return cv !== undefined && cv !== null && cv !== '' ? Number(cv) : (c.comissao !== null ? Number(c.comissao) : null); };
+    const pctQuem = quem ? pctDe(quem) : null;
+    const emp = S.empCurto ? S.empCurto() : 'Head 14', pctH = Math.round(pctH14());
     const prevista = vendidos.reduce((s, x) => s + x.v * pctH14(x.p) / 100, 0);
+    const abriu = p => /OPEC abriu/.test(S.seloOpec ? S.seloOpec(p) : ''), nAbriu = vendidos.filter(x => abriu(x.p)).length;
+    const pis1 = new Set(vendidos.map(x => x.p.id)).size, ticket = pis1 ? vendido / pis1 : 0;
+    const nomeQuem = quem ? (S.usuario(quem) || 'Consultor') : '';
+
+    // 1. Topo: anel da meta + quatro números
+    const pc = meta ? vendido / meta : 0, faltam = Math.max(0, meta - vendido), ut = uteisRestantes(ym);
+    const kAnel = `anel|${quem}|${ym}`;
+    const anel = `<div class="vx-anel${meta ? '' : ' sem'}"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="vx-gr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--accent-2)"/><stop offset="1" stop-color="var(--accent)"/></linearGradient></defs>
+        <circle class="vx-anel-f" cx="60" cy="60" r="52" pathLength="100"/><circle class="vx-anel-v" cx="60" cy="60" r="52" pathLength="100" data-vx-k="${kAnel}" data-p="${Math.min(1, pc).toFixed(4)}" style="--p:${pv(kAnel)}"/></svg>
+      <div class="vx-anel-c">${meta ? `<b>${Math.round(pc * 100)}%</b><small>da meta</small>` : '<b>—</b><small>sem meta</small>'}</div></div>
+      <div class="vx-meta-tx">${meta ? `<b>${brl0(vendido)} <span>de ${brl0(meta)}</span></b>
+        <small>${faltam ? `Faltam <b>${brl0(faltam)}</b>${ut ? ` · ${ut} ${ut === 1 ? 'dia útil' : 'dias úteis'} · <b>${brl0(faltam / ut)}</b> por dia` : ''}` : '<b class="vx-ok">Meta batida</b> · parabéns!'}</small>`
+        : `<b>${brl0(vendido)}</b><small>${S.me.diretor ? 'A meta fica em Administração › Colaboradores.' : 'Sua meta ainda não foi cadastrada pelo diretor.'}</small>`}</div>`;
+    const varia = (val, antes) => { if (!antes) return val ? `<span class="vx-var up"><i>↗</i>novo<span class="vx-var-tx"> · sem vendas em ${mesAnt}</span></span>` : `<span class="vx-var">sem vendas em ${mesAnt}</span>`;
+      const d = Math.round((val - antes) / antes * 100); return `<span class="vx-var ${d >= 0 ? 'up' : 'down'}"><i>${d >= 0 ? '↗' : '↘'}</i>${d > 0 ? '+' : ''}${d}%<span class="vx-var-tx"> em relação a ${mesAnt}</span></span>`; };
+    const num = (k, rot, val, sub, extra = '') => `<div class="vx-n${extra}"><span class="vx-n-r">${rot}</span><b data-vd-num="${k}|${quem}|${ym}" data-v="${val}">${brl(contados[`${k}|${quem}|${ym}`] ?? 0)}</b>${sub}</div>`;
+    queueMicrotask(contar);
+    const nums = `<div class="vx-ns">
+        ${num('vend', 'Vendido (líquido)', vendido, varia(vendido, vendAnt))}
+        ${quem ? num('com', equipe ? 'Comissões' : ehCons ? 'Minha comissão' : `Comissão de ${esc(primeiroNome(nomeQuem))}`, totCom, `<span class="vx-sub">${pctQuem !== null ? `${String(pctQuem).replace('.', ',')}% do líquido` : cm ? 'pelo % do cadastro' : 'buscando…'}</span>`)
+          : num('h14', `${esc(emp)} (${pctH}%)`, prevista, `<span class="vx-sub">sobre o vendido</span>`)}
+        <div class="vx-n"><span class="vx-n-r">PIs enviados</span><b>${pis1}</b><span class="vx-sub">OPEC abriu ${nAbriu} de ${pis1}</span></div>
+        ${num('tick', 'Ticket médio', ticket, `<span class="vx-sub">por PI no mês</span>`)}</div>`;
+    const sel = ehCons ? '' : `<label class="vx-sel"><span class="sr">Ver vendas de</span><select data-vxcons>${[['', 'Toda a equipe'], ...[...new Set([...S.db.vinculos.filter(x => x.veiculo_id === S.ui.vehicleId && x.perfil === 'consultor').map(x => x.usuario_id), ...pis.filter(p => VENDIDO.includes(p.status) && p.consultor_id).map(p => p.consultor_id)])]
+        .map(id => [id, S.usuario(id) || 'Consultor'])].map(([id, n]) => `<option value="${id}"${st.cons === id ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`;
+    const titulo = ehCons ? 'Resumo do mês' : equipe ? 'Vendas da equipe' : `Vendas de ${esc(primeiroNome(nomeQuem))}`;
+    const topo = `<section class="card vx-topo" aria-label="${titulo}"><div class="hd vx-hd"><h2>${titulo}</h2><span class="grow"></span>${sel}
+        <div class="vd-nav"><button class="btn sm" data-act="vdMes" data-d="-1" aria-label="Mês anterior">‹</button><b>${nomeMesLongo(ym)}</b><button class="btn sm" data-act="vdMes" data-d="1" aria-label="Próximo mês">›</button>${st.mes ? '<button class="btn sm" data-act="vdMes" data-d="0">Hoje</button>' : ''}</div></div>
+      <div class="vx-topo-c"><div class="vx-meta">${anel}</div>${nums}</div></section>`;
+
+    // 2. Seis meses em colunas (o mês aberto em destaque; a linha tracejada é a meta do mês)
+    const meses6 = Array.from({ length:6 }, (_, i) => somaMes(ym, i - 5)).map(m => ({ m, v:somaV(vendDe(m)) }));
+    const topoH = Math.max(1, meta, ...meses6.map(x => x.v));
+    const hist = `<section class="card vx-hist" aria-label="Últimos 6 meses"><div class="hd"><h2>Últimos 6 meses</h2><span class="muted small">líquido vendido em cada mês${meta ? ' · tracejado = meta' : ''}</span></div>
+      <div class="vx-plot" role="list">${meta ? `<span class="vx-linha-meta" style="bottom:${(meta / topoH * 100).toFixed(2)}%" aria-hidden="true"><em>meta ${brl0(meta)}</em></span>` : ''}
+        ${meses6.map(x => { const k = `col|${quem}|${x.m}|${ym}`, on = x.m === ym;
+          return `<button type="button" role="listitem" class="vx-col${on ? ' on' : ''}${x.v ? '' : ' zero'}" data-act="vdIrMes" data-m="${x.m}" aria-label="${MESES[+x.m.slice(5) - 1]}: ${brl(x.v)}"${on ? ' aria-current="true"' : ''}>
+            <i data-vx-k="${k}" data-p="${(x.v / topoH).toFixed(4)}" style="--p:${pv(k)}"><span class="vx-col-v">${x.v ? brl0(x.v).replace('R$ ', '') : ''}</span></i></button>`; }).join('')}</div>
+      <div class="vx-rot" aria-hidden="true">${meses6.map(x => `<small${x.m === ym ? ' class="on"' : ''}>${MESES[+x.m.slice(5) - 1].slice(0, 3)}</small>`).join('')}</div></section>`;
+
+    // 3. Maiores clientes do mês (barras com a parte de cada um)
+    const porCli = {}; vendidos.forEach(x => { const c = x.p.cliente_id || '-'; porCli[c] = (porCli[c] || 0) + x.v; });
+    const clis = Object.entries(porCli).sort((a, b) => b[1] - a[1]), top = clis.slice(0, 5), outros = clis.slice(5).reduce((s, x) => s + x[1], 0);
+    const cliHtml = `<section class="card vx-cli" aria-label="Maiores clientes"><div class="hd"><h2>Maiores clientes · ${mesNome}</h2><span class="muted small">${clis.length} ${clis.length === 1 ? 'cliente' : 'clientes'}</span></div>
+      ${top.length ? `<div class="vx-barras">${top.map(([c, val], i) => { const k = `cli|${quem}|${ym}|${c}`, p = vendido ? val / vendido : 0;
+          return `<div class="vx-b"><div class="vx-b-t"><span class="vx-b-n"><em>${i + 1}</em>${esc(S.nome(c) || 'Sem cliente')}</span><b>${brl0(val)}</b><small>${Math.round(p * 100)}%</small></div>
+            <div class="vx-b-tr"><i data-vx-k="${k}" data-p="${(top[0][1] ? val / top[0][1] : 0).toFixed(4)}" style="--p:${pv(k)};--d:${i * 70}ms"></i></div></div>`; }).join('')}
+        ${outros ? `<p class="muted small" style="margin:4px 0 0">+ ${clis.length - 5} ${clis.length - 5 === 1 ? 'cliente' : 'clientes'} · ${brl0(outros)}</p>` : ''}</div>`
+        : `<p class="muted" style="margin:0">Nenhuma venda em ${mesNome} ainda.</p>`}</section>`;
+
+    // 4. Equipe no mês (diretor e gerente, com "Toda a equipe"): barra até a meta de cada um
+    let eqHtml = '';
+    if (equipe) {
+      const ids = [...new Set([...S.db.vinculos.filter(x => x.veiculo_id === S.ui.vehicleId && x.perfil === 'consultor').map(x => x.usuario_id), ...vendidos.map(x => x.p.consultor_id).filter(Boolean)])];
+      const linhas = ids.map(id => { const vv = somaV(vendidos.filter(x => x.p.consultor_id === id)), mm = metaDe(id); return { id, vv, mm, cc:comDe(id) }; }).sort((a, b) => b.vv - a.vv);
+      eqHtml = `<section class="card vx-eq" aria-label="Equipe no mês"><div class="hd"><h2>Equipe · ${mesNome}</h2><span class="muted small">clique para ver as vendas de cada um</span></div>
+        ${linhas.length ? `<div class="vx-eq-l">${linhas.map(o => { const k = `eq|${o.id}|${ym}`, p = o.mm ? o.vv / o.mm : 0;
+          return `<button type="button" class="vx-eq-i" data-act="vdCons" data-id="${o.id}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(S.usuario(o.id) || '?'))}</span>
+            <span class="vx-eq-tx"><b>${esc(S.usuario(o.id) || 'Consultor')}</b><span class="vx-eq-tr"><i data-vx-k="${k}" data-p="${Math.min(1, p).toFixed(4)}" style="--p:${pv(k)}"${p >= 1 ? ' class="ok"' : ''}></i></span>
+              <small>${brl0(o.vv)}${o.mm ? ` de ${brl0(o.mm)}` : ' · sem meta'} · comissão ${brl0(o.cc)}</small></span><span class="vx-eq-pc">${o.mm ? Math.round(p * 100) + '%' : '—'}</span></button>`; }).join('')}</div>`
+          : '<p class="muted" style="margin:0">Nenhum consultor neste veículo.</p>'}</section>`;
+    }
+
+    // 5. Head 14: faixa enxuta só para diretor e gerente
     const reps = dados.rep.filter(r => r.mes === ym), recebidaH = reps.reduce((s, r) => s + Number(r.valor), 0);
     const [ry, rm] = somaMes(ym, 1).split('-'), diaRep = String((S.db.empresa || {}).repasse_dia || 25).padStart(2, '0'), vencRep = `${diaRep}/${rm}/${ry}`;
-    const emp = S.empCurto ? S.empCurto() : 'Head 14', pct = Math.round(pctH14());
-    const pctW = (a, b) => b ? Math.max(0, Math.min(100, Math.round(a / b * 100))) : 0;
-    // 3. comissões do mês (database/081: percentual do consultor × líquido do mês da venda), só deste veículo
-    const cm = comDoMes(ym), itensCom = (cm ? cm.itens || [] : []).filter(i => i.veiculo_id === S.ui.vehicleId), totCom = itensCom.reduce((s, i) => s + (Number(i.comissao) || 0), 0);
-    // 4. OPEC abriu x de y (PIs enviados que vão ao ar no mês)
-    const abriu = p => /OPEC abriu/.test(S.seloOpec ? S.seloOpec(p) : ''), nAbriu = vendidos.filter(x => abriu(x.p)).length;
+    const h14Tot = pis.filter(p => VENDIDO.includes(p.status)).reduce((s, p) => s + S.valorNoMes(p, ym) * pctH14(p) / 100, 0);   /* do veículo todo, mesmo com um consultor escolhido */
+    const h14 = ehCons ? '' : `<section class="card vx-h14" aria-label="${esc(emp)}"><span class="vx-h14-ic" aria-hidden="true">${S.svg('vendas')}</span>
+      <div class="vx-h14-tx"><b>${esc(emp)} · ${pctH}% do líquido de ${mesNome}</b><small>${brl(h14Tot)} sobre o vendido do veículo · recebido ${brl(recebidaH)} · repasse vence ${vencRep}</small>
+        ${reps.length ? `<span class="vx-reps">${reps.map(r => `<span>${dfmt(r.recebido_em)} · <b>${brl(r.valor)}</b><button class="btn sm tres" data-act="vdRepExcluir" data-id="${r.id}" aria-label="Excluir este repasse">${S.svg('lixo')}</button></span>`).join('')}</span>` : ''}</div>
+      <button class="btn sm" data-act="vdRepasse" data-mes="${ym}" data-v="${Math.max(0, h14Tot - recebidaH).toFixed(2)}">Registrar recebimento</button></section>`;
 
-    // Mês anterior, para a variação de cada número (cartões que contam até o valor, adaptados de um "StatCard" em React)
-    const ant = somaMes(ym, -1), mesAnt = MESES[+ant.slice(5) - 1];
-    const vendAntL = pis.filter(p => VENDIDO.includes(p.status)).map(p => ({ p, v:S.valorNoMes(p, ant) })), vendAnt = vendAntL.reduce((s, x) => s + x.v, 0);
-    const h14Ant = vendAntL.reduce((s, x) => s + x.v * pctH14(x.p) / 100, 0);
-    const tile = (chave, rot, val, antes, linhas, cls = '') => {
-      const d = antes ? Math.round((val - antes) / antes * 100) : null, sobe = d === null || d >= 0;
-      const seta = sobe ? '<path d="M7 17 17 7M9 7h8v8"/>' : '<path d="M7 7l10 10M17 9v8H9"/>';
-      const variacao = d === null ? (val ? `<span class="vd-var"><span class="vd-var-ic vd-up"><svg viewBox="0 0 24 24" aria-hidden="true">${seta}</svg></span><span><b class="vd-up-t">novo</b> sem base em ${mesAnt}</span></span>` : '')
-        : `<span class="vd-var"><span class="vd-var-ic ${sobe ? 'vd-up' : 'vd-down'}"><svg viewBox="0 0 24 24" aria-hidden="true">${seta}</svg></span><span><b class="${sobe ? 'vd-up-t' : 'vd-down-t'}">${d > 0 ? '+' : ''}${d}%</b> em relação a ${mesAnt}</span></span>`;
-      const fala = `${rot.replace(/<[^>]+>/g, '')}: ${brl(val)}${d === null ? '' : `, ${d > 0 ? 'mais' : d < 0 ? 'menos' : 'igual'} ${Math.abs(d)}% em relação a ${mesAnt}`}`;
-      return `<div class="vd-tile${cls}" role="group" aria-label="${esc(fala)}"><span class="vd-rot">${rot}</span><b class="vd-val" aria-hidden="true" data-vd-num="${chave}|${ym}" data-v="${val}">${brl(contados[`${chave}|${ym}`] ?? 0)}</b>${variacao}${linhas}</div>`; };
-    queueMicrotask(contar);
-    const resumo = `<section class="card vd-mes" aria-label="Resumo do mês"><div class="hd"><h2>Vendas do mês</h2>
-        <div class="vd-nav"><button class="btn sm" data-act="vdMes" data-d="-1" aria-label="Mês anterior">‹</button><b>${nomeMesLongo(ym)}</b><button class="btn sm" data-act="vdMes" data-d="1" aria-label="Próximo mês">›</button>${st.mes ? '<button class="btn sm" data-act="vdMes" data-d="0">Hoje</button>' : ''}</div></div>
-      <div class="vd-tiles">
-        ${tile('vend', 'Vendido (líquido)', vendido, vendAnt, `<span class="muted small">${vendidos.length} ${vendidos.length === 1 ? 'PI enviado' : 'PIs enviados'}${meta ? ` · meta ${brl(meta)}` : ''}</span>${meta ? `<div class="prog" aria-hidden="true"><i style="width:${pctW(vendido, meta)}%"></i></div>` : ''}`)}
-        ${tile('h14', `${esc(emp)} (${pct}%)`, prevista, h14Ant, `<span class="muted small">sobre o vendido · repasse vence ${vencRep}</span>`, ' vd-h14')}
-        ${tile('com', 'Comissões', totCom, 0, `<span class="muted small">${cm ? 'pelo % de cada consultor' : 'buscando…'}</span>`)}
-        <div class="vd-tile" role="group" aria-label="OPEC abriu ${nAbriu} de ${vendidos.length} PIs"><span class="vd-rot">OPEC abriu</span><b class="vd-val">${nAbriu} de ${vendidos.length}</b><span class="muted small">${vendidos.length - nAbriu ? `${vendidos.length - nAbriu} aguardando abrir` : vendidos.length ? 'todos abertos' : 'nenhum PI enviado'}</span></div>
-      </div></section>`;
-
-    // PIs vendidos no mês
+    // 6. PIs vendidos (consultor: comissão de cada PI; equipe: consultor e Head 14)
     const ord = vendidos.slice().sort((a, b) => b.v - a.v), mostra = ord.slice(0, st.lista);
-    const linhaV = x => `<tr><td class="nw"><a data-go="/pi/${x.p.id}" style="color:var(--ink)"><b>${esc(S.piNo(x.p))}</b></a><small class="vd-cort" title="${esc(x.p.titulo || '')}">${esc(x.p.titulo || 'Sem título')}</small></td>
-        <td>${esc(S.nome(x.p.cliente_id) || '—')}<small>${esc(S.nome(x.p.agencia_id) || 'venda direta')}</small></td><td>${esc(S.usuario(x.p.consultor_id) || '—')}</td>
-        <td>${S.seloOpec ? S.seloOpec(x.p) : ''}</td><td class="r nw"><b>${brl(x.v)}</b>${x.v < S.calc(x.p).net - 0.01 ? `<small>de ${brl(S.calc(x.p).net)}</small>` : ''}</td><td class="r nw">${brl(x.v * pctH14(x.p) / 100)}</td></tr>`;
-    const tabela = `<section class="card vd-fat" aria-label="PIs vendidos"><div class="hd"><h2>PIs vendidos · ${mesNome}</h2><span class="muted small">PI enviado para a OPEC já é venda, no mês em que vai ao ar</span></div>
-      ${ord.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>PI</th><th>Cliente</th><th>Consultor</th><th>OPEC</th><th class="r">Líquido no mês</th><th class="r">${esc(emp)}</th></tr></thead>
-        <tbody>${mostra.map(linhaV).join('')}</tbody></table></div>
-        ${ord.length > mostra.length ? `<p class="muted small" style="margin:12px 0 0">Mostrando ${mostra.length} de ${ord.length} · <a href="#" data-act="vdMais">ver todos</a></p>` : ''}`
-        : `<div class="card empty" style="box-shadow:none;padding:24px"><b>Nenhuma venda em ${mesNome}</b>Aparece aqui quando um PI que vai ao ar no mês é enviado para a OPEC.</div>`}</section>`;
+    const pctPi = p => pctDe(p.consultor_id);
+    const linhaV = x => `<tr><td class="nw"><a data-go="/pi/${x.p.id}" class="vx-pi"><b>${esc(S.piNo(x.p))}</b></a><small class="vd-cort" title="${esc(x.p.titulo || '')}">${esc(x.p.titulo || 'Sem título')}</small></td>
+        <td>${esc(S.nome(x.p.cliente_id) || '—')}<small>${esc(S.nome(x.p.agencia_id) || 'venda direta')}</small></td>${quem ? '' : `<td>${esc(primeiroNome(S.usuario(x.p.consultor_id)) || '—')}</td>`}
+        <td>${S.seloOpec ? S.seloOpec(x.p) : ''}</td><td class="r nw"><b>${brl(x.v)}</b>${x.v < S.calc(x.p).net - 0.01 ? `<small>de ${brl(S.calc(x.p).net)}</small>` : ''}</td>
+        <td class="r nw">${quem ? (pctPi(x.p) !== null ? brl(x.v * pctPi(x.p) / 100) : '—') : brl(x.v * pctH14(x.p) / 100)}</td></tr>`;
+    const cartao = x => `<a class="vx-pi-c" data-go="/pi/${x.p.id}"><span><b>${esc(S.piNo(x.p))}</b><small>${esc(S.nome(x.p.cliente_id) || '—')}</small></span><span class="r"><b>${brl(x.v)}</b><small>${quem && pctPi(x.p) !== null ? `comissão ${brl(x.v * pctPi(x.p) / 100)}` : abriu(x.p) ? 'OPEC abriu' : 'aguardando a OPEC'}</small></span></a>`;
+    const tabela = `<section class="card vx-pis" aria-label="PIs vendidos"><div class="hd"><h2>${ehCons ? 'Meus PIs vendidos' : 'PIs vendidos'} · ${mesNome}</h2><span class="muted small">PI enviado para a OPEC já é venda, no mês em que vai ao ar</span></div>
+      ${ord.length ? (S.celular ? `<div class="vx-pi-l">${mostra.map(cartao).join('')}</div>` : `<div class="scroll"><table class="vd-t"><thead><tr><th>PI</th><th>Cliente</th>${quem ? '' : '<th>Consultor</th>'}<th>OPEC</th><th class="r">Líquido no mês</th><th class="r">${quem ? (ehCons ? 'Minha comissão' : 'Comissão') : esc(emp)}</th></tr></thead>
+        <tbody>${mostra.map(linhaV).join('')}</tbody></table></div>`)
+        + (ord.length > mostra.length ? `<p class="muted small" style="margin:12px 0 0">Mostrando ${mostra.length} de ${ord.length} · <a href="#" data-act="vdMais">ver todos</a></p>` : '')
+        : `<div class="empty" style="padding:24px"><b>Nenhuma venda em ${mesNome}</b>Aparece aqui quando um PI que vai ao ar no mês é enviado para a OPEC.</div>`}</section>`;
 
-    // Head 14
-    const barra = (rot, val, w, cor) => `<div class="vd-bar"><div class="vd-bar-t"><span>${rot}</span><b>${brl(val)}</b></div><div class="prog"><i style="width:${w}%;background:${cor}"></i></div></div>`;
-    const topo = Math.max(prevista, recebidaH, 1);
-    const parte = `<section class="card vd-h14c" aria-label="${esc(emp)}"><div class="hd"><h2>${esc(emp)} · ${mesNome}</h2><span class="pill fn-neutra">${pct}% do líquido</span></div>
-      ${barra('Sobre o vendido', prevista, pctW(prevista, topo), 'var(--t-forte)')}${barra(`Recebida pela ${esc(emp)}`, recebidaH, pctW(recebidaH, topo), 'var(--t-escuro)')}
-      ${reps.length ? `<div class="vd-reps">${reps.map(r => `<span>${dfmt(r.recebido_em)} · <b>${brl(r.valor)}</b>${r.observacao ? ` · ${esc(r.observacao)}` : ''}<button class="btn sm tres" data-act="vdRepExcluir" data-id="${r.id}" aria-label="Excluir este repasse">×</button></span>`).join('')}</div>` : ''}
-      <div class="vd-pe"><span>Repasse de ${mesNome}: <b>${brl(Math.max(0, prevista - recebidaH))}</b> a receber · vence <b>${vencRep}</b></span><button class="btn sm" data-act="vdRepasse" data-mes="${ym}" data-v="${Math.max(0, prevista - recebidaH).toFixed(2)}">Registrar repasse recebido</button></div></section>`;
-
-    // Comissões: percentual cadastrado de cada consultor × líquido vendido no mês (comissoes_do_mes, database/068 e 081)
-    const porCons = {};
-    const pc = uid => porCons[uid || ''] || (porCons[uid || ''] = { uid, vend:0, com:0, pcts:new Set() });
-    vendidos.forEach(x => { pc(x.p.consultor_id).vend += x.v; });
-    itensCom.forEach(i => { const o = pc(i.consultor_id); o.com += Number(i.comissao) || 0; if (i.pct !== null) o.pcts.add(Number(i.pct)); });
-    const consList = Object.values(porCons).sort((a, b) => b.vend - a.vend);
-    const pctsTxt = o => o.pcts.size ? [...o.pcts].map(n => String(n).replace('.', ',') + '%').join(' · ') + ' do líquido' : 'pelo percentual cadastrado';
-    const comissoes = `<section class="card vd-com" aria-label="Comissões"><div class="hd"><h2>Comissões · ${mesNome}</h2>${cm && cm.fechamento ? '<span class="pill fn-ok">mês fechado</span>' : '<span class="muted small">fechamento no mês seguinte</span>'}</div>
-      ${!cm ? '<p class="muted" style="margin:0">Buscando as comissões…</p>' : consList.length ? `<div class="scroll"><table class="vd-t"><thead><tr><th>Consultor</th><th class="r">Vendido</th><th class="r">Comissão</th></tr></thead><tbody>
-        ${consList.map(o => `<tr><td><b>${esc(o.uid ? S.usuario(o.uid) || 'Consultor' : 'Sem responsável')}</b><small>${o.uid ? pctsTxt(o) : 'PIs sem consultor'}</small></td><td class="r nw">${brl(o.vend)}</td><td class="r nw"><b>${o.uid ? brl(o.com) : '—'}</b></td></tr>`).join('')}</tbody></table></div>`
-        : `<p class="muted" style="margin:0">Sem vendas em ${mesNome}.</p>`}
-      <p class="muted small" style="margin:12px 0 0">Cada consultor recebe o percentual do cadastro sobre o valor líquido dos PIs que vão ao ar no mês.${S.me.diretor ? ' Fechamento e extratos em <a href="#/admin" data-act="vdComissoes">Administração › Vendas e comissões</a>.' : ''}</p></section>`;
-
-    return { title:`<span class="sub">${esc(v.nome)}</span>Vendas`,
-      actions:'',   /* 07/11/2026: saiu o botão Relatórios (levava ao Financeiro, que não está no menu, e voltava ao Dashboard) */
-      body:`${resumo}${tabela}<div class="cols vd-cols">${parte}${comissoes}</div>` };
+    queueMicrotask(vxAnima);
+    return { title:`<span class="sub">${esc(v.nome)}</span>${ehCons ? 'Minhas vendas' : 'Vendas'}`, actions:'',
+      body:`${topo}<div class="vx-grade">${hist}${cliHtml}</div>${eqHtml}${tabela}${h14}` };
   };
+  document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-vxcons]'); if (!s) return; st.cons = s.value; st.lista = 8; S.render(); });
 
   // ---------- enviar para faturar ----------
   const montar = (pi, mesRef, venc) => {
@@ -243,6 +297,8 @@
     vdMes: d => { const hoje = S.today().slice(0, 7), atual = st.mes || hoje, alvo = +d.d ? somaMes(atual, +d.d) : hoje; st.mes = alvo === hoje ? '' : alvo; st.lista = 8; S.render(); },
     vdAba: d => { st.aba = d.v; st.lista = 8; S.render(); },
     vdMais: () => { st.lista = 999; S.render(); },
+    vdIrMes: d => { const hoje = S.today().slice(0, 7); st.mes = d.m === hoje ? '' : d.m; st.lista = 8; S.render(); },
+    vdCons: d => { st.cons = d.id; st.lista = 8; S.render(); window.scrollTo({ top:0, behavior:'smooth' }); },
     vdComissoes: () => { if (S.admAbrir) S.admAbrir('comissoes'); },
     vdEnviar: d => { const pi = S.db.pis.find(p => p.id === d.id); if (!pi) return; const v = S.veh(pi.veiculo_id), mesRef = d.mes || '';
       if (!S.pode('diretor', 'financeiro')) return S.toast('Só o diretor ou o financeiro envia para faturar.');

@@ -14,7 +14,7 @@
     ['propostas', 'Propostas', ['diretor', 'gerente', 'consultor']],
     ['pis', 'PIs', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['opec', 'OPEC', ['diretor', 'opec']],
-    ['vendas', 'Vendas', ['diretor', 'financeiro']],  // no lugar do Financeiro (27/10/2026): quem fatura e recebe é o financeiro de cada veículo
+    ['vendas', 'Vendas', ['diretor', 'gerente', 'consultor', 'financeiro']],  // 07/11/2026: o consultor acompanha as vendas dele aqui ("Minhas vendas")
     ['produtos', 'Produtos', ['diretor', 'gerente', 'consultor']],
     ['admin', 'Administração', ['diretor']],
     ['chamados', 'Suporte', ['diretor']],        // chamados e acessos da equipe SONVI, só no Dashboard Gestão (25/10/2026)
