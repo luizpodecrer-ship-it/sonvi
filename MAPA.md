@@ -13,9 +13,9 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Tabelas lidas/gravadas: colaboradores, empresa_comercial
 - Funções de borda: usuarios
 
-### agencias.js · 148 linhas
+### agencias.js · 121 linhas
 - Telas (`S.views`): agencias, agencias-v
-- Ações (`data-act`): agEditar, agExcluir, agFil, agMenu, agNova, agVer
+- Ações (`data-act`): agEditar, agExcluir, agMenu, agNova, agVer
 - Define `S.`: agenciasLimpar, agenciasN, agenciasRecarregar, agenciasTela, agenciasUsar
 - Banco (rpc): agencias_grupo, excluir_agencia_grupo, salvar_agencia_grupo
 
@@ -144,7 +144,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 ### painel.js · 205 linhas
 - Telas (`S.views`): dashboard
 
-### pessoas.js · 370 linhas
+### pessoas.js · 346 linhas
 - Telas (`S.views`): clientes
 - Ações (`data-act`): cliFil, pesCnpj, pesEditar, pesExcluir, pesIgnorar, pesLevar, pesMenu, pesNovo, pesTrazer
 - Define `S.`: dadosDoCnpj

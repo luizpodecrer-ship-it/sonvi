@@ -81,56 +81,29 @@
   S.ICON['agencias-v'] = S.ICON.agencias;
   const doVeiculo = () => (S.db.pessoas || []).filter(p => p.tipo === 'agencia').sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
   const comoGrupo = p => ({ grupo:p.cadastro_id || p.id, dados:p });
-  // Tela refeita em 08/11/2026 (pedido do Luiz, modelo "Agências organizadas"): filtros Todas · Com PIs · Cadastro incompleto,
-  // ordem, contato numa coluna, "No veículo" (PIs e clientes desta agência no veículo, com barra), paginação padrão (S.paginar).
+  // Tela enxuta (08/11/2026, pedido do Luiz: "são apenas cadastros", menos informação; modelo "Cadastros enxutos"):
+  // uma linha por agência com iniciais, nome, cidade embaixo e o CNPJ formatado; busca e paginação padrão (S.paginar). Estilos .cx-*.
   const fmtDoc = d => { const n = String(d || '').replace(/\D/g, ''); return n.length === 14 ? n.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : n.length === 11 ? n.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : (d || ''); };
-  const faltas = d => [!String(d.documento || '').replace(/\D/g, '') && 'CNPJ', !d.cidade && 'cidade', !(d.telefone || d.whatsapp) && 'telefone', !(d.email || d.email_faturamento) && 'e-mail'].filter(Boolean);
   const inicioAg = {};
-  const entradaAg = vk => { const agora = performance.now(); if (!(vk in inicioAg)) inicioAg[vk] = agora; const t = agora - inicioAg[vk]; return t > 2400 ? '' : ` ag2-entra" style="--t:-${Math.round(t)}ms`; };
-  st.fil = st.fil || 'todas'; st.ord = st.ord || 'nome';
+  const entradaAg = vk => { const agora = performance.now(); if (!(vk in inicioAg)) inicioAg[vk] = agora; const t = agora - inicioAg[vk]; return t > 2000 ? '' : ` cx-entra" style="--t:-${Math.round(t)}ms`; };
   S.views['agencias-v'] = () => {
     const veh = S.veh(), titulo = `<span class="sub">${esc(veh ? veh.nome : '')}</span>Agências`, acoes = `<button class="btn pri" data-act="agNova">${S.svg('mais')}Nova agência</button>`;
     const todas = doVeiculo(), q = st.qv.trim().toLowerCase(), qn = q.replace(/\D/g, '');
-    const nPis = {}, nCli = {}; (S.db.pis || []).forEach(p => { if (p.agencia_id) nPis[p.agencia_id] = (nPis[p.agencia_id] || 0) + 1; });
-    (S.db.pessoas || []).forEach(p => { if (p.tipo === 'cliente' && p.agencia_id) nCli[p.agencia_id] = (nCli[p.agencia_id] || 0) + 1; });
-    const FIL = [['todas', 'Todas', () => true], ['pis', 'Com PIs', d => nPis[d.id]], ['incompleto', 'Cadastro incompleto', d => faltas(d).length]];
-    const busca = d => !q || [d.nome, d.razao_social, d.cidade, d.email].join(' ').toLowerCase().includes(q) || (qn.length > 2 && String(d.documento || '').replace(/\D/g, '').includes(qn));
-    const lista = todas.filter(busca).filter(FIL.find(f => f[0] === st.fil)[2])
-      .sort((a, b) => st.ord === 'pis' ? (nPis[b.id] || 0) - (nPis[a.id] || 0) || String(a.nome).localeCompare(String(b.nome), 'pt-BR')
-        : st.ord === 'cli' ? (nCli[b.id] || 0) - (nCli[a.id] || 0) || String(a.nome).localeCompare(String(b.nome), 'pt-BR') : 0);
-    const pg = S.paginar('agv|' + S.ui.vehicleId, lista, lista.length === 1 ? 'agência' : 'agências', [q, st.fil, st.ord].join('|'));
-    const maxP = Math.max(1, ...todas.map(d => nPis[d.id] || 0)), btn = S.me.diretor ? 'Editar' : 'Ver', ent = entradaAg(`ag|${S.ui.vehicleId}|${pg.de}|${st.fil}|${st.ord}`);
-    const contato = d => { const tel = d.telefone || d.whatsapp, mail = d.email || d.email_faturamento;
-      return `<span class="ag2-ct">${tel ? `<span>${S.svg('fone', 14)}<em>${esc(tel)}</em></span>` : ''}${mail ? `<span title="${esc(mail)}">${S.svg('email', 14)}<em>${esc(mail)}</em></span>` : ''}${!tel && !mail ? '<span class="muted">sem contato</span>' : ''}</span>`; };
-    const noVeic = d => { const np = nPis[d.id] || 0, nc = nCli[d.id] || 0;
-      return np || nc ? `<span class="ag2-uso"><small><b>${np}</b> ${np === 1 ? 'PI' : 'PIs'} · <b>${nc}</b> ${nc === 1 ? 'cliente' : 'clientes'}</small><span class="ag2-uso-t"><i style="width:${(np / maxP * 100).toFixed(1)}%"></i></span></span>` : '<span class="muted small">ainda sem uso</span>'; };
-    const linha = (d, i) => { const f = faltas(d);
-      return `<div class="ag2-l" role="row" data-act="agVer" data-id="${d.id}" tabindex="0" style="--d:${Math.min(i, 14) * 35}ms">
-        <span class="ag2-nome" role="cell"><span class="ag2-av" aria-hidden="true">${esc(S.iniciais(d.nome))}</span><span><b title="${esc(d.nome)}">${esc(d.nome)}</b><small>${f.length ? `<span class="ag2-falta" title="Falta: ${f.join(', ')}"><i aria-hidden="true"></i>falta ${f.length === 1 ? f[0] : f.join(', ')}</span>` : ''}${d.razao_social && d.razao_social !== d.nome ? `${f.length ? ' · ' : ''}<span title="${esc(d.razao_social)}">${esc(d.razao_social)}</span>` : ''}</small></span></span>
-        <span role="cell" class="ag2-doc">${esc(fmtDoc(d.documento)) || '<span class="muted">—</span>'}</span><span role="cell" class="ag2-cid" title="${esc(d.cidade)}">${esc(d.cidade) || '<span class="muted">—</span>'}</span>
-        <span role="cell">${contato(d)}</span><span role="cell">${noVeic(d)}</span>
-        <span role="cell" class="ag2-ac"><button class="btn sm" data-act="agVer" data-id="${d.id}">${btn}</button></span></div>`; };
-    const cel = (d, i) => `<div class="ag2-cel" data-act="agVer" data-id="${d.id}" style="--d:${Math.min(i, 14) * 35}ms"><span class="ag2-av" aria-hidden="true">${esc(S.iniciais(d.nome))}</span>
-        <span class="ag-cel-tx"><b>${esc(d.nome)}</b><small>${esc([fmtDoc(d.documento), d.cidade].filter(Boolean).join(' · ')) || '—'}</small></span>
-        <span class="ag2-cel-n">${nPis[d.id] ? `<b>${nPis[d.id]}</b><small>${nPis[d.id] === 1 ? 'PI' : 'PIs'}</small>` : faltas(d).length ? '<span class="ag2-falta"><i></i></span>' : ''}</span></div>`;
-    const vazio = `<div class="empty"><b>${q || st.fil !== 'todas' ? 'Nenhuma agência com esse filtro' : 'Nenhuma agência cadastrada'}</b>${q || st.fil !== 'todas' ? 'Tire o filtro ou experimente outra busca.' : 'Cadastre a primeira pelo botão "Nova agência". Ela passa a valer em todos os veículos do grupo.'}</div>`;
-    const resumo = `<b>${todas.length} ${todas.length === 1 ? 'agência' : 'agências'}</b> · ${S.me.diretor ? 'o cadastro é do grupo: mudar aqui muda em todos os veículos' : 'cadastre uma agência nova e ela vale em todos os veículos do grupo'}`;
-    const chips = `<div class="ag2-fil" role="group" aria-label="Filtrar">${FIL.map(([k, n, f]) => `<button type="button" data-act="agFil" data-v="${k}" aria-pressed="${st.fil === k}"${k === 'incompleto' ? ' class="falta"' : ''}>${n}<span>${todas.filter(busca).filter(f).length}</span></button>`).join('')}</div>
-      <label class="ag2-ord"><span>Ordem</span><select data-agord aria-label="Ordem da lista"><option value="nome"${st.ord === 'nome' ? ' selected' : ''}>A a Z</option><option value="pis"${st.ord === 'pis' ? ' selected' : ''}>Mais PIs</option><option value="cli"${st.ord === 'cli' ? ' selected' : ''}>Mais clientes</option></select></label>`;
-    const body = `<section class="card ag-card ag2" aria-labelledby="agv-t">
-      <div class="ag-cab"><div><h2 id="agv-t">Agências do grupo</h2><p>${resumo}</p></div>
-        <label class="fin-busca ag-busca">${S.svg('busca')}<input value="${esc(st.qv)}" data-ag="qv" placeholder="Buscar agência, CNPJ ou cidade" aria-label="Buscar agências"></label></div>
-      <div class="ag2-barra">${chips}</div>
-      ${!lista.length ? vazio : S.celular ? `<div class="ag-lista${ent}">${pg.itens.map(cel).join('')}</div>`
-        : `<div class="ag2-tab" role="table" aria-label="Agências"><div class="ag2-cab" role="row"><span role="columnheader">Agência</span><span role="columnheader">CNPJ</span><span role="columnheader">Cidade</span><span role="columnheader">Contato</span><span role="columnheader">Neste veículo</span><span role="columnheader"><span class="sr">Ações</span></span></div>
-          <div class="ag2-ls${ent}">${pg.itens.map(linha).join('')}</div></div>`}
-      ${pg.html}
-      <p class="ag-nota">O cliente, a proposta e o PI escolhem a agência desta lista.${S.me.diretor ? '' : ' Para alterar ou excluir uma agência, fale com o diretor.'}</p></section>`;
+    const lista = todas.filter(d => !q || [d.nome, d.razao_social, d.cidade].join(' ').toLowerCase().includes(q) || (qn.length > 2 && String(d.documento || '').replace(/\D/g, '').includes(qn)));
+    const pg = S.paginar('agv|' + S.ui.vehicleId, lista, lista.length === 1 ? 'agência' : 'agências', q), ent = entradaAg(`ag|${S.ui.vehicleId}|${pg.de}`);
+    const linha = (d, i) => `<div class="cx-l cx-ag" role="row" data-act="agVer" data-id="${d.id}" tabindex="0" style="--d:${Math.min(i, 14) * 30}ms">
+        <span class="cx-nome" role="cell"><span class="cx-av" aria-hidden="true">${esc(S.iniciais(d.nome))}</span><span><b title="${esc(d.nome)}">${esc(d.nome)}</b><small>${esc(d.cidade) || 'Cidade não informada'}</small></span></span>
+        <span class="cx-doc" role="cell">${esc(fmtDoc(d.documento)) || '<span class="muted">sem CNPJ</span>'}</span>
+        <span role="cell" class="cx-ac"><span class="cx-ir" aria-hidden="true">${S.svg('seta', 16)}</span></span></div>`;
+    const vazio = `<div class="empty"><b>${q ? 'Nenhuma agência encontrada' : 'Nenhuma agência cadastrada'}</b>${q ? 'Experimente outra busca.' : 'Cadastre a primeira pelo botão "Nova agência". Ela passa a valer em todos os veículos do grupo.'}</div>`;
+    const body = `<section class="card cx" aria-label="Agências do grupo">
+      <div class="cx-barra"><label class="fin-busca cx-busca">${S.svg('busca')}<input value="${esc(st.qv)}" data-ag="qv" placeholder="Buscar agência, CNPJ ou cidade" aria-label="Buscar agências"></label>
+        <span class="cx-nota">${todas.length} ${todas.length === 1 ? 'agência' : 'agências'} · cadastro do grupo, vale em todos os veículos</span></div>
+      ${!lista.length ? vazio : `<div class="cx-ls${ent}" role="table" aria-label="Agências">${pg.itens.map(linha).join('')}</div>`}
+      ${pg.html}</section>`;
     return { title:titulo, actions:acoes, body };
   };
-  S.actions.agFil = d => { if (st.fil === d.v) return; st.fil = d.v; S.render(); };
-  document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-agord]'); if (s) { st.ord = s.value; S.render(); } });
-  document.addEventListener('keydown', e => { const l = e.target.closest && e.target.closest('.ag2-l'); if (l && (e.key === 'Enter' || e.key === ' ') && e.target === l) { e.preventDefault(); S.actions.agVer({ id:l.dataset.id }); } });
+  document.addEventListener('keydown', e => { const l = e.target.closest && e.target.closest('.cx-ag'); if (l && (e.key === 'Enter' || e.key === ' ') && e.target === l) { e.preventDefault(); S.actions.agVer({ id:l.dataset.id }); } });
 
   Object.assign(S.actions, {
     agNova: () => formulario(null),

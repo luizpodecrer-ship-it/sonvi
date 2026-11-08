@@ -66,70 +66,46 @@
   const resumo = r => { const c = (r.criados || []).map(nomeRadio), j = (r.ja || []).map(nomeRadio);
     return [c.length && 'cadastrado também na ' + c.join(' e na '), j.length && 'já existia na ' + j.join(' e na ')].filter(Boolean).join('; '); };
 
-  // ---------- lista (refeita em 08/11/2026 no padrão de "Agências organizadas", pedido do Luiz; estilos .ag2-* e .cl2-* em sonvi.css) ----------
-  // Filtros em pílulas com contagem (situação e cadastro incompleto), consultor e ordem, CNPJ formatado, contato com ícones,
-  // "Neste veículo" (PIs enviados e o líquido deles, com barra), aviso "falta …" e a paginação padrão (S.paginar).
-  const cf = { sit:'todos', cons:'', ord:'nome' };
-  const ENV = ['opec', 'aprovado', 'programado', 'faturado'];
-  const fmtDoc = d => { const n = String(d || '').replace(/\D/g, ''); return n.length === 14 ? n.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : n.length === 11 ? n.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : (d || ''); };
-  const faltas = d => [!String(d.documento || '').replace(/\D/g, '') && 'CNPJ', !d.cidade && 'cidade', !(d.telefone || d.whatsapp) && 'telefone', !(d.email || d.email_faturamento) && 'e-mail'].filter(Boolean);
+  // ---------- lista enxuta (08/11/2026, pedido do Luiz: "são apenas cadastros", menos informação; modelo "Cadastros enxutos") ----------
+  // Uma linha por cliente: iniciais, nome com a cidade embaixo, consultor e situação. Filtros: busca, situação em pílulas e consultor.
+  // O resto (CNPJ, contatos, endereço) fica no cadastro, que abre ao clicar. Paginação padrão (S.paginar). Estilos .cx-* em sonvi.css.
+  const cf = { sit:'todos', cons:'' };
   const inicioCl = {};
-  const entradaCl = vk => { const agora = performance.now(); if (!(vk in inicioCl)) inicioCl[vk] = agora; const t = agora - inicioCl[vk]; return t > 2400 ? '' : ` ag2-entra" style="--t:-${Math.round(t)}ms`; };
+  const entradaCl = vk => { const agora = performance.now(); if (!(vk in inicioCl)) inicioCl[vk] = agora; const t = agora - inicioCl[vk]; return t > 2000 ? '' : ` cx-entra" style="--t:-${Math.round(t)}ms`; };
 
   S.views.clientes = id => {
     // Agências saíram de dentro do veículo (29/10/2026): o cadastro é único do grupo, no Dashboard Gestão (agencias.js)
     aba = 'cliente'; if (id === 'agencias') queueMicrotask(() => S.me.diretor ? S.admAbrir('agencias') : S.go('/agencias-v'));
     const q = S.ui.q.toLowerCase(), qn = q.replace(/\D/g, ''), todas = S.pessoas('cliente');
     const gestor = S.pode('diretor', 'gerente'), podeCriar = S.pode('diretor', 'gerente', 'consultor'), outras = radiosDestino().length > 0;
-    // Responsáveis: consultores e gerentes da rádio e quem mais tiver clientes (ex.: o diretor)
     const resp = !gestor ? [] : [...S.responsaveis(), ...[...new Set(todas.map(p => p.consultor_id).filter(Boolean))].map(id => ({ id, nome:S.usuario(id) || 'Responsável' }))]
       .filter((u, i, l) => l.findIndex(x => x.id === u.id) === i && todas.some(p => p.consultor_id === u.id));
     if (cf.cons && !resp.some(u => u.id === cf.cons)) cf.cons = '';
     const nomeCons = p => p.consultor_id ? (S.usuario(p.consultor_id) || '') : '';
-    // PIs enviados (já são venda) de cada cliente neste veículo
-    const nPis = {}, vPis = {}; (S.db.pis || []).forEach(p => { if (!p.cliente_id || !ENV.includes(p.status)) return; nPis[p.cliente_id] = (nPis[p.cliente_id] || 0) + 1; vPis[p.cliente_id] = (vPis[p.cliente_id] || 0) + (S.liquidoPi ? S.liquidoPi(p) : 0); });
-    const busca = p => (!cf.cons || p.consultor_id === cf.cons) && (!q || [p.nome, p.razao_social, p.cidade, p.segmento, p.email].join(' ').toLowerCase().includes(q) || (qn.length > 2 && String(p.documento || '').replace(/\D/g, '').includes(qn)));
-    const FIL = [['todos', 'Todos', () => true], ['ativo', 'Ativos', p => p.situacao === 'ativo'], ['prospect', 'Prospects', p => p.situacao === 'prospect'], ['inativo', 'Inativos', p => p.situacao === 'inativo'], ['incompleto', 'Cadastro incompleto', p => faltas(p).length]];
-    if (!FIL.some(f => f[0] === cf.sit)) cf.sit = 'todos';
-    const base = todas.filter(busca), nome = (a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
-    const lista = base.filter(FIL.find(f => f[0] === cf.sit)[2]).sort((a, b) => cf.ord === 'pis' ? (vPis[b.id] || 0) - (vPis[a.id] || 0) || nome(a, b)
-      : cf.ord === 'cidade' ? String(a.cidade || '￿').localeCompare(String(b.cidade || '￿'), 'pt-BR') || nome(a, b) : cf.ord === 'cons' ? nomeCons(a).localeCompare(nomeCons(b), 'pt-BR') || nome(a, b) : nome(a, b));
-    const pg = S.paginar(`cli|${S.ui.vehicleId}`, lista, lista.length === 1 ? 'cliente' : 'clientes', [q, cf.sit, cf.cons, cf.ord].join('|'));
-    const maxV = Math.max(1, ...todas.map(p => vPis[p.id] || 0)), ent = entradaCl(`cl|${S.ui.vehicleId}|${pg.de}|${cf.sit}|${cf.cons}|${cf.ord}`);
-    const nSit = k => todas.filter(p => p.situacao === k).length;
-    const resumo = [`<b>${todas.length} ${todas.length === 1 ? 'cliente' : 'clientes'}</b>`, ...[['ativo', 'ativo', 'ativos'], ['prospect', 'prospect', 'prospects'], ['inativo', 'inativo', 'inativos']].filter(([k]) => nSit(k)).map(([k, a, b]) => `${nSit(k)} ${nSit(k) === 1 ? a : b}`)].join(' · ');
+    const busca = p => (!cf.cons || p.consultor_id === cf.cons) && (!q || [p.nome, p.razao_social, p.cidade, p.segmento].join(' ').toLowerCase().includes(q) || (qn.length > 2 && String(p.documento || '').replace(/\D/g, '').includes(qn)));
+    const FIL = [['todos', 'Todos'], ['ativo', 'Ativos'], ['prospect', 'Prospects'], ['inativo', 'Inativos']];
+    const base = todas.filter(busca), lista = base.filter(p => cf.sit === 'todos' || p.situacao === cf.sit).sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+    const pg = S.paginar(`cli|${S.ui.vehicleId}`, lista, lista.length === 1 ? 'cliente' : 'clientes', [q, cf.sit, cf.cons].join('|'));
+    const ent = entradaCl(`cl|${S.ui.vehicleId}|${pg.de}|${cf.sit}|${cf.cons}`);
     const tres = p => outras && podeAlterarLa(p) ? `<button class="btn tres" data-act="pesMenu" data-id="${p.id}" aria-label="Opções de ${esc(p.nome)}">${S.svg('mais3')}</button>` : '';
     const sitPill = p => `<span class="pill cl-s-${esc(p.situacao)}">${esc((SIT[p.situacao] || [p.situacao])[0])}</span>`;
-    const contato = p => { const tel = p.telefone || p.whatsapp, mail = p.email || p.email_faturamento;
-      return `<span class="ag2-ct">${tel ? `<span>${S.svg('fone', 14)}<em>${esc(tel)}</em></span>` : ''}${mail ? `<span title="${esc(mail)}">${S.svg('email', 14)}<em>${esc(mail)}</em></span>` : ''}${!tel && !mail ? '<span class="muted">sem contato</span>' : ''}</span>`; };
-    const uso = p => { const n = nPis[p.id] || 0; return n ? `<span class="ag2-uso"><small><b>${n}</b> ${n === 1 ? 'PI' : 'PIs'} · <b>${S.brl(vPis[p.id]).replace(/,\d\d$/, '')}</b></small><span class="ag2-uso-t"><i style="width:${(vPis[p.id] / maxV * 100).toFixed(1)}%"></i></span></span>` : '<span class="muted small">nenhum PI ainda</span>'; };
-    const consCel = p => { const n = nomeCons(p); return n ? `<span class="cl2-cons"><span class="av soft" aria-hidden="true">${esc(S.iniciais(n))}</span><span>${esc(n.split(' ')[0])}</span></span>` : '<span class="muted">—</span>'; };
-    const linha = (p, i) => { const f = faltas(p);
-      return `<div class="ag2-l cl2-l" role="row" data-act="pesEditar" data-id="${p.id}" tabindex="0" style="--d:${Math.min(i, 14) * 35}ms">
-        <span class="ag2-nome" role="cell"><span class="ag2-av" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><span><b title="${esc(p.nome)}">${esc(p.nome)}</b><small>${f.length ? `<span class="ag2-falta" title="Falta: ${f.join(', ')}"><i aria-hidden="true"></i>falta ${f.join(', ')}</span>${p.documento ? ' · ' : ''}` : ''}${esc(fmtDoc(p.documento))}</small></span></span>
-        <span role="cell">${consCel(p)}</span><span role="cell" class="ag2-cid" title="${esc(p.cidade)}">${esc(p.cidade) || '<span class="muted">—</span>'}</span>
-        <span role="cell">${contato(p)}</span><span role="cell">${uso(p)}</span><span role="cell">${sitPill(p)}</span><span role="cell" class="ag2-ac">${tres(p)}</span></div>`; };
-    const cel = (p, i) => `<div class="ag2-cel" data-act="pesEditar" data-id="${p.id}" style="--d:${Math.min(i, 14) * 35}ms"><span class="ag2-av" aria-hidden="true">${esc(S.iniciais(p.nome))}</span>
-        <span class="ag-cel-tx"><b>${esc(p.nome)}</b><small>${esc([nomeCons(p).split(' ')[0], p.cidade].filter(Boolean).join(' · ')) || '—'}${faltas(p).length ? ' · <span class="ag2-falta"><i></i>incompleto</span>' : ''}</small></span>
-        <span class="ag2-cel-n">${sitPill(p)}${nPis[p.id] ? `<small>${nPis[p.id]} ${nPis[p.id] === 1 ? 'PI' : 'PIs'}</small>` : ''}</span></div>`;
+    const linha = (p, i) => `<div class="cx-l" role="row" data-act="pesEditar" data-id="${p.id}" tabindex="0" style="--d:${Math.min(i, 14) * 30}ms">
+        <span class="cx-nome" role="cell"><span class="cx-av" aria-hidden="true">${esc(S.iniciais(p.nome))}</span><span><b title="${esc(p.nome)}">${esc(p.nome)}</b><small>${esc(p.cidade) || 'Cidade não informada'}</small></span></span>
+        ${resp.length > 1 || !S.celular ? `<span class="cx-cons" role="cell">${esc(nomeCons(p).split(' ')[0]) || '<span class="muted">—</span>'}</span>` : ''}
+        <span role="cell" class="cx-sit">${sitPill(p)}</span><span role="cell" class="cx-ac">${tres(p)}<span class="cx-ir" aria-hidden="true">${S.svg('seta', 16)}</span></span></div>`;
     const filtrado = q || cf.sit !== 'todos' || cf.cons;
     const vazio = `<div class="empty"><b>Nenhum cliente${filtrado ? ' com esse filtro' : ''}</b>${filtrado ? 'Tire o filtro ou experimente outra busca.' : S.pode('consultor') ? 'Aqui aparecem os clientes da sua carteira.' : podeCriar ? 'Cadastre o primeiro cliente pelo botão "Novo cliente".' : 'Nenhum cliente cadastrado ainda.'}</div>`;
-    const chips = `<div class="ag2-fil" role="group" aria-label="Filtrar por situação">${FIL.map(([k, n, f]) => `<button type="button" data-act="cliFil" data-v="${k}" aria-pressed="${cf.sit === k}"${k === 'incompleto' ? ' class="falta"' : ''}>${n}<span>${base.filter(f).length}</span></button>`).join('')}</div>
-      <span class="cl2-dir">${resp.length > 1 ? `<select data-clif="cons" aria-label="Consultor"><option value="">Todos os consultores</option>${resp.map(u => `<option value="${u.id}"${cf.cons === u.id ? ' selected' : ''}>${esc(u.nome)} · ${todas.filter(p => p.consultor_id === u.id).length}</option>`).join('')}</select>` : ''}
-        <label class="ag2-ord"><span>Ordem</span><select data-clif="ord" aria-label="Ordem da lista">${[['nome', 'A a Z'], ['pis', 'Mais vendas'], ['cidade', 'Cidade'], ...(resp.length > 1 ? [['cons', 'Consultor']] : [])].map(([k, n]) => `<option value="${k}"${cf.ord === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label></span>`;
-    const card = `<section class="card ag-card ag2 cl2" aria-labelledby="cl-t">
-      <div class="ag-cab"><div><h2 id="cl-t">Clientes</h2><p>${resumo}</p></div>
-        <label class="fin-busca ag-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar nome, CNPJ, cidade ou segmento" aria-label="Buscar clientes"></label></div>
-      <div class="ag2-barra">${chips}</div>
-      ${!lista.length ? vazio : S.celular ? `<div class="ag-lista${ent}">${pg.itens.map(cel).join('')}</div>`
-        : `<div class="ag2-tab" role="table" aria-label="Clientes"><div class="ag2-cab cl2-l" role="row"><span role="columnheader">Cliente</span><span role="columnheader">Consultor</span><span role="columnheader">Cidade</span><span role="columnheader">Contato</span><span role="columnheader">Neste veículo</span><span role="columnheader">Situação</span><span role="columnheader"><span class="sr">Ações</span></span></div>
-          <div class="ag2-ls${ent}">${pg.itens.map(linha).join('')}</div></div>`}
+    const barra = `<div class="cx-barra"><label class="fin-busca cx-busca">${S.svg('busca')}<input value="${esc(S.ui.q)}" data-ui="q" placeholder="Buscar cliente, CNPJ ou cidade" aria-label="Buscar clientes"></label>
+      <div class="cx-fil" role="group" aria-label="Situação">${FIL.map(([k, n]) => { const c = k === 'todos' ? base.length : base.filter(p => p.situacao === k).length; return k !== 'todos' && !c ? '' : `<button type="button" data-act="cliFil" data-v="${k}" aria-pressed="${cf.sit === k}">${n} <span>${c}</span></button>`; }).join('')}</div>
+      ${resp.length > 1 ? `<select data-clif="cons" class="cx-sel" aria-label="Consultor"><option value="">Todos os consultores</option>${resp.map(u => `<option value="${u.id}"${cf.cons === u.id ? ' selected' : ''}>${esc(u.nome)}</option>`).join('')}</select>` : ''}</div>`;
+    const card = `<section class="card cx" aria-label="Clientes">${barra}
+      ${!lista.length ? vazio : `<div class="cx-ls${ent}" role="table" aria-label="Clientes">${pg.itens.map(linha).join('')}</div>`}
       ${pg.html}</section>`;
     return { title:`<span class="sub">${esc(S.veh().nome)}</span>Clientes`, actions:podeCriar ? `<button class="btn pri" data-act="pesNovo">${S.svg('mais')}Novo cliente</button>` : '', body:card };
   };
   S.actions.cliFil = d => { if (cf.sit === d.v) return; cf.sit = d.v; S.render(); };
   document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-clif]'); if (!s) return; cf[s.dataset.clif] = s.value; S.render(); });
-  document.addEventListener('keydown', e => { const l = e.target.closest && e.target.closest('.cl2-l[data-id]'); if (l && (e.key === 'Enter' || e.key === ' ') && e.target === l) { e.preventDefault(); S.actions.pesEditar({ id:l.dataset.id }); } });
+  document.addEventListener('keydown', e => { const l = e.target.closest && e.target.closest('.cx-l[data-act="pesEditar"]'); if (l && (e.key === 'Enter' || e.key === ' ') && e.target === l) { e.preventDefault(); S.actions.pesEditar({ id:l.dataset.id }); } });
 
   // ---------- formulário ----------
   async function formulario(p) {
