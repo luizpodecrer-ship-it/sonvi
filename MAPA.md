@@ -191,9 +191,9 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Tabelas lidas/gravadas: console_chamados
 - Funções de borda: console
 
-### vendas.js · 302 linhas
+### vendas.js · 301 linhas
 - Telas (`S.views`): vendas
-- Ações (`data-act`): vdComissoes, vdHist, vdMais, vdMes, vdPedido, vdRelatorios, vdRepExcluir, vdRepasse
+- Ações (`data-act`): vdComissoes, vdHist, vdMais, vdMes, vdPedido, vdRepExcluir, vdRepasse
 - Define `S.`: lancarVenda, podeLancar, progPill, vendasComUsar, vendasUsar
 - Banco (rpc): comissoes_do_mes, desfazer_venda, enviar_para_faturar, lancar_venda
 - Tabelas lidas/gravadas: colaboradores, fat_pedidos, lancamentos, pis, repasses, vendas_lancadas

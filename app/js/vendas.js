@@ -165,7 +165,7 @@
       <p class="muted small" style="margin:12px 0 0">Cada consultor recebe o percentual do cadastro sobre o valor líquido dos PIs que vão ao ar no mês.${S.me.diretor ? ' Fechamento e extratos em <a href="#/admin" data-act="vdComissoes">Administração › Vendas e comissões</a>.' : ''}</p></section>`;
 
     return { title:`<span class="sub">${esc(v.nome)}</span>Vendas`,
-      actions:`<button class="btn" data-act="vdRelatorios">${S.svg('relatorio')}Relatórios</button>`,
+      actions:'',   /* 07/11/2026: saiu o botão Relatórios (levava ao Financeiro, que não está no menu, e voltava ao Dashboard) */
       body:`${resumo}${tabela}<div class="cols vd-cols">${parte}${comissoes}</div>` };
   };
 
@@ -244,7 +244,6 @@
     vdAba: d => { st.aba = d.v; st.lista = 8; S.render(); },
     vdMais: () => { st.lista = 999; S.render(); },
     vdComissoes: () => { if (S.admAbrir) S.admAbrir('comissoes'); },
-    vdRelatorios: () => { S.go('/financeiro'); setTimeout(() => S.actions.finRelatorios && S.actions.finRelatorios(), 0); },
     vdEnviar: d => { const pi = S.db.pis.find(p => p.id === d.id); if (!pi) return; const v = S.veh(pi.veiculo_id), mesRef = d.mes || '';
       if (!S.pode('diretor', 'financeiro')) return S.toast('Só o diretor ou o financeiro envia para faturar.');
       const ms = mesesDe(pi), m0 = montar(pi, mesRef), rec = m0.ls.filter(l => l.sentido === 'receber'), um = rec.length <= 1;

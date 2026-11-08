@@ -181,6 +181,8 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - **Paginação de clientes e agências** (aprovada pelo Luiz em 07/11/2026, pessoas.js, estilos `.cl-pag*`): 15 por página (Por página 10 · 15 · 25), "Mostrando 1–15 de 44 clientes", Anterior/Próxima e números num trilho com a bolinha na cor do veículo que desliza com mola (`poeBola`, mola `PILULA`). Busca, filtros e ordenação valem para a lista inteira e voltam à página 1; com até 10 itens o rodapé some. Ação `cliPagina`, seletor `data-clipor`.
 
+- 07/11/2026: saiu o botão "Relatórios" da tela Vendas (todos os veículos). Ele mandava para o Financeiro, que não está no menu desde que o SONVI deixou de acompanhar faturamento, e a tela caía no Dashboard.
+
 ## Tabela de preços (histórico; desde 24/10/2026 a rádio usa Produtos, e só o Digital continua com tabelas e vigência)
 
 - `app/js/cadastros.js`: grade com programas nas linhas, agrupados em seções (`produtos.secao`: programa, quadro, rotativo), e formatos nas colunas. Formato cobrado por duração (`cobranca` = duracao, spot 15"/30"...) ou com preço único (`unico`, ex.: testemunhal), numa coluna à parte. "Dias e horário" aceita uma linha por faixa. Migração em `database/009_secoes_e_preco_unico.sql`.
