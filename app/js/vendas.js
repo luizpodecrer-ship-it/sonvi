@@ -96,13 +96,12 @@
   // ---------- tela (refeita em 07/11/2026, pedido do Luiz: "Minhas vendas" para o consultor, mais organizada e com gráficos animados) ----------
   // Consultor: só as vendas dele (meta em anel, números do mês, 6 meses em colunas, maiores clientes, PIs com a comissão de cada um).
   // Diretor e gerente: a equipe toda (ou um consultor escolhido no seletor), com "Equipe no mês" e a faixa da Head 14 (repasse).
-  // Animações: anel, colunas e barras crescem do último valor mostrado até o novo (vxAnima), nunca a cada desenho igual.
-  const memo = {};
-  const vxAnima = () => { const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    document.querySelectorAll('[data-vx-k]').forEach(el => { const k = el.dataset.vxK, alvo = Number(el.dataset.p) || 0, de = memo[k] ?? 0;
-      memo[k] = alvo; if (quieto || de === alvo) { el.style.setProperty('--p', alvo); return; }
-      el.style.setProperty('--p', de); void el.getBoundingClientRect(); requestAnimationFrame(() => el.style.setProperty('--p', alvo)); }); };
-  const pv = k => memo[k] ?? 0;
+  // Animações no padrão do SONVI (regra de 07/11/2026): anel, colunas e barras entram com mola e em cascata (keyframes .vx-entra);
+  // números rolam algarismo por algarismo (S.roloFixo). A tela é redesenhada várias vezes enquanto os dados chegam: a entrada
+  // continua de onde estava (atraso negativo --t = tempo já passado), não recomeça nem pula para o fim. Mudou mês ou consultor, entra de novo.
+  const inicioVista = {};
+  const entrada = vk => { const agora = performance.now(); if (!(vk in inicioVista)) inicioVista[vk] = agora; const t = agora - inicioVista[vk];
+    return t > 2600 ? '' : ` vx-entra" style="--t:-${Math.round(t)}ms`; };
   const uteisRestantes = ym => { const hoje = S.today(); if (ym < hoje.slice(0, 7)) return 0;
     const [y, m] = ym.split('-').map(Number), fim = new Date(y, m, 0).getDate(); let n = 0;
     for (let d = ym === hoje.slice(0, 7) ? +hoje.slice(8) + 1 : 1; d <= fim; d++) { const w = new Date(y, m - 1, d).getDay(); if (w > 0 && w < 6) n++; } return n; };
@@ -137,47 +136,53 @@
 
     // 1. Topo: anel da meta + quatro números
     const pc = meta ? vendido / meta : 0, faltam = Math.max(0, meta - vendido), ut = uteisRestantes(ym);
-    const kAnel = `anel|${quem}|${ym}`;
+    const vk = `${quem}|${ym}`, ent = entrada(vk);
     const anel = `<div class="vx-anel${meta ? '' : ' sem'}"><svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="vx-gr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--accent-2)"/><stop offset="1" stop-color="var(--accent)"/></linearGradient></defs>
-        <circle class="vx-anel-f" cx="60" cy="60" r="52" pathLength="100"/><circle class="vx-anel-v" cx="60" cy="60" r="52" pathLength="100" data-vx-k="${kAnel}" data-p="${Math.min(1, pc).toFixed(4)}" style="--p:${pv(kAnel)}"/></svg>
-      <div class="vx-anel-c">${meta ? `<b>${Math.round(pc * 100)}%</b><small>da meta</small>` : '<b>—</b><small>sem meta</small>'}</div></div>
+        <circle class="vx-anel-f" cx="60" cy="60" r="52" pathLength="100"/><circle class="vx-anel-v" cx="60" cy="60" r="52" pathLength="100" style="stroke-dashoffset:${(100 - Math.min(1, pc) * 100).toFixed(2)}"/>
+        ${meta && pc >= 1 ? '' : meta ? `<circle class="vx-anel-p" cx="60" cy="60" r="52" pathLength="100" style="--fim:${(3 - pc * 100).toFixed(2)}"/>` : ''}</svg>
+      <div class="vx-anel-c">${meta ? `<b>${S.roloFixo('vx-pc', Math.round(pc * 100) + '%')}</b><small>da meta</small>` : '<b>—</b><small>sem meta</small>'}</div></div>
       <div class="vx-meta-tx">${meta ? `<b>${brl0(vendido)} <span>de ${brl0(meta)}</span></b>
         <small>${faltam ? `Faltam <b>${brl0(faltam)}</b>${ut ? ` · ${ut} ${ut === 1 ? 'dia útil' : 'dias úteis'} · <b>${brl0(faltam / ut)}</b> por dia` : ''}` : '<b class="vx-ok">Meta batida</b> · parabéns!'}</small>`
         : `<b>${brl0(vendido)}</b><small>${S.me.diretor ? 'A meta fica em Administração › Colaboradores.' : 'Sua meta ainda não foi cadastrada pelo diretor.'}</small>`}</div>`;
     const varia = (val, antes) => { if (!antes) return val ? `<span class="vx-var up"><i>↗</i>novo<span class="vx-var-tx"> · sem vendas em ${mesAnt}</span></span>` : `<span class="vx-var">sem vendas em ${mesAnt}</span>`;
       const d = Math.round((val - antes) / antes * 100); return `<span class="vx-var ${d >= 0 ? 'up' : 'down'}"><i>${d >= 0 ? '↗' : '↘'}</i>${d > 0 ? '+' : ''}${d}%<span class="vx-var-tx"> em relação a ${mesAnt}</span></span>`; };
-    const num = (k, rot, val, sub, extra = '') => `<div class="vx-n${extra}"><span class="vx-n-r">${rot}</span><b data-vd-num="${k}|${quem}|${ym}" data-v="${val}">${brl(contados[`${k}|${quem}|${ym}`] ?? 0)}</b>${sub}</div>`;
-    queueMicrotask(contar);
+    let nI = 0;
+    const num = (k, rot, val, sub, extra = '') => `<div class="vx-n${extra}" style="--d:${120 + nI++ * 80}ms"><span class="vx-n-r">${rot}</span><b>${S.roloFixo('vx-' + k, brl(val))}</b>${sub}</div>`;
     const nums = `<div class="vx-ns">
         ${num('vend', 'Vendido (líquido)', vendido, varia(vendido, vendAnt))}
         ${quem ? num('com', equipe ? 'Comissões' : ehCons ? 'Minha comissão' : `Comissão de ${esc(primeiroNome(nomeQuem))}`, totCom, `<span class="vx-sub">${pctQuem !== null ? `${String(pctQuem).replace('.', ',')}% do líquido` : cm ? 'pelo % do cadastro' : 'buscando…'}</span>`)
           : num('h14', `${esc(emp)} (${pctH}%)`, prevista, `<span class="vx-sub">sobre o vendido</span>`)}
-        <div class="vx-n"><span class="vx-n-r">PIs enviados</span><b>${pis1}</b><span class="vx-sub">OPEC abriu ${nAbriu} de ${pis1}</span></div>
+        <div class="vx-n" style="--d:${120 + nI++ * 80}ms"><span class="vx-n-r">PIs enviados</span><b>${S.roloFixo('vx-pis', String(pis1))}</b><span class="vx-sub"><i class="vx-ponto${pis1 - nAbriu ? ' espera' : ''}" aria-hidden="true"></i>OPEC abriu ${nAbriu} de ${pis1}</span></div>
         ${num('tick', 'Ticket médio', ticket, `<span class="vx-sub">por PI no mês</span>`)}</div>`;
     const sel = ehCons ? '' : `<label class="vx-sel"><span class="sr">Ver vendas de</span><select data-vxcons>${[['', 'Toda a equipe'], ...[...new Set([...S.db.vinculos.filter(x => x.veiculo_id === S.ui.vehicleId && x.perfil === 'consultor').map(x => x.usuario_id), ...pis.filter(p => VENDIDO.includes(p.status) && p.consultor_id).map(p => p.consultor_id)])]
         .map(id => [id, S.usuario(id) || 'Consultor'])].map(([id, n]) => `<option value="${id}"${st.cons === id ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`;
     const titulo = ehCons ? 'Resumo do mês' : equipe ? 'Vendas da equipe' : `Vendas de ${esc(primeiroNome(nomeQuem))}`;
     const topo = `<section class="card vx-topo" aria-label="${titulo}"><div class="hd vx-hd"><h2>${titulo}</h2><span class="grow"></span>${sel}
         <div class="vd-nav"><button class="btn sm" data-act="vdMes" data-d="-1" aria-label="Mês anterior">‹</button><b>${nomeMesLongo(ym)}</b><button class="btn sm" data-act="vdMes" data-d="1" aria-label="Próximo mês">›</button>${st.mes ? '<button class="btn sm" data-act="vdMes" data-d="0">Hoje</button>' : ''}</div></div>
-      <div class="vx-topo-c"><div class="vx-meta">${anel}</div>${nums}</div></section>`;
+      <div class="vx-topo-c${ent}"><div class="vx-meta">${anel}</div>${nums}</div></section>`;
 
-    // 2. Seis meses em colunas (o mês aberto em destaque; a linha tracejada é a meta do mês)
-    const meses6 = Array.from({ length:6 }, (_, i) => somaMes(ym, i - 5)).map(m => ({ m, v:somaV(vendDe(m)) }));
-    const topoH = Math.max(1, meta, ...meses6.map(x => x.v));
-    const hist = `<section class="card vx-hist" aria-label="Últimos 6 meses"><div class="hd"><h2>Últimos 6 meses</h2><span class="muted small">líquido vendido em cada mês${meta ? ' · tracejado = meta' : ''}</span></div>
-      <div class="vx-plot" role="list">${meta ? `<span class="vx-linha-meta" style="bottom:${(meta / topoH * 100).toFixed(2)}%" aria-hidden="true"><em>meta ${brl0(meta)}</em></span>` : ''}
-        ${meses6.map(x => { const k = `col|${quem}|${x.m}|${ym}`, on = x.m === ym;
-          return `<button type="button" role="listitem" class="vx-col${on ? ' on' : ''}${x.v ? '' : ' zero'}" data-act="vdIrMes" data-m="${x.m}" aria-label="${MESES[+x.m.slice(5) - 1]}: ${brl(x.v)}"${on ? ' aria-current="true"' : ''}>
-            <i data-vx-k="${k}" data-p="${(x.v / topoH).toFixed(4)}" style="--p:${pv(k)}"><span class="vx-col-v">${x.v ? brl0(x.v).replace('R$ ', '') : ''}</span></i></button>`; }).join('')}</div>
+    // 2. Seis meses em colunas: linhas de grade com valores, a meta tracejada, o mês aberto em destaque com brilho e a dica ao passar o mouse
+    const meses6 = Array.from({ length:6 }, (_, i) => somaMes(ym, i - 5)).map(m => { const l = vendDe(m); return { m, v:somaV(l), n:new Set(l.map(x => x.p.id)).size }; });
+    const maxV = Math.max(1, meta, ...meses6.map(x => x.v)), passoG = (() => { const bruto = maxV / 4, mag = Math.pow(10, Math.floor(Math.log10(bruto))), f = bruto / mag; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag; })();
+    const topoH = Math.ceil(maxV / passoG) * passoG, curto = n => n >= 1e6 ? (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits:1 }) + ' mi' : n >= 1000 ? Math.round(n / 1000) + ' mil' : String(Math.round(n));
+    const media6 = meses6.slice(0, 5).filter(x => x.v).reduce((s, x, _, l) => s + x.v / l.length, 0);
+    const hist = `<section class="card vx-hist" aria-label="Últimos 6 meses"><div class="hd"><h2>Últimos 6 meses</h2><span class="muted small">${media6 ? `média de ${brl0(media6)} nos 5 meses anteriores` : 'líquido vendido em cada mês'}</span></div>
+      <div class="vx-area${ent}">${Array.from({ length:Math.round(topoH / passoG) + 1 }, (_, i) => `<span class="vx-gl" style="bottom:${(i * passoG / topoH * 100).toFixed(2)}%"><small>${i ? curto(i * passoG) : '0'}</small></span>`).join('')}
+        ${meta ? `<span class="vx-linha-meta" style="bottom:${(meta / topoH * 100).toFixed(2)}%" aria-hidden="true"><em><i></i>meta ${brl0(meta)}</em></span>` : ''}
+        <div class="vx-plot" role="list">${meses6.map((x, i) => { const on = x.m === ym, h = (x.v / topoH * 100).toFixed(2), d = Math.round((x.v - (meses6[i - 1] || {}).v) / ((meses6[i - 1] || {}).v || 1) * 100);
+          return `<button type="button" role="listitem" class="vx-col${on ? ' on' : ''}${x.v ? '' : ' zero'}" data-act="vdIrMes" data-m="${x.m}" style="--h:${h}%;--d:${i * 90}ms" aria-label="${MESES[+x.m.slice(5) - 1]}: ${brl(x.v)}"${on ? ' aria-current="true"' : ''}>
+            <i></i>${on && x.v ? `<span class="vx-col-v">${brl0(x.v)}</span>` : ''}
+            <span class="vx-dica" role="tooltip"><b>${MESES[+x.m.slice(5) - 1][0].toUpperCase() + MESES[+x.m.slice(5) - 1].slice(1)} ${x.m.slice(0, 4)}</b><span>Vendido <b>${brl(x.v)}</b></span><span>PIs <b>${x.n}</b></span>
+              ${meta ? `<span>Meta <b>${Math.round(x.v / meta * 100)}%</b></span>` : ''}${i && meses6[i - 1].v ? `<span>Mês anterior <b class="${d >= 0 ? 'vx-up' : 'vx-down'}">${d > 0 ? '+' : ''}${d}%</b></span>` : ''}</span></button>`; }).join('')}</div></div>
       <div class="vx-rot" aria-hidden="true">${meses6.map(x => `<small${x.m === ym ? ' class="on"' : ''}>${MESES[+x.m.slice(5) - 1].slice(0, 3)}</small>`).join('')}</div></section>`;
 
     // 3. Maiores clientes do mês (barras com a parte de cada um)
     const porCli = {}; vendidos.forEach(x => { const c = x.p.cliente_id || '-'; porCli[c] = (porCli[c] || 0) + x.v; });
     const clis = Object.entries(porCli).sort((a, b) => b[1] - a[1]), top = clis.slice(0, 5), outros = clis.slice(5).reduce((s, x) => s + x[1], 0);
     const cliHtml = `<section class="card vx-cli" aria-label="Maiores clientes"><div class="hd"><h2>Maiores clientes · ${mesNome}</h2><span class="muted small">${clis.length} ${clis.length === 1 ? 'cliente' : 'clientes'}</span></div>
-      ${top.length ? `<div class="vx-barras">${top.map(([c, val], i) => { const k = `cli|${quem}|${ym}|${c}`, p = vendido ? val / vendido : 0;
+      ${top.length ? `<div class="vx-barras${ent}">${top.map(([c, val], i) => { const p = vendido ? val / vendido : 0;
           return `<div class="vx-b"><div class="vx-b-t"><span class="vx-b-n"><em>${i + 1}</em>${esc(S.nome(c) || 'Sem cliente')}</span><b>${brl0(val)}</b><small>${Math.round(p * 100)}%</small></div>
-            <div class="vx-b-tr"><i data-vx-k="${k}" data-p="${(top[0][1] ? val / top[0][1] : 0).toFixed(4)}" style="--p:${pv(k)};--d:${i * 70}ms"></i></div></div>`; }).join('')}
+            <div class="vx-b-tr"><i style="width:${(top[0][1] ? val / top[0][1] * 100 : 0).toFixed(2)}%;--d:${200 + i * 90}ms"></i></div></div>`; }).join('')}
         ${outros ? `<p class="muted small" style="margin:4px 0 0">+ ${clis.length - 5} ${clis.length - 5 === 1 ? 'cliente' : 'clientes'} · ${brl0(outros)}</p>` : ''}</div>`
         : `<p class="muted" style="margin:0">Nenhuma venda em ${mesNome} ainda.</p>`}</section>`;
 
@@ -187,9 +192,9 @@
       const ids = [...new Set([...S.db.vinculos.filter(x => x.veiculo_id === S.ui.vehicleId && x.perfil === 'consultor').map(x => x.usuario_id), ...vendidos.map(x => x.p.consultor_id).filter(Boolean)])];
       const linhas = ids.map(id => { const vv = somaV(vendidos.filter(x => x.p.consultor_id === id)), mm = metaDe(id); return { id, vv, mm, cc:comDe(id) }; }).sort((a, b) => b.vv - a.vv);
       eqHtml = `<section class="card vx-eq" aria-label="Equipe no mês"><div class="hd"><h2>Equipe · ${mesNome}</h2><span class="muted small">clique para ver as vendas de cada um</span></div>
-        ${linhas.length ? `<div class="vx-eq-l">${linhas.map(o => { const k = `eq|${o.id}|${ym}`, p = o.mm ? o.vv / o.mm : 0;
+        ${linhas.length ? `<div class="vx-eq-l${ent}">${linhas.map(o => { const p = o.mm ? o.vv / o.mm : 0, d = 150 + linhas.indexOf(o) * 90;
           return `<button type="button" class="vx-eq-i" data-act="vdCons" data-id="${o.id}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(S.usuario(o.id) || '?'))}</span>
-            <span class="vx-eq-tx"><b>${esc(S.usuario(o.id) || 'Consultor')}</b><span class="vx-eq-tr"><i data-vx-k="${k}" data-p="${Math.min(1, p).toFixed(4)}" style="--p:${pv(k)}"${p >= 1 ? ' class="ok"' : ''}></i></span>
+            <span class="vx-eq-tx"><b>${esc(S.usuario(o.id) || 'Consultor')}</b><span class="vx-eq-tr"><i style="width:${(Math.min(1, p) * 100).toFixed(2)}%;--d:${d}ms"${p >= 1 ? ' class="ok"' : ''}></i></span>
               <small>${brl0(o.vv)}${o.mm ? ` de ${brl0(o.mm)}` : ' · sem meta'} · comissão ${brl0(o.cc)}</small></span><span class="vx-eq-pc">${o.mm ? Math.round(p * 100) + '%' : '—'}</span></button>`; }).join('')}</div>`
           : '<p class="muted" style="margin:0">Nenhum consultor neste veículo.</p>'}</section>`;
     }
@@ -217,7 +222,6 @@
         + (ord.length > mostra.length ? `<p class="muted small" style="margin:12px 0 0">Mostrando ${mostra.length} de ${ord.length} · <a href="#" data-act="vdMais">ver todos</a></p>` : '')
         : `<div class="empty" style="padding:24px"><b>Nenhuma venda em ${mesNome}</b>Aparece aqui quando um PI que vai ao ar no mês é enviado para a OPEC.</div>`}</section>`;
 
-    queueMicrotask(vxAnima);
     return { title:`<span class="sub">${esc(v.nome)}</span>${ehCons ? 'Minhas vendas' : 'Vendas'}`, actions:'',
       body:`${topo}<div class="vx-grade">${hist}${cliHtml}</div>${eqHtml}${tabela}${h14}` };
   };
