@@ -191,12 +191,12 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Tabelas lidas/gravadas: console_chamados
 - Funções de borda: console
 
-### vendas.js · 361 linhas
+### vendas.js · 346 linhas
 - Telas (`S.views`): vendas
-- Ações (`data-act`): vdCons, vdHist, vdIrMes, vdMais, vdMes, vdPedido, vdRepExcluir, vdRepasse
+- Ações (`data-act`): vdCons, vdHist, vdIrMes, vdMais, vdMes, vdPedido
 - Define `S.`: lancarVenda, podeLancar, progPill, vendasComUsar, vendasUsar
 - Banco (rpc): comissoes_do_mes, desfazer_venda, enviar_para_faturar, lancar_venda
-- Tabelas lidas/gravadas: colaboradores, fat_pedidos, lancamentos, pis, repasses, vendas_lancadas
+- Tabelas lidas/gravadas: colaboradores, fat_pedidos, lancamentos, pis, vendas_lancadas
 - Funções de borda: vendas
 
 ## Páginas soltas (`app/*.html`, `app/console/`)
@@ -269,7 +269,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `proposta_seq` (017) · app: —
 - `proposta_seq_org` (027) · app: —
 - `propostas` (017) · app: comissoes.js, geral.js
-- `repasses` (055) · app: vendas.js
+- `repasses` (055) · app: —
 - `resumo_config` (083) · app: —
 - `suporte_acessos` (026) · app: chamados.js, dados.js
 - `tabelas_preco` (013) · app: combos.js, dados.js

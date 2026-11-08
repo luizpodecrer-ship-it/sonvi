@@ -23,7 +23,7 @@
       const so = !S.me.diretor && !S.pode('diretor', 'gerente', 'financeiro');   /* consultor: só o percentual de comissão */
       const [fat, rep, col] = await Promise.all([
         so ? [] : S.todos(S.sb.from('fat_pedidos').select('id, pi_id, mes_ref, situacao, dados, para, criado_em, enviado_em, envios, nota_fiscal, observacao, confirmado_por, confirmado_em').eq('veiculo_id', v)),
-        so ? [] : S.q(S.sb.from('repasses').select('*').eq('veiculo_id', v).order('recebido_em')).catch(() => []),
+        [],   /* repasses: não carrega mais (faixa de recebimento retirada em 08/11/2026) */
         S.q(S.sb.from('colaboradores').select('usuario_id, nome, comissao, comissao_veiculos')).catch(() => [])]);
       Object.assign(dados, { veic:v, fat:fat || [], rep:rep || [], col:col || [], ok:true });
     } catch (e) { console.error(e); S.toast(S.erro(e)); }
@@ -199,14 +199,7 @@
           : '<p class="muted" style="margin:0">Nenhum consultor neste veículo.</p>'}</section>`;
     }
 
-    // 5. Head 14: faixa enxuta só para diretor e gerente
-    const reps = dados.rep.filter(r => r.mes === ym), recebidaH = reps.reduce((s, r) => s + Number(r.valor), 0);
-    const [ry, rm] = somaMes(ym, 1).split('-'), diaRep = String((S.db.empresa || {}).repasse_dia || 25).padStart(2, '0'), vencRep = `${diaRep}/${rm}/${ry}`;
-    const h14Tot = pis.filter(p => VENDIDO.includes(p.status)).reduce((s, p) => s + S.valorNoMes(p, ym) * pctH14(p) / 100, 0);   /* do veículo todo, mesmo com um consultor escolhido */
-    const h14 = ehCons ? '' : `<section class="card vx-h14" aria-label="${esc(emp)}"><span class="vx-h14-ic" aria-hidden="true">${S.svg('vendas')}</span>
-      <div class="vx-h14-tx"><b>${esc(emp)} · ${pctH}% do líquido de ${mesNome}</b><small>${brl(h14Tot)} sobre o vendido do veículo · recebido ${brl(recebidaH)} · repasse vence ${vencRep}</small>
-        ${reps.length ? `<span class="vx-reps">${reps.map(r => `<span>${dfmt(r.recebido_em)} · <b>${brl(r.valor)}</b><button class="btn sm tres" data-act="vdRepExcluir" data-id="${r.id}" aria-label="Excluir este repasse">${S.svg('lixo')}</button></span>`).join('')}</span>` : ''}</div>
-      <button class="btn sm" data-act="vdRepasse" data-mes="${ym}" data-v="${Math.max(0, h14Tot - recebidaH).toFixed(2)}">Registrar recebimento</button></section>`;
+    // 5. (faixa da Head 14 com "Registrar recebimento" retirada em 08/11/2026, pedido do Luiz: o SONVI não acompanha recebimento; a parte da Head 14 segue no número do topo e na coluna da tabela)
 
     // 6. PIs vendidos (consultor: comissão de cada PI; equipe: consultor e Head 14)
     const ord = vendidos.slice().sort((a, b) => b.v - a.v), mostra = ord.slice(0, st.lista);
@@ -223,7 +216,7 @@
         : `<div class="empty" style="padding:24px"><b>Nenhuma venda em ${mesNome}</b>Aparece aqui quando um PI que vai ao ar no mês é enviado para a OPEC.</div>`}</section>`;
 
     return { title:`<span class="sub">${esc(v.nome)}</span>${ehCons ? 'Minhas vendas' : 'Vendas'}`, actions:'',
-      body:`${topo}<div class="vx-grade">${hist}${cliHtml}</div>${eqHtml}${tabela}${h14}` };
+      body:`${topo}<div class="vx-grade">${hist}${cliHtml}</div>${eqHtml}${tabela}` };
   };
   document.addEventListener('change', e => { const s = e.target.closest && e.target.closest('[data-vxcons]'); if (!s) return; st.cons = s.value; st.lista = 8; S.render(); });
 
@@ -347,14 +340,6 @@
           ${lin('Resposta', l.pag_resposta === 'pago' ? 'Pago' : l.pag_resposta === 'ainda_nao' ? 'Ainda não' : '')}${lin('Respondido por', esc(l.pag_respondido_por))}${lin('Respondido em', dt(l.pag_respondido_em))}
           ${lin('Pago em', dfmt(l.pago_em))}${lin('Valor recebido', l.pago_em ? brl(pago(l)) : '')}${lin('Observação', esc(l.observacao))}</table>
         <div class="row"><span class="grow"></span><button class="btn" value="cancel">Fechar</button></div>`); },
-    vdRepasse: d => { const emp = S.empCurto ? S.empCurto() : 'Head 14';
-      S.form(`Repasse recebido · ${MESES[+d.mes.slice(5) - 1]}`, [{ k:'valor', label:'Valor recebido (R$)', req:true, mask:'dec' }, { k:'recebido_em', label:'Recebido em', type:'date', req:true },
-        { k:'observacao', label:'Observação', full:true, ph:'Ex.: Pix de 25/12' }, { html:`<p class="muted small" style="grid-column:1/-1;margin:0">O que a ${esc(emp)} recebeu da ${esc(S.veh().nome)} pelos pagamentos de ${MESES[+d.mes.slice(5) - 1]}.</p>` }],
-        { valor:Number(d.v) ? nfmt(Number(d.v)) : '', recebido_em:S.today() },
-        v => S.run(async () => { const valor = num(v.valor); if (!(valor > 0)) throw new Error('Informe o valor recebido.');
-          await S.q(S.sb.from('repasses').insert({ veiculo_id:S.ui.vehicleId, mes:d.mes, valor, recebido_em:v.recebido_em, observacao:(v.observacao || '').trim() })); await carregar(true); }, 'Repasse registrado'), 'Registrar', { editar:true }); },
-    vdRepExcluir: async d => { if (!await S.confirmar('Excluir este repasse registrado?', { ok:'Excluir', perigo:true })) return;
-      S.run(async () => { await S.q(S.sb.from('repasses').delete().eq('id', d.id)); await carregar(true); }, 'Repasse excluído'); },
   });
   window.addEventListener('hashchange', () => { if (/^#\/vendas/.test(location.hash)) dados.ok = false; });
 })();
