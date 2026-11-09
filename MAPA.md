@@ -181,9 +181,9 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Ações (`data-act`): rdAcervo, rdAtualizar, rdConectar, rdCriarPlaylist, rdFiltro, rdPorNaLista, rdSair
 - Tabelas lidas/gravadas: mus_programacao
 
-### relatorios.js · 234 linhas
+### relatorios.js · 241 linhas
 - Telas (`S.views`): relatorios
-- Ações (`data-act`): rlEmail, rlExcel, rlImprimir, rlMes, rlModo, rlPdf, rlTipo
+- Ações (`data-act`): rlEmail, rlExcel, rlImprimir, rlMes, rlModo, rlPdf, rlTipo, rlVer
 - Define `S.`: relComUsar
 - Banco (rpc): comissoes_do_mes
 - Tabelas lidas/gravadas: pi_historico

@@ -172,7 +172,7 @@
       ${consOpc.length ? `<label class="rl-campo"><span>Consultor</span><select data-rl="cons" aria-label="Consultor"><option value="">Todos</option>${consOpc.map(([id, n]) => `<option value="${id}"${st.cons === id ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>` : ''}
       ${st.tipo === 'pis' || st.tipo === 'rank' ? '' : `<label class="rl-chk"><input type="checkbox" data-rl="comp"${st.comp ? ' checked' : ''}> Comparar com o ${st.modo === 'mes' ? 'mês' : 'período'} anterior</label>`}
       <span class="grow"></span>
-      <div class="rl-acoes"><button type="button" class="btn" data-act="rlImprimir">${S.svg('imprimir')}Imprimir</button><button type="button" class="btn" data-act="rlPdf">${S.svg('baixar')}PDF</button>
+      <div class="rl-acoes"><button type="button" class="btn" data-act="rlVer">${S.svg('olho')}Visualizar</button><button type="button" class="btn" data-act="rlImprimir">${S.svg('imprimir')}Imprimir</button><button type="button" class="btn" data-act="rlPdf">${S.svg('baixar')}PDF</button>
         <button type="button" class="btn" data-act="rlExcel">${S.svg('planilha')}Excel</button><button type="button" class="btn pri" data-act="rlEmail">${S.svg('email')}Enviar por e-mail</button></div></section>`;
     return { title:`<span class="sub">${esc(v.nome)}</span>Relatórios`, actions:'', body:`${cartoes}${breve}${barra}<div class="rl-casca">${folhaHtml(r, M, false)}</div>` };
   };
@@ -194,6 +194,13 @@
     rlTipo: d => { st.tipo = d.id; S.render(); },
     rlModo: d => { st.modo = d.id; if (d.id === 'per' && !st.de) { const h = st.mes || S.today().slice(0, 7); st.de = somaMes(h, -2); st.ate = h; } S.render(); },
     rlMes: d => { const h = S.today().slice(0, 7); st.mes = somaMes(st.mes || h, +d.id); if (st.mes === h) st.mes = ''; S.render(); },
+    // Visualizar (09/11/2026, pedido do Luiz): a folha como sai no papel (A4, clara), numa janela grande, com Imprimir, PDF e E-mail
+    rlVer: () => { const { M, r } = atual(); if (!pronto(r)) return;
+      S.dialog(`<div class="row mid rl-ver-cab"><h2 class="grow">${esc(r.titulo)} <span class="muted">· ${esc(rotulo(M))}</span></h2>
+          <button type="button" class="btn" data-act="rlImprimir">${S.svg('imprimir')}Imprimir</button><button type="button" class="btn" data-act="rlPdf">${S.svg('baixar')}PDF</button>
+          <button type="button" class="btn" data-act="rlEmail">${S.svg('email')}E-mail</button><button class="btn pri" value="x">Fechar</button></div>
+        <div class="rl-ver"><div class="rl-a4">${folhaHtml(r, M, true)}</div></div>`);
+      const dl = document.getElementById('dlg'); dl.classList.add('largo', 'rl-dlg'); const antes = dl.onclose; dl.onclose = ev => { dl.classList.remove('largo', 'rl-dlg'); if (antes) antes(ev); }; },
     rlImprimir: () => { const { M, r } = atual(); if (!pronto(r)) return;
       let pg = document.getElementById('pagina'); if (!pg) { pg = document.createElement('style'); pg.id = 'pagina'; document.head.appendChild(pg); }
       pg.textContent = '@media print { @page { size:A4 portrait; margin:10mm; } }';
