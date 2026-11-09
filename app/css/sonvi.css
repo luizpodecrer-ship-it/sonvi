@@ -3534,6 +3534,11 @@ form.ver .so-ed, form.ver [data-pd-add], form.ver [data-act="pdFaixaMais"], form
 .cm-leg .c1 { background:var(--accent-soft); border:1px solid var(--accent); } .cm-leg .c2 { background:var(--accent); } .cm-leg .c3 { background:var(--green); height:3px; vertical-align:3px; }
 .cm-graf { width:100%; height:auto; display:block; } .cm-graf text { font:500 11px var(--font); fill:var(--ink-3); }
 .cm-g1 { fill:var(--accent-soft); stroke:var(--accent); stroke-width:.8; } .cm-g2 { fill:var(--accent); } .cm-graf g.on text { fill:var(--ink); font-weight:700; }
+.cm-graf text.cm-gv { font:600 10.5px var(--font); fill:var(--ink-2); } .cm-graf g.on text.cm-gv { fill:var(--accent); font-weight:700; }
+.cm-graf.vx-entra .cm-g1 { transform-box:fill-box; transform-origin:bottom; animation:vx-sobe .95s cubic-bezier(.2,.9,.25,1.12) calc(var(--d, 0ms) + var(--t, 0ms)) backwards; }
+.cm-graf.vx-entra .cm-gv { animation:cm-gv-pop .5s ease-out calc(var(--d, 0ms) + var(--t, 0ms) + 450ms) backwards; }
+@keyframes cm-gv-pop { from { opacity:0; transform:translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .cm-graf.vx-entra .cm-g1, .cm-graf.vx-entra .cm-gv { animation:none; } }
 .cm-g3 { fill:none; stroke:var(--green); stroke-width:2; } .cm-g3p { fill:var(--surface, #fff); stroke:var(--green); stroke-width:2; }
 .cm-cel { display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line); cursor:pointer; } .cm-cel:first-child { border-top:0; } .cm-cel.sem { cursor:default; }
 .cm-cel-tx { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; } .cm-cel-tx small { color:var(--ink-3); font-size:12px; }

@@ -52,7 +52,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Define `S.`: comboSujo, combosAtivos, combosUsar, itensDoCombo
 - Tabelas lidas/gravadas: combos, precos, produtos, tabelas_preco
 
-### comissoes.js · 343 linhas
+### comissoes.js · 351 linhas
 - Ações (`data-act`): cmAbrir, cmEditarCol, cmEnviar, cmEnviarTodos, cmFechar, cmMenuMes, cmMes, cmPagas, cmPdf, cmPlanilha, cmReabrir, cmVer, cmVoltar, cmWhatsUm
 - Define `S.`: comissaoPct, comissaoPctUsar, comissoesAbrirConsultor, comissoesLimpar, comissoesTela, comissoesUsar, minhaComissaoHtml, minhaComissaoUsar
 - Banco (rpc): comissoes_do_mes, comissoes_pagas, comissoes_pct, comissoes_periodo, extrato_previa_link, extrato_registrar_envio, fechar_comissoes, reabrir_comissoes

@@ -139,6 +139,9 @@
   };
 
   // ---------- detalhe do consultor ----------
+  const inicioGraf = {};
+  const entradaGraf = k => { const agora = performance.now(); if (!(k in inicioGraf)) inicioGraf[k] = agora; const t = agora - inicioGraf[k];
+    return t > 2600 ? '' : ` vx-entra" style="--t:-${Math.round(t)}ms`; };
   const telaDetalhe = (uid, mes) => {
     const { lista, fechado } = calcMes(mes), o = lista.find(x => x.uid === uid) || { uid, bruto:0, liq:0, pis:0, meta:0, rec:0, com:0, prev:0, fila:0, atraso:0, itens:[] };
     carregarPer(mes, false); const per = st.per[mes], dir = ehDiretor(), c = colDe(uid), pt = pctsTxt(uid);
@@ -146,12 +149,17 @@
     const vend = meses.map(m => st.base.pis.filter(p => !p.antigo && p.consultor_id === uid).reduce((t, p) => t + S.valorNoMes(p, m), 0));
     const com = meses.map(m => (per || []).filter(x => x.mes === m && x.consultor_id === uid).reduce((t, x) => t + Number(x.comissao || 0), 0));
     const topo = Math.max(1, ...vend), maxC = Math.max(1, ...com);
-    const W = 640, H = 180, bw = W / 12;
-    const grafico = per ? `<svg class="cm-graf" viewBox="0 0 ${W} ${H + 24}" role="img" aria-label="Vendido líquido e comissão nos últimos 12 meses">
-        ${meses.map((m, i) => { const x = i * bw, hv = vend[i] / topo * H;
-          return `<g${m === mes ? ' class="on"' : ''}><title>${S.nomeMes(m)}: vendido ${brl0(vend[i])}, comissão ${brl0(com[i])}</title><rect class="cm-g1" x="${(x + bw * .25).toFixed(1)}" y="${(H - hv).toFixed(1)}" width="${(bw * .5).toFixed(1)}" height="${hv.toFixed(1)}" rx="3"/><text x="${(x + bw / 2).toFixed(1)}" y="${H + 17}" text-anchor="middle">${MESES[+m.slice(5) - 1].slice(0, 3)}</text></g>`; }).join('')}
-        <polyline class="cm-g3" points="${com.map((v, i) => `${(i * bw + bw / 2).toFixed(1)},${(H - v / maxC * H * .9).toFixed(1)}`).join(' ')}"/>
-        ${com.map((v, i) => `<circle class="cm-g3p" cx="${(i * bw + bw / 2).toFixed(1)}" cy="${(H - v / maxC * H * .9).toFixed(1)}" r="3"/>`).join('')}</svg>` : '<p class="muted">Buscando os últimos 12 meses…</p>';
+    // 09/11/2026 (pedido do Luiz): o valor líquido vendido em cada mês aparece em cima da coluna (grade com valores);
+    // as colunas entram com mola e em cascata (padrão do SONVI, atraso negativo --t para não recomeçar quando a tela redesenha).
+    // No celular o desenho fica mais estreito (letras legíveis) e o valor vai em mil reais, sem a palavra "mil", para caber na coluna.
+    const cel = !!S.celular, W = cel ? 380 : 640, H = cel ? 150 : 180, T = 22, bw = W / 12, ent = entradaGraf(`${uid}|${mes}`);
+    const mil = v => (Math.round(v / 100) / 10).toLocaleString('pt-BR');
+    const curto = v => cel ? mil(v) : v >= 1000 ? `${mil(v)} mil` : String(Math.round(v));
+    const grafico = per ? `<svg class="cm-graf${ent}" viewBox="0 0 ${W} ${T + H + 24}" role="img" aria-label="Vendido líquido e comissão nos últimos 12 meses">
+        ${meses.map((m, i) => { const x = i * bw, hv = vend[i] / topo * H, cx = (x + bw / 2).toFixed(1);
+          return `<g${m === mes ? ' class="on"' : ''} style="--d:${i * 45}ms"><title>${S.nomeMes(m)}: vendido líquido ${brl0(vend[i])}, comissão ${brl0(com[i])}</title><rect class="cm-g1" x="${(x + bw * .25).toFixed(1)}" y="${(T + H - hv).toFixed(1)}" width="${(bw * .5).toFixed(1)}" height="${hv.toFixed(1)}" rx="3"/>${vend[i] > 0 ? `<text class="cm-gv" x="${cx}" y="${(T + H - hv - 6).toFixed(1)}" text-anchor="middle">${curto(vend[i])}</text>` : ''}<text x="${cx}" y="${T + H + 17}" text-anchor="middle">${MESES[+m.slice(5) - 1].slice(0, 3)}</text></g>`; }).join('')}
+        <polyline class="cm-g3" points="${com.map((v, i) => `${(i * bw + bw / 2).toFixed(1)},${(T + H - v / maxC * H * .9).toFixed(1)}`).join(' ')}"/>
+        ${com.map((v, i) => `<circle class="cm-g3p" cx="${(i * bw + bw / 2).toFixed(1)}" cy="${(T + H - v / maxC * H * .9).toFixed(1)}" r="3"/>`).join('')}</svg>${cel && vend.some(v => v > 0) ? '<p class="muted small" style="margin:4px 0 0">Valores vendidos em mil reais (líquido)</p>' : ''}` : '<p class="muted">Buscando os últimos 12 meses…</p>';
     const ext = fechado && (fechado.extratos || {})[uid], pago = fechado && (fechado.pagos || {})[uid];
     // Visualizar (31/10/2026, pedido do Luiz): abre o extrato na tela, com Baixar PDF, E-mail e WhatsApp; enviar vale também no mês aberto (prévia)
     const acoes = `<button class="btn pri" data-act="cmVer" data-id="${uid}">${S.svg('olho')}Visualizar extrato</button>${dir ? `<button class="btn" data-act="cmEnviar" data-id="${uid}">${S.svg('email')}Enviar</button>` : ''}${dir && c ? `<button class="btn" data-act="cmEditarCol" data-id="${c.id}">${S.svg('editar')}Percentual</button>` : ''}`;
