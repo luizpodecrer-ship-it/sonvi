@@ -5,7 +5,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 
 ## App (`app/js/`, ordem de carga em `app/index.html`)
 
-### admin.js · 616 linhas
+### admin.js · 627 linhas
 - Telas (`S.views`): admin
 - Ações (`data-act`): admAba, admAtivo, admCopiar, admEmpresa, admEnviarAcesso, admExcluir, admMinhaSenha, admPropostas, admSenha, admTextoPadrao, admTextosPI, admUsuario, admUsuarioEditar, admUsuarioMenu, admVeiculo, admVeiculoMenu, admVoltar, colAtivo, colDesligados, colEditar, colExcluir, colMenu, colNovo, empAba, empCnpj, empCor, empLogoEscolher, lixApagar, lixEsvaziar, lixMenu, lixRestaurar
 - Define `S.`: admAbrir, colaboradoresUsar, gerenteCadastra, rdUsar

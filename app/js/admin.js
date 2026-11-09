@@ -79,7 +79,11 @@
     // E-mail novo: troca na conta de entrada (função do servidor); a senha continua a mesma
     const email = String(f.email || '').trim().toLowerCase(), trocouEmail = !!email && email !== String(u.email || '').toLowerCase();
     S.run(async () => { if (trocouEmail) await servidor({ acao:'email', usuario_id:u.id, email });
-      await S.q(S.sb.rpc('salvar_usuario', { p_usuario:u.id, p_nome:f.nome, p_celular:f.celular || '', p_ativo:u.ativo, p_diretor:diretor, p_vinculos:vinculos })); await S.carregarBase(); },
+      await S.q(S.sb.rpc('salvar_usuario', { p_usuario:u.id, p_nome:f.nome, p_celular:f.celular || '', p_ativo:u.ativo, p_diretor:diretor, p_vinculos:vinculos }));
+      /* 09/11/2026: o colaborador ligado a este acesso acompanha os veículos (as duas listas não se separam mais) */
+      if (!diretor && vinculos.length && !ehGer()) { const col = ((await S.q(S.sb.from('colaboradores').select('id, veiculos').eq('usuario_id', u.id).eq('ativo', true)).catch(() => [])) || [])[0], vs = vinculos.map(x => x.veiculo_id);
+        if (col && [...(col.veiculos || [])].sort().join() !== [...vs].sort().join()) { await S.q(S.sb.from('colaboradores').update({ veiculos:vs }).eq('id', col.id)); S.db.colaboradores = null; } }
+      await S.carregarBase(); },
       trocouEmail ? `Usuário salvo. ${String(f.nome).split(' ')[0]} agora entra com ${email} (a senha continua a mesma).` : 'Usuário salvo');
   };
 
@@ -161,7 +165,7 @@
           ${inp('pix', 'Chave Pix', 's3', ' placeholder="CPF, e-mail, celular…"')}${inp('banco', 'Banco · agência · conta', 's3', ' placeholder="Opcional"')}
           <label class="f s6">Acesso ao SONVI<select name="usuario_id">${ligado ? `<option value="${ligado.id}" selected>Ligado a ${esc(ligado.nome || ligado.email)} (${esc(ligado.email)})</option><option value="">Desligar do usuário (o acesso continua; só tira a ligação)</option>`
             : `<option value="">Sem acesso ao SONVI</option><option value="__novo">Criar o acesso agora (senha provisória)</option>${livres.length ? `<optgroup label="Ligar a um usuário que já existe">${livres.map(u => `<option value="${u.id}">${esc(u.nome || u.email)} · ${esc(u.email)}</option>`).join('')}</optgroup>` : ''}`}</select>
-            <small class="muted" id="colAcessoDica">${ligado ? 'Para mudar o perfil ou os veículos do acesso, use a aba Usuários.' : 'Ao criar o acesso, o perfil em cada veículo marcado é o da função.'}</small></label>
+            <small class="muted" id="colAcessoDica">${ligado ? 'Os veículos marcados em "Veículos em que atua" são os mesmos que a pessoa acessa no SONVI.' : 'Ao criar o acesso, o perfil em cada veículo marcado é o da função.'}</small></label>
           <label class="f s6">Observações<textarea name="observacoes" rows="2" placeholder="Uso interno">${esc(c.observacoes || '')}</textarea></label></div></fieldset>
       </div></div>
       <div class="row em-pe"><small class="muted grow">CPF, nascimento e comissão só aparecem para o diretor e o financeiro.</small><button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn pri" value="ok">${novo ? 'Salvar colaborador' : 'Salvar'}</button></div>`,
@@ -204,7 +208,14 @@
       const row = { nome:f.nome.trim(), cpf:f.cpf || '', nascimento:f.nascimento || null, celular:f.celular || '', email:String(f.email || '').trim(), funcao:f.funcao || 'consultor', funcao_outra:f.funcao === 'outra' ? (f.funcao_outra || '').trim() : '',
         inicio:f.inicio || null, contratacao:f.contratacao || '', veiculos:veics, comissao, comissao_veiculos:cv, metas, pix:f.pix || '', banco:f.banco || '', observacoes:f.observacoes || '', usuario_id:usuarioId };
       if (c.id) await S.q(S.sb.from('colaboradores').update(row).eq('id', c.id)); else await S.q(S.sb.from('colaboradores').insert(row));
-      if (novoAcesso) await S.carregarBase();
+      // 09/11/2026: "Veículos em que atua" é também o acesso da pessoa (o consultor só entra nos veículos em que foi cadastrado).
+      // Acesso já ligado e que não é diretor: os veículos do login passam a ser os marcados aqui; o perfil de quem já tinha fica.
+      let mudouAcesso = false;
+      if (!novoAcesso && usuarioId && f.funcao !== 'outra' && veics.length) { const u = S.db.usuarios.find(x => x.id === usuarioId);
+        if (u && !u.diretor) { const atual = vinculosDe(u), vinc = veics.map(id => ({ veiculo_id:id, perfil:(atual.find(x => x.veiculo_id === id) || {}).perfil || f.funcao }));
+          const chave = l => l.map(x => x.veiculo_id + ':' + x.perfil).sort().join('|');
+          if (chave(vinc) !== chave(atual)) { await S.q(S.sb.rpc('salvar_usuario', { p_usuario:u.id, p_nome:u.nome || u.email, p_celular:u.celular || '', p_ativo:u.ativo, p_diretor:false, p_vinculos:vinc })); mudouAcesso = true; } } }
+      if (novoAcesso || mudouAcesso) await S.carregarBase();
       S.db.colaboradores = null; await carregarColab(); S.metasLimpar(); if (S.comissoesLimpar) S.comissoesLimpar();
       if (senha) mostrarSenha({ id:usuarioId, nome:row.nome, email:row.email.toLowerCase(), celular:row.celular }, senha, true);
     }, { titulo:c.id ? 'Colaborador salvo' : 'Colaborador cadastrado', sub:f.nome.trim() });
