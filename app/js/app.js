@@ -134,7 +134,7 @@
   // Tudo o que é clicável também funciona pelo teclado: linhas, itens de lista e links internos recebem Tab
   // e abrem com Enter (ou Espaço, nos que fazem papel de botão). Vale para o que for desenhado depois, inclusive diálogos.
   const CLICAVEIS = '[data-act]:not(button):not(input):not(select):not(textarea):not(label):not([tabindex]), [data-go]:not(a[href]):not(button):not([tabindex])';
-  const prepararTeclado = raiz => (raiz.querySelectorAll ? raiz.querySelectorAll(CLICAVEIS) : []).forEach(el => {
+  const prepararTeclado = raiz => (raiz && raiz.querySelectorAll ? raiz.querySelectorAll(CLICAVEIS) : []).forEach(el => {
     if (el.tagName === 'A' && !el.hasAttribute('href') && el.dataset.go) { el.setAttribute('href', '#' + el.dataset.go); return; }
     el.tabIndex = 0; if (el.tagName !== 'TR' && !el.getAttribute('role')) el.setAttribute('role', 'button');
   });

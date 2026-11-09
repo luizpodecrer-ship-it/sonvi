@@ -13,7 +13,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Tabelas lidas/gravadas: colaboradores, empresa_comercial
 - Funções de borda: usuarios
 
-### agencias.js · 121 linhas
+### agencias.js · 117 linhas
 - Telas (`S.views`): agencias, agencias-v
 - Ações (`data-act`): agEditar, agExcluir, agMenu, agNova, agVer
 - Define `S.`: agenciasLimpar, agenciasN, agenciasRecarregar, agenciasTela, agenciasUsar

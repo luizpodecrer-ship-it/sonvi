@@ -47,7 +47,7 @@ S.credito = (fundo = 'auto', raiz = '', cls = '') => {
     : `<picture><source srcset="${img('branco')}" media="(prefers-color-scheme: dark)"><img src="${img('preto')}" ${alt}></picture>`;
   return `<p class="credito${cls ? ' ' + cls : ''}">Desenvolvido por ${logo}</p>`;
 };
-S.iniciais = nome => String(nome || '?').trim().split(/\s+/).filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
+S.iniciais = nome => String(nome || '?').trim().split(/\s+/).filter(p => /[\p{L}\p{N}]/u.test(p)).map(p => p.replace(/^[^\p{L}\p{N}]+/u, '')).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
 S.ICON = {
   combos:'<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><path d="M17 13v8M13 17h8"/>',
   geral:'<path d="M12 3 2 8l10 5 10-5z"/><path d="m2 13 10 5 10-5"/><path d="m2 18 10 5 10-5"/>',
@@ -551,19 +551,19 @@ const pgNums = (a, n) => { if (n <= 7) return Array.from({ length:n }, (_, i) =>
   const d = S.celular ? 1 : 2, r = [1]; let ini = Math.max(2, a - d), fim = Math.min(n - 1, a + d);
   if (a <= 3) fim = Math.min(n - 1, 1 + d * 2); if (a >= n - 2) ini = Math.max(2, n - d * 2);
   if (ini > 2) r.push('…'); for (let i = ini; i <= fim; i++) r.push(i); if (fim < n - 1) r.push('…'); r.push(n); return r; };
-S.paginar = (k, lista, palavra = 'itens', filtros = '') => {
-  const e = pgEst[k] || (pgEst[k] = { pg:1, por:15, f:filtros, bola:null });
+S.paginar = (k, lista, palavra = 'itens', filtros = '', op = {}) => {   /* op.por e op.opcoes: tamanho próprio da lista (Agências do grupo: 8 · 15 · 25) */
+  const opcoes = op.opcoes || PG_POR, e = pgEst[k] || (pgEst[k] = { pg:1, por:op.por || 15, f:filtros, bola:null });
   if (e.f !== filtros) { e.pg = 1; e.f = filtros; }
   const n = Math.max(1, Math.ceil(lista.length / e.por)); if (e.pg > n) e.pg = n;
   const de = (e.pg - 1) * e.por, itens = lista.slice(de, de + e.por), ka = S.esc(k);
-  const html = lista.length <= PG_POR[0] ? '' : `<div class="cl-pag" data-pg="${ka}">
+  const html = lista.length <= opcoes[0] ? '' : `<div class="cl-pag" data-pg="${ka}">
     <p class="cl-pag-info" aria-live="polite">Mostrando <b>${de + 1}–${de + itens.length}</b> de <b>${lista.length}</b> ${palavra}</p>
     ${n > 1 ? `<nav class="cl-pag-nav" aria-label="Páginas">
       <button type="button" class="cl-pag-seta" data-act="pgIr" data-k="${ka}" data-v="${e.pg - 1}"${e.pg === 1 ? ' disabled' : ''} aria-label="Página anterior">${S.svg('esq', 16)}<span>Anterior</span></button>
       <span class="cl-pag-nums"><span class="cl-pag-bola" aria-hidden="true"></span>${pgNums(e.pg, n).map(x => x === '…' ? '<span class="cl-pag-rt" aria-hidden="true">…</span>'
         : `<button type="button" data-act="pgIr" data-k="${ka}" data-v="${x}"${x === e.pg ? ' aria-current="page"' : ''} aria-label="Página ${x}">${x}</button>`).join('')}</span>
       <button type="button" class="cl-pag-seta" data-act="pgIr" data-k="${ka}" data-v="${e.pg + 1}"${e.pg === n ? ' disabled' : ''} aria-label="Próxima página"><span>Próxima</span>${S.svg('seta', 16)}</button></nav>` : ''}
-    <label class="cl-pag-por"><span>Por página</span><select data-pgpor="${ka}" aria-label="Itens por página">${PG_POR.map(x => `<option value="${x}"${e.por === x ? ' selected' : ''}>${x}</option>`).join('')}</select></label></div>`;
+    <label class="cl-pag-por"><span>Por página</span><select data-pgpor="${ka}" aria-label="Itens por página">${opcoes.map(x => `<option value="${x}"${e.por === x ? ' selected' : ''}>${x}</option>`).join('')}</select></label></div>`;
   return { itens, html, de };
 };
 // Depois do desenho: a bolinha vai até a página aberta (desliza a partir de onde estava)

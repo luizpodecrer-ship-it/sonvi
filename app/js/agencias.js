@@ -25,26 +25,22 @@
     if (!st.lista) { carregar(); return { title:titulo, actions:acoes, body:'<div class="card empty"><b>Carregando as agências…</b></div>' }; }
     const q = st.q.trim().toLowerCase(), qn = q.replace(/\D/g, '');
     const lista = st.lista.filter(a => { const d = a.dados || {}; return !q || [d.nome, d.razao_social, d.cidade].join(' ').toLowerCase().includes(q) || (qn.length > 2 && String(d.documento || '').replace(/\D/g, '').includes(qn)); });
-    // Cadastro de empresa (29/10/2026, pedido do Luiz): nome e razão social, CNPJ, cidade, telefone e e-mail; nada de números de venda
+    // Lista enxuta (aprovada pelo Luiz em 09/11/2026, modelo "Agências do grupo"): padrão "Cadastros enxutos" do veículo + telefone e ⋯;
+    // sem e-mail e sem coluna de cidade (vai embaixo do nome, com a razão social); a linha abre a agência; 8 por página (8 · 15 · 25).
     const resumo = `<b>${st.lista.length} ${st.lista.length === 1 ? 'agência' : 'agências'}</b> · cadastra uma vez e vale em todos os veículos`;
-    const linha = a => { const d = a.dados || {};
-      return `<tr class="click" data-act="agEditar" data-id="${a.grupo}">
-        <td><div class="ag-nome"><span class="av soft" aria-hidden="true">${esc(S.iniciais(d.nome))}</span><span><b class="clamp2" title="${esc(d.nome)}">${esc(d.nome)}</b>${d.razao_social && d.razao_social !== d.nome ? `<small title="${esc(d.razao_social)}">${esc(d.razao_social)}</small>` : ''}</span></div></td>
-        <td class="nw">${esc(fmtDoc(d.documento)) || '—'}</td><td class="nw ag-txt" title="${esc(d.cidade)}">${esc(d.cidade) || '—'}</td><td class="nw ag-c-tel">${esc(d.telefone || d.whatsapp) || '—'}</td>
-        <td class="ag-txt ag-c-mail" title="${esc(d.email)}">${esc(d.email) || '—'}</td>
-        <td class="r"><div class="lin-acoes"><button class="btn sm" data-act="agEditar" data-id="${a.grupo}">Editar</button><button class="btn tres" data-act="agMenu" data-id="${a.grupo}" aria-label="Opções de ${esc(d.nome)}">${S.svg('mais3')}</button></div></td></tr>`; };
-    const cel = a => { const d = a.dados || {};
-      return `<div class="ag-cel" data-act="agEditar" data-id="${a.grupo}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(d.nome))}</span>
-        <span class="ag-cel-tx"><b>${esc(d.nome)}</b><small>${esc([fmtDoc(d.documento), d.cidade].filter(Boolean).join(' · ')) || '—'}</small></span></div>`; };
+    const pg = S.paginar('ag-grupo', lista, lista.length === 1 ? 'agência' : 'agências', q, { por:8, opcoes:[8, 15, 25] }), ent = entradaAg(`grupo|${pg.de}`);
+    const linha = (a, i) => { const d = a.dados || {}, sub = [d.razao_social && d.razao_social !== d.nome ? esc(d.razao_social) : '', d.cidade ? `<i>${esc(d.cidade)}</i>` : ''].filter(Boolean).join(' · ');
+      return `<div class="cx-l cx-agg" role="row" data-act="agEditar" data-id="${a.grupo}" tabindex="0" style="--d:${Math.min(i, 14) * 30}ms">
+        <span class="cx-nome" role="cell"><span class="cx-av" aria-hidden="true">${esc(S.iniciais(d.nome))}</span><span><b title="${esc(d.nome)}">${esc(d.nome)}</b><small>${sub || 'Cidade não informada'}</small></span></span>
+        <span class="cx-doc" role="cell">${esc(fmtDoc(d.documento)) || '<span class="muted">sem CNPJ</span>'}</span>
+        <span class="cx-doc cx-tel" role="cell">${esc(d.telefone || d.whatsapp) || '<span class="muted">—</span>'}</span>
+        <span role="cell" class="cx-ac"><button class="btn tres" data-act="agMenu" data-id="${a.grupo}" aria-label="Opções de ${esc(d.nome)}">${S.svg('mais3')}</button><span class="cx-ir" aria-hidden="true">${S.svg('seta', 16)}</span></span></div>`; };
     const vazio = `<div class="empty"><b>${q ? 'Nenhuma agência encontrada' : 'Nenhuma agência cadastrada'}</b>${q ? 'Experimente outra busca.' : 'Cadastre a primeira pelo botão "Nova agência". Ela passa a valer em todos os veículos.'}</div>`;
-    const pg = S.paginar('ag-grupo', lista, lista.length === 1 ? 'agência' : 'agências', q);   /* paginação padrão (08/11/2026) */
     const card = `<section class="card ag-card" aria-labelledby="ag-t">
       <div class="ag-cab"><div><h2 id="ag-t">Cadastro único do grupo</h2><p>${resumo}</p></div>
-        <label class="fin-busca ag-busca">${S.svg('busca')}<input value="${esc(st.q)}" data-ag="q" placeholder="Buscar agência ou CNPJ" aria-label="Buscar agências"></label></div>
-      ${!lista.length ? vazio : S.celular ? `<div class="ag-lista">${pg.itens.map(cel).join('')}</div>`
-        : `<div class="scroll"><table class="ag-tab">
-          <thead><tr><th>Agência</th><th class="ag-w-doc">CNPJ</th><th class="ag-w-cid">Cidade</th><th class="ag-w-tel ag-c-tel">Telefone</th><th class="ag-w-mail ag-c-mail">E-mail</th><th class="ag-w-ac"><span class="sr">Ações</span></th></tr></thead>
-          <tbody>${pg.itens.map(linha).join('')}</tbody></table></div>`}${pg.html}
+        <label class="fin-busca ag-busca">${S.svg('busca')}<input value="${esc(st.q)}" data-ag="q" placeholder="Buscar agência, CNPJ ou cidade" aria-label="Buscar agências"></label></div>
+      ${!lista.length ? vazio : `<div><div class="cx-cols cx-agg" aria-hidden="true"><span>Agência</span><span>CNPJ</span><span>Telefone</span><span></span></div>
+        <div class="cx-ls${ent}" role="table" aria-label="Agências">${pg.itens.map(linha).join('')}</div></div>`}${pg.html}
       <p class="ag-nota">Dentro de cada veículo, o cliente, a proposta e o PI escolhem a agência desta lista.</p></section>`;
     return { title:titulo, actions:acoes, body:card };
   };
@@ -103,7 +99,7 @@
       ${pg.html}</section>`;
     return { title:titulo, actions:acoes, body };
   };
-  document.addEventListener('keydown', e => { const l = e.target.closest && e.target.closest('.cx-ag'); if (l && (e.key === 'Enter' || e.key === ' ') && e.target === l) { e.preventDefault(); S.actions.agVer({ id:l.dataset.id }); } });
+  document.addEventListener('keydown', e => { const l = e.target.closest && e.target.closest('.cx-ag, .cx-agg'); if (l && (e.key === 'Enter' || e.key === ' ') && e.target === l) { e.preventDefault(); S.actions[l.classList.contains('cx-agg') ? 'agEditar' : 'agVer']({ id:l.dataset.id }); } });
 
   Object.assign(S.actions, {
     agNova: () => formulario(null),
