@@ -15,6 +15,7 @@
     ['pis', 'PIs', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],
     ['opec', 'OPEC', ['diretor', 'opec']],
     ['vendas', 'Vendas', ['diretor', 'gerente', 'consultor', 'financeiro']],  // 07/11/2026: o consultor acompanha as vendas dele aqui ("Minhas vendas")
+    ['relatorios', 'Relatórios', ['diretor', 'gerente', 'consultor', 'opec', 'financeiro']],  // 09/11/2026: relatórios do veículo (relatorios.js)
     ['produtos', 'Produtos', ['diretor', 'gerente', 'consultor']],
     ['admin', 'Administração', ['diretor']],
     ['chamados', 'Suporte', ['diretor']],        // chamados e acessos da equipe SONVI, só no Dashboard Gestão (25/10/2026)

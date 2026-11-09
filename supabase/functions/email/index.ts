@@ -9,6 +9,8 @@
 //                                                        com bloco "Documentos" e o arquivo anexado até 10 MB.
 //   { tipo: "proposta", id, para, assunto, texto }    → <propostas@sonvi.com.br>
 //   { tipo: "cobranca", id, para, assunto, texto }    → parcela a receber (só diretor e financeiro a enxergam); <financeiro@sonvi.com.br>
+//   { tipo: "relatorio", veiculo_id, para, assunto, texto, pdf, arquivo } → Relatórios do veículo (09/11/2026): o PDF (base64, até 8 MB)
+//                                                        vai anexado; só sai se quem envia enxerga o veículo; <relatorios@sonvi.com.br>, assinado "<quem envia> · <veículo>".
 // A resposta do destinatário vai para o e-mail de quem enviou (reply_to).
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -45,6 +47,7 @@ Deno.serve(async (req) => {
     let remetente = '', link = '', copia: string[] = [], veiculoNome = '', consultorId = '', caixa = '';
     let midias: { nome: string; url: string; info: string; arquivo: boolean }[] = [];
     let original: { nome: string; url: string; info: string; assinado: boolean | null; anexar: boolean } | null = null, piNo = '';
+    let anexoRel: { filename: string; content: string } | null = null;
     if (b.tipo === 'pi_opec') {
       const { data: pi } = await quem.from('pis').select('id, numero, link_token, veiculo_id, consultor_id, veiculos(nome, sigla)').eq('id', String(b.id ?? '')).maybeSingle();
       if (!pi) return resposta({ erro: 'PI não encontrado ou sem permissão.' }, 404);
@@ -86,6 +89,13 @@ Deno.serve(async (req) => {
       if (!l || (l as any).sentido !== 'receber') return resposta({ erro: 'Parcela não encontrada ou sem permissão.' }, 404);
       veiculoNome = (l as any).veiculos?.nome || ''; caixa = 'financeiro';
       if ((l as any).pi_id) { const { data: lp } = await quem.from('pis').select('consultor_id').eq('id', (l as any).pi_id).maybeSingle(); consultorId = (lp as any)?.consultor_id || ''; }
+    } else if (b.tipo === 'relatorio') {
+      const { data: v } = await quem.from('veiculos').select('id, nome').eq('id', String(b.veiculo_id ?? '')).maybeSingle();
+      if (!v) return resposta({ erro: 'Veículo não encontrado ou sem permissão.' }, 404);
+      const pdf = String(b.pdf ?? '');
+      if (!pdf || pdf.length > 11_000_000 || !/^[A-Za-z0-9+/=\s]+$/.test(pdf.slice(0, 2000))) return resposta({ erro: 'O PDF do relatório não chegou. Tente de novo.' }, 400);
+      veiculoNome = (v as any).nome || ''; caixa = 'relatorios';
+      anexoRel = { filename: (String(b.arquivo ?? '').replace(/[\\/:*?"<>|\r\n]/g, '-').trim().slice(0, 150) || 'Relatorio') .replace(/(\.pdf)?$/i, '.pdf'), content: pdf.replace(/\s/g, '') };
     } else return resposta({ erro: 'Tipo de envio desconhecido.' }, 400);
 
     const { data: eu0 } = await quem.from('usuarios').select('nome, email, organizacao_id').eq('id', user.id).maybeSingle();
@@ -126,7 +136,8 @@ Deno.serve(async (req) => {
     const enviar = (anexo: boolean) => fetch('https://api.resend.com/emails', {
       method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ from: remetente, to: para, ...(copia.length ? { cc: copia } : {}), subject: assunto, text: textoFinal, html, ...(emailOk(responder) ? { reply_to: responder } : {}),
-        ...(anexo && original?.anexar ? { attachments: [{ filename: original.nome.replace(/[\\/:*?"<>|\r\n]/g, '_').slice(0, 120) || 'PI-da-agencia.pdf', path: original.url }] } : {}) }),
+        ...(anexo && original?.anexar ? { attachments: [{ filename: original.nome.replace(/[\\/:*?"<>|\r\n]/g, '_').slice(0, 120) || 'PI-da-agencia.pdf', path: original.url }] } : {}),
+        ...(anexoRel ? { attachments: [anexoRel] } : {}) }),
     });
     let r = await enviar(true);
     if (!r.ok && original?.anexar) { console.error('anexo recusado', await r.text().catch(() => '')); r = await enviar(false); }   // sem o anexo, o link continua no e-mail
