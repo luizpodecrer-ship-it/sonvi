@@ -228,6 +228,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - **opec_link** (source/index.ts) · ações: abrir, auto, cancelado, programar · rpc: pi_devolver_por_link, pi_programar_por_link · remetentes: pi@sonvi.com.br · chamada por: pi.html, pi.js
 - **usuarios** (index.ts) · ações: ativo, criar, email, enviar_acesso, esqueci, excluir, link, minha_senha, senha · rpc: eh_diretor, minha_org, pode_gerenciar_usuario, preparar_exclusao_usuario, usuario_so_nas_minhas · remetentes: acesso@sonvi.com.br · chamada por: admin.js, auth.js, console/console.js
 - **vendas** (index.ts) · ações: diario, faturado, pedido, perguntar, suspenso · rpc: followup_chave · remetentes: faturamento@sonvi.com.br · chamada por: vendas.js
+- **whatsapp** (index.ts) · ações: — · rpc: followup_chave · remetentes: — · chamada por: —
 
 ## Banco (`database/NNN_*.sql`)
 
