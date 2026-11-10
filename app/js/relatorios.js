@@ -66,15 +66,18 @@
   // ---------- os quatro relatórios: cada um devolve a mesma estrutura (números, gráficos, tabela), desenhada na tela, no PDF e no Excel ----------
   const MONTA = {
     vendas: M => { const l = vendidosEm(M), liq = soma(l), bruto = l.reduce((s, x) => s + x.v * fatorBruto(x.p), 0), A = anterior(M), la = vendidosEm(A), liqA = soma(la), brutoA = la.reduce((s, x) => s + x.v * fatorBruto(x.p), 0);
-      const fim = M[M.length - 1], m12 = Array.from({ length:12 }, (_, i) => somaMes(fim, i - 11)).map(m => ({ m, v:soma(vendidosEm([m])), on:M.includes(m) }));
-      const porC = {}; l.forEach(x => { const k = quem() ? (x.p.cliente_id || '-') : (x.p.consultor_id || '-'); porC[k] = (porC[k] || 0) + x.v; });
-      const barras = Object.entries(porC).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => [quem() ? (S.nome(k) || 'Sem cliente') : nomeCons(k), v]);
+      // 10/11/2026 (Luiz): o gráfico acompanha a escolha. Mês: sem gráfico de meses (consultores e clientes lado a lado);
+      // Período: uma coluna por mês do período, com o melhor mês em destaque.
+      const meses = M.length > 1 ? M.map(m => ({ m, v:soma(vendidosEm([m])) })) : null;
+      if (meses) { const mx = Math.max(...meses.map(x => x.v)); meses.forEach(x => { x.on = mx > 0 && x.v === mx; }); }
+      const agrupa = chave => { const o = {}; l.forEach(x => { const k = chave(x.p) || '-'; o[k] = (o[k] || 0) + x.v; }); return Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, 6); };
+      const porCons = agrupa(p => p.consultor_id).map(([k, v]) => [nomeCons(k), v]), porCli = agrupa(p => p.cliente_id).map(([k, v]) => [S.nome(k) || 'Sem cliente', v]);
       const ord = l.slice().sort((a, b) => b.v - a.v), equipe = !quem();
       return { titulo:'Vendas do período',
         kpis:[{ r:'Vendido (líquido)', v:liq, d:true, vr:variacao(liq, liqA) }, { r:'Bruto', v:bruto, vr:variacao(bruto, brutoA) }, { r:'Comissão de agências', v:bruto - liq },
           { r:'PIs vendidos', v:l.length, n:true, vr:st.comp ? (() => { const d = l.length - la.length; return { cls:d > 0 ? 'up' : d < 0 ? 'down' : '', txt:`${d > 0 ? '+' : ''}${d} ${Math.abs(d) === 1 ? 'PI' : 'PIs'}` }; })() : null }],
-        m12, barras:[{ t:equipe ? 'Por consultor' : 'Maiores clientes', l:barras, tot:liq }],
-        tab:{ t:M.length === 1 ? 'PIs que entram no mês' : 'PIs que entram no período', cols:[['PI'], ['Cliente'], ...(equipe ? [['Consultor', 'oc']] : []), ['Bruto', 'n oc'], ['Líquido', 'n dir']],
+        m12:meses, gTit:'Mês a mês no período', barras:[...(quem() ? [] : [{ t:'Por consultor', l:porCons, tot:liq }]), ...(!meses || quem() ? [{ t:'Maiores clientes', l:porCli, tot:liq }] : [])],
+        tab:{ t:M.length === 1 ? 'PIs que entram no mês' : 'PIs que entram no período', cols:[['PI'], ['Cliente'], ...(equipe ? [['Consultor', 'oc nw']] : []), ['Bruto', 'n oc'], ['Líquido', 'n dir']],
           linhas:ord.map(x => [{ h:`<b>${esc(S.piNo(x.p))}</b>`, x:S.piNo(x.p) }, { h:`${esc(S.nome(x.p.cliente_id) || '—')}<small>${esc(S.nome(x.p.agencia_id) || 'venda direta')}</small>`, x:S.nome(x.p.cliente_id) || '' },
             ...(equipe ? [{ h:esc(nomeCons(x.p.consultor_id)), x:nomeCons(x.p.consultor_id) }] : []), { h:brl(x.v * fatorBruto(x.p)), x:+(x.v * fatorBruto(x.p)).toFixed(2) }, { h:`<b>${brl(x.v)}</b>`, x:+x.v.toFixed(2) }]),
           total:['Total', ...(equipe ? [''] : []), '', brl(bruto), brl(liq)], totalX:['Total', '', ...(equipe ? [''] : []), +bruto.toFixed(2), +liq.toFixed(2)],
@@ -107,7 +110,7 @@
       const n = k => l.filter(p => sit(p)[0] === k).length, equipe = !quem();
       return { titulo:'PIs do período',
         kpis:[{ r:'PIs no período', v:l.length, n:true }, { r:'OPEC abriu', v:n('ok'), n:true, d:true }, { r:'Devolvidos', v:n('dev'), n:true }, { r:'Cancelados', v:n('can'), n:true }],
-        tab:{ t:'', cols:[['PI'], ['Cliente'], ...(equipe ? [['Consultor', 'oc']] : []), ['Líquido', 'n oc'], ['Situação', 'dir']],
+        tab:{ t:'', cols:[['PI'], ['Cliente'], ...(equipe ? [['Consultor', 'oc nw']] : []), ['Líquido', 'n oc'], ['Situação', 'dir']],
           linhas:l.map(p => { const [k, tx] = sit(p), mot = motivos[p.id];
             return [{ h:`<b>${esc(S.piNo(p))}</b><small>${esc(S.nome(p.agencia_id) || 'venda direta')}</small>`, x:S.piNo(p) }, { h:`${esc(S.nome(p.cliente_id) || '—')}${mot ? `<small>${k === 'can' ? 'Motivo' : 'OPEC'}: ${esc(mot)}</small>` : ''}`, x:S.nome(p.cliente_id) || '' },
               ...(equipe ? [{ h:esc(nomeCons(p.consultor_id)), x:nomeCons(p.consultor_id) }] : []), { h:brl(Number(p.valor_liquido) || 0), x:+(Number(p.valor_liquido) || 0).toFixed(2) }, { h:`<span class="rl-selo ${k}">${tx}</span>`, x:tx }]; }),
@@ -133,10 +136,10 @@
       return `<div class="rl-k${x.d ? ' dest' : ''}" style="--d:${i * 80}ms"><small>${esc(x.r)}</small><b>${papel || x.t !== undefined ? esc(val) : S.roloFixo(`rl-${k}-${i}`, val)}</b>
         ${x.sub ? `<span class="rl-sub">${esc(x.sub)}</span>` : x.vr ? `<span class="rl-var ${x.vr.cls}">${x.vr.cls === 'up' ? '▲ ' : x.vr.cls === 'down' ? '▼ ' : ''}${esc(x.vr.txt)}<span> vs. ${esc(rotuloAnt(M))}</span></span>` : ''}</div>`; };
     const graf = r.m12 ? (() => { const mx = Math.max(1, ...r.m12.map(x => x.v)), passo = (() => { const b = mx / 4, mag = Math.pow(10, Math.floor(Math.log10(b))), f = b / mag; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag; })(), topo = Math.ceil(mx / passo) * passo;
-      return `<div class="rl-bloco-g"><h3>Últimos 12 meses</h3><div class="vx-area rl-area${ent}">${Array.from({ length:Math.round(topo / passo) + 1 }, (_, i) => `<span class="vx-gl" style="bottom:${(i * passo / topo * 100).toFixed(2)}%"><small>${i ? curto(i * passo) : '0'}</small></span>`).join('')}
+      return `<div class="rl-bloco-g" style="--n:${r.m12.length}"><h3>${esc(r.gTit || 'Mês a mês')}</h3><div class="vx-area rl-area${ent}">${Array.from({ length:Math.round(topo / passo) + 1 }, (_, i) => `<span class="vx-gl" style="bottom:${(i * passo / topo * 100).toFixed(2)}%"><small>${i ? curto(i * passo) : '0'}</small></span>`).join('')}
         <div class="vx-plot rl-plot">${r.m12.map((x, i) => `<span class="vx-col${x.on ? ' on' : ''}${x.v ? '' : ' zero'}" style="--h:${(x.v / topo * 100).toFixed(2)}%;--d:${i * 55}ms" tabindex="0" aria-label="${mesAno(x.m)}: ${brl(x.v)}"><i></i>
           ${papel ? '' : `<span class="vx-dica" role="tooltip"><b>${mesAno(x.m)}</b><span>Vendido <b>${brl(x.v)}</b></span></span>`}</span>`).join('')}</div></div>
-        <div class="vx-rot rl-rot" aria-hidden="true">${r.m12.map(x => `<small${x.on ? ' class="on"' : ''}>${nMes(x.m).slice(0, 3)}</small>`).join('')}</div></div>`; })() : '';
+        <div class="vx-rot rl-rot" aria-hidden="true">${r.m12.map(x => `<small${x.on ? ' class="on"' : ''}>${nMes(x.m).slice(0, 3)}${r.m12[0].m.slice(0, 4) !== r.m12[r.m12.length - 1].m.slice(0, 4) ? '/' + x.m.slice(2, 4) : ''}</small>`).join('')}</div></div>`; })() : '';
     const barras = (r.barras || []).map(b => `<div><h3>${esc(b.t)}</h3>${b.l.length ? `<div class="vx-barras${ent}">${b.l.map(([n, val], i) => `<div class="vx-b"><div class="vx-b-t"><span class="vx-b-n"><em>${i + 1}</em>${esc(n)}</span><b>${brl0(val)}</b><small>${b.tot ? Math.round(val / b.tot * 100) : 0}%</small></div>
         <div class="vx-b-tr"><i style="width:${(b.l[0][1] ? val / b.l[0][1] * 100 : 0).toFixed(2)}%;--d:${150 + i * 80}ms"></i></div></div>`).join('')}</div>` : `<p class="muted small">${esc(b.vazio || 'Nada no período.')}</p>`}</div>`);
     const texto = r.texto ? `<div><h3>${esc(r.texto.t)}</h3><p class="rl-tx">${esc(r.texto.p)}</p></div>` : '';

@@ -4438,20 +4438,21 @@ dialog.fm-largo form > .row .btn { white-space:nowrap; }
 .rl-sub { font-size:12.5px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .vx-entra .rl-k { animation:rise .7s cubic-bezier(.2,.8,.2,1) calc(var(--d, 0ms) + var(--t, 0ms)) backwards; }
 .rl-meio { display:grid; grid-template-columns:minmax(0, 1.25fr) minmax(0, 1fr); gap:28px 32px; margin-bottom:26px; align-items:start; }
-.rl-meio > div:nth-child(3) { grid-column:1 / -1; } .rl-meio.um { grid-template-columns:1fr; }
+.rl-meio > div:nth-child(3) { grid-column:1 / -1; } .rl-bloco-g + div { min-width:0; } .rl-meio.um { grid-template-columns:1fr; }
 .rl-folha h3 { margin:0 0 12px; font:600 15px var(--display); }
 .rl-tx { margin:0; color:var(--ink-2); font-size:14px; }
 .rl-area { height:180px; margin:24px 0 0 46px; }
-.rl-plot { grid-template-columns:repeat(12, minmax(0, 1fr)); gap:clamp(4px, .8vw, 10px); }
+.rl-plot { grid-template-columns:repeat(var(--n, 12), minmax(0, 1fr)); gap:clamp(4px, .8vw, 10px); }
 .rl-plot .vx-col { cursor:default; }
 .rl-plot .vx-col:nth-child(-n+3) .vx-dica { left:0; transform:translate(0, 6px); } .rl-plot .vx-col:nth-child(n+10) .vx-dica { left:auto; right:0; transform:translate(0, 6px); }
 .rl-plot .vx-col:nth-child(-n+3):is(:hover, :focus-visible) .vx-dica, .rl-plot .vx-col:nth-child(n+10):is(:hover, :focus-visible) .vx-dica { transform:none; }
-.rl-rot { grid-template-columns:repeat(12, minmax(0, 1fr)); gap:clamp(4px, .8vw, 10px); }
+.rl-rot { grid-template-columns:repeat(var(--n, 12), minmax(0, 1fr)); gap:clamp(4px, .8vw, 10px); }
 .rl-rot small { font-size:11.5px; }
 .rl-tab { width:100%; border-collapse:collapse; font-size:13.5px; }
 .rl-tab th { text-align:left; color:var(--ink-3); font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
 .rl-tab td { padding:11px 10px; border-bottom:1px solid var(--line-2); vertical-align:middle; }
 .rl-tab td small { display:block; color:var(--ink-3); font-size:12px; } .rl-tab td small.rl-cel { display:none; }
+.rl-tab td:first-child, .rl-tab .nw { white-space:nowrap; } .rl-tab td:first-child small { white-space:normal; }
 .rl-tab .n { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .rl-tab tfoot td { font-weight:800; border-bottom:0; border-top:2px solid var(--ink); padding-top:13px; }
 .vx-entra.rl-tab tbody tr { animation:rise .55s cubic-bezier(.2,.8,.2,1) calc(var(--d, 0ms) + var(--t, 0ms) + 250ms) backwards; }
