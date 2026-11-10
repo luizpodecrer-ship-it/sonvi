@@ -86,6 +86,7 @@
 <script src="js/config.js?v=202611010500"></script>
 <script src="js/data.js?v=202611010500"></script>
 <script src="js/folha.js?v=202611010500"></script>
+<script src="js/pi-pdf.js?v=202611101000"></script>
 <script>
 (() => {
   const token = new URLSearchParams(location.search).get('p') || '';
@@ -181,7 +182,12 @@
       (document.fonts ? document.fonts.ready : Promise.resolve()).then(ajusta);
     })
     .catch(() => estado('Não foi possível abrir o PI', 'Verifique a internet e tente de novo.'));
-  el('baixar').addEventListener('click', () => { el('abas').querySelector('[data-aba=pi]').click(); setTimeout(() => window.print(), 60); });
+  // 10/11/2026: o PDF é gerado aqui mesmo (js/pi-pdf.js), sempre deitado; o Safari do iPhone ignorava o @page e espremia o PI
+  el('baixar').addEventListener('click', async () => { const b = el('baixar'), envio = el('print').querySelector('.pi-envio'); if (!envio || b.disabled) return;
+    const txt = b.innerHTML; b.disabled = true; b.lastChild.textContent = 'Gerando o PDF…';
+    let falhou = false;
+    try { await window.sonviPdfPI(envio.outerHTML, envio.dataset.papel, document.title || 'PI'); } catch (e) { console.error(e); falhou = true; } finally { b.disabled = false; b.innerHTML = txt; }
+    if (falhou) { b.lastChild.textContent = 'Não deu certo · tente de novo'; setTimeout(() => { b.innerHTML = txt; }, 4000); } });
 })();
 </script>
 </body>

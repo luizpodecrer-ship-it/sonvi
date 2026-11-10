@@ -934,7 +934,7 @@
             return `<label class="f" style="grid-column:1/-1">Marca do PI<select name="marca"><option value="radio"${m === 'radio' ? ' selected' : ''}>${esc(S.veh(pi.veiculo_id).nome)}</option><option value="comercial"${m === 'comercial' ? ' selected' : ''}>${esc(String(S.db.empresa.nome || 'Empresa comercial').split('·')[0].trim())} (empresa comercial)</option></select></label>`; })() : ''}</div>
         <div class="g2">${c('commission', 'Comissão e valor líquido')}${c('billing', 'Faturamento e parcelas')}${c('clientData', 'Dados do cliente')}${c('vehicleData', 'Dados da rádio')}${c('obs', 'Observações ao cliente')}${c('signClient', 'Assinatura do cliente')}${c('signVehicle', 'Assinatura da rádio')}${c('signAgency', 'Assinatura da agência')}${c('conds', 'Condições gerais')}</div>
         <div class="row"><span class="grow"></span><button class="btn" value="cancel">Cancelar</button><button class="btn pri" value="ok">Exportar</button></div>`,
-        v => { S.buildPrint(cur(), v); setTimeout(() => window.print(), 60); }); }
+        v => { S.buildPrint(cur(), v); S.piPdf(cur()); }); }
   });
 
   // ---------- enviar para a OPEC por e-mail (database/019): link do PI, sem login (app/pi.html) ----------
@@ -966,7 +966,7 @@
         <button class="btn" value="cancel" formnovalidate>Cancelar</button><button type="button" class="btn pri" data-opec="enviar">${S.svg('seta')}Enviar por e-mail</button></div>`);
     const dl = document.getElementById('dlg'), f = dl.querySelector('form'); dl.dataset.guarda = '1';
     f.addEventListener('click', e => { const bt = e.target.closest('[data-opec]'); if (!bt) return;
-      if (bt.dataset.opec === 'pdf') { S.buildPrint(pi, Object.assign({ date:today(), signAgency:!!pi.agencia_id }, OPC_PADRAO)); setTimeout(() => window.print(), 60); return; }
+      if (bt.dataset.opec === 'pdf') { S.buildPrint(pi, Object.assign({ date:today(), signAgency:!!pi.agencia_id }, OPC_PADRAO)); S.piPdf(pi); return; }
       const email = f.email.value.trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return S.erroNoCampo(f.email, 'Coloque o e-mail da OPEC.');
       const texto = f.msg.value, guardar = f.guardar && f.guardar.checked;
@@ -1064,6 +1064,9 @@
   const papel = tam => { let st = document.getElementById('pagina'); if (!st) { st = document.createElement('style'); st.id = 'pagina'; document.head.appendChild(st); }
     st.textContent = `@media print { @page { size:${tam === 'a4' ? 'A4' : 'legal'} landscape; margin:8mm; } }`; };
 
+  // PDF do PI gerado pelo SONVI (10/11/2026, pi-pdf.js): sempre na folha deitada, também no celular (o Safari do iPhone ignorava o @page)
+  S.piPdf = pi => S.run(async () => { const v = S.veh(pi.veiculo_id), html = document.getElementById('print').innerHTML; S.toast('Gerando o PDF do PI…');
+    await window.sonviPdfPI(html, v.pi_papel, `${S.piNo(pi)} · ${v.nome}`); document.getElementById('print').innerHTML = ''; });
   S.buildPrint = (pi, o) => {
     const c = S.calc(pi), v = S.veh(pi.veiculo_id), cli = S.pessoa(pi.cliente_id) || {}, ag = S.pessoa(pi.agencia_id), b = pi.dados.billing, cor = v.cor || S.COR_PADRAO;
     papel(v.pi_papel);

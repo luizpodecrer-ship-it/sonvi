@@ -357,6 +357,8 @@ Sistema de gestão para grupos de rádio: comercial, PI, OPEC, programação e f
 
 - `S.buildPrint` (`pi.js`) monta o contrato de publicidade numa folha deitada: Ofício/Legal por padrão ou A4 (`veiculos.pi_papel`, regra `@page` em `<style id="pagina">`). Estilos `.pidoc`/`.pd-*` em `sonvi.css` valem na prévia e no PDF.
 - Textos por rádio em Administração → Veículos → "Textos do PI": `pi_cidade`, `pi_pagamento`, `pi_condicoes` (vazio = `S.PI_CONDICOES_PADRAO` de `pi-regras.js`; `{RADIO}` e `{CIDADE}` são trocados). Migração `database/010_textos_do_pi.sql`.
+- **PDF gerado pelo SONVI** (10/11/2026, erro achado pelo Luiz no PI NTV 0058 feito no iPhone): o Safari do iPhone ignora `@page size … landscape` e gerava A4 em pé, espremendo e sobrepondo o PI. Agora `app/js/pi-pdf.js` (`window.sonviPdfPI(html, papel, nome)`) desenha o `.pidoc` num palco fora da tela (`.previa.pdf-palco`, 1284 px para Ofício, 1062 px para A4) e gera o PDF pelo html2pdf (carregado na hora), sempre deitado, margem 8 mm. Usado em `S.piPdf` (pi.js: Exportar e "Baixar PDF" do envio à OPEC) e no botão "Baixar PDF do PI" de `pi.html`. Não usar `windowWidth` no html2canvas: com ele o recorte saía deslocado (cortava a esquerda no computador e a direita no celular).
+- Na mesma data: as regras de celular dos Relatórios (`.rl-*`) passaram a `@media screen`, porque na impressão em A4 em pé (largura < 820 px) a folha saía com o layout de celular.
 
 ## Financeiro
 
