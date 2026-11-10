@@ -235,5 +235,13 @@
   const mqCel = window.matchMedia('(max-width: 820px)'); S.celular = mqCel.matches;
   mqCel.addEventListener('change', e => { S.celular = e.matches; if (!S.carregando && S.me) S.render(); });
 
+  // "Online agora" no Console (10/11/2026, database/084): com o SONVI aberto e visível, um sinal por minuto (sinal_online).
+  // Aba escondida ou celular em segundo plano: o sinal para e, em 2 minutos, a bolinha some no Console. Acesso de suporte não marca ninguém.
+  let ultimoSinal = 0;
+  const sinal = () => { if (!S.me || !S.sb || (S.ctx && S.ctx.suporte) || document.visibilityState !== 'visible' || Date.now() - ultimoSinal < 50000) return;
+    ultimoSinal = Date.now(); Promise.resolve(S.sb.rpc('sinal_online')).catch(() => {}); };
+  setInterval(sinal, 60000); setTimeout(sinal, 4000);
+  document.addEventListener('visibilitychange', sinal); window.addEventListener('focus', sinal);
+
   S.iniciar();
 })();

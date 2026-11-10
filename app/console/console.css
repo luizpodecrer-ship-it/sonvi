@@ -320,3 +320,13 @@ dialog.rf-larga { width:min(1000px, 96vw); max-width:none; }
 @media (max-width:1200px) { .cf-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } .cf-kpis .tile.hero { grid-column:1 / -1; } .cf-duo { grid-template-columns:minmax(0, 1fr); } }
 @media (max-width:760px) { #cf-cobs .seg { max-width:100%; overflow-x:auto; scrollbar-width:none; } #cf-cobs .seg button { flex:none; } .cf-rel, .rf-dlg { grid-template-columns:minmax(0, 1fr); } .cf-chart { gap:3px; height:160px; } .cf-col small { font-size:10px; } .rf-prev { max-height:none; padding:14px; } .rf-kk { grid-template-columns:1fr 1fr; } }
 .console #cside .menu-cred { color:#a1a1aa; }
+
+/* Online agora (10/11/2026, database/084): bolinha verde no avatar e texto "online agora"; pulso suave, parado com reduzir movimento */
+.av.on { position:relative; }
+.av.on::after { content:""; position:absolute; right:-1px; bottom:-1px; width:12px; height:12px; border-radius:50%; background:var(--green); box-shadow:0 0 0 2px var(--surface); }
+.c-on { display:inline-flex; align-items:center; gap:6px; color:var(--green); font-weight:600; font-size:13px; }
+.c-on i { width:8px; height:8px; border-radius:50%; background:currentColor; box-shadow:0 0 0 0 currentColor; animation:c-pulso 2s ease-out infinite; }
+small.c-on, .c-cli small.c-on, .c-cartao small.c-on { color:var(--green); font-size:12px; margin-top:2px; }
+.c-on-n { color:var(--green); font-weight:600; }
+@keyframes c-pulso { 0% { box-shadow:0 0 0 0 color-mix(in srgb, currentColor 55%, transparent); } 100% { box-shadow:0 0 0 7px transparent; } }
+@media (prefers-reduced-motion:reduce) { .c-on i { animation:none; } }

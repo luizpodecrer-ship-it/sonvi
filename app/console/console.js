@@ -138,9 +138,9 @@
     const chDe = c => abertos().filter(ch => ch.organizacao_id === c.id).length;
     const mens = c => c.contrato && Number(c.contrato.valor_mensal) ? S.brl(c.contrato.valor_mensal) : '<span class="muted">—</span>';
     const pag = c => c.contrato ? `${esc(nomeForma(c.contrato.forma))} · dia ${c.contrato.dia_vencimento}` : '<span class="muted">sem contrato</span>';
-    const linhas = lista.map(c => `<tr class="click" data-go="/cliente/${esc(c.slug)}"><td><a href="#/cliente/${esc(c.slug)}" class="c-cli">${logoCli(c)}<span class="tx"><b>${esc(c.nome)}</b><small>${esc(endereco(c.slug))}</small><small>${esc(dir(c))}</small></span></a></td>
+    const linhas = lista.map(c => `<tr class="click" data-go="/cliente/${esc(c.slug)}"><td><a href="#/cliente/${esc(c.slug)}" class="c-cli">${logoCli(c)}<span class="tx"><b>${esc(c.nome)}</b><small>${esc(endereco(c.slug))}</small><small>${esc(dir(c))}</small>${onlineDe(c) ? `<small class="c-on"><i aria-hidden="true"></i>${onlineDe(c)} online agora</small>` : ''}</span></a></td>
         <td>${sitPill(c)}</td><td class="r nowrap">${mens(c)}</td><td class="nowrap">${pag(c)}</td><td class="nowrap">${contratoAte(c.contrato)}</td><td>${finPill(c)}</td><td class="r">${chDe(c) || '<span class="muted">0</span>'}</td></tr>`).join('');
-    const cartoes = lista.map(c => `<a class="c-cartao" href="#/cliente/${esc(c.slug)}">${logoCli(c)}<span class="tx"><b>${esc(c.nome)}</b><small>${esc(endereco(c.slug))}</small><small>${c.contrato ? `${S.brl(c.contrato.valor_mensal)} · ${esc(nomeForma(c.contrato.forma))} · dia ${c.contrato.dia_vencimento}` : 'sem contrato'} · ${plural(chDe(c), 'chamado aberto', 'chamados abertos')}</small><span class="c-pills">${sitPill(c)}${finPill(c)}</span></span></a>`).join('');
+    const cartoes = lista.map(c => `<a class="c-cartao" href="#/cliente/${esc(c.slug)}">${logoCli(c)}<span class="tx"><b>${esc(c.nome)}</b>${onlineDe(c) ? `<small class="c-on"><i aria-hidden="true"></i>${onlineDe(c)} online agora</small>` : ''}<small>${esc(endereco(c.slug))}</small><small>${c.contrato ? `${S.brl(c.contrato.valor_mensal)} · ${esc(nomeForma(c.contrato.forma))} · dia ${c.contrato.dia_vencimento}` : 'sem contrato'} · ${plural(chDe(c), 'chamado aberto', 'chamados abertos')}</small><span class="c-pills">${sitPill(c)}${finPill(c)}</span></span></a>`).join('');
     const mes = hojeISO().slice(0, 7), aReceber = (D.cobrancas || []).filter(x => x.situacao === 'aberta' && x.vencimento.slice(0, 7) === mes);
     const rc = receitaContratada(), ab = abertos(), urg = ab.filter(ch => ch.prioridade === 'urgente').length;
     return { titulo:'Clientes', sub:`Console SONVI · ${hoje().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' })}`, acoes:pode('proprietario') ? `<a class="btn pri" href="#/novo">${S.svg('mais')}Novo cliente</a>` : '',
@@ -164,7 +164,11 @@
   const PERFIS = [['gerente', 'Gerente comercial'], ['consultor', 'Consultor'], ['opec', 'OPEC'], ['financeiro', 'Financeiro'], ['programador', 'Programador'], ['locutor', 'Locutor']];
   const nomePerfil = k => (PERFIS.find(p => p[0] === k) || [k, k])[1];
   const funcaoTexto = (c, u) => u.diretor ? 'Diretor · todas as rádios' : u.vinculos.length ? u.vinculos.map(v => `${nomePerfil(v.perfil)} na ${(c.radios.find(r => r.id === v.veiculo_id) || {}).nome || 'rádio'}`).join(' · ') : 'sem rádio';
-  const situacaoUsuario = u => !u.ativo ? '<span class="pill" style="--tone:var(--red)">Desativado</span>' : u.trocar_senha ? '<span class="pill" style="--tone:var(--orange)">Com senha provisória</span>'
+  // "Online agora" (10/11/2026, database/084): quem deu sinal no SONVI nos últimos 2 minutos (console_online, lido a cada 30 s)
+  let ON = new Set();
+  const online = u => u && u.ativo && ON.has(u.id);
+  const onlineDe = c => c.equipe.filter(online).length;
+  const situacaoUsuario = u => online(u) ? '<span class="c-on nowrap"><i aria-hidden="true"></i>online agora</span>' : !u.ativo ? '<span class="pill" style="--tone:var(--red)">Desativado</span>' : u.trocar_senha ? '<span class="pill" style="--tone:var(--orange)">Com senha provisória</span>'
     : `<span class="muted small nowrap">${u.ultimo_acesso ? 'último acesso ' + quando(u.ultimo_acesso) : 'nunca entrou'}</span>`;
   const daEquipe = (slug, id) => { const c = cliente(slug); return { c, u:c && c.equipe.find(x => x.id === id) }; };
 
@@ -321,8 +325,8 @@
         <p class="muted small">Logo, cores, textos do PI e produtos o diretor completa dentro do SONVI.</p></section>`,
       dados:`<section class="card"><div class="hd"><h2>Dados da empresa</h2>${faltam.length ? `<span class="pill" style="--tone:var(--orange)">${faltam.length} faltando</span>` : ''}${prop ? `<button class="btn sm" data-act="editarCliente" data-id="${c.id}">${S.svg('editar')}Editar dados</button>` : ''}</div>
         <div class="c-kv">${kv('Nome no SONVI', c.nome)}${kv('Razão social', (c.dados || {}).razao_social, true)}${kv('CNPJ', c.cnpj)}${kv('Endereço', enderecoCompleto(c))}${kv('Responsável financeiro', [(c.dados || {}).responsavel_financeiro, (c.dados || {}).telefone].filter(Boolean).join(' · '), true)}${kv('E-mails de cobrança', faltam.includes('e-mails de cobrança') ? '' : (c.dados || {}).emails_cobranca, true)}${kv('Endereço no SONVI', endereco(c.slug))}${kv('Situação', (SIT[c.situacao] || [c.situacao])[0] + (c.situacao === 'teste' && c.teste_ate ? ' até ' + S.dfmt(c.teste_ate) : ''))}${kv('Chamados abertos', String(chAb))}</div></section>`,
-      equipe:`<section class="card"><div class="hd"><h2>Equipe</h2><span>${plural(ativos, 'usuário ativo', 'usuários ativos')}</span>${prop ? `<button class="btn sm" data-act="novoUsuario" data-id="${c.id}">${S.svg('mais')}Cadastrar usuário</button>` : ''}</div>
-        ${c.equipe.length ? `<div class="list">${c.equipe.map(u => `<div class="${u.ativo ? '' : 'c-inativo'}"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome || '—')}</b><small>${esc(funcaoTexto(c, u))}</small><small>${esc(u.email)}${u.celular ? ' · <span class="nowrap">' + esc(u.celular) + '</span>' : ''}</small></span>
+      equipe:`<section class="card"><div class="hd"><h2>Equipe</h2><span>${plural(ativos, 'usuário ativo', 'usuários ativos')}${onlineDe(c) ? ` · <b class="c-on-n">${onlineDe(c)} online agora</b>` : ''}</span>${prop ? `<button class="btn sm" data-act="novoUsuario" data-id="${c.id}">${S.svg('mais')}Cadastrar usuário</button>` : ''}</div>
+        ${c.equipe.length ? `<div class="list">${c.equipe.map(u => `<div class="${u.ativo ? '' : 'c-inativo'}"><span class="av soft${online(u) ? ' on' : ''}" aria-hidden="true">${esc(S.iniciais(u.nome || u.email))}</span><span class="tx"><b>${esc(u.nome || '—')}</b><small>${esc(funcaoTexto(c, u))}</small><small>${esc(u.email)}${u.celular ? ' · <span class="nowrap">' + esc(u.celular) + '</span>' : ''}</small></span>
           <span class="c-sit">${situacaoUsuario(u)}</span>${prop ? `<button class="btn tres" data-act="usuarioMenu" data-id="${u.id}" data-org="${c.slug}" aria-label="Opções de ${esc(u.nome || u.email)}">${S.svg('mais3')}</button>` : ''}</div>`).join('')}</div>`
           : '<p class="c-aviso">Este cliente está sem equipe. Use "Cadastrar usuário" e escolha a função de diretor.</p>'}
         ${diretores.length ? '' : c.equipe.length ? '<p class="c-aviso">Nenhum diretor ativo: o cliente fica sem quem cadastre a equipe e os dados da empresa.</p>' : ''}</section>`,
@@ -1076,6 +1080,13 @@
       if (/foi criado/.test(err.message)) { await recarregar(); novo = null; location.hash = '/cliente/' + n.slug; }
     }
   });
+
+  // Online agora: a cada 30 s (tela visível); redesenha só se mudou e se não há janela aberta
+  const lerOnline = async () => { if (!D || document.hidden) return;
+    let r; try { r = await q(sb.rpc('console_online')); } catch (e) { return; }
+    const novo = new Set((r || []).map(x => x.id)), mudou = novo.size !== ON.size || [...novo].some(id => !ON.has(id)); ON = novo;
+    if (mudou && ['clientes', 'cliente'].includes(rota().v || 'clientes') && !document.getElementById('dlg').open) render(); };
+  setInterval(lerOnline, 30000); document.addEventListener('visibilitychange', lerOnline); setTimeout(lerOnline, 1500);
 
   // Suporte: chamados e conversas se atualizam sozinhos (sem atrapalhar quem está digitando)
   setInterval(async () => {

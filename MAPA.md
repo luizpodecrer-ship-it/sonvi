@@ -19,10 +19,11 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Define `S.`: agenciasLimpar, agenciasN, agenciasRecarregar, agenciasTela, agenciasUsar
 - Banco (rpc): agencias_grupo, excluir_agencia_grupo, salvar_agencia_grupo
 
-### app.js · 240 linhas
+### app.js · 248 linhas
 - Telas (`S.views`): soMusic
 - Ações (`data-act`): menuRecolher, navAbrir, navIr, navMais, pular
 - Define `S.`: abrirVeiculo, carregando, celular, iniciar, render, trocarVeiculo
+- Banco (rpc): sinal_online
 
 ### auth.js · 120 linhas
 - Ações (`data-act`): authEsqueci, authRecarregar, authVoltar, contaMenu, encerrarSuporte, sair, trocarMinhaSenha
@@ -212,7 +213,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 ## Páginas soltas (`app/*.html`, `app/console/`)
 
 - `app/confirmar.html` (129 linhas) · rpc: confirmar_faturamento, parcela_por_token, pedido_por_token, responder_pagamento · borda: —
-- `app/console/console.js` (1092 linhas) · rpc: chat_mensagens, console_abrir_chamado, console_adicionar_radio, console_alterar_cobranca, console_avulso, console_baixar, console_chamado_situacao, console_dados, console_estornar, console_salvar_cliente, console_salvar_config, console_salvar_contrato, console_salvar_radio, console_slug_livre, eh_admin_plataforma, responder_chamado · borda: console, usuarios
+- `app/console/console.js` (1103 linhas) · rpc: chat_mensagens, console_abrir_chamado, console_adicionar_radio, console_alterar_cobranca, console_avulso, console_baixar, console_chamado_situacao, console_dados, console_estornar, console_online, console_salvar_cliente, console_salvar_config, console_salvar_contrato, console_salvar_radio, console_slug_livre, eh_admin_plataforma, responder_chamado · borda: console, usuarios
 - `app/console/index.html` (32 linhas) · rpc: — · borda: —
 - `app/extrato.html` (52 linhas) · rpc: extrato_por_token · borda: —
 - `app/index.html` (66 linhas) · rpc: — · borda: —
@@ -334,6 +335,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `console_excluir_cliente` (028 → 060) · app: —
 - `console_excluir_radio` (028 → 060) · app: —
 - `console_exige` (030) · app: —
+- `console_online` (084) · app: console/console.js
 - `console_papel` (030) · app: —
 - `console_preparar_exclusao` (028) · app: —
 - `console_salvar_cliente` (027 → 032) · app: console/console.js
@@ -445,6 +447,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `salvar_produto_radio` (043 → 071) · app: produtos.js
 - `salvar_tabela` (013 → 036 → 037) · app: cadastros.js
 - `salvar_usuario` (004 → 007 → 014 → 021 → 023 → 026 → 060) · app: admin.js
+- `sinal_online` (084) · app: app.js
 - `slug_reservado` (027) · app: —
 - `sonvi_int` (061) · app: —
 - `sonvi_num` (061) · app: —
