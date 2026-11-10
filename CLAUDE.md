@@ -12,6 +12,7 @@ Sistema de gestão comercial para grupos de mídia (rádios e mídia exterior): 
 
 - Ele não é desenvolvedor: respostas em português do Brasil, sem jargão, com passo a passo quando ele precisar fazer algo.
 - Mudança de tela ou de fluxo: mostrar a proposta ou o modelo (artifact) antes de implementar e esperar o "aprovado". Correção de erro pode ir direto.
+- Projeto novo (10/11/2026): antes de qualquer proposta, wireframe ou modelo, fazer as perguntas que faltam e esperar as respostas. Todo modelo parte das telas e do código reais do SONVI, nunca de telas imaginadas.
 - Ao terminar: confirmação curta do que mudou, como usar e o que ele precisa conferir. Apontar problemas vizinhos que notar.
 
 ## Código
