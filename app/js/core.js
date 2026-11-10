@@ -101,7 +101,7 @@ S.temaRadio = v => {
   const tx = ajusta(cor, soft, 4.5, '#000000'), txd = ajusta(cor, softD, 4.5, '#ffffff'), [r, g, b] = rgb(ac);
   st.dataset.cor = cor;
   // As cores de status (azul, verde, laranja…) não mudam com a rádio
-  st.textContent = `:root{--accent:${ac};--accent-hover:${mistura(ac, '#000000', .14)};--accent-2:${mistura(ac, '#ffffff', .3)};--accent-ink:#fff;--accent-soft:${soft};--accent-text:${tx};--bar-soft:${mistura(ac, '#ffffff', .78)}}
+  st.textContent = `:root{--accent:${ac};--accent-hover:${mistura(ac, '#000000', .14)};--accent-2:${mistura(ac, '#ffffff', .3)};--accent-ink:${contraste(ac, '#ffffff') >= 4.5 ? '#fff' : '#0a0b0d'};--accent-soft:${soft};--accent-text:${tx};--bar-soft:${mistura(ac, '#ffffff', .78)}}
 @media (prefers-color-scheme: dark){:root{--accent-hover:${mistura(ac, '#ffffff', .12)};--accent-soft:rgba(${r},${g},${b},.24);--accent-text:${txd};--bar-soft:${mistura(ac, '#121316', .65)}}}`;
 };
 

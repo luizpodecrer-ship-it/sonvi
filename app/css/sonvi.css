@@ -4430,11 +4430,13 @@ dialog.fm-largo form > .row .btn { white-space:nowrap; }
 .rl-k > small { color:var(--ink-3); font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
 .rl-k > b { display:flex; align-items:center; min-height:31px; font:700 24px/1.25 var(--display); letter-spacing:-.02em; font-variant-numeric:tabular-nums; overflow:hidden; }
 .rl-k .cz-rod { font-size:24px; --cz-dh:31px; font-weight:700; }
-.rl-k.dest { background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 78%, #000)); border-color:transparent; color:#fff; }
-.rl-k.dest > small, .rl-k.dest .rl-sub { color:rgba(255,255,255,.82); }
+/* Destaque na cor do veículo: texto na cor de contraste dela (--accent-ink: branco nas cores escuras, escuro nas claras; S.temaRadio) */
+.rl-k.dest { background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 78%, #000)); border-color:transparent; color:var(--accent-ink); }
+.rl-k.dest .cz-rod { color:inherit; }
+.rl-k.dest > small, .rl-k.dest .rl-sub { color:inherit; opacity:.84; }   /* sem color-mix: o PDF (html2canvas) não entende */
 .rl-var { align-self:flex-start; display:inline-flex; gap:4px; font-size:12px; font-weight:700; padding:2px 9px; border-radius:999px; color:var(--ink-3); background:var(--fill); }
 .rl-var span { font-weight:500; } .rl-var.up { color:var(--green); background:color-mix(in srgb, var(--green) 14%, transparent); } .rl-var.down { color:var(--red); background:color-mix(in srgb, var(--red) 13%, transparent); }
-.rl-k.dest .rl-var { color:#fff; background:rgba(255,255,255,.18); }
+.rl-k.dest .rl-var { color:var(--accent-ink); background:color-mix(in srgb, var(--accent-ink) 18%, transparent); }
 .rl-sub { font-size:12.5px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .vx-entra .rl-k { animation:rise .7s cubic-bezier(.2,.8,.2,1) calc(var(--d, 0ms) + var(--t, 0ms)) backwards; }
 .rl-meio { display:grid; grid-template-columns:minmax(0, 1.25fr) minmax(0, 1fr); gap:28px 32px; margin-bottom:26px; align-items:start; }
@@ -4498,7 +4500,7 @@ dialog.largo.rl-dlg { width:min(1000px, 96vw); }
 .rl-papel .rl-k.dest { background:var(--accent); }
 /* o gerador de PDF não entende color-mix(): no papel, cores prontas */
 .rl-papel .vx-gl { border-top-color:#e6e9f0; } .rl-papel .vx-col > i { background:#cfd7e6; box-shadow:none; } .rl-papel .vx-col.on > i { background:var(--accent); }
-.rl-papel .rl-var { background:#eef2f9; } .rl-papel .rl-var.up { background:#e3f3ec; } .rl-papel .rl-var.down { background:#fbe7e6; } .rl-papel .rl-k.dest .rl-var { background:rgba(255,255,255,.2); }
+.rl-papel .rl-var { background:#eef2f9; } .rl-papel .rl-var.up { background:#e3f3ec; } .rl-papel .rl-var.down { background:#fbe7e6; } .rl-papel .rl-k.dest .rl-var { background:rgba(255,255,255,.2); color:var(--accent-ink); }
 .rl-papel .rl-selo { background:#ebf1ff; } .rl-papel .rl-selo.ok { background:#e3f3ec; } .rl-papel .rl-selo.dev { background:#fdf0e1; } .rl-papel .rl-selo.can { background:#fbe7e6; }
 .rl-papel .vx-b:first-child .vx-b-tr i { box-shadow:none; }
 .rl-papel .rl-topo { padding-bottom:14px; margin-bottom:16px; } .rl-papel .rl-ks { margin-bottom:18px; gap:10px; } .rl-papel .rl-k { padding:11px 13px; }
