@@ -186,6 +186,92 @@
         link:{ rota:'/financeiro', texto:'Relatórios' }, rotulo:`Inadimplência: ${pctTxt(inadG)} do que já venceu` } ];
   }
 
+  // ---------- Diretor e gerente (aprovado em 11/11/2026, modelo "Dashboard do veículo · modelo") ----------
+  // Painel no estilo Cuadrante (cuadrante.js): um anel por consultor (vendido líquido ÷ meta do mês; quem vende sem meta
+  // aparece com "sem meta"), "Vendido" acumulado no mês (dia do lançamento da venda) e "Propostas" criadas por semana.
+  // Mês passado · este mês · próximo mês. Embaixo, só os PIs aguardando a OPEC abrir. Nada muda sozinho: números do banco.
+  const MESC = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const milTxt = v => { const a = Math.abs(v); return a >= 1000 ? (a / 1000).toLocaleString('pt-BR', { maximumFractionDigits:1 }) + ' mil' : Math.round(a).toLocaleString('pt-BR'); };
+  const deltaR = (v, antes, rot) => { const df = v - antes; if (!v && !antes) return { txt:'', sube:null }; if (!df) return { txt:'igual' + (rot ? ' a ' + rot : ''), sube:null };
+    return { txt:`${df > 0 ? '+' : '−'}${milTxt(df)}${rot ? ' vs ' + rot : ''}`, sube:df > 0 }; };
+  let vpainel = null;   // { chave, el, montado }: montado entre um desenho e outro (os anéis e a linha não recomeçam)
+  function vendasPainel(pis) {
+    const meses = [S.mesAtual(-1), S.mesAtual(0), S.mesAtual(1)], antes = S.mesAtual(-2), L = meses.map(m => S.metasDoMes(m));
+    if (L.some(l => !l)) return S.metasEspera('Resumo de vendas');
+    const veic = S.ui.vehicleId, hoje = S.today(), vend = pis.filter(p => VENDIDO.includes(p.status));
+    const metaDe = (i, u) => L[i].filter(x => x.veiculo_id === veic && x.usuario_id === u).reduce((t, x) => t + Number(x.meta || 0), 0);
+    const vendDe = (m, u) => vend.filter(p => (p.consultor_id || '') === u).reduce((t, p) => t + S.valorNoMes(p, m), 0);
+    // Quem entra: consultor com meta em algum dos três meses ou quem vendeu (diretor também; PI sem consultor = "Sem consultor")
+    const ids = new Set();
+    L.forEach(l => l.filter(x => x.veiculo_id === veic && Number(x.meta || 0) > 0).forEach(x => ids.add(x.usuario_id)));
+    meses.forEach(m => vend.forEach(p => { if (S.valorNoMes(p, m) > 0) ids.add(p.consultor_id || ''); }));
+    const papel = u => !u ? 'sem consultor' : (S.db.usuarios.find(x => x.id === u) || {}).diretor ? 'diretor' : S.db.vinculos.some(v => v.usuario_id === u && v.veiculo_id === veic && v.perfil === 'gerente') ? 'gerente' : 'consultor';
+    const nomeDe = u => !u ? 'Sem consultor' : (L.flat().find(x => x.usuario_id === u) || {}).nome || S.usuario(u) || 'Consultor';
+    let pessoas = [...ids].map(u => ({ u, nome:nomeDe(u), papel:papel(u), meta:metaDe(1, u), v:vendDe(meses[1], u) }))
+      .sort((a, b) => (b.meta ? 1 : 0) - (a.meta ? 1 : 0) || (b.meta && a.meta ? b.v / b.meta - a.v / a.meta : 0) || b.v - a.v);
+    let grupos = pessoas.map(x => ({ nome:x.nome, papel:x.papel, us:[x.u] }));
+    if (grupos.length > 4) grupos = [...grupos.slice(0, 3), { nome:'Outros', papel:`${grupos.length - 3} pessoas`, us:grupos.slice(3).flatMap(g => g.us), outros:true }];
+    const semCons = !S.consultores().length;
+    const aviso = semCons ? 'Nenhum consultor neste veículo. As metas se cadastram em Administração › Colaboradores.'
+      : !pessoas.some(x => x.meta) ? 'Nenhuma meta cadastrada para este mês (Administração › Colaboradores).' : '';
+    const totalDe = m => vend.reduce((t, p) => t + S.valorNoMes(p, m), 0);
+    const datos = meses.map((m, i) => {
+      const [y, mm] = m.split('-').map(Number), nDias = new Date(y, mm, 0).getDate(), atual = i === 1, ate = atual ? +hoje.slice(8, 10) : nDias, rotMesC = MESC[mm - 1], ant = i ? meses[i - 1] : antes;
+      const canales = grupos.map(g => { const v = g.us.reduce((t, u) => t + vendDe(m, u), 0), alvo = g.outros ? 0 : metaDe(i, g.us[0]), va = g.us.reduce((t, u) => t + vendDe(ant, u), 0);
+        return { v:Math.round(v), alvo, semMeta:!alvo, meta:alvo ? Math.min(1, v / alvo) : 0, pct:alvo ? Math.round(v / alvo * 100) : 0, alvoTxt:alvo ? 'de R$ ' + Math.round(alvo).toLocaleString('pt-BR') : '', d:deltaR(v, va, '') }; });
+      // Vendido acumulado: cada venda entra no dia em que foi lançada (antes do mês = dia 1; depois do mês = último dia)
+      const porDia = Array(ate).fill(0);
+      vend.forEach(p => { const v = S.valorNoMes(p, m); if (!v) return; const l = S.lancada ? S.lancada(p.id, m) : null, dt = String((l && l.lancado_em) || p.atualizado_em || p.criado_em || '').slice(0, 10);
+        const k = dt < m + '-01' ? 0 : dt.slice(0, 7) > m ? ate - 1 : Math.min(ate - 1, Math.max(0, +dt.slice(8, 10) - 1)); porDia[k] += v; });
+      let acc = 0; const valores = porDia.map(v => Math.round(acc += v)), etiquetas = valores.map((_, k) => `${k + 1} ${rotMesC}`);
+      if (valores.length === 1) { valores.unshift(0); etiquetas.unshift('início'); }
+      const total = Math.round(totalDe(m));
+      // Propostas criadas no mês, por semana (1–7, 8–14, 15–21, 22–28, 29–fim)
+      const sem = [[1, 7], [8, 14], [15, 21], [22, 28], [29, nDias]], props = (S.db.propostas || []).filter(x => String(x.criado_em || '').slice(0, 7) === m);
+      const noIntervalo = (x, [a, b]) => { const dd = +String(x.criado_em).slice(8, 10); return dd >= a && dd <= b; };
+      const pv = sem.map(r => props.filter(x => noIntervalo(x, r)).length), pa = sem.map(r => props.filter(x => noIntervalo(x, r) && x.situacao === 'aprovada').length), aprov = pa.reduce((t, x) => t + x, 0);
+      return { texto:atual ? `${MESL[mm - 1]} até hoje` : i === 2 ? `${MESL[mm - 1]} · já vendido` : MESL[mm - 1], canales,
+        ingresos:{ valores, etiquetas, total, delta:deltaR(total, totalDe(ant), MESC[+ant.slice(5) - 1]) },
+        pedidos:{ valores:pv, aprov:pa, etiquetas:sem.map(([a, b]) => `${a}–${b} ${rotMesC}`), texto:'criadas por semana', delta:{ txt:props.length ? `${aprov} ${aprov === 1 ? 'aprovada' : 'aprovadas'}` : '', sube:null } } };
+    });
+    const veh = S.veh(), chave = JSON.stringify([veic, grupos.map(g => g.nome + g.papel), datos, aviso]);
+    if (!vpainel || vpainel.chave !== chave) {
+      const host = document.createElement('div');
+      host.innerHTML = S.cuVendasHtml({ titulo:'Resumo de vendas', sub:`${veh ? veh.nome : ''} · venda pelo líquido, no mês em que vai ao ar`, inicial:vpainel && vpainel.veic === veic ? vpainel.rango : 1,
+        meses:meses.map(m => MESL[+m.slice(5) - 1].replace(/^./, c => c.toUpperCase())), filas:grupos, aviso });
+      vpainel = { chave, veic, el:host.firstElementChild, datos, nomes:grupos.map(g => g.nome), montado:false, rango:vpainel && vpainel.veic === veic ? vpainel.rango : 1 };
+    }
+    const vp = vpainel;
+    queueMicrotask(() => { const lugar = document.getElementById('cu-lugar-v'); if (!lugar || vpainel !== vp) return; lugar.replaceWith(vp.el);
+      if (vp.montado) return; vp.montado = true;
+      // Cores dos anéis: tons da cor do veículo (--accent), do mais forte ao mais claro
+      const rgb = c => { const m = /^#?([0-9a-f]{6})$/i.exec(String(c).trim()); if (m) { const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+        const r = String(c).match(/\d+(\.\d+)?/g); return r ? r.slice(0, 3).map(Number) : [0, 85, 255]; };
+      const base = rgb(getComputedStyle(vp.el).getPropertyValue('--accent') || '#0055FF'), mix = k => base.map(x => Math.round(x + (255 - x) * k)).join(', ');
+      const tons = [mix(0), mix(.38), mix(.6), '150, 154, 165'];
+      tons.forEach((t, i) => vp.el.style.setProperty(`--cu-v${i + 1}`, t));
+      [['--cu-cielo', 0], ['--cu-ambar', 1], ['--cu-violeta', 1], ['--cu-barra-b', 0], ['--cu-barra-a', 1]].forEach(([k, i]) => vp.el.style.setProperty(k, tons[i]));
+      const fm = n => Math.round(n).toLocaleString('pt-BR');
+      S.cuadrante(vp.el, { datos:vp.datos, inicial:vp.rango, nomes:vp.nomes, alMudar:i => { vp.rango = i; },
+        textoCanais:d => 'Vendido líquido ÷ meta de cada um · ' + d.texto,
+        unoMeta:c => c.semMeta ? 'sem meta neste mês' : `${c.pct}% da meta de R$ ${fm(c.alvo)}`,
+        kpi:d => d.ingresos.total,
+        globoLinha:(i, d) => ['R$ ' + fm(d.ingresos.valores[i]), d.ingresos.etiquetas[i] + ' · acumulado no mês'],
+        globoBarra:(i, d) => { const n = d.pedidos.valores[i], a = d.pedidos.aprov[i]; return [`${n} ${n === 1 ? 'proposta' : 'propostas'}`, `${d.pedidos.etiquetas[i]} · ${a} ${a === 1 ? 'aprovada' : 'aprovadas'}`]; },
+        avisoPeriodo:d => `${d.texto}: R$ ${fm(d.ingresos.total)} vendidos e ${d.pedidos.valores.reduce((t, x) => t + x, 0)} propostas.` });
+    });
+    return '<div id="cu-lugar-v"></div>';
+  }
+  // PIs enviados que a OPEC ainda não abriu, os mais antigos primeiro
+  function aguardandoOpec(pis) {
+    const lista = pis.filter(p => p.status === 'opec').sort((a, b) => String(a.atualizado_em || a.criado_em).localeCompare(String(b.atualizado_em || b.criado_em)));
+    const linhas = lista.map(p => { const n = diasDesde(p.atualizado_em || p.criado_em);
+      return `<a class="vo-l" href="#/pi/${esc(p.id)}" data-go="/pi/${esc(p.id)}"><b class="vo-no">${esc(S.piNo(p))}</b><span class="vo-cli">${esc(cliente(p))}</span>
+        <span class="vo-quem">${esc(S.usuario(p.consultor_id) || 'Sem consultor')} · enviado ${S.dfmt(String(p.atualizado_em || p.criado_em).slice(0, 10)).slice(0, 5)}</span>
+        <span class="vo-v">${reais(S.liquidoPi(p))}</span><span class="vo-dias${n >= 2 ? ' alerta' : ''}"><i aria-hidden="true"></i>${n < 1 ? 'hoje' : n === 1 ? 'há 1 dia' : `há ${n} dias`}</span></a>`; }).join('');
+    return `<section class="card vo" aria-labelledby="vo-t"><div class="hd"><h2 id="vo-t">PIs aguardando a OPEC abrir</h2><span class="muted small">${lista.length ? `${plural(lista.length, 'PI', 'PIs')} · ${reais(soma(lista))} · mais antigos primeiro` : ''}</span></div>
+      ${lista.length ? `<div class="vo-lista">${linhas}</div>` : '<p class="muted" style="margin:0">A OPEC já abriu todos os PIs enviados.</p>'}</section>`;
+  }
   // Bloco escolhido: guardado por perfil enquanto a pessoa usa o SONVI
   S.ui.cxEscolha = S.ui.cxEscolha || {};
   S.views.dashboard = () => {
@@ -197,6 +283,8 @@
     const metas = perfil === 'gestao' ? S.metaFaixa({ mes:S.mesAtual(), pis, veiculo:S.ui.vehicleId }) : perfil === 'consultor' ? S.metaFaixa({ mes:S.mesAtual(), pis, veiculo:S.ui.vehicleId, meu:true }) : '';
     queueMicrotask(() => { const el = document.querySelector('#content [data-casillero]'); if (!el || el.dataset.ligado) return; el.dataset.ligado = '1';
       S.casillero(el, { semEntrada:!document.getElementById('content').classList.contains('entra'), aoEscolher:id => { S.ui.cxEscolha[perfil] = id; } }); });
+    const titulo = `<span class="sub">${hojeExtenso()}</span>${saudacao()}${nome ? ', ' + esc(nome) : ''}`, acoes = S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="prNova">${S.svg('mais')}Nova proposta</button>` : '';
+    if (perfil === 'gestao') return { title:titulo, actions:acoes, body:`${vendasPainel(pis)}${aguardandoOpec(pis)}` };
     return { title:`<span class="sub">${hojeExtenso()}</span>${saudacao()}${nome ? ', ' + esc(nome) : ''}`,
       actions:S.pode('diretor', 'gerente', 'consultor') ? `<button class="btn pri" data-act="prNova">${S.svg('mais')}Nova proposta</button>` : '',
       body:`${metas}${perfil === 'consultor' && S.minhaComissaoHtml ? S.minhaComissaoHtml() : ''}<p class="cx-dica">Clique num bloco para ver o detalhe.</p>${S.cxHtml(blocos, escolhido, 'Resumo da ' + (veh ? veh.nome : 'rádio'))}` };

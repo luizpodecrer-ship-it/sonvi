@@ -468,6 +468,11 @@
     let rango = -1, d = null, sel = -1, fija = -1, tipo = 'mouse';
 
     function delta(el, v) {
+      if (v && typeof v === 'object') {   /* Dashboard do veículo: { txt, sube: true | false | null } */
+        el.classList.toggle('is-neutro', v.sube == null); el.classList.toggle('is-sube', v.sube === true); el.classList.toggle('is-baja', v.sube === false);
+        el.innerHTML = (v.sube === true ? '<span class="cu-oculto">Subiu </span>' : v.sube === false ? '<span class="cu-oculto">Caiu </span>' : '') + escH(v.txt || '');
+        el.hidden = !v.txt; el.title = v.dica || ''; return; }
+      el.hidden = false;
       const sem = v == null;
       el.classList.toggle('is-neutro', sem || v === 0); el.classList.toggle('is-sube', !sem && v > 0); el.classList.toggle('is-baja', !sem && v < 0);
       el.innerHTML = sem ? 'novo' : v === 0 ? 'igual' : '<span class="cu-oculto">' + (v >= 0 ? 'Subiu ' : 'Caiu ') + '</span>' + fmt(v, 0) + '%';
@@ -490,14 +495,14 @@
 
     const cajaLinea = $('[data-linea]'), cajaBarras = $('[data-barras]');
     const linea = Linea(cajaLinea, {
-      alFoco: (i, x, y) => globo(cajaLinea, x, y - 8, fmt(d.ingresos.valores[i]) + (d.ingresos.valores[i] === 1 ? ' contato' : ' contatos'), d.ingresos.etiquetas[i]),
+      alFoco: (i, x, y) => { const g = o.globoLinha ? o.globoLinha(i, d) : [fmt(d.ingresos.valores[i]) + (d.ingresos.valores[i] === 1 ? ' contato' : ' contatos'), d.ingresos.etiquetas[i]]; globo(cajaLinea, x, y - 8, g[0], g[1]); },
       alSalir: () => sinGlobo(cajaLinea),
-      alTeclado: i => avisa(d.ingresos.etiquetas[i] + ': ' + fmt(d.ingresos.valores[i]) + ' contatos registrados'),
+      alTeclado: i => avisa(o.globoLinha ? o.globoLinha(i, d).reverse().join(': ') : d.ingresos.etiquetas[i] + ': ' + fmt(d.ingresos.valores[i]) + ' contatos registrados'),
     });
     const barras = Barras(cajaBarras, {
-      alFoco: (i, x, y) => globo(cajaBarras, x, y - 2, fmt(d.pedidos.valores[i]) + (d.pedidos.valores[i] === 1 ? ' proposta' : ' propostas'), d.pedidos.etiquetas[i]),
+      alFoco: (i, x, y) => { const g = o.globoBarra ? o.globoBarra(i, d) : [fmt(d.pedidos.valores[i]) + (d.pedidos.valores[i] === 1 ? ' proposta' : ' propostas'), d.pedidos.etiquetas[i]]; globo(cajaBarras, x, y - 2, g[0], g[1]); },
       alSalir: () => sinGlobo(cajaBarras),
-      alTeclado: i => avisa(d.pedidos.etiquetas[i] + ': ' + fmt(d.pedidos.valores[i]) + ' propostas pedidas'),
+      alTeclado: i => avisa(o.globoBarra ? o.globoBarra(i, d).reverse().join(': ') : d.pedidos.etiquetas[i] + ': ' + fmt(d.pedidos.valores[i]) + ' propostas pedidas'),
     });
 
     /* ── los anillos y la fila elegida ───────────────────────────────── */
@@ -517,8 +522,8 @@
       if (i >= 0) {
         const c = d.canales[i], cen = $('.cu-centro-uno');
         cen.style.setProperty('--c', filas[i].color);
-        $('[data-uno-nombre]').textContent = NOMBRES[i];
-        $('[data-uno-meta]').textContent = (c.p ? Math.round(c.meta * 100) + '% de ' + c.p + ' planejados' : 'nada planejado');
+        $('[data-uno-nombre]').textContent = (o.nomes || NOMBRES)[i];
+        $('[data-uno-meta]').textContent = o.unoMeta ? o.unoMeta(c) : (c.p ? Math.round(c.meta * 100) + '% de ' + c.p + ' planejados' : 'nada planejado');
         uno.pon(c.v, 0);
       }
       contAnillos.classList.toggle('is-uno', i >= 0);
@@ -569,7 +574,7 @@
       d = clona(o.datos[i]);
       seg.style.setProperty('--i', i);
       botones.forEach((b, k) => { b.setAttribute('aria-checked', String(k === i)); b.tabIndex = k === i ? 0 : -1; });
-      $('[data-texto-canales]').textContent = 'Feitos de planejados · ' + d.texto;
+      $('[data-texto-canales]').textContent = o.textoCanais ? o.textoCanais(d) : 'Feitos de planejados · ' + d.texto;
       $('[data-texto-kpi]').textContent = d.texto;
       $('[data-texto-ped]').textContent = d.pedidos.texto || 'no período';
       const demora = primera ? 300 : 0;
@@ -578,19 +583,22 @@
       anillos.pon(d.canales.map(c => c.meta), primera ? .3 : 0);
       d.canales.forEach((c, k) => {
         const f = filas[k];
-        f.pct.pon(Math.round(c.meta * 100), demora + k * 90);
+        f.el.classList.toggle('is-sem-meta', !!c.semMeta);
+        const alvo = f.el.querySelector('[data-alvo]'); if (alvo) alvo.textContent = c.alvoTxt || '';
+        f.pct.pon(c.pct != null ? c.pct : Math.round(c.meta * 100), demora + k * 90);
         f.valor.pon(c.v, demora + k * 90 + 40);
         delta(f.delta, c.d);
       });
       total.pon(suma(d.canales.map(c => c.v)), demora);
 
-      kpi.pon(suma(d.ingresos.valores), demora + 80); delta(dKpi, d.ingresos.delta);
+      kpi.pon(o.kpi ? o.kpi(d) : suma(d.ingresos.valores), demora + 80); delta(dKpi, d.ingresos.delta);
       linea.pon(d.ingresos.valores, primera);
       ped.pon(suma(d.pedidos.valores), demora + 160); delta(dPed, d.pedidos.delta);
       barras.cambia(d.pedidos.valores, d.pedidos.etiquetas, primera);
 
       fijaFila(-1); resalta(-1);
-      if (!primera) avisa(d.texto.charAt(0).toUpperCase() + d.texto.slice(1) + ': ' + fmt(suma(d.canales.map(c => c.v))) + ' contatos feitos e ' + fmt(suma(d.pedidos.valores)) + ' propostas pedidas.');
+      if (!primera && o.avisoPeriodo) avisa(o.avisoPeriodo(d));
+      else if (!primera) avisa(d.texto.charAt(0).toUpperCase() + d.texto.slice(1) + ': ' + fmt(suma(d.canales.map(c => c.v))) + ' contatos feitos e ' + fmt(suma(d.pedidos.valores)) + ' propostas pedidas.');
       acorda();
     }
     function cambia(i) { if (i !== rango && o.datos[i]) { aplica(i); if (o.alMudar) o.alMudar(i); } }
@@ -666,6 +674,36 @@
           <div class="cu-tip" aria-hidden="true"><b data-tip-valor></b><span data-tip-etiqueta></span></div></div></article>
       <article class="cu-tarjeta cu-pedidos" style="--k:2" aria-labelledby="cu-t-ped"><header class="cu-tarjeta-cab"><div><h2 id="cu-t-ped">Propostas pedidas</h2><p data-texto-ped></p></div><p class="cu-ped-total"><span class="cu-cifra cu-cifra--ped" data-ped></span><span class="cu-delta" data-ped-delta></span></p></header>
         <div class="cu-barras-caja" tabindex="0" role="group" aria-label="Propostas pedidas no período. Use as setas para percorrer" data-barras><div class="cu-barras" data-barras-fila></div>
+          <div class="cu-ejes" aria-hidden="true"><span data-eje-a></span><span data-eje-b></span></div><div class="cu-tip cu-tip--barra" aria-hidden="true"><b data-tip-valor></b><span data-tip-etiqueta></span></div></div></article>
+    </div><p class="cu-oculto" aria-live="polite" data-vivo-texto></p></section>`;
+  };
+  // Dashboard do veículo (aprovado em 11/11/2026, modelo "Dashboard do veículo · modelo"): o mesmo painel com um anel por
+  // consultor (vendido líquido ÷ meta do mês), "Vendido" (acumulado do mês, dia a dia) e "Propostas" (criadas por semana).
+  // S.cuVendasHtml({ titulo, sub, meses:[3 nomes], inicial, filas:[{ nome, papel }], aviso })
+  S.cuVendasHtml = ({ titulo = '', sub = '', meses = [], inicial = 1, filas = [], aviso = '' } = {}) => {
+    const fila = (f, i) => `<li><button class="cu-fila" type="button" data-i="${i}" style="--c: var(--cu-v${i + 1})" aria-pressed="false">
+      <span class="cu-fila-nombre"><i class="cu-punto" aria-hidden="true"></i>${escH(f.nome)}</span><span class="cu-fila-pct"><span class="cu-cifra" data-pct></span></span><span class="cu-fila-sem">sem meta</span>
+      <span class="cu-fila-valor">${escH(f.papel)} · R$ <span class="cu-cifra" data-valor></span> <span data-alvo></span></span><span class="cu-delta" data-delta></span><span class="cu-etiqueta-meta" aria-hidden="true">Meta batida!</span></button></li>`;
+    return `<section class="cu-painel cu-vendas" data-cuadrante aria-label="Resumo de vendas">
+    <div class="cu-cabeza"><div class="cu-titulo"><div><h2 class="cu-vt">${escH(titulo)}</h2><p>${escH(sub)}</p></div></div><div class="cu-controles">
+      <div class="cu-seg" role="radiogroup" aria-label="Mês" style="--i:${inicial}"><i class="cu-seg-pulgar" aria-hidden="true"></i>
+        ${meses.map((n, i) => `<button class="cu-seg-op" type="button" role="radio" aria-checked="${i === inicial}"${i === inicial ? '' : ' tabindex="-1"'} data-rango="${i}">${escH(n)}</button>`).join('')}</div></div></div>
+    <div class="cu-grid">
+      <article class="cu-tarjeta cu-canales" style="--k:0" aria-labelledby="cu-t-meta"><header class="cu-tarjeta-cab"><div><h2 id="cu-t-meta">Meta por consultor</h2><p data-texto-canales></p></div><span class="cu-meta-clave"><i aria-hidden="true"></i>Avanço da meta</span></header>
+        <div class="cu-canales-cuerpo"><div class="cu-anillos"><canvas class="cu-lienzo" aria-hidden="true"></canvas><div class="cu-centro" aria-hidden="true">
+          <div class="cu-centro-total"><span class="cu-rotulo">Total vendido</span><span class="cu-cifra cu-cifra--grande" data-total></span><span class="cu-centro-sub">reais · líquido</span></div>
+          <div class="cu-centro-uno"><span class="cu-rotulo"><i class="cu-punto"></i><b data-uno-nombre></b></span><span class="cu-cifra cu-cifra--grande" data-uno-valor></span><span class="cu-centro-sub"><span data-uno-meta></span></span></div></div></div>
+          <div class="cu-lado"><ul class="cu-leyenda" aria-label="Consultores">${filas.map(fila).join('')}</ul>${filas.length ? '' : '<p class="cu-vazio">Nenhuma venda nem meta neste veículo nos três meses.</p>'}${aviso ? `<p class="cu-aviso">${aviso}</p>` : ''}</div></div></article>
+      <article class="cu-tarjeta cu-kpi" style="--k:1" aria-labelledby="cu-t-vend"><header class="cu-tarjeta-cab"><div><h2 id="cu-t-vend">Vendido</h2><p data-texto-kpi></p></div><span class="cu-delta cu-delta--grande" data-kpi-delta></span></header>
+        <p class="cu-kpi-cifra"><span class="cu-moeda">R$</span><span class="cu-cifra cu-cifra--kpi" data-kpi></span></p>
+        <div class="cu-linea-caja" tabindex="0" role="group" aria-label="Vendido acumulado no mês. Use as setas para percorrer os dias" data-linea><svg class="cu-linea" aria-hidden="true"><defs>
+          <linearGradient id="cu-g-trazo-v" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="cu-st-a"/><stop offset=".55" class="cu-st-b"/><stop offset="1" class="cu-st-c"/></linearGradient>
+          <linearGradient id="cu-g-area-v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="cu-st-area-a"/><stop offset="1" class="cu-st-area-b"/></linearGradient></defs>
+          <g class="cu-rejilla"><line x1="0" x2="100%" y1="25%" y2="25%"/><line x1="0" x2="100%" y1="55%" y2="55%"/><line x1="0" x2="100%" y1="85%" y2="85%"/></g>
+          <path class="cu-area" fill="url(#cu-g-area-v)"/><line class="cu-guia" y1="0" y2="100%"/><path class="cu-trazo" stroke="url(#cu-g-trazo-v)" pathLength="1"/><circle class="cu-onda" r="5"/><circle class="cu-punta" r="4.5"/><circle class="cu-foco" r="6"/></svg>
+          <div class="cu-tip" aria-hidden="true"><b data-tip-valor></b><span data-tip-etiqueta></span></div></div></article>
+      <article class="cu-tarjeta cu-pedidos" style="--k:2" aria-labelledby="cu-t-prop"><header class="cu-tarjeta-cab"><div><h2 id="cu-t-prop">Propostas</h2><p data-texto-ped></p></div><p class="cu-ped-total"><span class="cu-cifra cu-cifra--ped" data-ped></span><span class="cu-delta" data-ped-delta></span></p></header>
+        <div class="cu-barras-caja" tabindex="0" role="group" aria-label="Propostas criadas no mês. Use as setas para percorrer as semanas" data-barras><div class="cu-barras" data-barras-fila></div>
           <div class="cu-ejes" aria-hidden="true"><span data-eje-a></span><span data-eje-b></span></div><div class="cu-tip cu-tip--barra" aria-hidden="true"><b data-tip-valor></b><span data-tip-etiqueta></span></div></div></article>
     </div><p class="cu-oculto" aria-live="polite" data-vivo-texto></p></section>`;
   };

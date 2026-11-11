@@ -4509,3 +4509,46 @@ dialog.largo.rl-dlg { width:min(1000px, 96vw); }
 .rl-papel .rl-tab td { padding:8px 10px; } .rl-papel .rl-tab { font-size:12.5px; } .rl-papel .rl-pe { margin-top:14px; }
 .rl-papel .rl-tab tr, .rl-papel .rl-k, .rl-papel .vx-b { break-inside:avoid; }
 @media print { #print .rl-folha { font:13px/1.45 var(--font); } #print .rl-tab td, #print .rl-tab th { border:0; border-bottom:1px solid #dfe3ea; color:#0a0b0d; font-size:11.5px; padding:7px 8px; } #print .rl-tab tfoot td { border-top:2px solid #0a0b0d; } }
+
+/* ── Dashboard do veículo (aprovado em 11/11/2026): painel Cuadrante de vendas (.cu-vendas) e PIs aguardando a OPEC (.vo) ── */
+.cu-vendas { --cu-v1: 0, 85, 255; --cu-v2: 99, 147, 255; --cu-v3: 153, 187, 255; --cu-v4: 150, 154, 165; }
+.cu-vendas .cu-vt { font-size:1.25rem; font-weight:700; letter-spacing:-.02em; }
+.cu-vendas .cu-cabeza p { margin-top:4px; font-size:.9rem; }
+.cu-vendas .cu-seg-op { min-width:96px; }
+.cu-vendas .cu-canales-cuerpo { grid-template-columns:minmax(0, 300px) minmax(0, 1fr); gap:28px; }
+.cu-vendas .cu-anillos { width:300px; }
+.cu-vendas .cu-lado { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.cu-vendas .cu-fila { grid-template-columns:minmax(0, 1fr) auto; }
+.cu-vendas .cu-fila-nombre { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.cu-vendas .cu-fila-valor { white-space:normal; }
+.cu-vendas .cu-fila-sem { display:none; justify-self:end; font-size:.75rem; font-weight:600; color:var(--ink-2); background:var(--fill); border-radius:99px; padding:4px 10px; }
+.cu-vendas .cu-fila.is-sem-meta .cu-fila-pct, .cu-vendas .cu-fila.is-sem-meta [data-alvo] { display:none; }
+.cu-vendas .cu-fila.is-sem-meta .cu-fila-sem { display:inline-block; }
+.cu-vendas .cu-etiqueta-meta { background:rgb(var(--cu-v1)); color:var(--accent-ink); box-shadow:0 8px 16px -8px rgba(var(--cu-v1), .9); }
+.cu-vendas .cu-delta.is-neutro { color:var(--ink-2); background:var(--fill); }
+.cu-vendas .cu-delta.is-neutro::before { display:none; }
+.cu-vendas .cu-delta[hidden] { display:none; }
+.cu-vendas .cu-moeda { font-size:1.35rem; font-weight:600; color:var(--ink-2); margin-right:6px; }
+.cu-vendas .cu-kpi-cifra { display:flex; align-items:baseline; }
+.cu-vendas .cu-vazio, .cu-vendas .cu-aviso { margin:0; font-size:.84rem; color:var(--ink-2); line-height:1.5; }
+.cu-vendas .cu-aviso { padding:10px 12px; border-radius:10px; background:var(--fill); }
+@media (max-width:1020px) { .cu-vendas .cu-canales-cuerpo { grid-template-columns:minmax(0, 1fr); justify-items:center; } .cu-vendas .cu-lado { width:100%; } .cu-vendas .cu-anillos { width:min(300px, 100%); } }
+@media (max-width:560px) { .cu-vendas .cu-seg-op { min-width:0; } }
+
+.vo .hd { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.vo-lista { display:flex; flex-direction:column; }
+.vo-l { display:grid; grid-template-columns:120px minmax(0, 1fr) 210px 120px 110px; align-items:center; gap:16px; padding:14px 8px; border-top:1px solid var(--line);
+  color:inherit; text-decoration:none; border-radius:10px; transition:background-color .2s, transform .35s cubic-bezier(.22, 1, .36, 1); }
+.vo-l:hover { background:var(--fill); transform:translateX(3px); }
+.vo-l:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.vo-no { font-family:var(--font-display, Sora), sans-serif; font-size:.9rem; }
+.vo-cli { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vo-quem { color:var(--ink-2); font-size:.86rem; }
+.vo-v { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+.vo-dias { justify-self:end; display:inline-flex; align-items:center; gap:6px; font-size:.78rem; font-weight:600; color:var(--ink-2); background:var(--fill); border-radius:99px; padding:4px 10px; white-space:nowrap; }
+.vo-dias i { width:7px; height:7px; border-radius:50%; background:var(--ink-3); }
+.vo-dias.alerta { color:var(--orange); background:color-mix(in srgb, var(--orange) 12%, transparent); }
+.vo-dias.alerta i { background:var(--orange); }
+@media (max-width:760px) { .vo-l { grid-template-columns:minmax(0, 1fr) auto; gap:4px 12px; } .vo-no { grid-column:1; } .vo-cli { grid-column:1; } .vo-quem { grid-column:1; }
+  .vo-v { grid-column:2; grid-row:1; } .vo-dias { grid-column:2; grid-row:2; } }
+@media (prefers-reduced-motion:reduce) { .vo-l { transition:none; } .vo-l:hover { transform:none; } }
