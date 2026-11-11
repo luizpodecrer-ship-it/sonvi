@@ -199,22 +199,25 @@
     ms.forEach(m => { const x = M[m]; corre += x.liq; linhas.push([nomeM(m), x.pis, n(x.liq), n(x.head), n(corre), ...S.db.veiculos.map(v => n(x.porV[v.id] || 0))].join(';')); });
     const b = new Blob(['﻿' + linhas.join('\n')], { type:'text/csv;charset=utf-8' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'controle-head14.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
 
-  // Follow-up da equipe (07/11/2026): contatos e propostas de todos os veículos da empresa (o banco só entrega o que o diretor pode ver)
+  // Follow-up da equipe (refeito em 11/11/2026, etapa 3): contatos, oportunidades e comentários de todos os veículos da empresa
+  // (o banco só entrega o que o diretor pode ver). A tela é montada por S.fuEquipeGestao (followup.js).
   let fuCache = null, fuBuscando = false;
   const carregarEquipe = async forcar => {
     if (fuBuscando || (!forcar && fuCache && Date.now() - fuCache.em < TTL)) return;
     fuBuscando = true;
     try {
       const desde = new Date(Date.now() - 100 * 864e5).toISOString();
-      const [ag1, ag2, props] = await Promise.all([
-        S.todos(S.sb.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, quando, assunto, situacao, resposta, motivo, resultado, registrado_em, realizado').gte('quando', desde)),
-        S.todos(S.sb.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, quando, assunto, situacao, resposta, motivo, resultado, registrado_em, realizado').eq('situacao', 'agendado').lt('quando', desde)),
-        S.todos(S.sb.from('propostas').select('id, veiculo_id, consultor_id, cliente_id, situacao, criado_em, enviada_em, aprovada_em, valor_total').gte('criado_em', desde))]);
+      const C = 'id, veiculo_id, consultor_id, cliente_id, tipo, quando, assunto, situacao, resposta, motivo, resultado, registrado_em, realizado, oportunidade_id, local_lat';
+      const [ag1, ag2, ops, coment] = await Promise.all([
+        S.todos(S.sb.from('agenda').select(C).gte('quando', desde)),
+        S.todos(S.sb.from('agenda').select(C).eq('situacao', 'agendado').lt('quando', desde)),
+        S.todos(S.sb.from('oportunidades').select('*')),
+        S.todos(S.sb.from('followup_comentarios').select('*').gte('criado_em', desde))]);
       const agenda = [...new Map([...ag1, ...ag2].map(a => [a.id, a])).values()];
-      const ids = [...new Set(agenda.map(a => a.cliente_id).filter(Boolean))], nomes = new Map();
+      const ids = [...new Set([...agenda, ...ops].map(a => a.cliente_id).filter(Boolean))], nomes = new Map();
       for (let i = 0; i < ids.length; i += 200) (await S.q(S.sb.from('pessoas').select('id, nome').in('id', ids.slice(i, i + 200)))).forEach(p => nomes.set(p.id, p.nome));
-      fuCache = { em:Date.now(), agenda, propostas:props, nomes };
-    } catch (err) { console.error(err); S.toast(S.erro(err)); if (!fuCache) fuCache = { em:Date.now(), agenda:[], propostas:[], nomes:new Map(), erro:true }; }
+      fuCache = { em:Date.now(), agenda, ops, coment, nomes };
+    } catch (err) { console.error(err); S.toast(S.erro(err)); if (!fuCache) fuCache = { em:Date.now(), agenda:[], ops:[], coment:[], nomes:new Map(), erro:true }; }
     finally { fuBuscando = false; if (S.route().view === 'geral' && f2.aba === 'equipe') S.render(); }
   };
   const equipeHtml = () => {
@@ -224,12 +227,19 @@
     const consultores = [...new Set(S.db.vinculos.filter(v => v.perfil === 'consultor' && idV.has(v.veiculo_id)).map(v => v.usuario_id))]
       .map(id => { const u = S.db.usuarios.find(x => x.id === id); return u && u.ativo !== false ? { id, nome:u.nome || u.email, celular:u.celular, email:u.email, veiculos:S.db.vinculos.filter(v => v.usuario_id === id && v.perfil === 'consultor').map(v => v.veiculo_id) } : null; })
       .filter(Boolean).sort((a, b) => a.nome.localeCompare(b.nome));
-    return S.fuEquipeGestao ? S.fuEquipeGestao({ agenda:fuCache.agenda, propostas:fuCache.propostas, nomes:fuCache.nomes, consultores, veiculos:vs }) : '';
+    // Quem pode receber um cliente do veículo: consultor ou gerente dele, ou um diretor (a mesma regra de passar_cliente)
+    const atendem = vid => [...new Set([...S.db.vinculos.filter(v => v.veiculo_id === vid && ['consultor', 'gerente'].includes(v.perfil)).map(v => v.usuario_id), ...S.db.usuarios.filter(u => u.diretor).map(u => u.id)])]
+      .map(id => S.db.usuarios.find(u => u.id === id)).filter(u => u && u.ativo !== false).map(u => ({ id:u.id, nome:(u.nome || u.email) + (u.diretor ? ' (diretor)' : '') })).sort((a, b) => a.nome.localeCompare(b.nome));
+    return S.fuEquipeGestao ? S.fuEquipeGestao({ agenda:fuCache.agenda, ops:fuCache.ops, coment:fuCache.coment, nomes:fuCache.nomes, consultores, veiculos:vs, atendem,
+      recarregar:() => { fuCache.em = 0; return carregarEquipe(true); } }) : '';
   };
 
   S.views.geral = () => {
     /* Link do e-mail do fim do dia (#/geral/equipe) abre direto na aba Follow-up da equipe */
-    if (S.route().id === 'equipe') { f2.aba = 'equipe'; try { history.replaceState(null, '', '#/geral'); } catch (e) { /* sem histórico */ } }
+    /* Link da mensagem das 17h (#/geral/fu.<consultor>.<AAAA-MM-DD>) abre o consultor e o dia */
+    const rid = S.route().id || '';
+    if (rid === 'equipe' || rid.startsWith('fu.')) { f2.aba = 'equipe'; if (rid.startsWith('fu.') && S.fuEquipeAbrir) { const [, uid, dia] = rid.split('.'); S.fuEquipeAbrir(uid, dia); }
+      try { history.replaceState(null, '', '#/geral'); } catch (e) { /* sem histórico */ } }
     const nome = String(S.me.nome || S.me.email || '').trim().split(/[\s@]+/)[0];
     const ym = f2.mes || S.mesAtual(), hojeM = S.mesAtual();
     const nav = `<div class="hc-mes" role="group" aria-label="Mês de veiculação"><button type="button" class="hc-seta" data-act="geralMes" data-v="${somaMes(ym, -1)}" aria-label="Mês anterior">${S.svg('esq', 16)}</button><b aria-live="polite">${nomeM(ym)}</b><button type="button" class="hc-seta" data-act="geralMes" data-v="${somaMes(ym, 1)}" aria-label="Próximo mês">${S.svg('seta', 16)}</button></div>
@@ -237,7 +247,7 @@
     const abaEq = f2.aba === 'equipe';
     const abasG = `<div class="seg gq-abas" role="tablist" aria-label="Dashboard Gestão">${[['vendas', 'Vendas'], ['equipe', 'Follow-up da equipe']].map(([k, n]) => `<button type="button" role="tab" class="${f2.aba === k ? 'on' : ''}" data-act="geralAba" data-v="${k}" aria-selected="${f2.aba === k}">${n}</button>`).join('')}</div>`;
     const topo = { title:`${saudacao()}, ${esc(nome)}`, actions:abaEq ? '' : `<div class="hc-acoes">${nav}</div>` };
-    if (abaEq) return Object.assign(topo, { body:`<p class="geral-intro">Acompanhe os contatos, a agenda e as propostas de todos os consultores, em todos os veículos.</p>${abasG}${equipeHtml()}` });
+    if (abaEq) return Object.assign(topo, { body:`<p class="geral-intro">Escolha o consultor e veja o dia dele: a rotina, o funil e o que está atrasado.</p>${abasG}${equipeHtml()}` });
     const intro = '<p class="geral-intro">Acompanhe as vendas e a OPEC de todos os veículos.</p>' + abasG;
     if (!cache || Date.now() - cache.em > TTL) S.carregarGeral();
     if (!cache) return Object.assign(topo, { body:`${intro}<div class="card empty"><b>Buscando os números</b>Somando as vendas e o financeiro de todos os veículos…</div>` });

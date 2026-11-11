@@ -5,7 +5,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 
 ## App (`app/js/`, ordem de carga em `app/index.html`)
 
-### admin.js · 627 linhas
+### admin.js · 635 linhas
 - Telas (`S.views`): admin
 - Ações (`data-act`): admAba, admAtivo, admCopiar, admEmpresa, admEnviarAcesso, admExcluir, admMinhaSenha, admPropostas, admSenha, admTextoPadrao, admTextosPI, admUsuario, admUsuarioEditar, admUsuarioMenu, admVeiculo, admVeiculoMenu, admVoltar, colAtivo, colDesligados, colEditar, colExcluir, colMenu, colNovo, empAba, empCnpj, empCor, empLogoEscolher, lixApagar, lixEsvaziar, lixMenu, lixRestaurar
 - Define `S.`: admAbrir, colaboradoresUsar, gerenteCadastra, rdUsar
@@ -38,8 +38,8 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Banco (rpc): despublicar_tabela, excluir_tabela, nova_tabela, publicar_tabela, salvar_itens_tabela, salvar_pacotes_tabela, salvar_tabela
 - Tabelas lidas/gravadas: precos
 
-### casillero.js · 138 linhas
-- Define `S.`: casillero, cxHtml
+### casillero.js · 139 linhas
+- Define `S.`: casillero, cxHtml, cxTipos
 
 ### chamados.js · 132 linhas
 - Telas (`S.views`): chamados
@@ -69,10 +69,10 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 ### cruzado.js · 353 linhas
 - Define `S.`: cruzado, cruzadoHtml, rolo
 
-### cuadrante.js · 674 linhas
-- Define `S.`: cuHtml, cuadrante
+### cuadrante.js · 712 linhas
+- Define `S.`: cuHtml, cuVendasHtml, cuadrante
 
-### dados.js · 183 linhas
+### dados.js · 185 linhas
 - Ações (`data-act`): emailCopiar
 - Define `S.`: ORG, bloqueio, carregarBase, carregarMusical, carregarOrgPublica, carregarVeiculo, ctx, definirSenha, emailManual, enviarEmail, erro, erroLink, excluir, guardarRadio, limparEndereco, me, orgPub, orgsSuporte, perfil, q, radioGuardada, recarregar, recarregarTabelas, run, salvar, sb, todos
 - Banco (rpc): meu_contexto, organizacao_publica, organizacoes_para_suporte, pagamento_dos_pis, suporte_ids
@@ -98,19 +98,19 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 
 ### folha.js · 63 linhas
 
-### followup.js · 334 linhas
+### followup.js · 438 linhas
 - Telas (`S.views`): followup
-- Ações (`data-act`): fuAmostra, fuCliente, fuExcluir, fuFoco, fuOpcoes, fuRegistrar, fuRemarcar
-- Define `S.`: fuAtrasados, fuEquipeGestao, fuEquipeResto, fuEsquecidos, fuFeito, fuVerAgendaDe
-- Banco (rpc): registrar_followup
-- Tabelas lidas/gravadas: agenda
+- Ações (`data-act`): fuAba, fuAmostra, fuCliente, fuComentar, fuComentarOp, fuEqAba, fuEqCons, fuEqDia, fuExcluir, fuMover, fuOpMenu, fuOpcoes, fuPassar, fuRegistrar, fuRemarcar
+- Define `S.`: fuAtrasados, fuEquipeAbrir, fuEquipeGestao, fuEsquecidos, fuFeito, fuRecarregar, fuVerAgendaDe
+- Banco (rpc): comentar_followup, mover_oportunidade, novo_prospect, passar_cliente, registrar_followup
+- Tabelas lidas/gravadas: agenda, followup_comentarios, oportunidades, pessoas
 - Funções de borda: followup
 
-### geral.js · 307 linhas
+### geral.js · 317 linhas
 - Telas (`S.views`): geral
-- Ações (`data-act`): ctrlCsv, geralAba, geralAbrir, geralAtualizar, geralFollowup, geralMes, geralVerAgenda
+- Ações (`data-act`): ctrlCsv, geralAba, geralAbrir, geralAtualizar, geralFollowup, geralMes
 - Define `S.`: carregarGeral, controleHead, geralCalc, geralCubo, geralLimpar, geralUsar
-- Tabelas lidas/gravadas: agenda, lancamentos, pessoas, pis, propostas
+- Tabelas lidas/gravadas: agenda, followup_comentarios, lancamentos, oportunidades, pessoas, pis
 
 ### importar.js · 339 linhas
 - Telas (`S.views`): importar
@@ -142,7 +142,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - Telas (`S.views`): opec
 - Ações (`data-act`): opEtapa
 
-### painel.js · 205 linhas
+### painel.js · 293 linhas
 - Telas (`S.views`): dashboard
 
 ### pessoas.js · 353 linhas
@@ -216,7 +216,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - `app/console/console.js` (1103 linhas) · rpc: chat_mensagens, console_abrir_chamado, console_adicionar_radio, console_alterar_cobranca, console_avulso, console_baixar, console_chamado_situacao, console_dados, console_estornar, console_online, console_salvar_cliente, console_salvar_config, console_salvar_contrato, console_salvar_radio, console_slug_livre, eh_admin_plataforma, responder_chamado · borda: console, usuarios
 - `app/console/index.html` (32 linhas) · rpc: — · borda: —
 - `app/extrato.html` (52 linhas) · rpc: extrato_por_token · borda: —
-- `app/index.html` (66 linhas) · rpc: — · borda: —
+- `app/index.html` (67 linhas) · rpc: — · borda: —
 - `app/pi.html` (195 linhas) · rpc: pi_aberto, pi_por_link · borda: opec_link
 - `app/proposta.html` (72 linhas) · rpc: proposta_por_link · borda: —
 
@@ -229,6 +229,7 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 - **importar_pi** (index.ts) · ações: — · rpc: perfil_no_veiculo · remetentes: — · chamada por: importar.js
 - **limpeza** (source/index.ts) · ações: — · rpc: followup_chave, midias_vencidas · remetentes: — · chamada por: —
 - **opec_link** (source/index.ts) · ações: abrir, auto, cancelado, programar · rpc: pi_devolver_por_link, pi_programar_por_link · remetentes: pi@sonvi.com.br · chamada por: pi.html, pi.js
+- **site_logos** (index.ts) · ações: — · rpc: followup_chave · remetentes: — · chamada por: —
 - **usuarios** (index.ts) · ações: ativo, criar, email, enviar_acesso, esqueci, excluir, link, minha_senha, senha · rpc: eh_diretor, minha_org, pode_gerenciar_usuario, preparar_exclusao_usuario, usuario_so_nas_minhas · remetentes: acesso@sonvi.com.br · chamada por: admin.js, auth.js, console/console.js
 - **vendas** (index.ts) · ações: diario, faturado, pedido, perguntar, suspenso · rpc: followup_chave · remetentes: faturamento@sonvi.com.br · chamada por: vendas.js
 - **whatsapp** (index.ts) · ações: — · rpc: followup_chave · remetentes: — · chamada por: —
@@ -254,6 +255,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `console_contratos` (030) · app: —
 - `empresa_comercial` (017) · app: admin.js, dados.js
 - `fat_pedidos` (055) · app: vendas.js
+- `followup_comentarios` (088) · app: followup.js, geral.js
 - `followup_envios` (020) · app: —
 - `lancamentos` (001) · app: financeiro.js, geral.js, vendas.js
 - `lixeira` (063) · app: —
@@ -266,8 +268,9 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `mus_subcategorias` (006) · app: —
 - `mus_vinhetas` (006) · app: musical.js
 - `musicas` (006) · app: musical.js
+- `oportunidades` (088) · app: followup.js, geral.js
 - `organizacoes` (026) · app: —
-- `pessoas` (001) · app: geral.js, pessoas.js
+- `pessoas` (001) · app: followup.js, geral.js, pessoas.js
 - `pi_historico` (001) · app: pi.js, relatorios.js
 - `pi_import_mapas` (066) · app: importar.js
 - `pi_importacoes` (066) · app: importar.js
@@ -280,7 +283,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `produtos` (001) · app: combos.js, produtos.js
 - `proposta_seq` (017) · app: —
 - `proposta_seq_org` (027) · app: —
-- `propostas` (017) · app: comissoes.js, geral.js
+- `propostas` (017) · app: comissoes.js
 - `repasses` (055) · app: —
 - `resumo_config` (083) · app: —
 - `suporte_acessos` (026) · app: chamados.js, dados.js
@@ -313,6 +316,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `colaboradores_historico` (046) · app: —
 - `colaboradores_metas_hist` (049) · app: —
 - `colega` (001) · app: —
+- `comentar_followup` (088) · app: followup.js
 - `comissao_contato` (069 → 070) · app: —
 - `comissao_parcelas_vivas` (068 → 081) · app: —
 - `comissao_pct_em` (068) · app: —
@@ -355,6 +359,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `enviar_pi_opec` (019) · app: pi.js
 - `enviar_proposta` (018) · app: propostas.js
 - `estornar_baixa` (011) · app: financeiro.js
+- `etapa_pela_resposta` (088) · app: —
 - `excluir_agencia_completa` (050 → 052) · app: pessoas.js
 - `excluir_agencia_grupo` (058) · app: agencias.js
 - `excluir_cliente_completo` (048 → 052) · app: pessoas.js
@@ -388,12 +393,14 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `meu_contexto` (026) · app: dados.js
 - `midias_vencidas` (074) · app: —
 - `minha_org` (026) · app: —
+- `mover_oportunidade` (088) · app: followup.js
 - `mudar_situacao_proposta` (017) · app: propostas.js
 - `mudar_status_pi` (001) · app: pi.js
 - `mus_iniciar` (006) · app: musical.js
 - `mus_programacao_protege` (006) · app: —
 - `musicas_protege` (006) · app: —
 - `nova_tabela` (013 → 034 → 035) · app: cadastros.js
+- `novo_prospect` (088) · app: followup.js
 - `novo_usuario` (001) · app: —
 - `org_padrao` (026) · app: —
 - `organizacao_publica` (026) · app: dados.js
@@ -401,6 +408,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `pagamento_dos_pis` (022) · app: dados.js
 - `parcela_por_token` (055) · app: confirmar.html
 - `parcelas_do_pedido` (055) · app: —
+- `passar_cliente` (088) · app: followup.js
 - `pedido_por_token` (055) · app: confirmar.html
 - `perfil_no_veiculo` (001 → 026) · app: —
 - `pi_aberto` (057) · app: pi.html
@@ -434,7 +442,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `publicar_tabela` (013) · app: cadastros.js
 - `reabrir_comissoes` (068) · app: comissoes.js
 - `registrar_acesso` (004 → 060) · app: —
-- `registrar_followup` (020) · app: followup.js
+- `registrar_followup` (020 → 088) · app: followup.js
 - `responder_chamado` (030 → 031) · app: console/console.js, suporte.js
 - `responder_pagamento` (055) · app: confirmar.html
 - `resumo_config_ler` (083) · app: admin.js
@@ -476,4 +484,4 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 
 ## Onde ficam os `S.` (função → arquivo)
 
-`_menu` core, `_toast` core, `abrirVeiculo` app, `acaoCanal` digital, `acaoChips` digital, `acaoDigitalDlg` digital, `acaoEntregasTxt` digital, `acaoHtml` digital, `acaoPeriodo` digital, `acaoQtd` digital, `acaoTitulo` digital, `acaoUnidades` digital, `acaoValorTabela` digital, `admAbrir` admin, `agenciasLimpar` agencias, `agenciasN` agencias, `agenciasRecarregar` agencias, `agenciasTela` agencias, `agenciasUsar` agencias, `APP` core, `BILLING` pi-regras, `billingEntries` pi-regras, `bloqueio` auth, `brl` core, `buildPrint` pi, `buildProposta` propostas, `buscarCep` core, `calc` pi-regras, `CAMPO_EXEMPLO` core, `CAMPO_MASCARA` core, `campoLogo` core, `carregando` app, `carregarBase` dados, `carregarGeral` geral, `carregarMusical` dados, `carregarOrgPublica` dados, `carregarVeiculo` dados, `casillero` casillero, `categoria` core, `CATEGORIAS` core, `categorias` core, `celular` app, `chamadosAtualizar` chamados, `chamadosUsar` chamados, `chatSuporte` suporte, `COBRA_OOH` pi-regras, `colaboradoresUsar` admin, `combosAtivos` combos, `comboSujo` combos, `combosUsar` combos, `comissaoPct` comissoes, `comissaoPctUsar` comissoes, `comissoesAbrirConsultor` comissoes, `comissoesLimpar` comissoes, `comissoesTela` comissoes, `comissoesUsar` comissoes, `confirmar` core, `consultores` core, `contaServidor` auth, `controleHead` geral, `COR_PADRAO` core, `coresDoLogo` core, `cotasAtivas` produtos, `credito` core, `cruzado` cruzado, `cruzadoHtml` cruzado, `cuadrante` cuadrante, `cuHtml` cuadrante, `cxHtml` casillero, `dadosDoCnpj` pessoas, `datalist` core, `definirSenha` auth, `dfmt` core, `dia` core, `DIA_LETRA` pi-regras, `DIA_NOME` pi-regras, `dialog` core, `diaNoMes` metas, `diasDoMes` pi-regras, `diasDoTexto` pi-regras, `diasTexto` pi-regras, `digCalc` pi-regras, `distribuir` pi-regras, `distribuirMes` pi-regras, `dlgProjeto` propostas, `edicaoConta` core, `edicaoInicio` core, `EDITABLE` core, `ehDigital` pi-regras, `emailCobrancaDe` pi-regras, `emailManual` dados, `empCurto` pi-regras, `enviarEmail` dados, `erro` dados, `erroLink` dados, `erroNoCampo` core, `esc` core, `escolherProduto` produtos, `esqueci` auth, `excluir` dados, `excluirDigitando` core, `faixaDoTexto` pi-regras, `faixaHoras` produtos, `faixasDoTexto` produtos, `faixaTexto` produtos, `fatDia` pi-regras, `fatiaMes` metas, `fecharMenu` core, `finMes` financeiro, `flip` core, `fluidoItem` fluido, `focarPrimeiro` core, `form` core, `formatoPainel` produtos, `fuAtrasados` followup, `fuEquipeGestao` followup, `fuEquipeResto` followup, `fuEsquecidos` followup, `fuFeito` followup, `fuVerAgendaDe` followup, `geralCalc` geral, `geralCubo` geral, `geralLimpar` geral, `geralUsar` geral, `gerenteCadastra` admin, `go` core, `guardarOriginal` pi, `guardarRadio` dados, `hora` core, `htmlProposta` propostas, `ICON` core, `importarUsar` importar, `iniciais` core, `iniciar` app, `itemCalc` pi-regras, `itemDaTabela` pi-regras, `itensDaCota` produtos, `itensDoCombo` combos, `itensDoProduto` produtos, `itensDoProjeto` produtos, `lancada` pi-regras, `lancadasBuscar` pi-regras, `lancamentosDoPi` pi-regras, `lancamentosDoPiMes` pi-regras, `lancarVenda` vendas, `lancReg` pi-regras, `leiturasUsar` pi, `lerLogo` core, `limparEndereco` dados, `liquidoPi` pi-regras, `listaEditavel` core, `logo` core, `logoReserva` core, `marcaEditando` core, `mascarar` core, `MASK` core, `menu` core, `menuDesliza` core, `mesAtual` metas, `mesesDoPi` pi-regras, `mesesFaturados` pi-regras, `metaFaixa` metas, `metasAneis` metas, `metasAnima` metas, `metasDoMes` metas, `metasEspera` metas, `metasHtml` metas, `metasLimpar` metas, `metasUsar` metas, `midiaPorMes` pi-regras, `minhaComissaoHtml` comissoes, `minhaComissaoUsar` comissoes, `MODELO_PADRAO` propostas, `modeloProposta` propostas, `multiMes` pi-regras, `mus` musical-regras, `musAba` musical, `MUSIC_NAV` music, `MUSIC_PERFIS` core, `nfmt` core, `nome` core, `nomeCategoria` core, `nomeMes` pi-regras, `num` core, `oohPorMes` pi-regras, `opts` core, `ORG` dados, `orgPub` dados, `orgsSuporte` dados, `PAG_PI` pi-regras, `pagadorPi` pi-regras, `paginar` core, `pagPi` pi-regras, `parcels` pi-regras, `perfil` dados, `PERFIS` core, `pessoa` core, `pessoas` core, `PI_CONDICOES_PADRAO` pi-regras, `piCondicoes` pi-regras, `piEd` pi, `piEntrar` pi, `piEntregasPendentes` pi, `pill` core, `piNo` core, `piNorm` pi-regras, `piPdf` pi, `piProblems` pi-regras, `pode` core, `podeLancar` vendas, `poeBolas` core, `poeRolos` core, `preco` pi-regras, `precoEntrega` digital, `precoNaTabela` pi-regras, `previstoNoMes` metas, `produtosAbas` produtos, `progPill` vendas, `projetoDias` produtos, `projetoEntregasHtml` produtos, `projetoHoras` produtos, `projetoObs` produtos, `projetosAtivos` produtos, `PROP_CONDICOES_PADRAO` pi-regras, `propNo` pi-regras, `propostaComPi` pi-regras, `propostasParaPi` propostas, `propSujo` propostas, `propTotais` pi-regras, `propVence` pi-regras, `q` dados, `qtdItem` pi-regras, `quemAssina` pi-regras, `radioGuardada` dados, `rdUsar` admin, `reajustar` pi-regras, `recarregar` dados, `recarregarTabelas` dados, `recebidoMini` pi, `registrarLancadas` pi-regras, `relComUsar` relatorios, `render` app, `repassePct` pi-regras, `responsaveis` core, `rodapeEdicao` core, `rolo` cruzado, `roloFixo` core, `route` core, `run` dados, `salvar` dados, `salvo` core, `sb` dados, `segDesliza` core, `seletorVeiculo` seletor, `selo` core, `seloOpec` pi, `SEMANA` pi-regras, `setStatus` pi, `SITUACAO_TABELA` pi-regras, `situacaoTabela` pi-regras, `somaDias` pi-regras, `STATUS` core, `STATUS_COR` core, `svg` core, `tabelaVigente` pi-regras, `tag` core, `telaDeAcesso` auth, `temaRadio` core, `temCategoria` core, `tipoTabela` pi-regras, `toast` core, `today` core, `todos` dados, `tpSujo` cadastros, `travarForm` core, `trocarMinhaSenha` auth, `trocarVeiculo` app, `uid` core, `usuario` core, `valorNoMes` metas, `variacoesOoh` pi-regras, `vav` core, `veh` core, `vehSub` core, `veiculosDaProposta` pi-regras, `vencMes` pi-regras, `vendasComUsar` vendas, `vendasUsar` vendas, `vigiarStatusPis` pi
+`_menu` core, `_toast` core, `abrirVeiculo` app, `acaoCanal` digital, `acaoChips` digital, `acaoDigitalDlg` digital, `acaoEntregasTxt` digital, `acaoHtml` digital, `acaoPeriodo` digital, `acaoQtd` digital, `acaoTitulo` digital, `acaoUnidades` digital, `acaoValorTabela` digital, `admAbrir` admin, `agenciasLimpar` agencias, `agenciasN` agencias, `agenciasRecarregar` agencias, `agenciasTela` agencias, `agenciasUsar` agencias, `APP` core, `BILLING` pi-regras, `billingEntries` pi-regras, `bloqueio` auth, `brl` core, `buildPrint` pi, `buildProposta` propostas, `buscarCep` core, `calc` pi-regras, `CAMPO_EXEMPLO` core, `CAMPO_MASCARA` core, `campoLogo` core, `carregando` app, `carregarBase` dados, `carregarGeral` geral, `carregarMusical` dados, `carregarOrgPublica` dados, `carregarVeiculo` dados, `casillero` casillero, `categoria` core, `CATEGORIAS` core, `categorias` core, `celular` app, `chamadosAtualizar` chamados, `chamadosUsar` chamados, `chatSuporte` suporte, `COBRA_OOH` pi-regras, `colaboradoresUsar` admin, `combosAtivos` combos, `comboSujo` combos, `combosUsar` combos, `comissaoPct` comissoes, `comissaoPctUsar` comissoes, `comissoesAbrirConsultor` comissoes, `comissoesLimpar` comissoes, `comissoesTela` comissoes, `comissoesUsar` comissoes, `confirmar` core, `consultores` core, `contaServidor` auth, `controleHead` geral, `COR_PADRAO` core, `coresDoLogo` core, `cotasAtivas` produtos, `credito` core, `cruzado` cruzado, `cruzadoHtml` cruzado, `cuadrante` cuadrante, `cuHtml` cuadrante, `cuVendasHtml` cuadrante, `cxHtml` casillero, `cxTipos` casillero, `dadosDoCnpj` pessoas, `datalist` core, `definirSenha` auth, `dfmt` core, `dia` core, `DIA_LETRA` pi-regras, `DIA_NOME` pi-regras, `dialog` core, `diaNoMes` metas, `diasDoMes` pi-regras, `diasDoTexto` pi-regras, `diasTexto` pi-regras, `digCalc` pi-regras, `distribuir` pi-regras, `distribuirMes` pi-regras, `dlgProjeto` propostas, `edicaoConta` core, `edicaoInicio` core, `EDITABLE` core, `ehDigital` pi-regras, `emailCobrancaDe` pi-regras, `emailManual` dados, `empCurto` pi-regras, `enviarEmail` dados, `erro` dados, `erroLink` dados, `erroNoCampo` core, `esc` core, `escolherProduto` produtos, `esqueci` auth, `excluir` dados, `excluirDigitando` core, `faixaDoTexto` pi-regras, `faixaHoras` produtos, `faixasDoTexto` produtos, `faixaTexto` produtos, `fatDia` pi-regras, `fatiaMes` metas, `fecharMenu` core, `finMes` financeiro, `flip` core, `fluidoItem` fluido, `focarPrimeiro` core, `form` core, `formatoPainel` produtos, `fuAtrasados` followup, `fuEquipeAbrir` followup, `fuEquipeGestao` followup, `fuEsquecidos` followup, `fuFeito` followup, `fuRecarregar` followup, `fuVerAgendaDe` followup, `geralCalc` geral, `geralCubo` geral, `geralLimpar` geral, `geralUsar` geral, `gerenteCadastra` admin, `go` core, `guardarOriginal` pi, `guardarRadio` dados, `hora` core, `htmlProposta` propostas, `ICON` core, `importarUsar` importar, `iniciais` core, `iniciar` app, `itemCalc` pi-regras, `itemDaTabela` pi-regras, `itensDaCota` produtos, `itensDoCombo` combos, `itensDoProduto` produtos, `itensDoProjeto` produtos, `lancada` pi-regras, `lancadasBuscar` pi-regras, `lancamentosDoPi` pi-regras, `lancamentosDoPiMes` pi-regras, `lancarVenda` vendas, `lancReg` pi-regras, `leiturasUsar` pi, `lerLogo` core, `limparEndereco` dados, `liquidoPi` pi-regras, `listaEditavel` core, `logo` core, `logoReserva` core, `marcaEditando` core, `mascarar` core, `MASK` core, `menu` core, `menuDesliza` core, `mesAtual` metas, `mesesDoPi` pi-regras, `mesesFaturados` pi-regras, `metaFaixa` metas, `metasAneis` metas, `metasAnima` metas, `metasDoMes` metas, `metasEspera` metas, `metasHtml` metas, `metasLimpar` metas, `metasUsar` metas, `midiaPorMes` pi-regras, `minhaComissaoHtml` comissoes, `minhaComissaoUsar` comissoes, `MODELO_PADRAO` propostas, `modeloProposta` propostas, `multiMes` pi-regras, `mus` musical-regras, `musAba` musical, `MUSIC_NAV` music, `MUSIC_PERFIS` core, `nfmt` core, `nome` core, `nomeCategoria` core, `nomeMes` pi-regras, `num` core, `oohPorMes` pi-regras, `opts` core, `ORG` dados, `orgPub` dados, `orgsSuporte` dados, `PAG_PI` pi-regras, `pagadorPi` pi-regras, `paginar` core, `pagPi` pi-regras, `parcels` pi-regras, `perfil` dados, `PERFIS` core, `pessoa` core, `pessoas` core, `PI_CONDICOES_PADRAO` pi-regras, `piCondicoes` pi-regras, `piEd` pi, `piEntrar` pi, `piEntregasPendentes` pi, `pill` core, `piNo` core, `piNorm` pi-regras, `piPdf` pi, `piProblems` pi-regras, `pode` core, `podeLancar` vendas, `poeBolas` core, `poeRolos` core, `preco` pi-regras, `precoEntrega` digital, `precoNaTabela` pi-regras, `previstoNoMes` metas, `produtosAbas` produtos, `progPill` vendas, `projetoDias` produtos, `projetoEntregasHtml` produtos, `projetoHoras` produtos, `projetoObs` produtos, `projetosAtivos` produtos, `PROP_CONDICOES_PADRAO` pi-regras, `propNo` pi-regras, `propostaComPi` pi-regras, `propostasParaPi` propostas, `propSujo` propostas, `propTotais` pi-regras, `propVence` pi-regras, `q` dados, `qtdItem` pi-regras, `quemAssina` pi-regras, `radioGuardada` dados, `rdUsar` admin, `reajustar` pi-regras, `recarregar` dados, `recarregarTabelas` dados, `recebidoMini` pi, `registrarLancadas` pi-regras, `relComUsar` relatorios, `render` app, `repassePct` pi-regras, `responsaveis` core, `rodapeEdicao` core, `rolo` cruzado, `roloFixo` core, `route` core, `run` dados, `salvar` dados, `salvo` core, `sb` dados, `segDesliza` core, `seletorVeiculo` seletor, `selo` core, `seloOpec` pi, `SEMANA` pi-regras, `setStatus` pi, `SITUACAO_TABELA` pi-regras, `situacaoTabela` pi-regras, `somaDias` pi-regras, `STATUS` core, `STATUS_COR` core, `svg` core, `tabelaVigente` pi-regras, `tag` core, `telaDeAcesso` auth, `temaRadio` core, `temCategoria` core, `tipoTabela` pi-regras, `toast` core, `today` core, `todos` dados, `tpSujo` cadastros, `travarForm` core, `trocarMinhaSenha` auth, `trocarVeiculo` app, `uid` core, `usuario` core, `valorNoMes` metas, `variacoesOoh` pi-regras, `vav` core, `veh` core, `vehSub` core, `veiculosDaProposta` pi-regras, `vencMes` pi-regras, `vendasComUsar` vendas, `vendasUsar` vendas, `vigiarStatusPis` pi

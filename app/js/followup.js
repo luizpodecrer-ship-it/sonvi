@@ -11,7 +11,7 @@
   const SEMANA = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
   const CURTO = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
   const gestor = () => S.pode('diretor', 'gerente');
-  const st = { aba:'agenda', periodo:'semana', consultor:'', foco:'' }; // estado da tela (só na memória)
+  const st = { aba:'agenda', consultor:'', foco:'', eqCons:'', eqDia:'', eqVei:'', eqAba:'rotina' }; // estado da tela (só na memória)
 
   // ---------- regras (puras) ----------
   const situacao = a => a.situacao || (a.realizado ? 'realizado' : 'agendado');
@@ -63,37 +63,10 @@
   const tile = (l, v, h, cls = '') => `<div class="tile${cls}"><small>${l}</small><b>${v}</b><span>${h}</span></div>`;
 
 
-  // ---------- painel do topo (cuadrante.js): anéis por tipo, contatos registrados e propostas pedidas ----------
-  const PER = ['semana', 'mes', '3meses'], RING = [['visita'], ['ligacao', 'retorno'], ['whatsapp'], ['reuniao']];
-  const MES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  // Início e fim do período (desloc = -1: o período anterior) e as faixas da linha e das barras
-  const periodoDe = (i, desloc = 0) => {
-    const hoje = S.today(), seg = segunda(hoje);
-    if (i === 0) { const ini = somaDias(seg, desloc * 7), fim = somaDias(ini, 6);
-      return { ini, fim, texto:'esta semana', sub:'por dia', faixas:Array.from({ length:7 }, (_, k) => { const d = somaDias(ini, k); return [d, d, CURTO[(k + 1) % 7] + ' ' + d.slice(8)]; }) }; }
-    if (i === 1) { const [y, m] = hoje.split('-').map(Number), x = new Date(y, m - 1 + desloc, 1), ini = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-01`;
-      const fim = somaDias(somaDias(ini, 32).slice(0, 8) + '01', -1), n = +fim.slice(8), faixas = [];
-      for (let a = 1; a <= n; a += 3) { const b = Math.min(n, a + 2); faixas.push([ini.slice(0, 8) + String(a).padStart(2, '0'), ini.slice(0, 8) + String(b).padStart(2, '0'), `${a}–${b} ${MES3[x.getMonth()]}`]); }
-      return { ini, fim, texto:'este mês', sub:'a cada 3 dias', faixas }; }
-    const ini = somaDias(seg, -84 + desloc * 91), fim = somaDias(ini, 90);
-    return { ini, fim, texto:'últimos 3 meses', sub:'por semana', faixas:Array.from({ length:13 }, (_, k) => { const a = somaDias(ini, k * 7); return [a, somaDias(a, 6), `semana de ${dfmt(a).slice(0, 5)}`]; }) };
-  };
-  const varia = (agora, antes) => antes ? Math.round((agora - antes) / antes * 100) : agora ? null : 0;
-  const cuDados = lista => PER.map((_, i) => {
-    const P = periodoDe(i), A = periodoDe(i, -1), dentro = (d, R) => d >= R.ini && d <= R.fim;
-    const plan = R => lista.filter(a => situacao(a) !== 'cancelado' && dentro(S.dia(a.quando), R));
-    const reg = (R, f) => lista.filter(a => S.fuFeito(a) && a.registrado_em && dentro(S.dia(a.registrado_em), R) && (!f || f(a)));
-    const porFaixa = l => P.faixas.map(([a, b]) => l.filter(x => { const d = S.dia(x.registrado_em); return d >= a && d <= b; }).length);
-    const pAg = plan(P), pAn = plan(A), feitosAg = reg(P), feitosAn = reg(A), prop = a => a.resposta === 'proposta';
-    return { texto:P.texto,
-      canales:RING.map(t => { const p = pAg.filter(a => t.includes(a.tipo)), f = p.filter(S.fuFeito).length, fa = pAn.filter(a => t.includes(a.tipo) && S.fuFeito(a)).length;
-        return { v:f, p:p.length, meta:p.length ? Math.min(1, f / p.length) : 0, d:varia(f, fa) }; }),
-      ingresos:{ valores:porFaixa(feitosAg), etiquetas:P.faixas.map(x => x[2]), delta:varia(feitosAg.length, feitosAn.length) },
-      pedidos:{ valores:porFaixa(feitosAg.filter(prop)), etiquetas:P.faixas.map(x => x[2]), delta:varia(feitosAg.filter(prop).length, feitosAn.filter(prop).length), texto:P.sub } };
-  });
   // ---------- Follow-up novo (aprovado em 11/11/2026, modelo "Follow-up novo · modelo"; database/088) ----------
-  // Aba "Minha rotina": os sete blocos do Casillero (casillero.js): Agenda de hoje · Atrasados · Funil · Visitas na semana ·
-  // Em negociação · Registrado hoje · Próximos 7 dias. Aba "Funil": um cartão por oportunidade em cada etapa (arrastar troca a etapa).
+  // Aba "Minha rotina": os sete blocos do Casillero (casillero.js): Agenda do dia · Atrasados · Funil · Visitas na semana ·
+  // Em negociação · Registrado no dia · Próximos 7 dias. Aba "Funil": um cartão por oportunidade em cada etapa (arrastar troca a etapa).
+  // As duas abas servem também ao Follow-up da equipe no Dashboard Gestão: recebem um contexto (c) com os dados e o dia escolhido.
   const ETAPAS = [['prospeccao', 'Prospecção'], ['primeiro_contato', 'Primeiro contato'], ['reuniao', 'Reunião/visita'], ['proposta', 'Proposta enviada'], ['negociacao', 'Negociação'], ['fechou', 'Fechou'], ['perdeu', 'Perdeu']];
   const ETAPA = Object.fromEntries(ETAPAS), ABERTAS = ETAPAS.slice(0, 5).map(e => e[0]);
   const INTERESSES = [['spot', 'Spot'], ['patrocinio', 'Patrocínio'], ['projeto', 'Projeto especial'], ['digital', 'Digital'], ['exterior', 'Mídia exterior']];
@@ -101,25 +74,32 @@
   const TOM_ETAPA = { prospeccao:22, primeiro_contato:38, reuniao:58, proposta:78, negociacao:100 };
   const corEtapa = e => e === 'fechou' ? 'var(--green)' : e === 'perdeu' ? 'var(--fill-2)' : `color-mix(in srgb, var(--accent) ${TOM_ETAPA[e] || 50}%, var(--surface))`;
   const reaisF = v => 'R$ ' + Math.round(Number(v) || 0).toLocaleString('pt-BR');
-  const milF = v => { const n = Number(v) || 0; return n >= 1000 ? (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits:1 }) + ' mil' : Math.round(n).toLocaleString('pt-BR'); };
   const ICO = { whatsapp:'whats', ligacao:'fone', reuniao:'clientes', visita:'empresa', retorno:'relogio' };
-  const oport = id => (S.db.oportunidades || []).find(o => o.id === id);
-  const oportDe = a => (a.oportunidade_id && oport(a.oportunidade_id)) || (S.db.oportunidades || []).find(o => o.cliente_id === a.cliente_id && ABERTAS.includes(o.etapa));
-  const opsDoEscopo = () => { const c = gestor() ? st.consultor : S.me.id; return (S.db.oportunidades || []).filter(o => !c || o.consultor_id === c); };
-  const comentDe = a => (S.db.fuComent || []).filter(c => c.agenda_id === a.id || (a.oportunidade_id && c.oportunidade_id === a.oportunidade_id)).sort((x, y) => y.criado_em.localeCompare(x.criado_em))[0];
+  let eq = null;   // dados do Follow-up da equipe (Dashboard Gestão), quando aberto
+  const naGestao = () => S.route().view === 'geral';
+  const oport = id => [...(S.db.oportunidades || []), ...(eq ? eq.ops : [])].find(o => o.id === id);
+  const oportDe = (a, ops = S.db.oportunidades || []) => (a.oportunidade_id && ops.find(o => o.id === a.oportunidade_id)) || ops.find(o => o.cliente_id === a.cliente_id && ABERTAS.includes(o.etapa));
+  const comentDe = (a, cm) => cm.filter(c => c.agenda_id === a.id || (a.oportunidade_id && c.oportunidade_id === a.oportunidade_id)).sort((x, y) => y.criado_em.localeCompare(x.criado_em))[0];
   const tagEtapa = o => o ? `<span class="fu2-et" data-et="${o.etapa}">${esc(ETAPA[o.etapa] || '')}</span>${o.valor ? `<span class="fu2-vl">${reaisF(o.valor)}</span>` : ''}` : '';
+  // Contexto do veículo aberto (Follow-up do consultor; gerente e diretor podem filtrar o consultor)
+  const ctxVeiculo = () => { const cs = gestor() ? st.consultor : S.me.id, ops = S.db.oportunidades || [];
+    return { ag:S.db.agenda.filter(a => !cs || a.consultor_id === cs), ops:ops.filter(o => !cs || o.consultor_id === cs), todasOps:ops, cm:S.db.fuComent || [],
+      cli:id => S.pessoa(id), nome:id => S.nome(id), D:S.today(), gestao:false, comCons:gestor() && !st.consultor, cxChave:'fuCx', rotulo:'Minha rotina' }; };
+  const rotDia = (D, hoje) => D === hoje ? 'hoje' : D === somaDias(hoje, -1) ? 'ontem' : `${CURTO[new Date(D + 'T12:00').getDay()]}, ${dfmt(D).slice(0, 5)}`;
   // Uma linha da agenda no bloco grande: hora, tipo, cliente, etapa/valor, assunto ou resultado, orientação do diretor e os botões
-  const linhaAg = (a, hoje) => {
-    const cli = S.pessoa(a.cliente_id), dia = S.dia(a.quando), ab = aberto(a), at = ab && dia < hoje, o = oportDe(a), f = fone(cli), cm = comentDe(a);
+  const linhaAg = (a, hoje, c) => {
+    const cli = c.cli(a.cliente_id), nomeCli = c.nome(a.cliente_id) || 'Sem cliente', dia = S.dia(a.quando), ab = aberto(a), at = ab && dia < hoje, o = oportDe(a, c.todasOps), f = fone(cli), cm = comentDe(a, c.cm);
     const quando = at ? `${dfmt(dia).slice(0, 5)}` : dia === hoje ? (ab ? '' : 'feito') : CURTO[new Date(a.quando).getDay()];
     const texto = !ab && a.resultado ? esc(a.resultado) : !ab && a.resposta ? RESP[a.resposta][0] : situacao(a) === 'nao_atendeu' ? 'Não atendeu' : esc(a.assunto || (TIPOS[a.tipo] || ''));
+    const acoes = c.gestao ? `${at && c.cobrar ? c.cobrar(a) : ''}${!ab ? `<span class="fu2-ok" aria-label="Registrado">${S.svg('check', 14)}</span>` : ''}<button class="btn sm" data-act="fuComentar" data-id="${a.id}" aria-label="Comentar o contato com ${esc(nomeCli)}">${S.svg('chamados', 14)}Comentar</button>`
+      : ab ? `${f ? `<a class="btn sm ic" href="${a.tipo === 'whatsapp' ? `https://wa.me/55${f}` : `tel:+55${f}`}" target="_blank" rel="noopener" aria-label="${a.tipo === 'whatsapp' ? 'WhatsApp de' : 'Ligar para'} ${esc(nomeCli)}">${S.svg(a.tipo === 'whatsapp' ? 'whats' : 'fone')}</a>` : ''}
+        ${at ? `<button class="btn sm" data-act="fuRemarcar" data-id="${a.id}">Remarcar</button>` : ''}<button class="btn sm pri" data-act="fuRegistrar" data-id="${a.id}">Registrar</button>`
+      : `<span class="fu2-ok" aria-label="Registrado">${S.svg('check', 14)}</span>`;
     return `<div class="fu2-l${ab ? '' : ' feito'}${at ? ' at' : ''}"><span class="fu2-h"><b>${S.hora(a.quando)}</b>${quando ? `<small>${quando}</small>` : ''}</span>
       <span class="fu2-ic" title="${TIPOS[a.tipo] || ''}">${S.svg(ICO[a.tipo] || 'agenda')}</span>
-      <span class="fu2-tx"><b>${esc(cli ? cli.nome : 'Sem cliente')}</b>${tagEtapa(o)}<small>${texto}${gestor() && !st.consultor ? ` · ${esc(S.usuario(a.consultor_id))}` : ''}${a.local_lat ? ' · local registrado' : ''}</small>
+      <span class="fu2-tx"><b>${esc(nomeCli)}</b>${tagEtapa(o)}<small>${texto}${c.comCons ? ` · ${esc(S.usuario(a.consultor_id))}` : ''}${a.local_lat ? ' · local registrado' : ''}</small>
         ${cm ? `<span class="fu2-orient">${S.svg('chamados', 13)}${esc((S.usuario(cm.autor_id) || 'Diretor').split(' ')[0])}: ${esc(cm.texto)}</span>` : ''}</span>
-      <span class="fu2-ac">${ab ? `${f ? `<a class="btn sm ic" href="${a.tipo === 'whatsapp' ? `https://wa.me/55${f}` : `tel:+55${f}`}" target="_blank" rel="noopener" aria-label="${a.tipo === 'whatsapp' ? 'WhatsApp de' : 'Ligar para'} ${esc(cli.nome)}">${S.svg(a.tipo === 'whatsapp' ? 'whats' : 'fone')}</a>` : ''}
-        ${at ? `<button class="btn sm" data-act="fuRemarcar" data-id="${a.id}">Remarcar</button>` : ''}<button class="btn sm pri" data-act="fuRegistrar" data-id="${a.id}">Registrar</button>`
-        : `<span class="fu2-ok" aria-label="Registrado">${S.svg('check', 14)}</span>`}</span></div>`;
+      <span class="fu2-ac">${acoes}</span></div>`;
   };
   // Tipo de bloco "agenda" (casillero.js): no pequeno, a lista com as marcas; no grande, as linhas com os botões
   if (S.cxTipos) S.cxTipos.agenda = b => `<span class="cx-cab">${b.vivo ? `<i class="cx-vivo${b.vivo === 'alerta' ? ' alerta' : ''}" aria-hidden="true"></i>` : S.svg(b.icone || 'agenda')}${esc(b.titulo)}</span>
@@ -127,117 +107,128 @@
     <ul class="cx-lista cx-pessoas" aria-hidden="true">${b.mini.map(x => `<li${x.ok ? ' class="ok"' : ''}><i class="cx-marca"></i><span class="cx-p-n">${esc(x.nome)}</span><b>${esc(x.vl || '')}</b></li>`).join('') || `<li class="cx-nada">${esc(b.vazio)}</li>`}</ul>`}
     <div class="fu2-ag">${b.linhas || `<p class="fu2-vazio">${esc(b.vazio)}</p>`}${b.pe ? `<p class="fu2-pe">${b.pe}</p>` : ''}</div>`;
 
-  const rotina = () => {
-    const hoje = S.today(), todos = doEscopo().slice().sort((a, b) => a.quando.localeCompare(b.quando)), ops = opsDoEscopo();
-    const deHoje = todos.filter(a => S.dia(a.quando) === hoje && situacao(a) !== 'cancelado'), feitosHoje = deHoje.filter(a => !aberto(a));
+  // Rotina do dia c.D (hoje no Follow-up; no Dashboard Gestão o diretor anda pelos dias). Atrasados contam sempre até hoje.
+  const rotina = c => {
+    const hoje = S.today(), D = c.D, rd = rotDia(D, hoje), todos = c.ag.slice().sort((a, b) => a.quando.localeCompare(b.quando)), ops = c.ops;
+    const deD = todos.filter(a => S.dia(a.quando) === D && situacao(a) !== 'cancelado'), feitosD = deD.filter(a => !aberto(a));
     const atras = todos.filter(a => aberto(a) && S.dia(a.quando) < hoje);
-    const regHoje = todos.filter(a => !aberto(a) && situacao(a) !== 'cancelado' && a.registrado_em && S.dia(a.registrado_em) === hoje).sort((a, b) => b.registrado_em.localeCompare(a.registrado_em));
-    const abertas = ops.filter(o => ABERTAS.includes(o.etapa)), mes = hoje.slice(0, 7), fechadasMes = ops.filter(o => o.etapa === 'fechou' && String(o.fechado_em || '').slice(0, 7) === mes);
+    const regD = todos.filter(a => !aberto(a) && situacao(a) !== 'cancelado' && a.registrado_em && S.dia(a.registrado_em) === D).sort((a, b) => b.registrado_em.localeCompare(a.registrado_em));
+    const abertas = ops.filter(o => ABERTAS.includes(o.etapa)), mes = D.slice(0, 7), fechadasMes = ops.filter(o => o.etapa === 'fechou' && String(o.fechado_em || '').slice(0, 7) === mes);
     const somaV = l => l.reduce((t, o) => t + Number(o.valor || 0), 0);
-    const seg = segunda(hoje), diasSem = [0, 1, 2, 3, 4].map(k => somaDias(seg, k));
+    const seg = segunda(D), diasSem = [0, 1, 2, 3, 4].map(k => somaDias(seg, k));
     const visitas = todos.filter(a => a.tipo === 'visita' && situacao(a) !== 'cancelado' && diasSem.includes(S.dia(a.quando)));
     const visFeitas = visitas.filter(S.fuFeito).length, visAg = visitas.filter(aberto).length;
-    const prox7 = Array.from({ length:7 }, (_, k) => somaDias(hoje, k + 1)), agProx = prox7.map(d => todos.filter(a => aberto(a) && S.dia(a.quando) === d).length);
-    const mini = l => l.slice(0, 6).map(a => ({ nome:(S.nome(a.cliente_id) || 'Sem cliente') + (aberto(a) ? ' · ' + S.hora(a.quando) : ''), ok:!aberto(a) }));
-    const nomeCli = a => S.nome(a.cliente_id) || 'Sem cliente';
+    const prox7 = Array.from({ length:7 }, (_, k) => somaDias(D, k + 1)), agProx = prox7.map(d => todos.filter(a => aberto(a) && S.dia(a.quando) === d).length);
+    const nomeCli = a => c.nome(a.cliente_id) || 'Sem cliente';
+    const mini = l => l.slice(0, 6).map(a => ({ nome:nomeCli(a) + (aberto(a) ? ' · ' + S.hora(a.quando) : ''), ok:!aberto(a) }));
+    const tAg = D === hoje ? 'Agenda de hoje' : `Agenda de ${rd}`, tReg = D === hoje ? 'Registrado hoje' : `Registrado ${D === somaDias(hoje, -1) ? 'ontem' : 'em ' + rd}`;
     const blocos = [
-      { id:'a', tipo:'agenda', titulo:'Agenda de hoje', icone:'agenda', cuenta:`${feitosHoje.length}/${deHoje.length} feitos`, mini:mini(deHoje), vazio:'Nada marcado para hoje.',
-        linhas:deHoje.map(a => linhaAg(a, hoje)).join(''), rotulo:`Agenda de hoje: ${feitosHoje.length} de ${deHoje.length} feitos` },
+      { id:'a', tipo:'agenda', titulo:tAg, icone:'agenda', cuenta:`${feitosD.length}/${deD.length} feitos`, mini:mini(deD), vazio:`Nada marcado para ${D === hoje ? 'hoje' : 'este dia'}.`,
+        linhas:deD.map(a => linhaAg(a, hoje, c)).join(''), rotulo:`${tAg}: ${feitosD.length} de ${deD.length} feitos` },
       { id:'b', tipo:'agenda', titulo:'Atrasados', vivo:atras.length ? 'alerta' : false, icone:'relogio', titular:atras.length ? `${atras.length} ${atras.length === 1 ? 'atrasado' : 'atrasados'}` : 'Tudo em dia', tom:atras.length ? 'ruim' : 'bom',
         nota:atras.length ? `${nomeCli(atras[0])} · ${(TIPOS[atras[0].tipo] || '').toLowerCase()} de ${dfmt(S.dia(atras[0].quando)).slice(0, 5)}` : 'Nada para trás', mini:[], vazio:'Nenhum contato atrasado.',
-        linhas:atras.map(a => linhaAg(a, hoje)).join(''), pe:atras.length ? 'Fica aqui até ser registrado ou remarcado.' : '', rotulo:`Atrasados: ${atras.length}` },
+        linhas:atras.map(a => linhaAg(a, hoje, c)).join(''), pe:atras.length ? (c.gestao ? 'Até hoje. Cobrar abre o WhatsApp do consultor com a mensagem pronta.' : 'Fica aqui até ser registrado ou remarcado.') : '', rotulo:`Atrasados: ${atras.length}` },
       { id:'c', tipo:'etapas', titulo:'Funil', icone:'relatorio', numero:String(abertas.length), apoio:`${abertas.length === 1 ? 'oportunidade aberta' : 'oportunidades abertas'} · ${fechadasMes.length} ${fechadasMes.length === 1 ? 'fechada' : 'fechadas'} no mês`,
         etapas:[...ABERTAS.map(e => { const l = abertas.filter(o => o.etapa === e); return { nome:ETAPA[e], n:l.length, vl:somaV(l) ? reaisF(somaV(l)) : '—', cor:corEtapa(e) }; }),
           { nome:'Fechou no mês', n:fechadasMes.length, vl:somaV(fechadasMes) ? reaisF(somaV(fechadasMes)) : '—', cor:corEtapa('fechou') }],
-        link:{ rota:'/followup/funil', texto:'Abrir o funil' }, rotulo:`Funil: ${abertas.length} oportunidades abertas` },
+        link:c.gestao ? { act:'fuEqAba', v:'funil', texto:'Abrir o funil' } : { rota:'/followup/funil', texto:'Abrir o funil' }, rotulo:`Funil: ${abertas.length} oportunidades abertas` },
       { id:'d', tipo:'colunas', titulo:'Visitas na semana', icone:'empresa', numero:String(visFeitas), nota:`${visFeitas === 1 ? 'feita' : 'feitas'} · ${visAg} ${visAg === 1 ? 'agendada' : 'agendadas'}`,
         barras:diasSem.map(d => visitas.filter(a => S.dia(a.quando) === d).length), rotulos:['seg', 'ter', 'qua', 'qui', 'sex'], rotulo:`Visitas na semana: ${visFeitas} feitas, ${visAg} agendadas` },
       { id:'e', tipo:'valor', titulo:'Em negociação', icone:'financeiro', valor:reaisF(somaV(abertas)), barras:ABERTAS.map(e => somaV(abertas.filter(o => o.etapa === e))),
         rotulos:['Prosp.', '1º cont.', 'Reunião', 'Proposta', 'Negoc.'], rotulo:`Em negociação: ${reaisF(somaV(abertas))}` },
-      { id:'f', tipo:'pessoas', titulo:'Registrado hoje', icone:'check', cuenta:`${regHoje.length} ${regHoje.length === 1 ? 'contato' : 'contatos'}`, vazio:'Nenhum contato registrado hoje.',
-        itens:regHoje.map(a => ({ nome:nomeCli(a), sub:situacao(a) === 'nao_atendeu' ? 'não atendeu' : a.resposta ? RESP[a.resposta][0].toLowerCase() : '', vl:S.hora(a.registrado_em), ok:true })), rotulo:`Registrado hoje: ${regHoje.length}` },
-      { id:'g', tipo:'colunas', titulo:'Próximos 7 dias', icone:'agenda', numero:String(agProx.reduce((t, x) => t + x, 0)), nota:'agendados', barras:agProx, rotulos:prox7.map(d => CURTO[new Date(d + 'T12:00').getDay()]),
+      { id:'f', tipo:'pessoas', titulo:tReg, icone:'check', cuenta:`${regD.length} ${regD.length === 1 ? 'contato' : 'contatos'}`, vazio:`Nenhum contato registrado ${D === hoje ? 'hoje' : 'neste dia'}.`,
+        itens:regD.map(a => ({ nome:nomeCli(a), sub:situacao(a) === 'nao_atendeu' ? 'não atendeu' : a.resposta ? RESP[a.resposta][0].toLowerCase() : '', vl:S.hora(a.registrado_em), ok:true })), rotulo:`${tReg}: ${regD.length}` },
+      { id:'g', tipo:'colunas', titulo:D === hoje ? 'Próximos 7 dias' : `7 dias depois de ${dfmt(D).slice(0, 5)}`, icone:'agenda', numero:String(agProx.reduce((t, x) => t + x, 0)), nota:'agendados', barras:agProx, rotulos:prox7.map(d => CURTO[new Date(d + 'T12:00').getDay()]),
         rotulo:`Próximos 7 dias: ${agProx.reduce((t, x) => t + x, 0)} agendados` } ];
-    const escolhido = S.ui.fuCx || 'a';
+    const escolhido = S.ui[c.cxChave] || 'a';
     queueMicrotask(() => { const el = document.querySelector('#content .fu2 [data-casillero]'); if (!el || el.dataset.ligado) return; el.dataset.ligado = '1';
-      S.casillero(el, { semEntrada:!document.getElementById('content').classList.contains('entra'), aoEscolher:id => { S.ui.fuCx = id; } }); });
-    return `<p class="cx-dica">Clique num bloco: ele vai para o espaço grande e mostra o detalhe.</p>${S.cxHtml(blocos, escolhido, 'Minha rotina')}`;
+      S.casillero(el, { semEntrada:!document.getElementById('content').classList.contains('entra'), aoEscolher:id => { S.ui[c.cxChave] = id; } }); });
+    return `<p class="cx-dica">Clique num bloco: ele vai para o espaço grande e mostra o detalhe.</p>${S.cxHtml(blocos, escolhido, c.rotulo)}`;
   };
 
   // Aba Funil: colunas por etapa; o cartão mostra valor, interesses e o próximo passo (ou há quantos dias está parado)
-  const funil = () => {
-    const hoje = S.today(), ops = opsDoEscopo(), mes = hoje.slice(0, 7), ag = doEscopo();
+  const funil = c => {
+    const hoje = S.today(), ops = c.ops, mes = hoje.slice(0, 7), ag = c.ag;
     const prox = o => ag.filter(a => aberto(a) && (a.oportunidade_id === o.id || (!a.oportunidade_id && a.cliente_id === o.cliente_id))).sort((a, b) => a.quando.localeCompare(b.quando))[0];
-    const cartao = (o, k) => { const p = prox(o), parado = p ? 0 : entre(S.dia(o.atualizado_em || o.criado_em), hoje), cli = S.pessoa(o.cliente_id);
+    const cartao = (o, k) => { const p = prox(o), parado = p ? 0 : entre(S.dia(o.atualizado_em || o.criado_em), hoje), nome = c.nome(o.cliente_id) || 'Cliente';
+      const cm = c.cm.filter(x => x.oportunidade_id === o.id).sort((x, y) => y.criado_em.localeCompare(x.criado_em))[0];
       const pTxt = !ABERTAS.includes(o.etapa) ? `${o.etapa === 'fechou' ? 'Fechou' : 'Perdeu'} em ${dfmt(S.dia(o.fechado_em || o.atualizado_em)).slice(0, 5)}` : p ? `${TIPOS[p.tipo] || 'Contato'} ${S.dia(p.quando) === hoje ? 'hoje' : S.dia(p.quando) < hoje ? 'atrasado' : CURTO[new Date(p.quando).getDay()] + ' ' + dfmt(S.dia(p.quando)).slice(0, 5)} ${S.hora(p.quando)}` : `Sem próximo passo${parado ? ` há ${parado} ${parado === 1 ? 'dia' : 'dias'}` : ''}`;
       return `<article class="fu2-op${!p && ABERTAS.includes(o.etapa) ? ' parado' : ''}" draggable="true" data-op="${o.id}" style="--k:${k}">
-        <button class="btn tres fu2-op-m" data-act="fuOpMenu" data-id="${o.id}" aria-label="Opções de ${esc(cli ? cli.nome : 'cliente')}">${S.svg('mais3')}</button>
-        <b>${esc(cli ? cli.nome : 'Cliente')}</b>${o.valor ? `<span class="fu2-op-v">${reaisF(o.valor)}</span>` : ''}
+        <button class="btn tres fu2-op-m" data-act="fuOpMenu" data-id="${o.id}" aria-label="Opções de ${esc(nome)}">${S.svg('mais3')}</button>
+        <b>${esc(nome)}</b>${o.valor ? `<span class="fu2-op-v">${reaisF(o.valor)}</span>` : ''}
         ${(o.interesses || []).length ? `<span class="fu2-op-i">${o.interesses.map(i => `<i>${esc(INTER[i] || i)}</i>`).join('')}</span>` : ''}
-        <small class="fu2-op-p${p && S.dia(p.quando) < hoje ? ' at' : ''}">${pTxt}</small>${gestor() && !st.consultor ? `<small>${esc(S.usuario(o.consultor_id) || 'Sem consultor')}</small>` : ''}</article>`; };
+        <small class="fu2-op-p${p && S.dia(p.quando) < hoje ? ' at' : ''}">${pTxt}</small>${c.comCons ? `<small>${esc(S.usuario(o.consultor_id) || 'Sem consultor')}</small>` : ''}
+        ${cm ? `<span class="fu2-orient">${S.svg('chamados', 13)}${esc((S.usuario(cm.autor_id) || 'Diretor').split(' ')[0])}: ${esc(cm.texto)}</span>` : ''}</article>`; };
     const col = e => { const l = ops.filter(o => o.etapa === e && (e !== 'fechou' || String(o.fechado_em || '').slice(0, 7) === mes)).sort((a, b) => Number(b.valor || 0) - Number(a.valor || 0));
       const tot = l.reduce((t, o) => t + Number(o.valor || 0), 0);
       return `<section class="fu2-col${e === 'fechou' ? ' ok' : ''}" data-etapa="${e}" aria-label="${ETAPA[e]}"><header><b>${ETAPA[e]}<span>${l.length}</span></b><small>${e === 'fechou' ? 'no mês · ' : ''}${tot ? reaisF(tot) : '—'}</small></header>
         <div class="fu2-cards">${l.map(cartao).join('') || '<p class="fu2-col-v">Nenhuma</p>'}</div></section>`; };
     const perdidas = ops.filter(o => o.etapa === 'perdeu' && String(o.fechado_em || '').slice(0, 7) === mes);
     return `<div class="fu2-funil" role="list">${[...ABERTAS, 'fechou'].map(col).join('')}</div>
-      <p class="fu2-perd">${perdidas.length ? `Perdidas no mês: <b>${perdidas.length}</b> (${perdidas.slice(0, 4).map(o => `${esc(S.nome(o.cliente_id) || 'Cliente')}: ${esc((o.motivo || 'sem motivo').toLowerCase())}`).join(' · ')}${perdidas.length > 4 ? ' …' : ''})` : 'Nenhuma oportunidade perdida no mês.'}
-      <span class="muted">· Arraste o cartão para trocar a etapa (no celular, pelo menu ⋯).</span></p>`;
+      <p class="fu2-perd">${perdidas.length ? `Perdidas no mês: <b>${perdidas.length}</b> (${perdidas.slice(0, 4).map(o => `${esc(c.nome(o.cliente_id) || 'Cliente')}: ${esc((o.motivo || 'sem motivo').toLowerCase())}`).join(' · ')}${perdidas.length > 4 ? ' …' : ''})` : 'Nenhuma oportunidade perdida no mês.'}
+      <span class="muted">· ${c.gestao ? 'No menu ⋯ do cartão: comentar, passar o cliente para outra pessoa ou trocar a etapa.' : 'Arraste o cartão para trocar a etapa (no celular, pelo menu ⋯).'}</span></p>`;
   };
 
-  // ---------- Follow-up da equipe no Dashboard Gestão (07/11/2026) ----------
-  // dados = { agenda, propostas, nomes:Map(cliente → nome), consultores:[{ id, nome, celular, email, veiculos:[ids] }], veiculos }
-  let painelEq = null;
+  // ---------- Follow-up da equipe no Dashboard Gestão (etapa 3, aprovada em 11/11/2026, modelo "Follow-up da equipe · modelo") ----------
+  // Um consultor por vez (cartões no alto), filtro de veículo, dias com setas e "Hoje", abas Rotina | Funil com os mesmos blocos
+  // e o mesmo funil do consultor. O diretor cobra o atrasado (WhatsApp), comenta (comentar_followup) e passa o cliente (passar_cliente).
+  // dados = { agenda, ops, coment, nomes:Map, consultores:[{ id, nome, celular, email, veiculos:[ids] }], veiculos, atendem(veiculo) → [{ id, nome }], recarregar }
+  const msgCobrar = (a, u, cli) => `Oi, ${String(u.nome || '').split(' ')[0]}! O contato com ${cli} (${(TIPOS[a.tipo] || '').toLowerCase()} de ${dfmt(S.dia(a.quando))}) ainda está sem registro no Follow-up. Consegue registrar hoje?`;
+  const cobrarBtn = (a, u, cli) => { const cel = String(u.celular || '').replace(/\D/g, ''), msg = msgCobrar(a, u, cli);
+    return cel.length >= 10 ? `<a class="btn sm" href="https://wa.me/55${cel}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" aria-label="Cobrar ${esc(u.nome || 'o consultor')} pelo WhatsApp">${S.svg('whats', 14)}Cobrar</a>`
+      : u.email ? `<a class="btn sm" href="mailto:${esc(u.email)}?subject=${encodeURIComponent('Follow-up sem registro: ' + cli)}&body=${encodeURIComponent(msg)}">${S.svg('email', 14)}Cobrar</a>` : ''; };
+  // O link da mensagem das 17h (#/geral/fu.<consultor>.<AAAA-MM-DD>) abre o consultor e o dia
+  S.fuEquipeAbrir = (id, dia) => { st.eqCons = id || st.eqCons; if (/^\d{4}-\d{2}-\d{2}$/.test(dia || '')) st.eqDia = dia; st.eqVei = ''; st.eqAba = 'rotina'; S.ui.fuCxEq = 'a'; };
   S.fuEquipeGestao = dados => {
-    const brl = v => 'R$ ' + Math.round(Number(v) || 0).toLocaleString('pt-BR');
-    const { agenda:ag, propostas:props, nomes, consultores:consL, veiculos } = dados, hoje = S.today(), amanha = somaDias(hoje, 1);
-    const nomeCli = id => nomes.get(id) || 'Cliente', nomeVei = id => (veiculos.find(v => v.id === id) || {}).nome || '';
-    const R = periodoDe(Math.max(0, PER.indexOf(st.periodo))), ini = R.ini, fim = R.fim, nomeP = { semana:'na semana', mes:'no mês', '3meses':'em 3 meses' }[st.periodo] || 'na semana';
-    const noPer = a => { const d = S.dia(a.quando); return d >= ini && d <= fim; }, regPer = a => a.registrado_em && S.dia(a.registrado_em) >= ini && S.dia(a.registrado_em) <= fim;
-    const atras = ag.filter(a => aberto(a) && S.dia(a.quando) < hoje).sort((a, b) => a.quando.localeCompare(b.quando));
-    const feitosHoje = ag.filter(a => S.fuFeito(a) && a.registrado_em && S.dia(a.registrado_em) === hoje), deAmanha = ag.filter(a => aberto(a) && S.dia(a.quando) === amanha);
-    const pHoje = props.filter(p => p.enviada_em && S.dia(p.enviada_em) === hoje), pPer = props.filter(p => p.criado_em && S.dia(p.criado_em) >= ini && S.dia(p.criado_em) <= fim), vPer = props.filter(p => p.aprovada_em && S.dia(p.aprovada_em) >= ini && S.dia(p.aprovada_em) <= fim);
-    // Painel do topo: o mesmo do Follow-up, somando todos os veículos
-    const datos = cuDados(ag), chave = JSON.stringify(['geral', atras.length, datos]);
-    if (!painelEq || painelEq.chave !== chave) { const host = document.createElement('div'); host.innerHTML = S.cuHtml({ quem:'Toda a equipe · todos os veículos', atrasados:atras.length, periodo:PER.indexOf(st.periodo) }); painelEq = { chave, el:host.firstElementChild, datos, montado:false }; }
-    const pe = painelEq;
-    queueMicrotask(() => { const lugar = document.getElementById('cu-lugar-eq'); if (!lugar || painelEq !== pe) return; lugar.replaceWith(pe.el);
-      if (!pe.montado) { pe.montado = true; S.cuadrante(pe.el, { datos:pe.datos, inicial:Math.max(0, PER.indexOf(st.periodo)), alMudar:i => { st.periodo = PER[i]; const r = document.getElementById('eq-resto'); if (r && S.fuEquipeResto) r.innerHTML = S.fuEquipeResto(); } }); } });
-    const num = (rot, v, sub, cls = '') => `<div class="eq-n${cls}"><small>${rot}</small><b>${v}</b><span>${sub}</span></div>`;
-    const resumo = `<section class="card eq-hoje" aria-labelledby="eq-ht"><div class="hd"><h2 id="eq-ht">Hoje · ${diaSemana(hoje)}, ${dfmt(hoje).slice(0, 5)}</h2><span class="grow"></span><button class="btn sm" data-act="fuAmostra">${S.svg('email')}Mandar o resumo para o meu e-mail</button></div>
-      <div class="eq-nums">${num('Contatos feitos', feitosHoje.length, `${new Set(feitosHoje.map(a => a.consultor_id)).size} de ${consL.length} consultores registraram`)}${num('Atrasados', atras.length, atras.length ? 'sem registro no dia marcado' : 'equipe em dia', atras.length ? ' ruim' : ' bom')}
-        ${num('Agenda de amanhã', deAmanha.length, `${diaSemana(amanha)}`)}${num('Propostas enviadas', pHoje.length, pHoje.length ? brl(pHoje.reduce((s, p) => s + Number(p.valor_total || 0), 0)) : 'nenhuma hoje')}</div></section>`;
-    const resto = () => {
-      const R2 = periodoDe(Math.max(0, PER.indexOf(st.periodo))), nP = { semana:'na semana', mes:'no mês', '3meses':'em 3 meses' }[st.periodo] || 'na semana';
-      const noP = a => { const d = S.dia(a.quando); return d >= R2.ini && d <= R2.fim; }, regP = a => a.registrado_em && S.dia(a.registrado_em) >= R2.ini && S.dia(a.registrado_em) <= R2.fim;
-      const pP = props.filter(p => p.criado_em && S.dia(p.criado_em) >= R2.ini && S.dia(p.criado_em) <= R2.fim), vP = props.filter(p => p.aprovada_em && S.dia(p.aprovada_em) >= R2.ini && S.dia(p.aprovada_em) <= R2.fim);
-      const linhas = consL.map(u => { const id = u.id, p = ag.filter(a => a.consultor_id === id && noP(a) && situacao(a) !== 'cancelado'), f = p.filter(S.fuFeito).length, at = atras.filter(a => a.consultor_id === id).length;
-        const hj = feitosHoje.filter(a => a.consultor_id === id).length, am = deAmanha.filter(a => a.consultor_id === id).length;
-        const ult = ag.filter(a => a.consultor_id === id && a.registrado_em).map(a => a.registrado_em).sort().pop(), dU = ult ? entre(S.dia(ult), hoje) : null;
-        const vid = (u.veiculos || [])[0] || '';
-        return `<tr class="${hj ? '' : 'eq-zero'}"><td><span class="fu-pes"><span class="av soft" aria-hidden="true">${esc(S.iniciais(u.nome))}</span><span class="eq-cn"><b>${esc(u.nome)}</b><small>${(u.veiculos || []).map(nomeVei).filter(Boolean).map(esc).join(' · ') || 'sem veículo'}</small></span></span></td>
-          <td class="r">${hj ? `<b>${hj}</b>` : '<span class="eq-sem">sem registro hoje</span>'}</td>
-          <td class="nw"><span class="fu-barra" aria-hidden="true"><i style="width:${p.length ? Math.round(f / p.length * 100) : 0}%"></i></span>${f} / ${p.length}</td>
-          <td class="r">${at ? S.tag(at, 'red') : '0'}</td><td class="r">${am}</td><td class="r">${pP.filter(x => x.consultor_id === id).length}</td><td class="r">${vP.filter(x => x.consultor_id === id).length}</td>
-          <td class="nw${dU !== null && dU >= 3 ? ' fu-ruim' : ''}">${ult ? (dU === 0 ? 'hoje, ' + S.hora(ult) : dU === 1 ? 'ontem, ' + S.hora(ult) : `há ${dU} dias`) : 'nunca'}</td>
-          <td class="r">${vid ? `<button class="btn sm" data-act="geralVerAgenda" data-id="${id}" data-v="${vid}">Ver agenda</button>` : ''}</td></tr>`; }).join('');
-      const cobrar = a => { const u = consL.find(x => x.id === a.consultor_id) || {}, cel = String(u.celular || '').replace(/\D/g, ''), cli = nomeCli(a.cliente_id);
-        const msg = `Oi, ${String(u.nome || '').split(' ')[0]}! O contato com ${cli} (${(TIPOS[a.tipo] || '').toLowerCase()} de ${dfmt(S.dia(a.quando))}) ainda está sem registro no Follow-up do SONVI. Consegue registrar hoje?`;
-        return cel.length >= 10 ? `<a class="btn sm" href="https://wa.me/55${cel}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${S.svg('whats')}Cobrar</a>`
-          : u.email ? `<a class="btn sm" href="mailto:${esc(u.email)}?subject=${encodeURIComponent('Follow-up sem registro: ' + cli)}&body=${encodeURIComponent(msg)}">Cobrar</a>` : ''; };
-      const real = ag.filter(a => S.fuFeito(a) && regP(a)), int = real.filter(a => ['interessado', 'retorno', 'proposta', 'fechou'].includes(a.resposta)).length;
-      const pp = real.filter(a => ['proposta', 'fechou'].includes(a.resposta)).length, fe = real.filter(a => a.resposta === 'fechou').length, maxF = Math.max(1, real.length);
-      const motivos = Object.entries(real.filter(a => a.resposta === 'sem_interesse').reduce((m, a) => { const k = a.motivo || 'Sem motivo'; m[k] = (m[k] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]);
-      const funil = [['Contatos realizados', real.length], ['Com interesse', int], ['Pediram proposta', pp], ['Fecharam', fe]];
-      return `<section class="card" aria-labelledby="eq-ct"><div class="hd"><h2 id="eq-ct">Por consultor</h2><span class="muted small">contatos feitos de planejados ${nP} · propostas e aprovadas ${nP}</span></div>${consL.length ? `<div class="scroll"><table class="fu-tab eq-tab"><thead><tr><th>Consultor</th><th class="r">Hoje</th><th>Contatos ${nP}</th><th class="r">Atrasados</th><th class="r">Amanhã</th><th class="r">Propostas</th><th class="r">Aprovadas</th><th>Último registro</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div>` : vazio('Nenhum consultor cadastrado ainda. Cadastre em Administração › Colaboradores.')}</section>
-        <div class="cols fu-cols">${card(`Atrasados da equipe <span class="muted small">${atras.length || ''}</span>`, atras.length ? `<div class="agenda">${atras.slice(0, 12).map(a => { const d = entre(S.dia(a.quando), hoje), u = consL.find(x => x.id === a.consultor_id);
-            return `<div class="ag fu-l"><span class="tx" style="grid-column:1/3"><b>${esc(nomeCli(a.cliente_id))}</b><small>${TIPOS[a.tipo] || ''} de ${dfmt(S.dia(a.quando)).slice(0, 5)} · ${esc(u ? u.nome : '')} · ${esc(nomeVei(a.veiculo_id))}</small><small class="fu-esc">${d} ${d === 1 ? 'dia' : 'dias'} sem registro</small></span><span class="ac">${cobrar(a)}</span></div>`; }).join('')}${atras.length > 12 ? `<p class="muted small" style="margin-top:10px">E mais ${atras.length - 12}.</p>` : ''}</div>` : vazio('Nenhum contato atrasado. A equipe está em dia.'))}
-          ${card(`Funil ${nP}`, `<div class="fu-funil">${funil.map(([n, v], i) => `<div><span>${n}</span><span class="fu-fb" aria-hidden="true"><i style="width:${Math.max(v ? 4 : 0, Math.round(v / maxF * 100))}%;opacity:${1 - i * .16}"></i></span><b>${v}</b></div>`).join('')}</div>
-            ${motivos.length ? `<p class="muted small" style="margin-top:16px">Motivos de "sem interesse": ${motivos.map(([m, n]) => `${esc(m.toLowerCase())} (${n})`).join(', ')}.</p>` : ''}`)}</div>`; };
-    S.fuEquipeResto = resto;
-    return `<div id="cu-lugar-eq"></div>${resumo}<div id="eq-resto">${resto()}</div>`;
+    const { agenda:ag, ops, coment, nomes, consultores:consL, veiculos } = dados, hoje = S.today();
+    if (!consL.length) { eq = null; return '<div class="card empty"><b>Nenhum consultor cadastrado</b>Cadastre em Administração › Colaboradores e vincule aos veículos.</div>'; }
+    if (!consL.some(u => u.id === st.eqCons)) st.eqCons = consL[0].id;
+    const u = consL.find(x => x.id === st.eqCons), D = st.eqDia && st.eqDia <= somaDias(hoje, 60) ? st.eqDia : hoje;
+    if (st.eqVei && !(u.veiculos || []).includes(st.eqVei)) st.eqVei = '';
+    const nomeVei = id => (veiculos.find(v => v.id === id) || {}).nome || '', nomeCli = id => nomes.get(id) || '';
+    eq = Object.assign({}, dados, { ops });
+    // Cartões dos consultores: contatos do dia escolhido e atrasados até hoje
+    const pessoa = x => { const dele = ag.filter(a => a.consultor_id === x.id && situacao(a) !== 'cancelado'), doDia = dele.filter(a => S.dia(a.quando) === D), feitos = doDia.filter(a => !aberto(a)).length;
+      const at = dele.filter(a => aberto(a) && S.dia(a.quando) < hoje).length, on = x.id === u.id;
+      return `<button type="button" class="fq-pes${on ? ' on' : ''}" data-act="fuEqCons" data-id="${x.id}" aria-pressed="${on}">
+        <span class="av soft" aria-hidden="true">${esc(S.iniciais(x.nome))}</span><span class="fq-pes-tx"><b>${esc(x.nome)}</b><small>${(x.veiculos || []).map(nomeVei).filter(Boolean).map(esc).join(' · ') || 'sem veículo'}</small>
+        <span class="fq-pes-n"><span>${feitos}/${doDia.length} ${D === hoje ? 'hoje' : 'no dia'}</span>${at ? `<span class="fq-at">${at} ${at === 1 ? 'atrasado' : 'atrasados'}</span>` : '<span class="fq-ok">em dia</span>'}</span></span></button>`; };
+    const vs = u.veiculos || [], filtroV = vs.length > 1 ? `<label class="fu-filtro"><span class="sr">Veículo</span><select data-fu-eqvei aria-label="Veículo">${[['', 'Todos os veículos dele'], ...vs.map(id => [id, nomeVei(id)])].map(([k, n]) => `<option value="${k}"${k === st.eqVei ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`
+      : vs.length ? `<span class="fq-vei">${esc(nomeVei(vs[0]))}</span>` : '';
+    const navDia = `<div class="hc-mes fq-dia" role="group" aria-label="Dia"><button type="button" class="hc-seta" data-act="fuEqDia" data-v="-1" aria-label="Dia anterior">${S.svg('esq', 16)}</button><b aria-live="polite">${D === hoje ? 'Hoje' : esc(diaSemana(D).replace('-feira', ''))}, ${dfmt(D).slice(0, 5)}</b><button type="button" class="hc-seta" data-act="fuEqDia" data-v="1" aria-label="Próximo dia">${S.svg('seta', 16)}</button></div>
+      ${D !== hoje ? '<button type="button" class="btn sm" data-act="fuEqDia" data-v="0">Hoje</button>' : ''}`;
+    const aba = st.eqAba === 'funil' ? 'funil' : 'rotina';
+    const abas = `<div class="seg fu2-abas" role="tablist" aria-label="Follow-up de ${esc(u.nome)}">${[['rotina', 'Rotina'], ['funil', 'Funil']].map(([k, n]) => `<button type="button" role="tab" class="${aba === k ? 'on' : ''}" data-act="fuEqAba" data-v="${k}" aria-selected="${aba === k}">${n}</button>`).join('')}</div>`;
+    const doV = x => !st.eqVei || x.veiculo_id === st.eqVei;
+    const c = { ag:ag.filter(a => a.consultor_id === u.id && doV(a)), ops:ops.filter(o => o.consultor_id === u.id && doV(o)), todasOps:ops, cm:coment,
+      cli:() => null, nome:nomeCli, D, gestao:true, comCons:false, cxChave:'fuCxEq', rotulo:`Rotina de ${u.nome}`, cobrar:a => cobrarBtn(a, u, nomeCli(a.cliente_id) || 'o cliente') };
+    return `<div class="fq-pessoas" role="group" aria-label="Escolha o consultor">${consL.map(pessoa).join('')}</div>
+      <div class="fu2 fu2-eq"><div class="row mid fu2-topo">${abas}<span class="grow"></span>${filtroV}${navDia}</div>
+      ${aba === 'funil' ? funil(c) : rotina(c)}</div>`;
   };
   S.fuVerAgendaDe = id => { st.consultor = id; st.foco = ''; };
+  // Comentário do diretor num contato ou numa oportunidade: aparece para o consultor no Follow-up (database/088 comentar_followup)
+  const comentar = ({ agenda = null, oportunidade = null, cliente }) => {
+    const ultimo = eq && eq.coment.filter(x => (agenda && x.agenda_id === agenda) || (oportunidade && x.oportunidade_id === oportunidade)).sort((x, y) => y.criado_em.localeCompare(x.criado_em))[0];
+    S.form(`Comentar · ${esc(cliente || 'cliente')}`, [
+      ...(ultimo ? [{ html:`<p class="fu2-orient" style="grid-column:1/-1">${S.svg('chamados', 13)}Último: ${esc(ultimo.texto)}</p>` }] : []),
+      { k:'texto', label:'Orientação para o consultor', type:'textarea', req:true, full:true, ph:'Ex.: Leve o pacote do rotativo da manhã com 10% de desconto' },
+      { html:'<p class="muted small" style="grid-column:1/-1;margin-top:-6px">Aparece para o consultor neste contato, dentro do Follow-up. Ele responde registrando o contato.</p>' }], {},
+      v => S.run(async () => { await S.q(S.sb.rpc('comentar_followup', { p_agenda:agenda, p_oportunidade:oportunidade, p_texto:v.texto.trim() })); if (eq && eq.recarregar) await eq.recarregar(); }, 'Comentário enviado ao consultor'), 'Enviar');
+  };
+  // Passar o cliente para outra pessoa que atende o mesmo veículo (database/088 passar_cliente)
+  const passar = o => {
+    const gente = (eq && eq.atendem ? eq.atendem(o.veiculo_id) : []).filter(x => x.id !== o.consultor_id), nome = (eq && eq.nomes.get(o.cliente_id)) || 'cliente';
+    if (!gente.length) return S.toast('Ninguém mais atende este veículo.');
+    const marcados = eq.agenda.filter(a => a.cliente_id === o.cliente_id && aberto(a)).length;
+    S.form(`Passar · ${esc(nome)}`, [
+      { k:'novo', label:'Para quem', type:'select', req:true, full:true, options:[['', 'Escolha a pessoa'], ...gente.map(x => [x.id, x.nome])] },
+      { k:'levar', label:'Contatos já marcados', type:'select', full:true, options:[['sim', 'Passam para a nova pessoa'], ['nao', 'São cancelados']] },
+      { html:`<p class="muted small" style="grid-column:1/-1;margin-top:-6px">${marcados ? `${marcados} ${marcados === 1 ? 'contato marcado' : 'contatos marcados'} com este cliente. ` : ''}O cliente e a oportunidade vão para a carteira da nova pessoa.</p>` }],
+      { novo:'', levar:'sim' },
+      v => S.run(async () => { await S.q(S.sb.rpc('passar_cliente', { p_cliente:o.cliente_id, p_novo:v.novo, p_levar:v.levar !== 'nao' })); if (eq && eq.recarregar) await eq.recarregar(); },
+        `${nome} passou para ${(gente.find(x => x.id === v.novo) || {}).nome || 'a nova pessoa'}`), 'Passar');
+  };
 
   S.views.followup = () => {
     // 11/11/2026: abas Minha rotina (Casillero) e Funil; o acompanhamento da equipe fica no Dashboard Gestão
@@ -252,7 +243,7 @@
     return { title:`<span class="sub">${sub}</span>Follow-up`,
       actions:`<button class="btn" data-act="fuProspect">${S.svg('mais')}Novo prospect</button><button class="btn pri" data-act="fuNovo">${S.svg('mais')}Agendar contato</button>`,
       body:`<div class="fu2"><div class="row mid fu2-topo">${abas}<span class="grow"></span>${filtro}${S.me.diretor ? '<button class="btn sm" data-act="geralFollowup">Ver no Dashboard Gestão</button>' : ''}</div>
-        ${st.aba === 'funil' ? funil() : rotina()}</div>` };
+        ${st.aba === 'funil' ? funil(ctxVeiculo()) : rotina(ctxVeiculo())}</div>` };
   };
   // A orientação do diretor conta como lida quando o consultor abre o Follow-up
   let lendo = false;
@@ -393,7 +384,7 @@
     let motivo = '';
     if (etapa === 'perdeu') { const r = await new Promise(ok => { S.form('Por que perdeu?', [{ k:'motivo', label:'Motivo', type:'select', options:MOTIVOS.map(m => [m, m]), full:true }], { motivo:MOTIVOS[0] }, v => ok(v.motivo), 'Marcar como perdida');
         document.getElementById('dlg').addEventListener('close', () => ok(null), { once:true }); }); if (!r) return; motivo = r; }
-    S.run(async () => { await S.q(S.sb.rpc('mover_oportunidade', { p_id:id, p_etapa:etapa, p_motivo:motivo })); await recarregar(); }, `Movida para "${ETAPA[etapa]}"`); };
+    S.run(async () => { await S.q(S.sb.rpc('mover_oportunidade', { p_id:id, p_etapa:etapa, p_motivo:motivo })); if (naGestao() && eq && eq.recarregar) await eq.recarregar(); else await recarregar(); }, `Movida para "${ETAPA[etapa]}"`); };
   // Arrastar e soltar no funil (computador)
   document.addEventListener('dragstart', e => { const c = e.target.closest && e.target.closest('.fu2-op'); if (!c) return; e.dataTransfer.setData('text/plain', c.dataset.op); e.dataTransfer.effectAllowed = 'move'; c.classList.add('arrasta'); });
   document.addEventListener('dragend', e => { document.querySelectorAll('.fu2-op.arrasta, .fu2-col.alvo').forEach(x => x.classList.remove('arrasta', 'alvo')); });
@@ -406,9 +397,17 @@
     fuProspect: novoProspect,
     fuMover: d => mover(d.id, d.v),
     fuOpMenu: (d, botao) => { const o = oport(d.id); if (!o) return;
+      const mov = ETAPAS.filter(([k]) => k !== o.etapa).map(([k, n]) => ({ label:`Mover para ${n}`, icon:k === 'fechou' ? 'check' : k === 'perdeu' ? 'fechar' : 'seta', act:'fuMover', data:{ id:o.id, v:k } }));
+      if (naGestao()) return S.menu(botao, [{ label:'Comentar', icon:'chamados', act:'fuComentarOp', data:{ id:o.id } }, { label:'Passar para outra pessoa', icon:'clientes', act:'fuPassar', data:{ id:o.id } }, '-', ...mov]);
       S.menu(botao, [...ETAPAS.filter(([k]) => k !== o.etapa).map(([k, n]) => ({ label:`Mover para ${n}`, icon:k === 'fechou' ? 'check' : k === 'perdeu' ? 'fechar' : 'seta', act:'fuMover', data:{ id:o.id, v:k } })),
         '-', { label:'Agendar contato', icon:'agenda', act:'fuNovo', data:{ cliente:o.cliente_id } }, { label:'Abrir o cliente', icon:'clientes', act:'pesEditar', data:{ id:o.cliente_id } }]); },
-    fuPeriodo: d => { st.periodo = d.tab; S.render(); },
+    // Follow-up da equipe (Dashboard Gestão)
+    fuEqCons: d => { if (st.eqCons === d.id) return; st.eqCons = d.id; st.eqVei = ''; S.render(); },
+    fuEqAba: d => { if (st.eqAba === d.v) return; st.eqAba = d.v; S.render(); },
+    fuEqDia: d => { const n = +d.v; st.eqDia = n ? somaDias(st.eqDia || S.today(), n) : ''; if (st.eqDia === S.today()) st.eqDia = ''; S.render(); },
+    fuComentar: d => { const a = eq && eq.agenda.find(x => x.id === d.id); if (a) comentar({ agenda:a.id, oportunidade:a.oportunidade_id || null, cliente:eq.nomes.get(a.cliente_id) }); },
+    fuComentarOp: d => { const o = oport(d.id); if (o) comentar({ oportunidade:o.id, cliente:eq && eq.nomes.get(o.cliente_id) }); },
+    fuPassar: d => { const o = oport(d.id); if (o) passar(o); },
     fuNovo: novo,
     fuRegistrar: d => { const a = S.db.agenda.find(x => x.id === d.id); if (a) registrar(a); },
     fuOpcoes: (d, botao) => S.menu(botao, [
@@ -433,5 +432,6 @@
     agNovo: d => novo(d), agFeito: d => S.actions.fuRegistrar(d)
   });
   // Filtro de consultor (select): troca na hora
-  document.addEventListener('change', e => { if (e.target.matches('select[data-fu-consultor]')) { st.consultor = e.target.value; S.render(); } });
+  document.addEventListener('change', e => { if (e.target.matches('select[data-fu-consultor]')) { st.consultor = e.target.value; S.render(); }
+    if (e.target.matches('select[data-fu-eqvei]')) { st.eqVei = e.target.value; S.render(); } });
 })();

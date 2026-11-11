@@ -53,7 +53,7 @@
   S.cxHtml = (blocos, escolhido, rotulo) => `<div class="cx-grade" data-casillero data-forma="${escolhido}" role="group" aria-label="${esc(rotulo || 'Resumo do veículo')}">
     ${blocos.map(b => `<article class="cx-celda cx-t-${b.tipo}${b.id === escolhido ? ' grande' : ''}" data-celda="${b.id}">
       <button type="button" class="cx-toque" aria-pressed="${b.id === escolhido}" aria-label="${esc(b.rotulo || b.titulo)}. Mostrar em destaque"></button>
-      ${TIPOS[b.tipo](b)}${b.link ? `<a class="cx-abrir" href="#${b.link.rota}" data-go="${b.link.rota}">${esc(b.link.texto)}${S.svg('seta', 14)}</a>` : ''}</article>`).join('')}</div>`;
+      ${TIPOS[b.tipo](b)}${b.link ? b.link.act ? `<button type="button" class="cx-abrir" data-act="${b.link.act}" data-v="${esc(b.link.v || '')}">${esc(b.link.texto)}${S.svg('seta', 14)}</button>` : `<a class="cx-abrir" href="#${b.link.rota}" data-go="${b.link.rota}">${esc(b.link.texto)}${S.svg('seta', 14)}</a>` : ''}</article>`).join('')}</div>`;
 
   // ---------- o movimento ----------
   S.casillero = (raiz, op = {}) => {

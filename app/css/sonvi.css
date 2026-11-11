@@ -4621,3 +4621,27 @@ dialog.largo.rl-dlg { width:min(1000px, 96vw); }
 .fu2-loc { margin:4px 0 0; padding:8px 10px; border-radius:8px; background:color-mix(in srgb, var(--blue) 10%, transparent); color:var(--blue); font:600 12.5px/1.4 var(--font); }
 .fu-3.fu2-2 { grid-template-columns:1fr 1fr; }
 @media (prefers-reduced-motion: reduce) { .fu2-op { animation:none; transition:none; } }
+
+/* Follow-up da equipe no Dashboard Gestão (etapa 3, 11/11/2026): um consultor por vez, dia com setas, Rotina | Funil */
+button.cx-abrir { background:none; border:0; cursor:pointer; }
+.fq-pessoas { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; margin:0 0 16px; }
+.fq-pes { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; text-align:left; font:inherit; color:var(--ink); cursor:pointer; border-radius:var(--radius); background:var(--surface); border:1px solid var(--line); box-shadow:var(--shadow); transition:transform .25s var(--ease), box-shadow .25s, border-color .2s; min-width:0; }
+@media (hover:hover) { .fq-pes:hover { transform:translateY(-3px); box-shadow:var(--shadow-up); } }
+.fq-pes:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.fq-pes.on { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent), var(--shadow-up); }
+.fq-pes-tx { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.fq-pes-tx b { font:600 14px/1.3 var(--display); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fq-pes-tx small { color:var(--ink-2); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fq-pes-n { display:flex; flex-wrap:wrap; gap:6px 10px; margin-top:6px; font-size:12px; font-weight:600; color:var(--ink-2); }
+.fq-at { color:var(--red); } .fq-ok { color:var(--green); }
+.fq-dia b { min-width:118px; text-align:center; }
+.fq-vei { font-size:13px; font-weight:600; color:var(--ink-2); }
+.fu2-eq .fu2-topo { flex-wrap:wrap; gap:10px; }
+.fu2-eq .fu2-ac .btn svg { margin-right:4px; }
+@media (max-width:640px) {
+  .fq-pessoas { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:4px; }
+  .fq-pes { flex:0 0 78%; scroll-snap-align:start; }
+  .fu2-eq .fu2-topo .grow { display:none; }
+  .fu2-eq .fq-dia { flex:1 1 auto; justify-content:space-between; }
+}
+@media (prefers-reduced-motion:reduce) { .fq-pes { transition:none; } .fq-pes:hover { transform:none; } }
