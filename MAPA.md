@@ -98,11 +98,11 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 
 ### folha.js · 63 linhas
 
-### followup.js · 438 linhas
+### followup.js · 453 linhas
 - Telas (`S.views`): followup
-- Ações (`data-act`): fuAba, fuAmostra, fuCliente, fuComentar, fuComentarOp, fuEqAba, fuEqCons, fuEqDia, fuExcluir, fuMover, fuOpMenu, fuOpcoes, fuPassar, fuRegistrar, fuRemarcar
+- Ações (`data-act`): fuAba, fuAmostra, fuCliente, fuComentar, fuComentarOp, fuEqAba, fuEqCons, fuEqDia, fuExcluir, fuMover, fuOpExcluir, fuOpMenu, fuOpcoes, fuPassar, fuRegistrar, fuRemarcar
 - Define `S.`: fuAtrasados, fuEquipeAbrir, fuEquipeGestao, fuEsquecidos, fuFeito, fuRecarregar, fuVerAgendaDe
-- Banco (rpc): comentar_followup, mover_oportunidade, novo_prospect, passar_cliente, registrar_followup
+- Banco (rpc): comentar_followup, excluir_oportunidade, mover_oportunidade, novo_prospect, passar_cliente, registrar_followup
 - Tabelas lidas/gravadas: agenda, followup_comentarios, oportunidades, pessoas
 - Funções de borda: followup
 
@@ -365,6 +365,7 @@ Mudou uma função? Copie a versão da **última** migração listada (é a que 
 - `excluir_agencia_grupo` (058) · app: agencias.js
 - `excluir_cliente_completo` (048 → 052) · app: pessoas.js
 - `excluir_lancamento_diretor` (050) · app: financeiro.js
+- `excluir_oportunidade` (090) · app: followup.js
 - `excluir_pi_completo` (050 → 052 → 082) · app: pi.js
 - `excluir_proposta_completa` (050 → 051 → 052) · app: propostas.js
 - `excluir_tabela` (037) · app: cadastros.js

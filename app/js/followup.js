@@ -93,7 +93,8 @@
     const texto = !ab && a.resultado ? esc(a.resultado) : !ab && a.resposta ? RESP[a.resposta][0] : situacao(a) === 'nao_atendeu' ? 'Não atendeu' : esc(a.assunto || (TIPOS[a.tipo] || ''));
     const acoes = c.gestao ? `${at && c.cobrar ? c.cobrar(a) : ''}${!ab ? `<span class="fu2-ok" aria-label="Registrado">${S.svg('check', 14)}</span>` : ''}<button class="btn sm" data-act="fuComentar" data-id="${a.id}" aria-label="Comentar o contato com ${esc(nomeCli)}">${S.svg('chamados', 14)}Comentar</button>`
       : ab ? `${f ? `<a class="btn sm ic" href="${a.tipo === 'whatsapp' ? `https://wa.me/55${f}` : `tel:+55${f}`}" target="_blank" rel="noopener" aria-label="${a.tipo === 'whatsapp' ? 'WhatsApp de' : 'Ligar para'} ${esc(nomeCli)}">${S.svg(a.tipo === 'whatsapp' ? 'whats' : 'fone')}</a>` : ''}
-        ${at ? `<button class="btn sm" data-act="fuRemarcar" data-id="${a.id}">Remarcar</button>` : ''}<button class="btn sm pri" data-act="fuRegistrar" data-id="${a.id}">Registrar</button>`
+        ${at ? `<button class="btn sm" data-act="fuRemarcar" data-id="${a.id}">Remarcar</button>` : ''}<button class="btn sm pri" data-act="fuRegistrar" data-id="${a.id}">Registrar</button>
+        <button class="btn tres" data-act="fuOpcoes" data-id="${a.id}" aria-label="Opções do contato com ${esc(nomeCli)}">${S.svg('mais3')}</button>`
       : `<span class="fu2-ok" aria-label="Registrado">${S.svg('check', 14)}</span>`;
     return `<div class="fu2-l${ab ? '' : ' feito'}${at ? ' at' : ''}"><span class="fu2-h"><b>${S.hora(a.quando)}</b>${quando ? `<small>${quando}</small>` : ''}</span>
       <span class="fu2-ic" title="${TIPOS[a.tipo] || ''}">${S.svg(ICO[a.tipo] || 'agenda')}</span>
@@ -398,9 +399,23 @@
     fuMover: d => mover(d.id, d.v),
     fuOpMenu: (d, botao) => { const o = oport(d.id); if (!o) return;
       const mov = ETAPAS.filter(([k]) => k !== o.etapa).map(([k, n]) => ({ label:`Mover para ${n}`, icon:k === 'fechou' ? 'check' : k === 'perdeu' ? 'fechar' : 'seta', act:'fuMover', data:{ id:o.id, v:k } }));
-      if (naGestao()) return S.menu(botao, [{ label:'Comentar', icon:'chamados', act:'fuComentarOp', data:{ id:o.id } }, { label:'Passar para outra pessoa', icon:'clientes', act:'fuPassar', data:{ id:o.id } }, '-', ...mov]);
+      const exc = { label:'Excluir do funil', icon:'lixo', act:'fuOpExcluir', data:{ id:o.id }, perigo:true };
+      if (naGestao()) return S.menu(botao, [{ label:'Comentar', icon:'chamados', act:'fuComentarOp', data:{ id:o.id } }, { label:'Passar para outra pessoa', icon:'clientes', act:'fuPassar', data:{ id:o.id } }, '-', ...mov, '-', exc]);
       S.menu(botao, [...ETAPAS.filter(([k]) => k !== o.etapa).map(([k, n]) => ({ label:`Mover para ${n}`, icon:k === 'fechou' ? 'check' : k === 'perdeu' ? 'fechar' : 'seta', act:'fuMover', data:{ id:o.id, v:k } })),
-        '-', { label:'Agendar contato', icon:'agenda', act:'fuNovo', data:{ cliente:o.cliente_id } }, { label:'Abrir o cliente', icon:'clientes', act:'pesEditar', data:{ id:o.cliente_id } }]); },
+        '-', { label:'Agendar contato', icon:'agenda', act:'fuNovo', data:{ cliente:o.cliente_id } }, { label:'Abrir o cliente', icon:'clientes', act:'pesEditar', data:{ id:o.cliente_id } }, '-', exc]); },
+    // Excluir do funil (11/11/2026, database/090 excluir_oportunidade): sai o cartão e os contatos marcados; prospect sem proposta nem PI
+    // sai também do cadastro, com o histórico de contatos
+    fuOpExcluir: async d => { const o = oport(d.id); if (!o) return;
+      const nome = (eq && naGestao() ? eq.nomes.get(o.cliente_id) : S.nome(o.cliente_id)) || 'este cliente', cli = !naGestao() && S.pessoa(o.cliente_id);
+      const pros = cli ? cli.situacao === 'prospect' && !(S.db.propostas || []).some(x => x.cliente_id === cli.id) && !(S.db.pis || []).some(x => x.cliente_id === cli.id) : null;
+      const txt = pros === true ? `Excluir o prospect ${nome}?\n\nO cadastro dele, o cartão do funil e todos os contatos com ele são apagados. Não dá para desfazer.`
+        : pros === false ? `Tirar ${nome} do funil?\n\nO cartão e os contatos ainda marcados com ele são apagados. O cadastro do cliente, as propostas e os PIs continuam.`
+        : `Excluir ${nome} do funil?\n\nO cartão e os contatos marcados são apagados. Se for prospect sem proposta nem PI, o cadastro também é apagado. Não dá para desfazer.`;
+      if (!await S.confirmar(txt, { ok:pros === false ? 'Tirar do funil' : 'Excluir', perigo:true })) return;
+      S.run(async () => { const r = await S.q(S.sb.rpc('excluir_oportunidade', { p_id:o.id }));
+        if (naGestao() && eq && eq.recarregar) await eq.recarregar();
+        else { if (r === 'prospect') S.db.pessoas = (S.db.pessoas || []).filter(x => x.id !== o.cliente_id); await recarregar(); } },
+        pros === true ? 'Prospect excluído' : 'Excluído do funil'); },
     // Follow-up da equipe (Dashboard Gestão)
     fuEqCons: d => { if (st.eqCons === d.id) return; st.eqCons = d.id; st.eqVei = ''; S.render(); },
     fuEqAba: d => { if (st.eqAba === d.v) return; st.eqAba = d.v; S.render(); },
@@ -413,7 +428,7 @@
     fuOpcoes: (d, botao) => S.menu(botao, [
       { label:'Remarcar', icon:'relogio', act:'fuRemarcar', data:d },
       ...(S.db.agenda.find(x => x.id === d.id) || {}).cliente_id ? [{ label:'Abrir o cliente', icon:'clientes', act:'fuCliente', data:d }] : [],
-      '-', { label:'Excluir contato', icon:'lixo', act:'fuExcluir', data:d, perigo:true }]),
+      '-', { label:'Excluir agendamento', icon:'lixo', act:'fuExcluir', data:d, perigo:true }]),
     fuRemarcar: d => { const a = S.db.agenda.find(x => x.id === d.id); if (!a) return;
       S.form(`Remarcar · ${esc(S.nome(a.cliente_id) || 'contato')}`, [{ k:'dia', label:'Nova data', type:'date', req:true }, { k:'hora', label:'Hora', type:'time', req:true },
         { html:`<p class="muted small" id="fuRemDia" style="grid-column:1/-1;margin-top:-6px" aria-live="polite"></p>` }],
@@ -421,7 +436,7 @@
         v => S.run(() => S.salvar('agenda', { id:a.id, quando:iso(v.dia, v.hora) }), `Remarcado para ${diaSemana(v.dia)}, ${dfmt(v.dia).slice(0, 5)}`), 'Remarcar', { editar:true });
       const dia = document.querySelector('#dlg [name="dia"]'), t = () => { document.getElementById('fuRemDia').textContent = dia.value ? diaSemana(dia.value) : ''; }; dia.min = S.today(); dia.addEventListener('input', t); t(); },
     fuCliente: d => { const a = S.db.agenda.find(x => x.id === d.id); if (a && a.cliente_id) S.actions.pesEditar({ id:a.cliente_id }); },
-    fuExcluir: async d => { if (await S.confirmar('Excluir este contato?\n\nEle sai da agenda e do e-mail das 7h30. Para registrar que não aconteceu, use "Registrar".', { ok:'Excluir', perigo:true })) S.run(() => S.excluir('agenda', d.id), 'Contato excluído'); },
+    fuExcluir: async d => { if (await S.confirmar('Excluir este agendamento?\n\nEle sai da agenda, do funil e dos resumos. Para registrar que o contato não aconteceu, use "Registrar".', { ok:'Excluir', perigo:true })) S.run(() => S.excluir('agenda', d.id), 'Agendamento excluído'); },
     fuAmostra: async () => {
       S.toast('Preparando o resumo de hoje…');
       try { const { data, error } = await S.sb.functions.invoke('followup', { body:{ acao:'teste' } });
