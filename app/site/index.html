@@ -368,6 +368,30 @@ footer .base{display:flex;flex-wrap:wrap;justify-content:space-between;align-ite
 @keyframes cl-corre{to{transform:translateX(calc(-50% - 44px))}}
 @media (max-width:760px){.clientes{padding-block:90px}.clientes .cab{margin-bottom:40px}.cl-fita{gap:56px;animation-duration:28s}.cl-fita li{height:52px}.cl-fita img{height:36px;max-width:150px}.cl-fita img.q{height:52px;max-width:52px}@keyframes cl-corre{to{transform:translateX(calc(-50% - 28px))}}}
 @media (prefers-reduced-motion:reduce){.cl-fita{animation:none;flex-wrap:wrap;justify-content:center;width:auto;gap:32px 56px;padding-inline:16px}.cl-fita li[aria-hidden]{display:none}.cl-trilho{-webkit-mask-image:none;mask-image:none}}
+
+/* Perguntas frequentes (modelo 11/11/2026): duas colunas no computador, uma no celular; cada pergunta abre e fecha (details/summary, funciona sem JavaScript e com teclado) */
+.faq{padding-block:160px;background:var(--nevoa)}
+.faq .grade{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:96px;align-items:start}
+.faq .titulo-secao{position:sticky;top:120px}
+.faq .titulo-secao .btn{margin-top:32px}
+.perguntas{display:flex;flex-direction:column;gap:12px}
+.perguntas details{background:var(--branco);border:1px solid var(--linha);border-radius:16px;transition:border-color .25s,box-shadow .25s}
+.perguntas details[open]{border-color:color-mix(in srgb,var(--azul) 35%,var(--linha));box-shadow:0 12px 32px -18px rgba(0,85,255,.35)}
+.perguntas summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 24px;font-family:var(--display);font-size:18px;font-weight:600;letter-spacing:-.01em;min-height:44px}
+.perguntas summary::-webkit-details-marker{display:none}
+.perguntas summary:focus-visible{outline:2px solid var(--azul);outline-offset:3px;border-radius:16px}
+.perguntas .mais{flex:none;width:32px;height:32px;border-radius:50%;background:var(--suave);position:relative;transition:background .25s,transform .35s cubic-bezier(.16,1,.3,1)}
+.perguntas .mais::before,.perguntas .mais::after{content:"";position:absolute;left:50%;top:50%;width:12px;height:2px;margin:-1px 0 0 -6px;border-radius:2px;background:var(--azul)}
+.perguntas .mais::after{transform:rotate(90deg);transition:transform .35s cubic-bezier(.16,1,.3,1)}
+.perguntas details[open] .mais{background:var(--azul);transform:rotate(180deg)}
+.perguntas details[open] .mais::before{background:var(--branco)}
+.perguntas details[open] .mais::after{transform:rotate(0);background:var(--branco)}
+.perguntas .resp{padding:0 24px 24px;color:var(--cinza);font-size:16px;line-height:1.65;max-width:40em}
+.perguntas details[open] .resp{animation:faq-abre .45s cubic-bezier(.16,1,.3,1)}
+@keyframes faq-abre{from{opacity:0;translate:0 -6px}}
+@media (max-width:980px){.faq{padding-block:110px}.faq .grade{grid-template-columns:1fr;gap:48px}.faq .titulo-secao{position:static}}
+@media (max-width:620px){.perguntas summary{font-size:16px;padding:18px 18px}.perguntas .resp{padding:0 18px 20px;font-size:15px}}
+@media (prefers-reduced-motion:reduce){.perguntas details[open] .resp{animation:none}.perguntas .mais,.perguntas .mais::after{transition:none}}
 </style>
 </head>
 <body>
@@ -385,9 +409,9 @@ footer .base{display:flex;flex-wrap:wrap;justify-content:space-between;align-ite
   <section class="hero">
     <div class="wrap grade">
       <div data-v="0.04">
-        <span class="selo"><span class="ponto"></span>Para grupos de mídia e empresas comerciais</span>
-        <h1>Da proposta à venda lançada, em todos os seus <em>veículos.</em></h1>
-        <p class="lead">Proposta, PI, OPEC, vendas, comissões e metas de rádios e mídia exterior em um só lugar. Na nuvem, no computador e no celular.</p>
+        <span class="selo"><span class="ponto"></span>Para rádios, emissoras e mídia exterior</span>
+        <h1>Da proposta à venda lançada, em todas as suas <em>rádios e mídias.</em></h1>
+        <p class="lead">Software de gestão comercial para rádios, emissoras e mídia exterior: proposta, pedido de inserção (PI), OPEC, vendas, comissões e metas num só sistema. Na nuvem, no computador e no celular.</p>
         <div class="acoes"><a href="https://wa.me/5565998113738?text=Ol%C3%A1!%20Quero%20agendar%20uma%20demonstra%C3%A7%C3%A3o%20do%20SONVI." target="_blank" rel="noopener" class="btn btn-azul">Agendar demonstração <span aria-hidden="true">→</span><span class="sr"> (abre o WhatsApp)</span></a><a href="#como" class="btn btn-linha">Ver como funciona</a></div>
         <div class="fatos"><span><b>1 login</b>para todos os veículos</span><span><b>Rádio e OOH</b>no mesmo PI</span><span><b>Perfis independentes</b>cada um vê o que precisa</span></div>
       </div>
@@ -467,7 +491,7 @@ footer .base{display:flex;flex-wrap:wrap;justify-content:space-between;align-ite
       </div>
       <div class="bento">
         <div class="cartao b-pi">
-          <div><span class="selo">PI digital</span><h3>Do PI ao PDF, sem digitar duas vezes.</h3><p>Peças, grades por praça e mês, comissão, desconto e valor líquido calculados na hora. O PDF sai com a marca da empresa comercial ou do veículo.</p></div>
+          <div><span class="selo">PI digital</span><h3>Pedido de inserção (PI) em PDF, sem digitar duas vezes.</h3><p>Peças, grades por praça e mês, comissão, desconto e valor líquido calculados na hora. O PDF sai com a marca da empresa comercial ou do veículo.</p></div>
           <div class="grade-mes" data-v="0.05" aria-hidden="true"><div class="t"><span>Grade A · Cuiabá · nov</span><b>48 ins.</b></div><div class="g" id="gradeMes"></div></div>
         </div>
         <div class="cartao b-opec"><img src="/img/simbolo-branco.svg" alt="" aria-hidden="true"><h3>A OPEC trabalha pelo link.</h3><p>Sem conta e sem senha. O consultor vê quando ela abriu, e o PI devolvido volta com o motivo.</p></div>
@@ -575,6 +599,14 @@ footer .base{display:flex;flex-wrap:wrap;justify-content:space-between;align-ite
     </div>
   </section>
 
+  <!-- Perguntas frequentes -->
+  <section class="faq" id="perguntas" aria-labelledby="faq-t">
+    <div class="wrap grade">
+      <div class="titulo-secao"><span class="selo">Perguntas frequentes</span><h2 id="faq-t">Tudo o que perguntam sobre o SONVI.</h2><p>O sistema comercial de rádios e mídia exterior, explicado em poucas linhas. Ficou alguma dúvida? A gente responde no WhatsApp.</p><a href="https://wa.me/5565998113738?text=Ol%C3%A1!%20Tenho%20uma%20d%C3%BAvida%20sobre%20o%20SONVI." target="_blank" rel="noopener" class="btn btn-linha">Tirar uma dúvida<span class="sr"> (abre o WhatsApp)</span></a></div>
+      <div class="perguntas"><details open><summary>O que é o SONVI?<span class="mais" aria-hidden="true"></span></summary><div class="resp"><p>O SONVI é um sistema de gestão comercial na nuvem para rádios, emissoras e mídia exterior. Reúne num só lugar a proposta, o pedido de inserção (PI), a OPEC, as vendas, as comissões e as metas, do primeiro contato com o cliente até a venda lançada.</p></div></details><details><summary>Serve para emissora de rádio?<span class="mais" aria-hidden="true"></span></summary><div class="resp"><p>Sim, o SONVI nasceu para rádio. Tem tabela de preços com vigência, spots, patrocínios e projetos especiais, PI com as inserções de cada dia e a OPEC recebendo tudo pelo link, sem planilha e sem e-mail perdido.</p></div></details><details><summary>Funciona para outdoor e mídia exterior?<span class="mais" aria-hidden="true"></span></summary><div class="resp"><p>Funciona. Front light, empena e outdoor são cobrados por mês, proporcional aos dias marcados; LED e DOOH, por inserção; e a produção entra uma vez só. Rádio e mídia exterior podem ir no mesmo PI.</p></div></details><details><summary>Dá para usar com várias rádios num login só?<span class="mais" aria-hidden="true"></span></summary><div class="resp"><p>Sim. Cada veículo tem os próprios clientes, PIs, numeração e OPEC, e a empresa comercial acompanha todos num painel só, com a parte dela já calculada.</p></div></details><details><summary>Como o SONVI calcula a venda e a comissão?<span class="mais" aria-hidden="true"></span></summary><div class="resp"><p>Pelo valor líquido (o bruto menos a comissão da agência) e no mês em que a campanha vai ao ar. A comissão de cada consultor sai sozinha, com extrato em PDF para enviar pelo WhatsApp ou por e-mail.</p></div></details><details><summary>Precisa instalar alguma coisa?<span class="mais" aria-hidden="true"></span></summary><div class="resp"><p>Não. O SONVI funciona no navegador do computador e do celular. Cada pessoa entra com o próprio login e vê só o que o perfil dela permite: diretor, consultor, OPEC ou financeiro.</p></div></details><details><summary>Os dados da minha empresa ficam seguros?<span class="mais" aria-hidden="true"></span></summary><div class="resp"><p>Ficam. Cada empresa só enxerga os próprios dados, e as regras de quem vê o quê ficam no banco de dados, não só na tela. Os links que vão para a OPEC e para o cliente são únicos e não aparecem na busca do Google.</p></div></details><details><summary>Quanto custa?<span class="mais" aria-hidden="true"></span></summary><div class="resp"><p>Depende de quantos veículos e usuários o seu grupo tem. Fale com a gente no WhatsApp: mostramos o sistema com os dados do seu grupo e mandamos a proposta.</p></div></details></div>
+    </div>
+  </section>
+
   <!-- Chamada final -->
   <section class="final" id="contato">
     <div class="wrap">
@@ -595,7 +627,7 @@ footer .base{display:flex;flex-wrap:wrap;justify-content:space-between;align-ite
     <div class="grade">
       <div><img src="/img/sonvi-branco.svg" alt="SONVI" width="120" height="27" style="width:120px;height:auto;display:block"><p style="margin-top:14px;max-width:320px">Gestão comercial para grupos de mídia: rádio e mídia exterior.</p></div>
       <div class="cols">
-        <div><b>Produto</b><a href="#como">Como funciona</a><a href="#recursos">Recursos</a><a href="#midias">Mídias</a><a href="#whatsapp">WhatsApp</a><a href="#clientes">Clientes</a></div>
+        <div><b>Produto</b><a href="#como">Como funciona</a><a href="#recursos">Recursos</a><a href="#midias">Mídias</a><a href="#whatsapp">WhatsApp</a><a href="#clientes">Clientes</a><a href="#perguntas">Perguntas frequentes</a></div>
         <div><b>Contato</b><a href="https://wa.me/5565998113738" target="_blank" rel="noopener" class="wa-link"><svg class="wa" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>WhatsApp<span class="sr"> (abre o WhatsApp)</span></a></div>
       </div>
     </div>
@@ -651,7 +683,7 @@ footer .base{display:flex;flex-wrap:wrap;justify-content:space-between;align-ite
     requestAnimationFrame(quadro);
 
     // Entrada dos blocos, um depois do outro
-    const blocos = document.querySelectorAll('.hero .grade > div:first-child > *, .titulo-secao > *, .recursos .cab > *, .bento > *, .passo, .lista-m > div, .lista-c > div, .final .caixa > div, .leque, .painel, .conversa, .marcas, .aparelho, footer .grade > *');
+    const blocos = document.querySelectorAll('.hero .grade > div:first-child > *, .titulo-secao > *, .recursos .cab > *, .bento > *, .passo, .lista-m > div, .lista-c > div, .perguntas > details, .final .caixa > div, .leque, .painel, .conversa, .marcas, .aparelho, footer .grade > *');
     document.documentElement.classList.add('anima');
     blocos.forEach(b => { b.classList.add('rv'); const irmaos = [...b.parentElement.children].filter(x => x.classList.contains('rv')); b.style.setProperty('--d', (Math.min(irmaos.indexOf(b), 5) * .09) + 's'); });
     const ver = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('dentro'); ver.unobserve(e.target); } }), { rootMargin:'0px 0px -8% 0px' });
