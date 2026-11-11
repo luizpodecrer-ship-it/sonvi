@@ -5,7 +5,8 @@
 //   { acao: "fimdia" } de hora em hora → na hora e nos dias escolhidos por cada empresa (Administração › Resumo do dia,
 //     padrão 18h de segunda a sexta), envia o resumo do fim do dia (database/083, modelo aprovado em 07/11/2026):
 //     consultor: o dia em números, o que registrou, o que ficou para trás, amanhã e a meta do mês;
-//     diretor: a equipe de todos os veículos, atrasados, PIs (aguardando a OPEC abrir, devolvidos) e a meta do grupo.
+//     diretor: a equipe de todos os veículos, atrasados, PIs (aguardando a OPEC abrir, devolvidos) e a meta do grupo (por e-mail);
+//     no WhatsApp, desde 11/11/2026, um relatório por consultor (modelo da Meta "relatorio_consultor").
 //   Cada resumo sai uma vez por dia por pessoa, tipo e canal (tabela followup_envios, com situação e erro).
 // O diretor logado pode pedir uma amostra do resumo do fim do dia para si: { acao: "teste" } (Authorization do usuário).
 // E-mail pelo Resend (domínio sonvi.com.br; segredo RESEND_API_KEY). WhatsApp pela API oficial da Meta, só quando a empresa
@@ -40,7 +41,7 @@ type Linha = { id: string; veiculo_id: string; consultor_id: string; cliente_id:
 type Cfg = { organizacao_id: string; hora: number; dias: number[]; manha: boolean; whatsapp_ativo: boolean };
 type Teste = { id: string; email: string; nome: string; org: string };
 type Envio = { usuario: string; tipo: string; para: string; de: string; assunto: string; html: string; canal: 'email' | 'whatsapp' | 'ambos';
-  wa?: { celular: string; params: string[] } };
+  wa?: { celular: string; params: string[]; modelo?: string }; ref?: string; soWhatsapp?: boolean };
 
 const brl = (n: number) => 'R$ ' + Math.round(Number(n) || 0).toLocaleString('pt-BR');
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -58,17 +59,27 @@ const emLotes = async (ids: string[], busca: (lote: string[]) => any) => {
 };
 
 // WhatsApp pela API oficial da Meta (modelo de mensagem de utilidade aprovado). Sem os segredos, devolve "aguardando número".
-const enviaWhatsapp = async (celular: string, params: string[]) => {
-  const token = Deno.env.get('WHATSAPP_TOKEN'), numero = Deno.env.get('WHATSAPP_NUMERO_ID'), modelo = Deno.env.get('WHATSAPP_MODELO');
+const enviaWhatsapp = async (celular: string, params: string[], modeloFixo?: string) => {
+  const token = Deno.env.get('WHATSAPP_TOKEN'), numero = Deno.env.get('WHATSAPP_NUMERO_ID'), modelo = modeloFixo || Deno.env.get('WHATSAPP_MODELO');
   if (!token || !numero || !modelo) return { ok: false, erro: 'WhatsApp aguardando número' };
   if (!celular) return { ok: false, erro: 'sem celular cadastrado' };
   const r = await fetch(`https://graph.facebook.com/v21.0/${numero}/messages`, {
     method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ messaging_product: 'whatsapp', to: celular, type: 'template',
-      template: { name: modelo, language: { code: 'pt_BR' }, components: [{ type: 'body', parameters: params.map(t => ({ type: 'text', text: String(t).slice(0, 200) })) }] } }),
+      template: { name: modelo, language: { code: 'pt_BR' }, components: [{ type: 'body', parameters: params.map(t => ({ type: 'text', text: String(t).replace(/\s+/g, ' ').trim().slice(0, 300) || '—' })) }] } }),
   });
   if (r.ok) return { ok: true, erro: '' };
   const j = await r.json().catch(() => ({})); return { ok: false, erro: String(j?.error?.message || r.status).slice(0, 300) };
+};
+
+// O relatório por consultor só sai quando a Meta já aprovou o modelo "relatorio_consultor" (conta do WhatsApp da Astravox);
+// antes disso, o diretor continua recebendo o resumo somado (modelo WHATSAPP_MODELO). Assim a troca acontece sozinha.
+const WABA_ID = '1005732518531383', MODELO_REL = 'relatorio_consultor';
+const modeloAprovado = async (nome: string) => {
+  const token = Deno.env.get('WHATSAPP_TOKEN'); if (!token) return false;
+  try { const r = await fetch(`https://graph.facebook.com/v21.0/${WABA_ID}/message_templates?name=${nome}&fields=name,status,language`, { headers: { Authorization: `Bearer ${token}` } });
+    const j = await r.json().catch(() => ({})); return (j?.data || []).some((t: any) => t.name === nome && t.status === 'APPROVED'); }
+  catch (_) { return false; }
 };
 
 // Envia e anota cada envio (uma vez por dia por pessoa, tipo e canal; a amostra não é anotada).
@@ -77,11 +88,11 @@ const enviarTodos = async (adm: any, chave: string, envios: Envio[], hoje: strin
   let enviados = 0; const falhas: string[] = [];
   const anota = async (e: Envio, canal: 'email' | 'whatsapp') => {
     if (amostra) return true;
-    const { error } = await adm.from('followup_envios').insert({ dia: hoje, usuario_id: e.usuario, tipo: e.tipo, canal });
+    const { error } = await adm.from('followup_envios').insert({ dia: hoje, usuario_id: e.usuario, tipo: e.tipo, canal, ...(e.ref ? { referente: e.ref } : {}) });
     return !error;   // erro = já enviado hoje
   };
   const marca = async (e: Envio, canal: 'email' | 'whatsapp', situacao: string, erro: string | null) => {
-    if (!amostra) await adm.from('followup_envios').update({ situacao, erro }).match({ dia: hoje, usuario_id: e.usuario, tipo: e.tipo, canal });
+    if (!amostra) await adm.from('followup_envios').update({ situacao, erro }).match({ dia: hoje, usuario_id: e.usuario, tipo: e.tipo, canal, ...(e.ref ? { referente: e.ref } : {}) });
   };
   const porEmail = async (e: Envio) => {
     if (!emailOk(String(e.para || ''))) { falhas.push(`${e.usuario}: sem e-mail`); await marca(e, 'email', 'falhou', 'sem e-mail válido'); return; }
@@ -94,14 +105,14 @@ const enviarTodos = async (adm: any, chave: string, envios: Envio[], hoje: strin
     await espera(600); // o Resend aceita poucos envios por segundo
   };
   for (const e of envios) {
-    const querWa = e.canal !== 'email' && !!e.wa, querEmail = e.canal !== 'whatsapp' || !e.wa;
+    const querWa = e.canal !== 'email' && !!e.wa, querEmail = !e.soWhatsapp && (e.canal !== 'whatsapp' || !e.wa);
     let waOk = false;
     if (querWa && await anota(e, 'whatsapp')) {
-      const r = await enviaWhatsapp(e.wa!.celular, e.wa!.params);
+      const r = await enviaWhatsapp(e.wa!.celular, e.wa!.params, e.wa!.modelo);
       waOk = r.ok; if (r.ok) enviados++;
       await marca(e, 'whatsapp', r.ok ? 'enviado' : querEmail ? 'falhou' : 'voltou_email', r.ok ? null : r.erro);
     }
-    if ((querEmail || (querWa && !waOk)) && await anota(e, 'email')) await porEmail(e);
+    if (!e.soWhatsapp && (querEmail || (querWa && !waOk)) && await anota(e, 'email')) await porEmail(e);
   }
   if (falhas.length) console.error('followup: falhas', falhas);
   return { enviados, falhas };
@@ -122,17 +133,18 @@ const fimDoDia = async ({ adm, chave, orgs, cfgDe, empDe, slugDe, teste, hoje, a
   const nomeVei = (id: string) => nomeLimpo((veiculos || []).find((v: any) => v.id === id)?.nome || 'Veículo');
   const orgVei = (id: string) => (veiculos || []).find((v: any) => v.id === id)?.organizacao_id;
 
-  const [usuarios, vinculos, pendentes, feitos, props, hist, opec, devolvidos, vendas, colabs] = await Promise.all([
+  const [usuarios, vinculos, pendentes, feitos, props, hist, opec, devolvidos, vendas, colabs, oports] = await Promise.all([
     emLotes(orgs, l => adm.from('usuarios').select('id, nome, email, celular, diretor, ativo, organizacao_id, resumo_ativo, resumo_canal').in('organizacao_id', l).eq('ativo', true).order('id')),
     emLotes(vids, l => adm.from('usuario_veiculos').select('usuario_id, veiculo_id, perfil').in('veiculo_id', l).order('usuario_id')),
     emLotes(vids, l => adm.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, quando, assunto').in('veiculo_id', l).eq('situacao', 'agendado').lt('quando', inicio(depois)).order('id')),
-    emLotes(vids, l => adm.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, situacao, resposta, resultado, registrado_em').in('veiculo_id', l).in('situacao', ['realizado', 'nao_atendeu']).gte('registrado_em', inicio(hoje)).order('id')),
-    emLotes(vids, l => adm.from('propostas').select('id, veiculo_id, consultor_id').in('veiculo_id', l).gte('enviada_em', inicio(hoje)).order('id')),
+    emLotes(vids, l => adm.from('agenda').select('id, veiculo_id, consultor_id, cliente_id, tipo, situacao, resposta, motivo, resultado, registrado_em').in('veiculo_id', l).in('situacao', ['realizado', 'nao_atendeu']).gte('registrado_em', inicio(hoje)).order('id')),
+    emLotes(vids, l => adm.from('propostas').select('id, veiculo_id, consultor_id, valor_total').in('veiculo_id', l).gte('enviada_em', inicio(hoje)).order('id')),
     adm.from('pi_historico').select('pi_id').eq('status', 'opec').gte('em', inicio(hoje)).order('pi_id').range(0, 4999).then((r: any) => r.data || []),
     emLotes(vids, l => adm.from('pis').select('id, veiculo_id').in('veiculo_id', l).eq('status', 'opec').order('id')),
     emLotes(vids, l => adm.from('pis').select('id, veiculo_id, numero').in('veiculo_id', l).eq('status', 'devolvido').order('id')),
     emLotes(vids, l => adm.from('vendas_lancadas').select('pi_id, veiculo_id, valor').in('veiculo_id', l).eq('mes', ym).order('id')),
     emLotes(orgs, l => adm.from('colaboradores').select('id, usuario_id, organizacao_id').in('organizacao_id', l).eq('ativo', true).eq('funcao', 'consultor').order('id')),
+    emLotes(vids, l => adm.from('oportunidades').select('id, veiculo_id, consultor_id, cliente_id, etapa, valor, fechado_em').in('veiculo_id', l).order('id')),
   ]);
   const idsHoje = [...new Set((hist as any[]).map(h => h.pi_id))] as string[];
   const pisHoje = idsHoje.length ? await emLotes(idsHoje, l => adm.from('pis').select('id, veiculo_id, consultor_id, valor_liquido').in('id', l).in('veiculo_id', vids).order('id')) : [];
@@ -149,7 +161,7 @@ const fimDoDia = async ({ adm, chave, orgs, cfgDe, empDe, slugDe, teste, hoje, a
     if (soma > 0) metaDe.set(c.usuario_id, (metaDe.get(c.usuario_id) || 0) + soma); }
   const vendidoDe = (uid: string) => vendas.filter((v: any) => donoPi.get(v.pi_id) === uid).reduce((s: number, v: any) => s + Number(v.valor || 0), 0);
 
-  const clienteIds = [...new Set([...pendentes, ...feitos].map((a: any) => a.cliente_id).filter(Boolean))] as string[];
+  const clienteIds = [...new Set([...pendentes, ...feitos, ...oports].map((a: any) => a.cliente_id).filter(Boolean))] as string[];
   const clientes = new Map((clienteIds.length ? await emLotes(clienteIds, l => adm.from('pessoas').select('id, nome').in('id', l).order('id')) : []).map((p: any) => [p.id, p.nome]));
   const nomeCli = (id: string | null) => esc(clientes.get(id) || 'Sem cliente');
   const nomeUsu = (id: string) => String((usuarios.find((u: any) => u.id === id) || {}).nome || 'Consultor');
@@ -193,6 +205,7 @@ const fimDoDia = async ({ adm, chave, orgs, cfgDe, empDe, slugDe, teste, hoje, a
   const rodape = (org: string) => { const c = cfgDe(org), DS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'], d = [...(c.dias || [])].sort();
     const quando = d.join() === '1,2,3,4,5' ? 'todo dia útil' : d.join() === '1,2,3,4,5,6' ? 'de segunda a sábado' : 'nos dias ' + d.map(x => DS[x]).join(', ');
     return `Resumo automático, ${quando} às ${c.hora}h (horário de Cuiabá).`; };
+  const relOk = !teste && orgs.some(o => cfgDe(o).whatsapp_ativo) ? await modeloAprovado(MODELO_REL) : false;
   const quer = (u: any) => (u.resumo_canal === 'whatsapp' || u.resumo_canal === 'ambos') && cfgDe(u.organizacao_id).whatsapp_ativo ? u.resumo_canal : 'email';
 
   const envios: Envio[] = [];
@@ -243,7 +256,43 @@ const fimDoDia = async ({ adm, chave, orgs, cfgDe, empDe, slugDe, teste, hoje, a
       ...dev.slice(0, 6).map((p: any) => item('', `<b>PI devolvido</b> pela OPEC · ${esc(nomeVei(p.veiculo_id))} nº ${p.numero}${motivos.get(p.id) ? ` · <span style="color:${CINZA}">${esc(String(motivos.get(p.id)).slice(0, 120))}</span>` : ''}`))].filter(Boolean)
       .map(h => h.replace('<td style="width:52px;padding:9px 0;vertical-align:top"><b></b></td>', ''));
     const metaG = consultores.reduce((s: number, c: any) => s + (metaDe.get(c.id) || 0), 0), vendG = consultores.filter((c: any) => metaDe.get(c.id)).reduce((s: number, c: any) => s + vendidoDe(c.id), 0);   // como no anel "Metas dos consultores"
+    // Relatório das 17h por consultor (etapa 4, aprovado em 11/11/2026): no WhatsApp, o diretor recebe um relatório para cada
+    // consultor (modelo da Meta "relatorio_consultor", 10 variáveis, sem quebra de linha dentro delas) no lugar do resumo somado.
+    const txt = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
+    const cliTx = (id: string | null) => txt(clientes.get(id) || 'Sem cliente');
+    const lista = (l: string[], vazio: string) => l.length ? l.slice(0, 5).join(' · ') + (l.length > 5 ? ` · e mais ${l.length - 5}` : '') : vazio;
+    const ABERTAS = ['prospeccao', 'primeiro_contato', 'reuniao', 'proposta', 'negociacao'];
+    const MOT: Record<string, string> = { 'Sem verba no momento': 'sem verba', 'Já anuncia em outra rádio': 'anuncia em outra rádio', 'Não vê retorno em rádio': 'não vê retorno em rádio' };
+    const relatorio = (c: any) => {
+      const meu = (x: any) => naOrg(x) && x.consultor_id === c.id, n = numeros(meu);
+      const seus = [...new Set(vinculos.filter((v: any) => v.usuario_id === c.id && v.perfil === 'consultor' && vOrg.includes(v.veiculo_id)).map((v: any) => v.veiculo_id))] as string[];
+      const nomesV = seus.map(nomeVei), veics = nomesV.length > 1 ? nomesV.slice(0, -1).join(', ') + ' e ' + nomesV[nomesV.length - 1] : nomesV[0] || '—';
+      const reg = feitos.filter(meu).sort((a: any, b: any) => String(a.registrado_em).localeCompare(String(b.registrado_em)));
+      const naoAt = reg.filter((a: any) => a.situacao === 'nao_atendeu').length, feitosN = reg.length - naoAt;
+      const abertosHoje = pendentes.filter((a: any) => meu(a) && diaCuiaba(new Date(a.quando)) === hoje).length;
+      const pr = props.filter(meu), pi = pisHoje.filter(meu);
+      const atr = n.atrasados.sort((a: any, b: any) => a.quando.localeCompare(b.quando)), am = n.amanha.sort((a: any, b: any) => a.quando.localeCompare(b.quando));
+      const resp = (a: any) => a.situacao === 'nao_atendeu' ? 'não atendeu' : a.resposta === 'sem_interesse' ? `sem interesse${a.motivo ? ` (${MOT[a.motivo] || txt(a.motivo).toLowerCase()})` : ''}` : RESP[a.resposta] ? RESP[a.resposta][0].toLowerCase() : 'registrado';
+      const ops = oports.filter(meu), ab = ops.filter((o: any) => ABERTAS.includes(o.etapa)), fech = ops.filter((o: any) => o.etapa === 'fechou' && String(o.fechado_em || '') >= inicio(ym + '-01'));
+      const vAb = ab.reduce((t: number, o: any) => t + Number(o.valor || 0), 0);
+      const quando = `${diaSemana(hoje).replace('-feira', '')}, ${ddmm(hoje)}`;
+      return [
+        `${txt(c.nome)} · ${quando}`, veics,
+        `${feitosN} ${feitosN === 1 ? 'feito' : 'feitos'} de ${reg.length + abertosHoje} ${reg.length + abertosHoje === 1 ? 'marcado' : 'marcados'}${naoAt ? ` · ${naoAt} não ${naoAt === 1 ? 'atendeu' : 'atenderam'}` : ''}`,
+        pr.length ? `${pr.length} · ${brl(pr.reduce((t: number, p: any) => t + Number(p.valor_total || 0), 0))}` : '0',
+        pi.length ? `${pi.length} · ${brl(pi.reduce((t: number, p: any) => t + Number(p.valor_liquido || 0), 0))}` : '0',
+        String(atr.length),
+        lista(reg.map((a: any) => `${cliTx(a.cliente_id)}: ${resp(a)}`), 'Nenhum contato registrado hoje.'),
+        lista(atr.map((a: any) => `${cliTx(a.cliente_id)}: ${TIPO[a.tipo] || 'contato'} de ${ddmm(diaCuiaba(new Date(a.quando)))}`), 'Nada atrasado.'),
+        am.length ? `${plural(am.length, 'contato', 'contatos')} · ` + lista(am.map((a: any) => `${hora(a.quando)} ${cliTx(a.cliente_id)}`), '') : 'Nada marcado para amanhã.',
+        `${plural(ab.length, 'oportunidade aberta', 'oportunidades abertas')}${vAb ? ` · ${brl(vAb)}` : ''} · ${fech.length ? plural(fech.length, 'fechada', 'fechadas') : 'nenhuma fechada'} no mês`,
+      ];
+    };
     for (const u of diretores) {
+      const waRel = (relOk || !!simular) && quer(u) !== 'email';   /* na conferência (simular) mostra os relatórios mesmo antes da aprovação */
+      if (waRel) for (const c of consultores) envios.push({ usuario: u.id, tipo: 'rel_consultor', ref: c.id, para: u.email, canal: 'whatsapp', soWhatsapp: true,
+        de: '', assunto: `Relatório de ${c.nome}`, html: '', wa: { celular: celularBR((u as any).celular), params: relatorio(c), modelo: MODELO_REL } });
+      if (waRel && quer(u) === 'whatsapp') continue;   /* só WhatsApp: o resumo somado não vai mais (nem por e-mail) */
       const html = casca(`Boa noite, ${primeiro(u.nome)}`, 'O dia da equipe em todos os veículos.',
         nums([['Contatos feitos', String(eq.contatos)], ['Propostas enviadas', String(eq.propostas)], ['PIs enviados hoje', eq.npis ? brl(eq.pis) : '0'], ['Atrasados', String(atrEq.length), atrEq.length > 0]])
         + tabela
@@ -251,14 +300,14 @@ const fimDoDia = async ({ adm, chave, orgs, cfgDe, empDe, slugDe, teste, hoje, a
         + bloco('PIs', linhasPi)
         + barraMeta(`Meta do grupo em ${mesNome}`, vendG, metaG),
         'Abrir o Follow-up da equipe', link(org, 'geral/equipe'), rodape(org));
-      envios.push({ usuario: u.id, tipo: 'fim_diretor', para: u.email, canal: teste ? 'email' : quer(u),
+      envios.push({ usuario: u.id, tipo: 'fim_diretor', para: u.email, canal: teste || waRel ? 'email' : quer(u),
         de: `"${empDe(u)} · Follow-up" <followup@sonvi.com.br>`,
         assunto: `${teste ? '[Amostra] ' : ''}Fechamento do dia · ${dataLonga} · ${plural(eq.contatos, 'contato', 'contatos')}, ${plural(atrEq.length, 'atrasado', 'atrasados')}`, html,
-        wa: teste ? undefined : { celular: celularBR((u as any).celular), params: [primeiro(u.nome), 'a equipe', String(eq.contatos), String(eq.propostas), eq.npis ? `${eq.npis} · ${brl(eq.pis)}` : '0', String(atrEq.length), String(eq.amanha.length), metaG ? Math.round(vendG / metaG * 100) + '%' : '—'] } });
+        wa: teste || waRel ? undefined : { celular: celularBR((u as any).celular), params: [primeiro(u.nome), 'a equipe', String(eq.contatos), String(eq.propostas), eq.npis ? `${eq.npis} · ${brl(eq.pis)}` : '0', String(atrEq.length), String(eq.amanha.length), metaG ? Math.round(vendG / metaG * 100) + '%' : '—'] } });
     }
   }
   // Conferência sem enviar nada (só pelo agendador, com a chave interna)
-  if (simular) return { simulado: true, resumos: envios.map(e => ({ tipo: e.tipo, canal: e.canal, assunto: e.assunto, de: e.de, wa: e.wa?.params })),
+  if (simular) return { simulado: true, relatorioAprovado: relOk, resumos: envios.map(e => ({ tipo: e.tipo, canal: e.canal, assunto: e.assunto, de: e.de, wa: e.wa?.params, modelo: e.wa?.modelo })),
     html: Object.fromEntries(['fim_consultor', 'fim_diretor'].map(t => [t, envios.find(e => e.tipo === t)?.html || ''])) };
   const r = await enviarTodos(adm, chave, envios, hoje, !!teste);
   return { enviados: r.enviados, falhas: r.falhas.length, resumos: envios.length };
