@@ -37,6 +37,10 @@
 html, body { height:100%; }
 /* A barra de rolagem fica sempre reservada: trocar de aba ou de tela (página curta × longa) não empurra o conteúdo para os lados */
 html { overflow-y:scroll; scrollbar-gutter:stable; }
+/* Celular (11/11/2026): a página nunca anda para os lados ao tocar. Nada passa da largura da tela; o que precisa rolar de lado
+   (tabelas, funil, abas) rola dentro da própria caixa. clip não cria rolagem e não atrapalha o position:sticky. */
+html, body { overflow-x:hidden; overscroll-behavior-x:none; }
+@supports (overflow:clip) { html, body { overflow-x:clip; } }
 html:has(body.fora) { overflow-y:auto; }
 body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 var(--font); -webkit-font-smoothing:antialiased; display:flex; }
 h1, h2, h3, p { margin:0; }
@@ -4645,3 +4649,10 @@ button.cx-abrir { background:none; border:0; cursor:pointer; }
   .fu2-eq .fq-dia { flex:1 1 auto; justify-content:space-between; }
 }
 @media (prefers-reduced-motion:reduce) { .fq-pes { transition:none; } .fq-pes:hover { transform:none; } }
+
+/* Celular: as dicas do "Mês a mês" das 4 primeiras e 4 últimas colunas abrem para dentro da tela */
+@media (max-width:640px) {
+  .ha-cols .ha-col:nth-child(-n+4) .ha-dica { left:0; right:auto; transform:translate(0, 6px); } .ha-cols .ha-col:nth-child(-n+4):hover .ha-dica { transform:none; }
+  .ha-cols .ha-col:nth-last-child(-n+4) .ha-dica { left:auto; right:0; transform:translate(0, 6px); } .ha-cols .ha-col:nth-last-child(-n+4):hover .ha-dica { transform:none; }
+  .ha-dica { width:min(220px, 70vw); }
+}
