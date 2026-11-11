@@ -29,7 +29,7 @@ Sistema de gestão comercial para grupos de mídia (rádios e mídia exterior): 
 
 ## Banco (Supabase)
 
-- Produção `ccfsyhniwwspnpnpkjzf`; **teste** = branch `epesfnctzawxuerezvoa`. Toda mudança de tabela, função ou política vira arquivo novo numerado em `database/` (o próximo é o `088`), roda **primeiro no teste**, é conferida e só então vai para a produção. Nunca SQL à mão sem virar arquivo.
+- Produção `ccfsyhniwwspnpnpkjzf`; **teste** = branch `epesfnctzawxuerezvoa`. Toda mudança de tabela, função ou política vira arquivo novo numerado em `database/` (o próximo é o `089`), roda **primeiro no teste**, é conferida e só então vai para a produção. Nunca SQL à mão sem virar arquivo.
 - A ferramenta recusa migração com `delete` literal: escreva `execute 'dele' || 'te from …'`.
 - Regras do banco se testam em bloco `do $$ … raise exception 'RES …' $$` (nada fica gravado).
 - Quem protege os dados é o banco (RLS por organização, veículo e perfil). Perfis: diretor (todos os veículos da empresa), gerente (sem uso na Head 14), consultor, opec, financeiro; equipe SONVI (`plataforma_admins`) entra só como suporte. Cada cliente do SONVI é uma organização; nada de uma aparece na outra.
