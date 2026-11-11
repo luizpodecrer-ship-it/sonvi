@@ -213,8 +213,9 @@ Use para achar o arquivo e a função certos antes de abrir qualquer coisa; depo
 ## Páginas soltas (`app/*.html`, `app/console/`)
 
 - `app/confirmar.html` (129 linhas) · rpc: confirmar_faturamento, parcela_por_token, pedido_por_token, responder_pagamento · borda: —
-- `app/console/console.js` (1103 linhas) · rpc: chat_mensagens, console_abrir_chamado, console_adicionar_radio, console_alterar_cobranca, console_avulso, console_baixar, console_chamado_situacao, console_dados, console_estornar, console_online, console_salvar_cliente, console_salvar_config, console_salvar_contrato, console_salvar_radio, console_slug_livre, eh_admin_plataforma, responder_chamado · borda: console, usuarios
-- `app/console/index.html` (32 linhas) · rpc: — · borda: —
+- `app/console/console.js` (1107 linhas) · rpc: chat_mensagens, console_abrir_chamado, console_adicionar_radio, console_alterar_cobranca, console_avulso, console_baixar, console_chamado_situacao, console_dados, console_estornar, console_online, console_salvar_cliente, console_salvar_config, console_salvar_contrato, console_salvar_radio, console_slug_livre, eh_admin_plataforma, responder_chamado · borda: console, usuarios
+- `app/console/index.html` (33 linhas) · rpc: — · borda: —
+- `app/console/painel-fin.js` (239 linhas) · rpc: — · borda: —
 - `app/extrato.html` (52 linhas) · rpc: extrato_por_token · borda: —
 - `app/index.html` (67 linhas) · rpc: — · borda: —
 - `app/pi.html` (195 linhas) · rpc: pi_aberto, pi_por_link · borda: opec_link

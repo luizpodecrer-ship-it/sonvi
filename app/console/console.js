@@ -411,8 +411,23 @@
   const somaV = l => l.reduce((t, x) => t + valorDe(x), 0);
   const vivas = () => (D.cobrancas || []).filter(x => x.situacao !== 'cancelada');
   const MES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  // Painel do mês (painel-fin.js): montado uma vez e recolocado a cada desenho; sinc() anima o que mudou
+  let pf = null, graf0 = 0;
+  const pfMontar = () => { const lugar = document.getElementById('pf-lugar'); if (!lugar) return;
+    if (!pf) { const cfg = () => D.config || {};
+      pf = S.painelFin({ cobs:() => vivas().filter(x => !fin.cliente || x.organizacao_id === fin.cliente), valorDe, atrasada, hoje:hojeISO, forma:x => nomeForma(x.forma), mesInicial:fin.mes,
+        contratada:() => receitaContratada().filter(c => !fin.cliente || c.id === fin.cliente).reduce((t, c) => t + Number(c.contrato.valor_mensal), 0),
+        edita:() => pode('proprietario', 'financeiro'), reciboPadrao:() => !!cfg().avisos_ligados,
+        temEmail:x => { const c = D.clientes.find(k => k.id === x.organizacao_id); return !!(c && c.contrato && c.contrato.email_cobranca); },
+        aoMudarMes:ym => { fin.mes = ym; document.querySelectorAll('.cf-col').forEach(b => { const on = b.dataset.tab === ym; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }); },
+        baixar:async ({ id, pago_em, valor, recibo }) => { try { await q(sb.rpc('console_baixar', { p_id:id, p_pago_em:pago_em, p_valor:valor, p_obs:'' }));
+            let msg = ''; if (recibo) { try { await servidor({ acao:'cobranca_recibo', id }); msg = 'recibo enviado'; } catch (e) { msg = `recibo não enviado: ${S.erro(e)}`; } }
+            await recarregar(); render(); return { msg }; } catch (e) { S.toast(S.erro(e)); return null; } },
+        desfazer:async id => { try { await q(sb.rpc('console_estornar', { p_id:id })); await recarregar(); render(); S.toast('Baixa desfeita'); } catch (e) { S.toast(S.erro(e)); } } }); }
+    lugar.replaceWith(pf.el); pf.sinc(); };
   const telaFinanceiro = () => {
     const hj = hojeISO();
+    queueMicrotask(pfMontar);
     if (!fin.ano) fin.ano = hj.slice(0, 4);
     if (!fin.mes || fin.mes.slice(0, 4) !== fin.ano) fin.mes = fin.ano === hj.slice(0, 4) ? hj.slice(0, 7) : fin.ano + '-01';
     const edita = pode('proprietario', 'financeiro'), cfg = D.config || {}, todas = (D.cobrancas || []).filter(x => !fin.cliente || x.organizacao_id === fin.cliente);
@@ -428,10 +443,14 @@
     // gráfico do ano
     const porMes = Array.from({ length:12 }, (_, m) => { const ym = `${fin.ano}-${String(m + 1).padStart(2, '0')}`, l = doAno.filter(x => x.vencimento.slice(0, 7) === ym);
       return { ym, pago:somaV(l.filter(x => x.situacao === 'paga')), aberto:somaV(l.filter(x => x.situacao === 'aberta' && !atrasada(x))), atraso:somaV(l.filter(atrasada)) }; });
-    const topo = Math.max(1, ...porMes.map(m => m.pago + m.aberto + m.atraso));
-    const grafico = `<div class="cf-chart" role="group" aria-label="Cobranças de ${fin.ano} por mês">${porMes.map((m, i) => { const t = m.pago + m.aberto + m.atraso;
-      return `<button class="cf-col${m.ym === fin.mes ? ' on' : ''}" data-act="finMes" data-tab="${m.ym}" aria-pressed="${m.ym === fin.mes}" aria-label="${nomeMes(m.ym)}: ${S.brl(t)}${m.atraso ? ', ' + S.brl(m.atraso) + ' em atraso' : ''}" title="${nomeMes(m.ym)} · recebido ${S.brl(m.pago)} · a receber ${S.brl(m.aberto)}${m.atraso ? ' · em atraso ' + S.brl(m.atraso) : ''}">
-        <span class="cf-stk" style="height:${t ? Math.max(4, t / topo * 100) : 2}%">${m.atraso ? `<i class="cf-at" style="flex:${m.atraso}"></i>` : ''}${m.aberto ? `<i class="cf-ab" style="flex:${m.aberto}"></i>` : ''}${m.pago ? `<i class="cf-ok" style="flex:${m.pago}"></i>` : ''}</span><small>${MES3[i]}</small></button>`; }).join('')}</div>
+    const topo = Math.max(1, ...porMes.map(m => m.pago + m.aberto + m.atraso)), degrau = topo > 20000 ? 10000 : topo > 4000 ? 2000 : topo > 2000 ? 1000 : 500, teto = Math.ceil(topo / degrau) * degrau;
+    // 11/11/2026 (modelo "Console · Financeiro novo"): colunas que sobem com mola em cascata (o atraso negativo --t faz a animação
+    // continuar entre um desenho e outro), grade com valores, dica de vidro ao passar o mouse; clicar abre o mês no painel de cima
+    if (!graf0) graf0 = performance.now(); const passou = Math.round(performance.now() - graf0), mesPf = pf ? pf.mes() : fin.mes;
+    const grafico = `<div class="cf-chart" role="group" aria-label="Cobranças de ${fin.ano} por mês">${[1, .5].map(f => `<span class="cf-gl" style="bottom:calc(${f * 88}% + 26px)" aria-hidden="true"><small>${curto(teto * f)}</small></span>`).join('')}${porMes.map((m, i) => { const t = m.pago + m.aberto + m.atraso;
+      return `<button class="cf-col${m.ym === mesPf ? ' on' : ''}${i < 3 ? ' ini' : i > 8 ? ' fim' : ''}" data-act="finMes" data-tab="${m.ym}" aria-pressed="${m.ym === mesPf}" aria-label="${nomeMes(m.ym)}: ${S.brl(t)}${m.atraso ? ', ' + S.brl(m.atraso) + ' em atraso' : ''}. Abrir no painel">
+        <span class="cf-stk" style="--h:${t ? Math.max(3, t / teto * 88) : 1.5}%;--k:${i};--t:${passou}ms">${m.atraso ? `<i class="cf-at" style="flex:${m.atraso}"></i>` : ''}${m.aberto ? `<i class="cf-ab" style="flex:${m.aberto}"></i>` : ''}${m.pago ? `<i class="cf-ok" style="flex:${m.pago}"></i>` : ''}</span><small>${MES3[i]}</small>
+        <span class="cf-dica" role="tooltip"><b>${nomeMes(m.ym)}</b>${t ? `<span><span><i class="cf-ok"></i>Recebido</span>${S.brl(m.pago)}</span><span><span><i class="cf-ab"></i>A receber</span>${S.brl(m.aberto)}</span><span><span><i class="cf-at"></i>Em atraso</span>${S.brl(m.atraso)}</span>` : '<span>Sem cobranças</span>'}</span></button>`; }).join('')}</div>
       <div class="cf-leg"><span><i class="cf-ok"></i>Recebido</span><span><i class="cf-ab"></i>A receber</span><span><i class="cf-at"></i>Em atraso</span></div>`;
     // próximos vencimentos e atenção
     const em30 = (() => { const d = new Date(hj + 'T12:00:00'); d.setDate(d.getDate() + 30); return S.dia(d.toISOString()); })();
@@ -454,38 +473,23 @@
       <td class="r nowrap">${k ? S.brl(k.valor_mensal) : '—'}</td><td class="nowrap">${k ? `até ${S.dfmt(fimContrato(k)).slice(3)} · ` : ''}${finPill(c)}</td><td class="r nowrap">${S.brl(pago)}</td><td class="r nowrap">${S.brl(ab)}</td><td class="r nowrap${at ? ' cf-ruim' : ''}">${at ? S.brl(at) : '—'}</td>
       <td class="nowrap"><span class="prog cf-prog" aria-hidden="true"><i style="width:${pg}%"></i></span> ${pg}%</td><td class="r"><button class="btn sm" data-act="relAbrir" data-tipo="extrato" data-cli="${c.id}">Relatório</button></td></tr>`).join('');
     const cartoesCli = porCli.map(({ c, k, pago, ab, at, pg }) => `<div class="c-cob"><span class="tx"><b>${esc(c.nome)}</b><small>${k ? S.brl(k.valor_mensal) + ' por mês' : 'sem contrato'} · recebido ${S.brl(pago)} · a receber ${S.brl(ab)}${at ? ` · <span class="cf-ruim">atraso ${S.brl(at)}</span>` : ''} · ${pg}% pago</small></span><button class="btn sm" data-act="relAbrir" data-tipo="extrato" data-cli="${c.id}">Relatório</button></div>`).join('');
-    // cobranças do mês escolhido
-    const doMes = todas.filter(x => x.vencimento.slice(0, 7) === fin.mes), mesN = nomeMes(fin.mes).toLowerCase();
-    let lista = fin.filtro === 'atrasadas' ? emAtraso : doMes.filter(x => fin.filtro === 'todas' || (fin.filtro === 'abertas' ? x.situacao === 'aberta' : x.situacao === 'paga'));
-    lista = lista.slice().sort((a, b) => a.vencimento.localeCompare(b.vencimento) || a.cliente.localeCompare(b.cliente));
-    const titulo = fin.filtro === 'atrasadas' ? 'Cobranças atrasadas' : `Cobranças de ${mesN}`;
-    const acao = x => !edita ? '' : x.situacao === 'aberta' ? `<button class="btn sm" data-act="cobCobrar" data-id="${x.id}">${atrasada(x) ? 'Cobrar' : 'Enviar'}</button>` : x.situacao === 'paga' ? `<button class="btn sm" data-act="cobRecibo" data-id="${x.id}">Recibo</button>` : '';
-    const linhas = lista.map(x => `<tr${x.situacao === 'cancelada' ? ' class="c-inativo"' : ''}><td><b>${esc(x.cliente)}</b><small>${esc(nomeForma(x.forma))}</small></td><td class="nowrap">${esc(x.descricao)}</td><td class="nowrap">${S.dfmt(x.vencimento)}</td><td class="r nowrap">${S.brl(valorDe(x))}</td><td>${cobPill(x)}</td>
-      <td><div class="c-linha-acoes">${acao(x)}${edita ? `<button class="btn tres sm" data-act="cobMenu" data-id="${x.id}" aria-label="Opções da cobrança">${S.svg('mais3')}</button>` : ''}</div></td></tr>`).join('');
-    const cartoes = lista.map(x => `<div class="c-cob"><span class="tx"><b>${esc(x.cliente)}</b><small>${esc(x.descricao)} · ${S.dfmt(x.vencimento)} · ${esc(nomeForma(x.forma))}</small><span class="c-pills">${cobPill(x)}</span></span><span class="vl"><b>${S.brl(valorDe(x))}</b><span class="c-linha-acoes">${acao(x)}${edita ? `<button class="btn tres sm" data-act="cobMenu" data-id="${x.id}" aria-label="Opções da cobrança">${S.svg('mais3')}</button>` : ''}</span></span></div>`).join('');
     const anos = [...new Set([String(Number(hj.slice(0, 4)) - 1), hj.slice(0, 4), String(Number(hj.slice(0, 4)) + 1), ...(D.cobrancas || []).map(x => x.vencimento.slice(0, 4))])].sort()
       .filter(a => a === hj.slice(0, 4) || a === fin.ano || (D.cobrancas || []).some(x => x.vencimento.slice(0, 4) === a));
     const antes = Number(cfg.aviso_dias_antes) || 5, depois = Number(cfg.aviso_dias_depois) || 3;
     return { titulo:'Financeiro', sub:'Console SONVI · cobrança pela ' + esc(cfg.empresa || 'Astravox'),
       acoes:`<div class="seg c-meses" role="group" aria-label="Ano">${anos.map(a => `<button class="${a === fin.ano ? 'on' : ''}" data-act="finAno" data-tab="${a}" aria-pressed="${a === fin.ano}">${a}</button>`).join('')}</div>
         <button class="btn" data-act="relAbrir" data-tipo="geral">${S.svg('doc')}Relatórios</button>${edita ? `<button class="btn" data-act="avulso">${S.svg('mais')}Lançamento avulso</button>` : ''}`,
-      corpo:`<div class="cf-kpis"><div class="tile hero"><small>Receita mensal contratada</small><b>${curto(mensal)}</b><span>${curto(mensal * 12)} por ano · ${plural(rc.length, 'contrato ativo', 'contratos ativos')}</span></div>
-        <div class="tile"><small>A receber em ${fin.ano}</small><b>${curto(somaV(aRecAno))}</b><span>${plural(aRecAno.length, 'cobrança', 'cobranças')} em aberto</span></div>
-        <div class="tile"><small>Recebido em ${fin.ano}</small><b>${curto(somaV(pagosAno))}</b><span>${plural(pagosAno.length, 'pagamento', 'pagamentos')} · ${pctPago}% do previsto</span></div>
-        <div class="tile"><small>Próximos 12 meses</small><b>${curto(somaV(prox12))}</b><span>${plural(prox12.length, 'cobrança', 'cobranças')} a vencer</span></div>
-        <div class="tile"><small>Em atraso</small><b${emAtraso.length ? ' class="c-vermelho"' : ''}>${curto(somaV(emAtraso))}</b><span${emAtraso.length ? ' class="ruim"' : ''}>${emAtraso.length ? `${plural(emAtraso.length, 'cobrança', 'cobranças')} · ${maior} dia${maior === 1 ? '' : 's'}` : 'nada atrasado'} · inadimplência ${inad}%</span></div></div>
-      <div class="cf-duo"><section class="card"><div class="hd"><h2>${fin.ano} mês a mês</h2><span>clique num mês para ver as cobranças dele</span>
-          <select data-fin-cliente aria-label="Cliente"><option value="">Todos os clientes</option>${D.clientes.map(c => `<option value="${c.id}"${fin.cliente === c.id ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></div>${grafico}</section>
+      corpo:`<div id="pf-lugar"></div>
+      <div class="cf-duo"><section class="card"><div class="hd"><h2>${fin.ano} mês a mês</h2><span>clique num mês para abrir no painel</span>
+          <select data-fin-cliente aria-label="Cliente"><option value="">Todos os clientes</option>${D.clientes.map(c => `<option value="${c.id}"${fin.cliente === c.id ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></div>${grafico}
+          <div class="cf-kpis">${[[`A receber em ${fin.ano}`, curto(somaV(aRecAno)), `${plural(aRecAno.length, 'cobrança', 'cobranças')} em aberto`], [`Recebido em ${fin.ano}`, curto(somaV(pagosAno)), `${plural(pagosAno.length, 'pagamento', 'pagamentos')} · ${pctPago}% do previsto`],
+            ['Próximos 12 meses', curto(somaV(prox12)), `${plural(prox12.length, 'cobrança', 'cobranças')} a vencer`], ['Em atraso', curto(somaV(emAtraso)), `${emAtraso.length ? `${plural(emAtraso.length, 'cobrança', 'cobranças')} · ${maior} dia${maior === 1 ? '' : 's'} · ` : ''}inadimplência ${inad}%`, emAtraso.length > 0]]
+            .map(([r, v, t, ruim]) => `<div class="cf-kpi"><small>${r}</small><b${ruim ? ' class="c-vermelho"' : ''}>${v}</b><span>${t}</span></div>`).join('')}</div></section>
         <section class="card"><div class="hd"><h2>Próximos vencimentos</h2><span>30 dias</span></div><div class="list cf-lista">${listaProx}</div>
           <div class="hd cf-at-hd"><h2>Atenção</h2></div><div class="list cf-lista">${atencao}</div></section></div>
       <section class="card"><div class="hd"><h2>Por cliente</h2><span>${fin.ano}</span><button class="btn sm" data-act="relCsvCli">${S.svg('baixar')}Planilha</button></div>
         ${porCli.length ? `<div class="scroll so-largo"><table><thead><tr><th>Cliente</th><th class="r">Mensalidade</th><th>Contrato</th><th class="r">Recebido</th><th class="r">A receber</th><th class="r">Em atraso</th><th>Pago do ano</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhasCli}</tbody></table></div><div class="list c-cobs so-cel">${cartoesCli}</div>`
           : '<div class="empty"><b>Nenhum cliente com contrato</b>Cadastre o contrato no cliente (Clientes › cliente › Contrato).</div>'}</section>
-      <section class="card" id="cf-cobs"><div class="hd"><h2>${titulo}</h2>
-          <div class="seg" role="group" aria-label="Situação">${[['todas', 'Todas'], ['abertas', 'Em aberto'], ['atrasadas', 'Atrasadas'], ['pagas', 'Pagas']].map(([k, n]) => `<button class="${fin.filtro === k ? 'on' : ''}" data-act="finFiltro" data-tab="${k}" aria-pressed="${fin.filtro === k}">${n}${k === 'atrasadas' && emAtraso.length ? ` (${emAtraso.length})` : ''}</button>`).join('')}</div></div>
-          ${lista.length ? `<div class="scroll so-largo"><table><thead><tr><th>Cliente</th><th>Referente</th><th>Vencimento</th><th class="r">Valor</th><th>Situação</th><th><span class="sr">Ações</span></th></tr></thead><tbody>${linhas}</tbody></table></div><div class="list c-cobs so-cel">${cartoes}</div>`
-            : `<div class="empty"><b>${fin.filtro === 'atrasadas' ? 'Nada atrasado' : 'Nenhuma cobrança'}</b>${D.clientes.some(c => c.contrato) ? 'Escolha outro mês no gráfico ou outro filtro.' : 'Cadastre o contrato no cliente (Clientes › cliente › Contrato) e as mensalidades aparecem aqui.'}</div>`}
-          ${edita ? '<p class="muted small">No ⋯ de cada linha: dar baixa, reenviar a cobrança, mudar vencimento ou valor, cancelar, estornar e ver os avisos enviados.</p>' : ''}</section>
       <section class="card"><div class="hd"><h2>Relatórios</h2><span>PDF para imprimir ou mandar e planilha para o contador</span></div>
         <div class="cf-rel"><button data-act="relAbrir" data-tipo="extrato"><b>Extrato do cliente</b><small>Tudo o que foi cobrado, pago e está em aberto de um cliente, no período. Dá para mandar ao cliente.</small></button>
           <button data-act="relAbrir" data-tipo="geral"><b>Geral do período</b><small>Recebido, a receber e atrasado de todos os clientes, mês a mês, com o total.</small></button>
@@ -842,7 +846,7 @@
     verFinCliente: d => { fin.cliente = d.id; fin.filtro = 'todas'; location.hash = '/financeiro'; },
 
     // Financeiro
-    finMes: d => { fin.mes = d.tab; if (fin.filtro === 'atrasadas') fin.filtro = 'todas'; render(); const c = document.getElementById('cf-cobs'); if (c && c.getBoundingClientRect().top > innerHeight) c.scrollIntoView({ behavior:'smooth', block:'start' }); },
+    finMes: d => { if (pf) { pf.vaiPara(d.tab); if (pf.el.getBoundingClientRect().top < 0) pf.el.scrollIntoView({ behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start' }); } else { fin.mes = d.tab; render(); } },
     finAno: d => { fin.ano = d.tab; fin.mes = null; render(); },
     relAbrir: d => { const tipo = d.tipo || 'geral', cli = d.cli || (tipo === 'extrato' ? fin.cliente || (D.clientes[0] || {}).id || '' : fin.cliente);
       S.dialog(`<div class="rf-dlg"><div class="rf-form"><h2>Relatório</h2>
