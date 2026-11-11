@@ -4552,3 +4552,72 @@ dialog.largo.rl-dlg { width:min(1000px, 96vw); }
 @media (max-width:760px) { .vo-l { grid-template-columns:minmax(0, 1fr) auto; gap:4px 12px; } .vo-no { grid-column:1; } .vo-cli { grid-column:1; } .vo-quem { grid-column:1; }
   .vo-v { grid-column:2; grid-row:1; } .vo-dias { grid-column:2; grid-row:2; } }
 @media (prefers-reduced-motion:reduce) { .vo-l { transition:none; } .vo-l:hover { transform:none; } }
+
+/* ── Follow-up novo (aprovado em 11/11/2026): abas, bloco "agenda" do Casillero e o funil (.fu2-*) ── */
+.fu2-topo { gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.fu2-abas button { min-width:130px; }
+.fu2 .cx-celda > .fu2-ag { display:none; pointer-events:auto; z-index:2; }
+.fu2 .cx-t-agenda .cx-cuenta { display:block; }
+.fu2-l { display:grid; grid-template-columns:52px 22px minmax(0, 1fr) auto; gap:10px; align-items:center; padding:8px 4px; border-top:1px solid var(--line-2); }
+.fu2-l:first-child { border-top:0; }
+.fu2-l.feito { opacity:.62; }
+.fu2-h b { display:block; font:600 14px/1.2 var(--display); font-variant-numeric:tabular-nums; }
+.fu2-h small { display:block; color:var(--ink-3); font:500 11px/1.2 var(--font); }
+.fu2-l.at .fu2-h b { color:var(--red); }
+.fu2-ic svg { width:18px; height:18px; fill:none; stroke:var(--accent); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.fu2-tx { min-width:0; }
+.fu2-tx > b { font:600 14px/1.3 var(--font); margin-right:6px; }
+.fu2-tx small { display:block; color:var(--ink-2); font:500 12.5px/1.35 var(--font); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fu2-et, .fu2-vl { display:inline-block; vertical-align:1px; margin-right:4px; padding:2px 8px; border-radius:99px; font:700 10.5px/1.3 var(--font); background:var(--accent-soft); color:var(--accent-text); white-space:nowrap; }
+.fu2-et[data-et="fechou"] { background:color-mix(in srgb, var(--green) 14%, transparent); color:var(--green); }
+.fu2-et[data-et="perdeu"] { background:var(--fill); color:var(--ink-3); }
+.fu2-et[data-et="negociacao"] { background:color-mix(in srgb, var(--orange) 14%, transparent); color:var(--orange); }
+.fu2-vl { background:var(--fill); color:var(--ink); }
+.fu2-orient { display:flex; align-items:center; gap:6px; margin-top:4px; padding:4px 8px; border-radius:7px; background:color-mix(in srgb, var(--blue) 10%, transparent); color:var(--blue); font:600 12px/1.3 var(--font); }
+.fu2-orient svg { flex:none; fill:none; stroke:currentColor; stroke-width:2; }
+.fu2-ac { display:flex; gap:6px; align-items:center; justify-content:flex-end; }
+.fu2-ok { display:grid; place-items:center; width:26px; height:26px; border-radius:50%; background:color-mix(in srgb, var(--green) 14%, transparent); color:var(--green); }
+.fu2-ok svg { fill:none; stroke:currentColor; stroke-width:2.4; }
+.fu2-vazio, .fu2-pe { margin:12px 4px 0; color:var(--ink-2); font:500 13.5px/1.4 var(--font); }
+@container (min-height: 300px) {
+  .fu2 .cx-celda > .fu2-ag { display:block; left:18px; right:18px; top:60px; bottom:12px; overflow:auto; overscroll-behavior:contain; }
+  .fu2 .cx-t-agenda .cx-lista, .fu2 .cx-t-agenda .cx-nota { display:none; }
+  .fu2 .cx-t-agenda .cx-cuenta { right:22px; top:22px; }
+  .fu2 .cx-t-agenda .cx-titular ~ .fu2-ag { top:112px; }
+  .fu2 .cx-t-agenda .cx-titular { top:56px; font-size:32px; }
+}
+@container (min-height: 300px) and (max-width: 419px) {
+  .fu2-l { grid-template-columns:46px minmax(0, 1fr); } .fu2-ic { display:none; } .fu2-ac { grid-column:2; justify-content:flex-start; }
+}
+@container (max-width: 200px) { .fu2 .cx-t-agenda .cx-cuenta { display:none; } }
+
+/* funil */
+.fu2-funil { display:grid; grid-template-columns:repeat(6, minmax(170px, 1fr)); gap:12px; overflow-x:auto; padding-bottom:6px; scroll-snap-type:x mandatory; }
+.fu2-col { background:var(--fill); border-radius:12px; padding:10px; min-height:420px; scroll-snap-align:start; transition:background-color .2s, box-shadow .2s; }
+.fu2-col.alvo { box-shadow:inset 0 0 0 2px var(--accent); background:var(--accent-soft); }
+.fu2-col.ok { background:color-mix(in srgb, var(--green) 8%, var(--fill)); }
+.fu2-col header { padding:4px 6px 10px; }
+.fu2-col header b { display:flex; justify-content:space-between; gap:8px; font:600 13.5px/1.3 var(--display); }
+.fu2-col header b span { color:var(--ink-2); font-weight:600; }
+.fu2-col header small { color:var(--ink-2); font:500 12px/1.3 var(--font); }
+.fu2-cards { display:flex; flex-direction:column; gap:8px; }
+.fu2-col-v { margin:6px; color:var(--ink-3); font:500 13px/1.3 var(--font); }
+.fu2-op { position:relative; display:flex; flex-direction:column; gap:5px; padding:12px; border-radius:10px; background:var(--surface); border:1px solid var(--line); box-shadow:var(--shadow); cursor:grab;
+  transition:transform .4s cubic-bezier(.22,1,.36,1), box-shadow .4s; animation:rise .6s calc(var(--k, 0) * 45ms) cubic-bezier(.22,1,.36,1) both; }
+@media (hover:hover) { .fu2-op:hover { transform:translateY(-3px); box-shadow:var(--shadow-up); } }
+.fu2-op.arrasta { opacity:.45; }
+.fu2-op > b { font:600 13.5px/1.3 var(--font); padding-right:26px; }
+.fu2-op-m { position:absolute; right:4px; top:4px; }
+.fu2-op-v { font:600 14px/1.2 var(--display); color:var(--accent-text); }
+.fu2-op-i { display:flex; flex-wrap:wrap; gap:4px; } .fu2-op-i i { font:600 10.5px/1.3 var(--font); font-style:normal; padding:2px 7px; border-radius:99px; background:var(--fill); color:var(--ink-2); }
+.fu2-op small { color:var(--ink-2); font:500 12px/1.3 var(--font); }
+.fu2-op.parado .fu2-op-p, .fu2-op-p.at { color:var(--red); font-weight:600; }
+.fu2-perd { margin:12px 2px 0; color:var(--ink-2); font:500 13px/1.5 var(--font); }
+@media (max-width: 900px) { .fu2-funil { grid-template-columns:repeat(6, 82%); } .fu2-op { cursor:default; } }
+/* janelas: registrar e novo prospect */
+.fu2-reg { display:grid; gap:4px; }
+.fu2-auto { margin:2px 0 4px; padding:8px 10px; border-radius:8px; background:var(--accent-soft); color:var(--accent-text); font:600 12.5px/1.4 var(--font); }
+.fu2-auto:empty { display:none; }
+.fu2-loc { margin:4px 0 0; padding:8px 10px; border-radius:8px; background:color-mix(in srgb, var(--blue) 10%, transparent); color:var(--blue); font:600 12.5px/1.4 var(--font); }
+.fu-3.fu2-2 { grid-template-columns:1fr 1fr; }
+@media (prefers-reduced-motion: reduce) { .fu2-op { animation:none; transition:none; } }

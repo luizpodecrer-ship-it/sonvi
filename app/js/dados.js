@@ -121,13 +121,15 @@
   // Tudo o que pertence ao veículo selecionado. O banco só devolve o que o perfil pode ver.
   S.carregarVeiculo = async () => {
     const v = S.ui.vehicleId;
-    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], tabelas:[], pis:[], agenda:[], lancamentos:[], propostas:[], hist:{}, midias:{}, musVeiculo:null, musSemana:null });
+    Object.assign(S.db, { pessoas:[], produtos:[], precos:[], tabelas:[], pis:[], agenda:[], oportunidades:[], fuComent:[], lancamentos:[], propostas:[], hist:{}, midias:{}, musVeiculo:null, musSemana:null });
     if (!v) { S.perfil = S.me && S.me.diretor ? 'diretor' : null; return; }
     S.perfil = S.me.diretor ? 'diretor' : (S.db.vinculos.find(x => x.usuario_id === S.me.id && x.veiculo_id === v) || {}).perfil || null;
     const de = t => S.todos(S.sb.from(t).select('*').eq('veiculo_id', v));
     const [pessoas, produtos, precos, tabelas, pis, agenda, lancamentos, propostas] = await Promise.all([de('pessoas'), de('produtos'), de('precos'), de('tabelas_preco'), de('pis'), de('agenda'), de('lancamentos'),
       S.APP === 'music' ? Promise.resolve([]) : de('propostas')]);
     Object.assign(S.db, { pessoas, produtos, precos, tabelas, pis:pis.map(S.piNorm), agenda, lancamentos, propostas });
+    // Funil e orientações do diretor no Follow-up (database/088)
+    if (S.APP !== 'music') { try { const [ops, cm] = await Promise.all([de('oportunidades'), de('followup_comentarios')]); Object.assign(S.db, { oportunidades:ops, fuComent:cm }); } catch (e) { console.error(e); Object.assign(S.db, { oportunidades:[], fuComent:[] }); } }
     // Pagamento dos PIs (pago, em aberto, atrasado): todos os perfis veem dos PIs que enxergam, sem abrir o Financeiro
     S.db.pagPis = {};
     if (S.APP !== 'music') { try { (await S.todos(S.sb.rpc('pagamento_dos_pis', { p_veiculo:v }), 'pi_id') || []).forEach(r => { S.db.pagPis[r.pi_id] = r; }); } catch (e) { console.error(e); } }

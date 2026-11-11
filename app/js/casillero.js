@@ -49,6 +49,7 @@
       <ul class="cx-lista cx-pessoas" aria-hidden="true">${b.itens.map(x => `<li${x.ok ? ' class="ok"' : ''}><i class="cx-marca"></i><span class="cx-p-n">${esc(x.nome)}</span><small>${esc(x.sub || '')}</small><b>${esc(x.vl)}</b></li>`).join('') || `<li class="cx-nada">${esc(b.vazio || 'Ninguém por aqui.')}</li>`}</ul>`,
     colunas: b => `${cab(b)}${num(b.numero, 'cx-ms')}<span class="cx-nota cx-nota-c">${esc(b.nota)}</span>${barras(b.barras, 'cx-colunas', b.rotulos)}`
   };
+  S.cxTipos = TIPOS;   // o Follow-up acrescenta o tipo "agenda" (followup.js)
   S.cxHtml = (blocos, escolhido, rotulo) => `<div class="cx-grade" data-casillero data-forma="${escolhido}" role="group" aria-label="${esc(rotulo || 'Resumo do veículo')}">
     ${blocos.map(b => `<article class="cx-celda cx-t-${b.tipo}${b.id === escolhido ? ' grande' : ''}" data-celda="${b.id}">
       <button type="button" class="cx-toque" aria-pressed="${b.id === escolhido}" aria-label="${esc(b.rotulo || b.titulo)}. Mostrar em destaque"></button>

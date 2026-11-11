@@ -91,66 +91,98 @@
       ingresos:{ valores:porFaixa(feitosAg), etiquetas:P.faixas.map(x => x[2]), delta:varia(feitosAg.length, feitosAn.length) },
       pedidos:{ valores:porFaixa(feitosAg.filter(prop)), etiquetas:P.faixas.map(x => x[2]), delta:varia(feitosAg.filter(prop).length, feitosAn.filter(prop).length), texto:P.sub } };
   });
-  let painel = null;   // { chave, el, montado }: o painel fica montado entre um desenho e outro da tela
-  const painelTopo = (lista, quem) => {
-    const hoje = S.today(), atras = lista.filter(a => aberto(a) && S.dia(a.quando) < hoje).length, datos = cuDados(lista);
-    const chave = JSON.stringify([S.ui.vehicleId, quem, atras, datos]);
-    if (!painel || painel.chave !== chave) { const host = document.createElement('div'); host.innerHTML = S.cuHtml({ quem, atrasados:atras, periodo:PER.indexOf(st.periodo) }); painel = { chave, el:host.firstElementChild, datos, montado:false }; }
-    const p = painel;
-    queueMicrotask(() => { const lugar = document.getElementById('cu-lugar'); if (!lugar || painel !== p) return; lugar.replaceWith(p.el);
-      if (!p.montado) { p.montado = true; S.cuadrante(p.el, { datos:p.datos, inicial:Math.max(0, PER.indexOf(st.periodo)), alMudar:i => { st.periodo = PER[i];
-        } }); } });
-    return '<div id="cu-lugar"></div>';
+  // ---------- Follow-up novo (aprovado em 11/11/2026, modelo "Follow-up novo · modelo"; database/088) ----------
+  // Aba "Minha rotina": os sete blocos do Casillero (casillero.js): Agenda de hoje · Atrasados · Funil · Visitas na semana ·
+  // Em negociação · Registrado hoje · Próximos 7 dias. Aba "Funil": um cartão por oportunidade em cada etapa (arrastar troca a etapa).
+  const ETAPAS = [['prospeccao', 'Prospecção'], ['primeiro_contato', 'Primeiro contato'], ['reuniao', 'Reunião/visita'], ['proposta', 'Proposta enviada'], ['negociacao', 'Negociação'], ['fechou', 'Fechou'], ['perdeu', 'Perdeu']];
+  const ETAPA = Object.fromEntries(ETAPAS), ABERTAS = ETAPAS.slice(0, 5).map(e => e[0]);
+  const INTERESSES = [['spot', 'Spot'], ['patrocinio', 'Patrocínio'], ['projeto', 'Projeto especial'], ['digital', 'Digital'], ['exterior', 'Mídia exterior']];
+  const INTER = Object.fromEntries(INTERESSES);
+  const TOM_ETAPA = { prospeccao:22, primeiro_contato:38, reuniao:58, proposta:78, negociacao:100 };
+  const corEtapa = e => e === 'fechou' ? 'var(--green)' : e === 'perdeu' ? 'var(--fill-2)' : `color-mix(in srgb, var(--accent) ${TOM_ETAPA[e] || 50}%, var(--surface))`;
+  const reaisF = v => 'R$ ' + Math.round(Number(v) || 0).toLocaleString('pt-BR');
+  const milF = v => { const n = Number(v) || 0; return n >= 1000 ? (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits:1 }) + ' mil' : Math.round(n).toLocaleString('pt-BR'); };
+  const ICO = { whatsapp:'whats', ligacao:'fone', reuniao:'clientes', visita:'empresa', retorno:'relogio' };
+  const oport = id => (S.db.oportunidades || []).find(o => o.id === id);
+  const oportDe = a => (a.oportunidade_id && oport(a.oportunidade_id)) || (S.db.oportunidades || []).find(o => o.cliente_id === a.cliente_id && ABERTAS.includes(o.etapa));
+  const opsDoEscopo = () => { const c = gestor() ? st.consultor : S.me.id; return (S.db.oportunidades || []).filter(o => !c || o.consultor_id === c); };
+  const comentDe = a => (S.db.fuComent || []).filter(c => c.agenda_id === a.id || (a.oportunidade_id && c.oportunidade_id === a.oportunidade_id)).sort((x, y) => y.criado_em.localeCompare(x.criado_em))[0];
+  const tagEtapa = o => o ? `<span class="fu2-et" data-et="${o.etapa}">${esc(ETAPA[o.etapa] || '')}</span>${o.valor ? `<span class="fu2-vl">${reaisF(o.valor)}</span>` : ''}` : '';
+  // Uma linha da agenda no bloco grande: hora, tipo, cliente, etapa/valor, assunto ou resultado, orientação do diretor e os botões
+  const linhaAg = (a, hoje) => {
+    const cli = S.pessoa(a.cliente_id), dia = S.dia(a.quando), ab = aberto(a), at = ab && dia < hoje, o = oportDe(a), f = fone(cli), cm = comentDe(a);
+    const quando = at ? `${dfmt(dia).slice(0, 5)}` : dia === hoje ? (ab ? '' : 'feito') : CURTO[new Date(a.quando).getDay()];
+    const texto = !ab && a.resultado ? esc(a.resultado) : !ab && a.resposta ? RESP[a.resposta][0] : situacao(a) === 'nao_atendeu' ? 'Não atendeu' : esc(a.assunto || (TIPOS[a.tipo] || ''));
+    return `<div class="fu2-l${ab ? '' : ' feito'}${at ? ' at' : ''}"><span class="fu2-h"><b>${S.hora(a.quando)}</b>${quando ? `<small>${quando}</small>` : ''}</span>
+      <span class="fu2-ic" title="${TIPOS[a.tipo] || ''}">${S.svg(ICO[a.tipo] || 'agenda')}</span>
+      <span class="fu2-tx"><b>${esc(cli ? cli.nome : 'Sem cliente')}</b>${tagEtapa(o)}<small>${texto}${gestor() && !st.consultor ? ` · ${esc(S.usuario(a.consultor_id))}` : ''}${a.local_lat ? ' · local registrado' : ''}</small>
+        ${cm ? `<span class="fu2-orient">${S.svg('chamados', 13)}${esc((S.usuario(cm.autor_id) || 'Diretor').split(' ')[0])}: ${esc(cm.texto)}</span>` : ''}</span>
+      <span class="fu2-ac">${ab ? `${f ? `<a class="btn sm ic" href="${a.tipo === 'whatsapp' ? `https://wa.me/55${f}` : `tel:+55${f}`}" target="_blank" rel="noopener" aria-label="${a.tipo === 'whatsapp' ? 'WhatsApp de' : 'Ligar para'} ${esc(cli.nome)}">${S.svg(a.tipo === 'whatsapp' ? 'whats' : 'fone')}</a>` : ''}
+        ${at ? `<button class="btn sm" data-act="fuRemarcar" data-id="${a.id}">Remarcar</button>` : ''}<button class="btn sm pri" data-act="fuRegistrar" data-id="${a.id}">Registrar</button>`
+        : `<span class="fu2-ok" aria-label="Registrado">${S.svg('check', 14)}</span>`}</span></div>`;
+  };
+  // Tipo de bloco "agenda" (casillero.js): no pequeno, a lista com as marcas; no grande, as linhas com os botões
+  if (S.cxTipos) S.cxTipos.agenda = b => `<span class="cx-cab">${b.vivo ? `<i class="cx-vivo${b.vivo === 'alerta' ? ' alerta' : ''}" aria-hidden="true"></i>` : S.svg(b.icone || 'agenda')}${esc(b.titulo)}</span>
+    ${b.titular ? `<span class="cx-titular" data-tom="${b.tom || ''}">${esc(b.titular)}</span><span class="cx-nota">${esc(b.nota || '')}</span>` : `<span class="cx-cuenta">${esc(b.cuenta || '')}</span>
+    <ul class="cx-lista cx-pessoas" aria-hidden="true">${b.mini.map(x => `<li${x.ok ? ' class="ok"' : ''}><i class="cx-marca"></i><span class="cx-p-n">${esc(x.nome)}</span><b>${esc(x.vl || '')}</b></li>`).join('') || `<li class="cx-nada">${esc(b.vazio)}</li>`}</ul>`}
+    <div class="fu2-ag">${b.linhas || `<p class="fu2-vazio">${esc(b.vazio)}</p>`}${b.pe ? `<p class="fu2-pe">${b.pe}</p>` : ''}</div>`;
+
+  const rotina = () => {
+    const hoje = S.today(), todos = doEscopo().slice().sort((a, b) => a.quando.localeCompare(b.quando)), ops = opsDoEscopo();
+    const deHoje = todos.filter(a => S.dia(a.quando) === hoje && situacao(a) !== 'cancelado'), feitosHoje = deHoje.filter(a => !aberto(a));
+    const atras = todos.filter(a => aberto(a) && S.dia(a.quando) < hoje);
+    const regHoje = todos.filter(a => !aberto(a) && situacao(a) !== 'cancelado' && a.registrado_em && S.dia(a.registrado_em) === hoje).sort((a, b) => b.registrado_em.localeCompare(a.registrado_em));
+    const abertas = ops.filter(o => ABERTAS.includes(o.etapa)), mes = hoje.slice(0, 7), fechadasMes = ops.filter(o => o.etapa === 'fechou' && String(o.fechado_em || '').slice(0, 7) === mes);
+    const somaV = l => l.reduce((t, o) => t + Number(o.valor || 0), 0);
+    const seg = segunda(hoje), diasSem = [0, 1, 2, 3, 4].map(k => somaDias(seg, k));
+    const visitas = todos.filter(a => a.tipo === 'visita' && situacao(a) !== 'cancelado' && diasSem.includes(S.dia(a.quando)));
+    const visFeitas = visitas.filter(S.fuFeito).length, visAg = visitas.filter(aberto).length;
+    const prox7 = Array.from({ length:7 }, (_, k) => somaDias(hoje, k + 1)), agProx = prox7.map(d => todos.filter(a => aberto(a) && S.dia(a.quando) === d).length);
+    const mini = l => l.slice(0, 6).map(a => ({ nome:(S.nome(a.cliente_id) || 'Sem cliente') + (aberto(a) ? ' · ' + S.hora(a.quando) : ''), ok:!aberto(a) }));
+    const nomeCli = a => S.nome(a.cliente_id) || 'Sem cliente';
+    const blocos = [
+      { id:'a', tipo:'agenda', titulo:'Agenda de hoje', icone:'agenda', cuenta:`${feitosHoje.length}/${deHoje.length} feitos`, mini:mini(deHoje), vazio:'Nada marcado para hoje.',
+        linhas:deHoje.map(a => linhaAg(a, hoje)).join(''), rotulo:`Agenda de hoje: ${feitosHoje.length} de ${deHoje.length} feitos` },
+      { id:'b', tipo:'agenda', titulo:'Atrasados', vivo:atras.length ? 'alerta' : false, icone:'relogio', titular:atras.length ? `${atras.length} ${atras.length === 1 ? 'atrasado' : 'atrasados'}` : 'Tudo em dia', tom:atras.length ? 'ruim' : 'bom',
+        nota:atras.length ? `${nomeCli(atras[0])} · ${(TIPOS[atras[0].tipo] || '').toLowerCase()} de ${dfmt(S.dia(atras[0].quando)).slice(0, 5)}` : 'Nada para trás', mini:[], vazio:'Nenhum contato atrasado.',
+        linhas:atras.map(a => linhaAg(a, hoje)).join(''), pe:atras.length ? 'Fica aqui até ser registrado ou remarcado.' : '', rotulo:`Atrasados: ${atras.length}` },
+      { id:'c', tipo:'etapas', titulo:'Funil', icone:'relatorio', numero:String(abertas.length), apoio:`${abertas.length === 1 ? 'oportunidade aberta' : 'oportunidades abertas'} · ${fechadasMes.length} ${fechadasMes.length === 1 ? 'fechada' : 'fechadas'} no mês`,
+        etapas:[...ABERTAS.map(e => { const l = abertas.filter(o => o.etapa === e); return { nome:ETAPA[e], n:l.length, vl:somaV(l) ? reaisF(somaV(l)) : '—', cor:corEtapa(e) }; }),
+          { nome:'Fechou no mês', n:fechadasMes.length, vl:somaV(fechadasMes) ? reaisF(somaV(fechadasMes)) : '—', cor:corEtapa('fechou') }],
+        link:{ rota:'/followup/funil', texto:'Abrir o funil' }, rotulo:`Funil: ${abertas.length} oportunidades abertas` },
+      { id:'d', tipo:'colunas', titulo:'Visitas na semana', icone:'empresa', numero:String(visFeitas), nota:`${visFeitas === 1 ? 'feita' : 'feitas'} · ${visAg} ${visAg === 1 ? 'agendada' : 'agendadas'}`,
+        barras:diasSem.map(d => visitas.filter(a => S.dia(a.quando) === d).length), rotulos:['seg', 'ter', 'qua', 'qui', 'sex'], rotulo:`Visitas na semana: ${visFeitas} feitas, ${visAg} agendadas` },
+      { id:'e', tipo:'valor', titulo:'Em negociação', icone:'financeiro', valor:reaisF(somaV(abertas)), barras:ABERTAS.map(e => somaV(abertas.filter(o => o.etapa === e))),
+        rotulos:['Prosp.', '1º cont.', 'Reunião', 'Proposta', 'Negoc.'], rotulo:`Em negociação: ${reaisF(somaV(abertas))}` },
+      { id:'f', tipo:'pessoas', titulo:'Registrado hoje', icone:'check', cuenta:`${regHoje.length} ${regHoje.length === 1 ? 'contato' : 'contatos'}`, vazio:'Nenhum contato registrado hoje.',
+        itens:regHoje.map(a => ({ nome:nomeCli(a), sub:situacao(a) === 'nao_atendeu' ? 'não atendeu' : a.resposta ? RESP[a.resposta][0].toLowerCase() : '', vl:S.hora(a.registrado_em), ok:true })), rotulo:`Registrado hoje: ${regHoje.length}` },
+      { id:'g', tipo:'colunas', titulo:'Próximos 7 dias', icone:'agenda', numero:String(agProx.reduce((t, x) => t + x, 0)), nota:'agendados', barras:agProx, rotulos:prox7.map(d => CURTO[new Date(d + 'T12:00').getDay()]),
+        rotulo:`Próximos 7 dias: ${agProx.reduce((t, x) => t + x, 0)} agendados` } ];
+    const escolhido = S.ui.fuCx || 'a';
+    queueMicrotask(() => { const el = document.querySelector('#content .fu2 [data-casillero]'); if (!el || el.dataset.ligado) return; el.dataset.ligado = '1';
+      S.casillero(el, { semEntrada:!document.getElementById('content').classList.contains('entra'), aoEscolher:id => { S.ui.fuCx = id; } }); });
+    return `<p class="cx-dica">Clique num bloco: ele vai para o espaço grande e mostra o detalhe.</p>${S.cxHtml(blocos, escolhido, 'Minha rotina')}`;
   };
 
-  // Agenda (consultor, ou gerente/diretor olhando um consultor ou todos)
-  const agenda = () => {
-    const hoje = S.today(), todos = doEscopo().slice().sort((a, b) => a.quando.localeCompare(b.quando)), comConsultor = gestor() && !st.consultor;
-    const abertos = todos.filter(aberto), atras = abertos.filter(a => S.dia(a.quando) < hoje), deHoje = abertos.filter(a => S.dia(a.quando) === hoje);
-    const fim = somaDias(hoje, 7), prox = abertos.filter(a => S.dia(a.quando) > hoje && S.dia(a.quando) <= fim), depois = abertos.filter(a => S.dia(a.quando) > fim).length;
-    const feitos = todos.filter(a => !aberto(a) && a.registrado_em).sort((a, b) => b.registrado_em.localeCompare(a.registrado_em)).slice(0, 8);
-    const mes = hoje.slice(0, 7), c = gestor() ? st.consultor : S.me.id, props = (S.db.propostas || []).filter(p => !c || p.consultor_id === c);
-    const porDia = prox.reduce((g, a) => { const d = S.dia(a.quando); (g[d] = g[d] || []).push(a); return g; }, {});
-    const sr = semResposta(c);
-    const agPorProposta = id => S.db.agenda.find(a => a.proposta_id === id && aberto(a));
-    const quem = gestor() ? (st.consultor ? S.usuario(st.consultor) : 'Todos os consultores') : 'Seus contatos';
-    // Parte de baixo (07/11/2026, proposta "Follow-up organizado"): uma barra com o que pede atenção (Atrasados · Hoje ·
-    // Próximos 7 dias · Propostas sem resposta) que troca a lista ao lado, e à direita a linha do tempo dos últimos registros.
-    // Saiu a "Carteira esquecida". O painel do topo (cuadrante.js) não mudou. Estilos .fx-* em sonvi.css.
-    const focos = [['atras', 'Atrasados', atras.length, 'red'], ['hoje', 'Hoje', deHoje.length, 'accent'], ['prox', 'Próximos 7 dias', prox.length, 'accent'], ['props', 'Propostas sem resposta', sr.length, 'purple']];
-    const foco = focos.some(f => f[0] === st.foco) ? st.foco : atras.length ? 'atras' : 'hoje';
-    const ICO = { whatsapp:'whats', ligacao:'fone', reuniao:'clientes', visita:'empresa', retorno:'relogio' };
-    const linhaX = a => { const dia = S.dia(a.quando), at = aberto(a) && dia < hoje, cli = S.pessoa(a.cliente_id), o = origem(a), ult = ultimoContato(a.cliente_id, a.id), f = fone(cli);
-      const tags = [o && o.resposta ? S.tag(...RESP[o.resposta]) : '', a.automatico ? S.tag('Proposta sem resposta', 'purple') : '', situacao(a) === 'nao_atendeu' ? S.tag('Não atendeu', 'gray') : '',
-        at ? S.tag(`${entre(dia, hoje)} ${entre(dia, hoje) === 1 ? 'dia' : 'dias'} de atraso`, 'red') : ''].filter(Boolean).join('');
-      const nota = ult ? `<span class="fx-nota" title="${esc(ult.resultado || '')}"><span><b>Último contato ${dfmt(S.dia(ult.registrado_em)).slice(0, 5)}</b> ${esc(ult.resultado || (RESP[ult.resposta] || [''])[0])}</span></span>` : '<span class="fx-nota fx-prim">Primeiro contato com este cliente</span>';
-      return `<div class="fx-l${at ? ' at' : ''}"><span class="fx-h"><b>${S.hora(a.quando)}</b><small>${dia === hoje ? 'hoje' : at ? dfmt(dia).slice(0, 5) : CURTO[new Date(a.quando).getDay()]}</small></span>
-        <span class="fx-ic fx-t-${a.tipo}" title="${TIPOS[a.tipo] || a.tipo}">${S.svg(ICO[a.tipo] || 'agenda')}</span>
-        <span class="fx-tx"><b>${esc(cli ? cli.nome : 'Sem cliente')}</b><small>${TIPOS[a.tipo] || a.tipo}${a.assunto ? ' · ' + esc(a.assunto) : ''}${comConsultor ? ` · <span class="fx-quem">${esc(S.usuario(a.consultor_id))}</span>` : ''}</small>${nota}${tags ? `<span class="fu-tags">${tags}</span>` : ''}</span>
-        <span class="fx-ac">${f ? `<a class="btn sm ic" href="${a.tipo === 'whatsapp' ? `https://wa.me/55${f}` : `tel:+55${f}`}" target="_blank" rel="noopener" aria-label="${a.tipo === 'whatsapp' ? 'Abrir o WhatsApp de' : 'Ligar para'} ${esc(cli.nome)}" title="${a.tipo === 'whatsapp' ? 'WhatsApp' : 'Ligar'}">${S.svg(a.tipo === 'whatsapp' ? 'whats' : 'fone')}</a>` : ''}<button class="btn sm pri" data-act="fuRegistrar" data-id="${a.id}">Registrar</button>
-          <button class="btn tres" data-act="fuOpcoes" data-id="${a.id}" aria-label="Opções do contato com ${esc(cli ? cli.nome : 'o cliente')}">${S.svg('mais3')}</button></span></div>`; };
-    const porDiaDe = l => Object.entries(l.reduce((g, a) => { const d = S.dia(a.quando); (g[d] = g[d] || []).push(a); return g; }, {}));
-    const grupos = l => porDiaDe(l).map(([d, xs]) => `<p class="fx-dia"><span>${d === hoje ? 'Hoje' : diaSemana(d)}, ${dfmt(d).slice(0, 5)}</span><i>${xs.length}</i></p>${xs.map(linhaX).join('')}`).join('');
-    const vazioF = { atras:['Nada atrasado', 'Todos os contatos foram registrados no dia.'], hoje:['Nada marcado para hoje', 'Use "Novo contato" para marcar uma ligação, visita ou WhatsApp.'], prox:['Semana livre', 'Nenhum contato marcado para os próximos 7 dias.'], props:['Nenhuma proposta esperando', 'Proposta enviada há 3 dias sem resposta aparece aqui e vira follow-up sozinha.'] };
-    const corpoFoco = foco === 'props'
-      ? (sr.length ? sr.map(p => { const ag = agPorProposta(p.id), dias = entre(S.dia(p.enviada_em), hoje);
-          return `<div class="fx-l"><span class="fx-h"><b>${dias}d</b><small>sem resposta</small></span><span class="fx-ic fx-t-proposta">${S.svg('propostas')}</span>
-            <span class="fx-tx"><b>${esc(S.nome(p.cliente_id))}</b><small>${S.propNo(p)} · enviada ${dfmt(S.dia(p.enviada_em)).slice(0, 5)} · ${brl(p.valor_total || 0)}${comConsultor ? ` · <span class="fx-quem">${esc(S.usuario(p.consultor_id))}</span>` : ''}</small>${ag ? `<span class="fx-nota"><b>Na agenda</b> ${dfmt(S.dia(ag.quando)).slice(0, 5)} às ${S.hora(ag.quando)}</span>` : ''}</span>
-            <span class="fx-ac"><button class="btn sm" data-go="/propostas/${p.id}">Abrir</button>${ag ? '' : `<button class="btn sm pri" data-act="fuNovo" data-cliente="${p.cliente_id}" data-proposta="${p.id}">Agendar</button>`}</span></div>`; }).join('') : '')
-      : foco === 'atras' ? grupos(atras) : foco === 'hoje' ? deHoje.map(linhaX).join('') : grupos(prox) + (depois ? `<p class="fx-mais">E mais ${depois} contato${depois === 1 ? '' : 's'} depois disso.</p>` : '');
-    const fSel = focos.find(f => f[0] === foco);
-    const barra = `<div class="fx-barra" role="tablist" aria-label="O que ver">${focos.map(([k, n, q, cor]) => `<button type="button" role="tab" class="fx-f fx-c-${cor}${q ? '' : ' zero'}" data-act="fuFoco" data-v="${k}" aria-selected="${k === foco}"><b>${q}</b><span>${n}</span></button>`).join('')}
-</div>`;
-    const RESP_COR = { interessado:'blue', retorno:'orange', proposta:'purple', fechou:'green', sem_interesse:'gray' };
-    const hist = feitos.length ? `<ol class="fx-tl">${feitos.map(a => { const cli = S.pessoa(a.cliente_id), r = a.resposta && RESP[a.resposta], nat = situacao(a) === 'nao_atendeu';
-        return `<li class="fx-tl-${nat ? 'gray' : RESP_COR[a.resposta] || 'gray'}"><span class="fx-tl-q"><b>${esc(cli ? cli.nome : 'Sem cliente')}</b><small>${dfmt(S.dia(a.registrado_em)).slice(0, 5)} ${S.hora(a.registrado_em)}</small></span>
-          <small>${TIPOS[a.tipo] || a.tipo}${comConsultor ? ` · ${esc(S.usuario(a.consultor_id))}` : ''} · <b>${nat ? 'Não atendeu' : r ? r[0] : 'Registrado'}</b></small>${a.resultado ? `<p>${esc(a.resultado)}</p>` : ''}</li>`; }).join('')}</ol>`
-      : vazio('Nenhum contato registrado ainda.');
-    return `${painelTopo(todos, quem)}
-      ${barra}
-      <div class="fx-grade"><section class="card fx-lista" aria-labelledby="fx-t"><div class="hd"><h2 id="fx-t">${fSel[1]}</h2><span class="muted small">${foco === 'atras' ? 'registre ou remarque; o diretor vê no resumo do dia' : foco === 'props' ? 'viram follow-up sozinhas depois de 3 dias' : foco === 'prox' ? 'agrupados por dia' : diaSemana(hoje)}</span></div>
-          ${corpoFoco || `<div class="fx-vazio"><b>${vazioF[foco][0]}</b><span>${vazioF[foco][1]}</span></div>`}</section>
-        <aside class="card fx-hist" aria-labelledby="fx-h"><div class="hd"><h2 id="fx-h">Últimos registros</h2><span class="muted small">${feitos.length ? `os ${feitos.length} mais recentes` : ''}</span></div>${hist}</aside></div>`;
+  // Aba Funil: colunas por etapa; o cartão mostra valor, interesses e o próximo passo (ou há quantos dias está parado)
+  const funil = () => {
+    const hoje = S.today(), ops = opsDoEscopo(), mes = hoje.slice(0, 7), ag = doEscopo();
+    const prox = o => ag.filter(a => aberto(a) && (a.oportunidade_id === o.id || (!a.oportunidade_id && a.cliente_id === o.cliente_id))).sort((a, b) => a.quando.localeCompare(b.quando))[0];
+    const cartao = (o, k) => { const p = prox(o), parado = p ? 0 : entre(S.dia(o.atualizado_em || o.criado_em), hoje), cli = S.pessoa(o.cliente_id);
+      const pTxt = !ABERTAS.includes(o.etapa) ? `${o.etapa === 'fechou' ? 'Fechou' : 'Perdeu'} em ${dfmt(S.dia(o.fechado_em || o.atualizado_em)).slice(0, 5)}` : p ? `${TIPOS[p.tipo] || 'Contato'} ${S.dia(p.quando) === hoje ? 'hoje' : S.dia(p.quando) < hoje ? 'atrasado' : CURTO[new Date(p.quando).getDay()] + ' ' + dfmt(S.dia(p.quando)).slice(0, 5)} ${S.hora(p.quando)}` : `Sem próximo passo${parado ? ` há ${parado} ${parado === 1 ? 'dia' : 'dias'}` : ''}`;
+      return `<article class="fu2-op${!p && ABERTAS.includes(o.etapa) ? ' parado' : ''}" draggable="true" data-op="${o.id}" style="--k:${k}">
+        <button class="btn tres fu2-op-m" data-act="fuOpMenu" data-id="${o.id}" aria-label="Opções de ${esc(cli ? cli.nome : 'cliente')}">${S.svg('mais3')}</button>
+        <b>${esc(cli ? cli.nome : 'Cliente')}</b>${o.valor ? `<span class="fu2-op-v">${reaisF(o.valor)}</span>` : ''}
+        ${(o.interesses || []).length ? `<span class="fu2-op-i">${o.interesses.map(i => `<i>${esc(INTER[i] || i)}</i>`).join('')}</span>` : ''}
+        <small class="fu2-op-p${p && S.dia(p.quando) < hoje ? ' at' : ''}">${pTxt}</small>${gestor() && !st.consultor ? `<small>${esc(S.usuario(o.consultor_id) || 'Sem consultor')}</small>` : ''}</article>`; };
+    const col = e => { const l = ops.filter(o => o.etapa === e && (e !== 'fechou' || String(o.fechado_em || '').slice(0, 7) === mes)).sort((a, b) => Number(b.valor || 0) - Number(a.valor || 0));
+      const tot = l.reduce((t, o) => t + Number(o.valor || 0), 0);
+      return `<section class="fu2-col${e === 'fechou' ? ' ok' : ''}" data-etapa="${e}" aria-label="${ETAPA[e]}"><header><b>${ETAPA[e]}<span>${l.length}</span></b><small>${e === 'fechou' ? 'no mês · ' : ''}${tot ? reaisF(tot) : '—'}</small></header>
+        <div class="fu2-cards">${l.map(cartao).join('') || '<p class="fu2-col-v">Nenhuma</p>'}</div></section>`; };
+    const perdidas = ops.filter(o => o.etapa === 'perdeu' && String(o.fechado_em || '').slice(0, 7) === mes);
+    return `<div class="fu2-funil" role="list">${[...ABERTAS, 'fechou'].map(col).join('')}</div>
+      <p class="fu2-perd">${perdidas.length ? `Perdidas no mês: <b>${perdidas.length}</b> (${perdidas.slice(0, 4).map(o => `${esc(S.nome(o.cliente_id) || 'Cliente')}: ${esc((o.motivo || 'sem motivo').toLowerCase())}`).join(' · ')}${perdidas.length > 4 ? ' …' : ''})` : 'Nenhuma oportunidade perdida no mês.'}
+      <span class="muted">· Arraste o cartão para trocar a etapa (no celular, pelo menu ⋯).</span></p>`;
   };
 
   // ---------- Follow-up da equipe no Dashboard Gestão (07/11/2026) ----------
@@ -208,27 +240,41 @@
   S.fuVerAgendaDe = id => { st.consultor = id; st.foco = ''; };
 
   S.views.followup = () => {
-    // 07/11/2026: dentro do veículo fica só a agenda; o acompanhamento da equipe foi para o Dashboard Gestão (aba Follow-up da equipe)
+    // 11/11/2026: abas Minha rotina (Casillero) e Funil; o acompanhamento da equipe fica no Dashboard Gestão
     const v = S.veh(), g = gestor();
+    if (S.route().id === 'funil') { st.aba = 'funil'; try { history.replaceState(null, '', '#/followup'); } catch (e) { /* sem histórico */ } }
+    if (st.aba !== 'funil') st.aba = 'rotina';
     if (g && st.consultor && !S.db.agenda.some(a => a.consultor_id === st.consultor) && !S.consultores().some(u => u.id === st.consultor)) st.consultor = '';
+    marcarLidos();
     const hoje = S.today(), sub = `${esc(v.nome)} · ${diaSemana(hoje)}, ${dfmt(hoje).slice(0, 5)}${!g ? ' · ' + esc(S.me.nome || '') : ''}`;
-    const filtro = g ? `<div class="row mid fu-topo"><label class="fu-filtro"><span class="sr">Consultor</span><select data-fu-consultor aria-label="Consultor">${[['', 'Todos os consultores'], ...S.consultores().map(u => [u.id, u.nome || u.email])].map(([k, n]) => `<option value="${k}"${k === st.consultor ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
-        <span class="grow"></span>${S.me.diretor ? '<button class="btn sm" data-act="geralFollowup">Ver a equipe no Dashboard Gestão</button>' : ''}</div>` : '';
+    const abas = `<div class="seg fu2-abas" role="tablist" aria-label="Follow-up">${[['rotina', 'Minha rotina'], ['funil', 'Funil']].map(([k, n]) => `<button type="button" role="tab" class="${st.aba === k ? 'on' : ''}" data-act="fuAba" data-v="${k}" aria-selected="${st.aba === k}">${g && k === 'rotina' ? 'Rotina' : n}</button>`).join('')}</div>`;
+    const filtro = g ? `<label class="fu-filtro"><span class="sr">Consultor</span><select data-fu-consultor aria-label="Consultor">${[['', 'Todos os consultores'], ...S.consultores().map(u => [u.id, u.nome || u.email])].map(([k, n]) => `<option value="${k}"${k === st.consultor ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>` : '';
     return { title:`<span class="sub">${sub}</span>Follow-up`,
-      actions:`<button class="btn pri" data-act="fuNovo">${S.svg('mais')}Agendar contato</button>`,
-      body:filtro + agenda() };
+      actions:`<button class="btn" data-act="fuProspect">${S.svg('mais')}Novo prospect</button><button class="btn pri" data-act="fuNovo">${S.svg('mais')}Agendar contato</button>`,
+      body:`<div class="fu2"><div class="row mid fu2-topo">${abas}<span class="grow"></span>${filtro}${S.me.diretor ? '<button class="btn sm" data-act="geralFollowup">Ver no Dashboard Gestão</button>' : ''}</div>
+        ${st.aba === 'funil' ? funil() : rotina()}</div>` };
   };
+  // A orientação do diretor conta como lida quando o consultor abre o Follow-up
+  let lendo = false;
+  const marcarLidos = () => { if (lendo || gestor()) return; const ids = (S.db.fuComent || []).filter(c => c.para_id === S.me.id && !c.lido_em).map(c => c.id); if (!ids.length || !S.sb) return;
+    lendo = true; S.q(S.sb.from('followup_comentarios').update({ lido_em:new Date().toISOString() }).in('id', ids)).then(() => { (S.db.fuComent || []).forEach(c => { if (ids.includes(c.id)) c.lido_em = new Date().toISOString(); }); }).catch(console.error).finally(() => { lendo = false; }); };
 
   // ---------- registrar ----------
   const chips = (nome, lista, marcado) => `<div class="chips" role="radiogroup">${lista.map(([k, n]) => `<label><input type="radio" name="${nome}" value="${esc(k)}"${k === marcado ? ' checked' : ''}><span>${esc(n)}</span></label>`).join('')}</div>`;
   const registrar = a => {
-    const cli = S.pessoa(a.cliente_id), dia = S.dia(a.quando), visita = a.tipo === 'visita' || a.tipo === 'reuniao';
+    const cli = S.pessoa(a.cliente_id), dia = S.dia(a.quando), visita = a.tipo === 'visita' || a.tipo === 'reuniao', op = oportDe(a);
     S.dialog(`<h2>Registrar ${(TIPOS[a.tipo] || 'contato').toLowerCase()}</h2>
       <div class="fu-cli"><span class="av soft" aria-hidden="true">${esc(S.iniciais(cli ? cli.nome : '?'))}</span><span class="tx"><b>${esc(cli ? cli.nome : 'Sem cliente')}</b><small>${dia === S.today() ? 'Hoje' : dfmt(dia)} · ${diaSemana(dia)} às ${S.hora(a.quando)}${a.assunto ? ' · ' + esc(a.assunto) : ''}</small></span></div>
       <fieldset class="f"><legend>Como foi?</legend>${chips('sit', [['realizado', visita ? 'Realizada' : 'Falei com o cliente'], ['nao_atendeu', visita ? 'Cliente não recebeu' : 'Não atendeu'], ['remarcar', 'Remarcar']], 'realizado')}</fieldset>
       <fieldset class="f" data-so="realizado"><legend>O que o cliente respondeu?</legend>${chips('resp', Object.entries(RESP).map(([k, [n]]) => [k, n]), '')}</fieldset>
       <label class="f" data-so="realizado nao_atendeu">O que ficou combinado<textarea name="resultado" placeholder="Ex.: Gostou do rotativo, vai falar com o sócio e responde na sexta"></textarea></label>
       <fieldset class="f fu-motivo" data-so="sem"><legend>Por que não quis?</legend>${chips('motivo', MOTIVOS.map(m => [m, m]), '')}</fieldset>
+      <div class="fu2-reg" data-so="realizado">
+        <p class="fu2-auto" id="fuEtapaAviso" aria-live="polite"></p>
+        <div class="fu-3"><label class="f">Valor estimado<input name="valor" data-mask="dec" inputmode="decimal" placeholder="R$" value="${op && op.valor ? String(op.valor).replace('.', ',') : ''}"></label>
+          <label class="f">Etapa<select name="etapa"><option value="">Automática</option>${ETAPAS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select></label></div>
+        <fieldset class="f"><legend>Interesse</legend><div class="chips">${INTERESSES.map(([k, n]) => `<label><input type="checkbox" name="inter" value="${k}"${op && (op.interesses || []).includes(k) ? ' checked' : ''}><span>${n}</span></label>`).join('')}</div></fieldset>
+        ${a.tipo === 'visita' ? '<p class="fu2-loc">O local da visita é registrado pelo celular quando você salvar (se o navegador pedir, permita).</p>' : ''}</div>
       <div class="fu-prox" data-so="prox"><p class="fu-prox-t" id="fuProxT">Próximo contato</p>
         <div class="fu-3"><label class="f">Data<input type="date" name="pdata" min="${S.today()}"></label><span class="f"><span>Dia da semana</span><span class="fu-ro" id="fuDia" aria-live="polite">—</span></span><label class="f">Hora<input name="phora" value="10:00" data-mask="hora" inputmode="numeric" autocomplete="off" placeholder="00:00"></label></div>
         <div data-so="tipo">${chips('ptipo', NOVOS.map(([k, n]) => [k, n]), visita ? 'ligacao' : a.tipo === 'retorno' ? 'ligacao' : a.tipo)}</div>
@@ -248,6 +294,8 @@
         : { interessado:['Próximo contato', 'Salvar e agendar'], retorno:['Quando retornar', 'Salvar e agendar retorno'], proposta:['Prazo para levar a proposta', 'Salvar e criar proposta'], fechou:['Contato de pós-venda (opcional)', 'Salvar'], sem_interesse:['', 'Salvar e encerrar'] }[resp] || ['Próximo contato', 'Salvar'];
       document.getElementById('fuProxT').textContent = T[0]; document.getElementById('fuOk').textContent = T[1];
       document.getElementById('fuProxAviso').hidden = sit === 'remarcar';
+      const ea = document.getElementById('fuEtapaAviso'); if (ea) { const prev = etapaPrevista(op ? op.etapa : 'prospeccao', sit, resp, a.tipo), esc2 = f.etapa.value;
+        ea.textContent = esc2 ? `A oportunidade vai para "${ETAPA[esc2]}".` : resp ? `A oportunidade vai para "${ETAPA[prev]}" sozinha. Troque a etapa se precisar.` : ''; }
       // Data sugerida conforme a resposta (a pessoa troca à vontade); pós-venda começa vazio
       const sug = chave && sugerida[chave] !== undefined && chave !== 'fechou' ? somaDias(S.today(), sugerida[chave]) : '';
       if (!f.pdata.value || f.pdata.value === ultimaSug) { f.pdata.value = sug; ultimaSug = sug; mostraDia(); }
@@ -266,11 +314,17 @@
       if (precisa && !data) return S.erroNoCampo(f.pdata, 'Escolha a data.');
       if (data && iso(data, hora) < new Date(Date.now() - 6e4).toISOString() && !(sit === 'remarcar' && data === S.today())) return S.erroNoCampo(f.pdata, 'A data já passou.');
       const texto = f.resultado.value.trim(), tipo = val('ptipo') || 'ligacao', assunto = f.passunto.value.trim();
+      const etapa = sit === 'realizado' ? f.etapa.value || null : null, valor = sit === 'realizado' && f.valor.value.trim() ? S.num(f.valor.value) : null;
+      const inter = sit === 'realizado' ? [...f.querySelectorAll('[name="inter"]:checked')].map(x => x.value) : null;
       delete d.dataset.sujo; d.close('cancel');
+      // Visita: pega o local no celular (até 8 segundos; se a pessoa negar, salva sem local)
+      const loc = sit === 'realizado' && a.tipo === 'visita' && navigator.geolocation ? await new Promise(ok => navigator.geolocation.getCurrentPosition(p => ok(p.coords), () => ok(null), { enableHighAccuracy:true, timeout:8000, maximumAge:60000 })) : null;
       if (sit === 'remarcar') return S.run(() => S.salvar('agenda', { id:a.id, quando:iso(data, hora) }), `Remarcado para ${diaSemana(data)}, ${dfmt(data).slice(0, 5)}`);
       const ok = await S.run(async () => {
         await S.q(S.sb.rpc('registrar_followup', { p_id:a.id, p_situacao:sit, p_resposta:sit === 'realizado' ? resp : null, p_resultado:texto, p_motivo:resp === 'sem_interesse' ? motivo : '',
-          p_proximo:data && resp !== 'sem_interesse' ? iso(data, hora) : null, p_proximo_tipo:tipo, p_proximo_assunto:assunto || (sit === 'nao_atendeu' ? 'Nova tentativa' : '') }));
+          p_proximo:data && resp !== 'sem_interesse' ? iso(data, hora) : null, p_proximo_tipo:tipo, p_proximo_assunto:assunto || (sit === 'nao_atendeu' ? 'Nova tentativa' : ''),
+          p_etapa:etapa, p_valor:valor, p_interesses:inter && inter.length ? inter : (inter && op && (op.interesses || []).length ? [] : null),
+          p_lat:loc ? +loc.latitude.toFixed(6) : null, p_lng:loc ? +loc.longitude.toFixed(6) : null, p_precisao:loc ? Math.round(loc.accuracy) : null }));
         await recarregar();
       }, resp === 'sem_interesse' ? 'Registrado. O cliente sai do follow-up.' : data ? `Registrado. Próximo contato: ${diaSemana(data)}, ${dfmt(data).slice(0, 5)}` : 'Registrado');
       if (ok && resp === 'proposta' && S.pode('diretor', 'gerente', 'consultor') && a.cliente_id && await S.confirmar('Criar a proposta agora?\n\nAbre uma proposta nova para este cliente. Você também pode criar depois, em Propostas.', { ok:'Criar proposta', voltar:'Depois' }))
@@ -278,7 +332,14 @@
     });
   };
   // Depois de registrar, busca a agenda da rádio de novo (a função criou o próximo contato)
-  const recarregar = async () => { S.db.agenda = await S.todos(S.sb.from('agenda').select('*').eq('veiculo_id', S.ui.vehicleId)); };
+  const recarregar = async () => { const v = S.ui.vehicleId;
+    const [ag, ops, cm] = await Promise.all([S.todos(S.sb.from('agenda').select('*').eq('veiculo_id', v)), S.todos(S.sb.from('oportunidades').select('*').eq('veiculo_id', v)).catch(() => S.db.oportunidades || []),
+      S.todos(S.sb.from('followup_comentarios').select('*').eq('veiculo_id', v)).catch(() => S.db.fuComent || [])]);
+    Object.assign(S.db, { agenda:ag, oportunidades:ops, fuComent:cm }); };
+  S.fuRecarregar = recarregar;
+  // A mesma regra de etapa_pela_resposta (database/088), só para mostrar antes de salvar
+  const etapaPrevista = (atual, sit, resp, tipo) => resp === 'fechou' ? 'fechou' : resp === 'sem_interesse' ? 'perdeu' : resp === 'proposta' ? (atual === 'negociacao' ? atual : 'proposta')
+    : ['interessado', 'retorno'].includes(resp) ? (['proposta', 'negociacao'].includes(atual) ? atual : ['visita', 'reuniao'].includes(tipo) || atual === 'reuniao' ? 'reuniao' : 'primeiro_contato') : atual || 'prospeccao';
 
   const novo = (d = {}) => {
     const g = gestor(); if (g && !S.consultores().length && !S.pode('diretor')) return S.toast('Vincule um consultor a esta rádio antes de agendar.');
@@ -302,8 +363,51 @@
     if (cons) sel.addEventListener('change', () => { const c = S.pessoa(sel.value); if (c && c.consultor_id && [...cons.options].some(o => o.value === c.consultor_id)) cons.value = c.consultor_id; });
   };
 
+  // Novo prospect (cadastro rápido, database/088 novo_prospect): o cliente nasce "prospect" só neste veículo, na carteira de quem cadastrou
+  const novoProspect = () => {
+    const g = gestor(), amanha = somaDias(S.today(), 1), cons = S.consultores();
+    S.dialog(`<h2>Novo prospect</h2>
+      <label class="f">Empresa<input name="nome" required autocomplete="off" placeholder="Ex.: Padaria Pão Dourado"></label>
+      <div class="fu-3 fu2-2"><label class="f">Quem atende<input name="contato" placeholder="Ex.: Carla (dona)"></label><label class="f">Telefone ou WhatsApp<input name="telefone" data-mask="tel" inputmode="tel"></label></div>
+      <div class="fu-3 fu2-2"><label class="f">Valor estimado (opcional)<input name="valor" data-mask="dec" inputmode="decimal" placeholder="R$"></label>
+        ${g ? `<label class="f">Consultor<select name="consultor"><option value="">Eu mesmo</option>${cons.map(u => `<option value="${u.id}">${esc(u.nome || u.email)}</option>`).join('')}</select></label>` : '<span></span>'}</div>
+      <fieldset class="f"><legend>Interesse</legend><div class="chips">${INTERESSES.map(([k, n]) => `<label><input type="checkbox" name="inter" value="${k}"><span>${n}</span></label>`).join('')}</div></fieldset>
+      <p class="fu-prox-t">Primeiro contato</p>
+      <div class="fu-3"><label class="f">Tipo<select name="tipo">${NOVOS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select></label><label class="f">Data<input type="date" name="dia" value="${amanha}" min="${S.today()}"></label><label class="f">Hora<input name="hora" value="09:00" data-mask="hora" inputmode="numeric"></label></div>
+      <label class="f">Assunto<input name="assunto" placeholder="Ex.: Apresentar o rotativo da manhã"></label>
+      <p class="fu2-auto">Entra como prospect só na ${esc(S.veh().nome)}. CNPJ, endereço e o resto se completam quando for fazer a proposta.</p>
+      <div class="row mid"><span class="grow"></span><button class="btn" value="cancel" formnovalidate>Cancelar</button><button type="button" class="btn pri" data-fu="pros">Salvar e agendar</button></div>`);
+    const d = document.getElementById('dlg'), f = d.querySelector('form'); d.dataset.guarda = '1'; f.nome.focus();
+    f.addEventListener('click', async e => { if (!e.target.closest('[data-fu="pros"]')) return;
+      if (!f.nome.value.trim()) return S.erroNoCampo(f.nome, 'Informe o nome da empresa.');
+      if (!f.dia.value) return S.erroNoCampo(f.dia, 'Escolha a data.');
+      const inter = [...f.querySelectorAll('[name="inter"]:checked')].map(x => x.value), dia = f.dia.value;
+      const args = { p_veiculo:S.ui.vehicleId, p_nome:f.nome.value.trim(), p_contato:f.contato.value.trim(), p_telefone:f.telefone.value, p_valor:f.valor.value.trim() ? S.num(f.valor.value) : null,
+        p_interesses:inter, p_tipo:f.tipo.value, p_quando:iso(dia, f.hora.value || '09:00'), p_assunto:f.assunto.value.trim(), p_consultor:g && f.consultor ? f.consultor.value || S.me.id : null };
+      delete d.dataset.sujo; d.close('cancel');
+      await S.run(async () => { await S.q(S.sb.rpc('novo_prospect', args)); S.db.pessoas = await S.todos(S.sb.from('pessoas').select('*').eq('veiculo_id', S.ui.vehicleId)); await recarregar(); },
+        `Prospect cadastrado. Primeiro contato: ${diaSemana(dia)}, ${dfmt(dia).slice(0, 5)}`); });
+  };
+  // Troca de etapa (arrastar no funil ou pelo menu do cartão); "Perdeu" pede o motivo
+  const mover = async (id, etapa) => { const o = oport(id); if (!o || o.etapa === etapa) return;
+    let motivo = '';
+    if (etapa === 'perdeu') { const r = await new Promise(ok => { S.form('Por que perdeu?', [{ k:'motivo', label:'Motivo', type:'select', options:MOTIVOS.map(m => [m, m]), full:true }], { motivo:MOTIVOS[0] }, v => ok(v.motivo), 'Marcar como perdida');
+        document.getElementById('dlg').addEventListener('close', () => ok(null), { once:true }); }); if (!r) return; motivo = r; }
+    S.run(async () => { await S.q(S.sb.rpc('mover_oportunidade', { p_id:id, p_etapa:etapa, p_motivo:motivo })); await recarregar(); }, `Movida para "${ETAPA[etapa]}"`); };
+  // Arrastar e soltar no funil (computador)
+  document.addEventListener('dragstart', e => { const c = e.target.closest && e.target.closest('.fu2-op'); if (!c) return; e.dataTransfer.setData('text/plain', c.dataset.op); e.dataTransfer.effectAllowed = 'move'; c.classList.add('arrasta'); });
+  document.addEventListener('dragend', e => { document.querySelectorAll('.fu2-op.arrasta, .fu2-col.alvo').forEach(x => x.classList.remove('arrasta', 'alvo')); });
+  document.addEventListener('dragover', e => { const col = e.target.closest && e.target.closest('.fu2-col'); if (!col) return; e.preventDefault(); document.querySelectorAll('.fu2-col.alvo').forEach(x => x !== col && x.classList.remove('alvo')); col.classList.add('alvo'); });
+  document.addEventListener('drop', e => { const col = e.target.closest && e.target.closest('.fu2-col'); if (!col) return; e.preventDefault(); col.classList.remove('alvo'); const id = e.dataTransfer.getData('text/plain'); if (id) mover(id, col.dataset.etapa); });
+
   Object.assign(S.actions, {
     fuFoco: d => { st.foco = d.v; S.render(); },
+    fuAba: d => { if (st.aba === d.v) return; st.aba = d.v; S.render(); },
+    fuProspect: novoProspect,
+    fuMover: d => mover(d.id, d.v),
+    fuOpMenu: (d, botao) => { const o = oport(d.id); if (!o) return;
+      S.menu(botao, [...ETAPAS.filter(([k]) => k !== o.etapa).map(([k, n]) => ({ label:`Mover para ${n}`, icon:k === 'fechou' ? 'check' : k === 'perdeu' ? 'fechar' : 'seta', act:'fuMover', data:{ id:o.id, v:k } })),
+        '-', { label:'Agendar contato', icon:'agenda', act:'fuNovo', data:{ cliente:o.cliente_id } }, { label:'Abrir o cliente', icon:'clientes', act:'pesEditar', data:{ id:o.cliente_id } }]); },
     fuPeriodo: d => { st.periodo = d.tab; S.render(); },
     fuNovo: novo,
     fuRegistrar: d => { const a = S.db.agenda.find(x => x.id === d.id); if (a) registrar(a); },
