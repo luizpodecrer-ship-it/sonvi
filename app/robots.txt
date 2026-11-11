@@ -1,0 +1,5 @@
+# SONVI · o Google lê o site sonvi.com.br; o sistema e as páginas com link (PI, proposta, extrato) já pedem "noindex" nelas mesmas.
+User-agent: *
+Allow: /
+
+Sitemap: https://sonvi.com.br/sitemap.xml
