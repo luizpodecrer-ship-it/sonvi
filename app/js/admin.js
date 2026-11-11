@@ -238,6 +238,14 @@
     S.q(S.sb.rpc('resumo_config_ler')).then(r => { rd = r || null; }).catch(e => { console.error(e); rdErro = S.erro(e); })
       .finally(() => { rdBusca = false; if (S.route().view === 'admin') S.render(); }); };
   S.rdUsar = r => { rd = r; };   // testes
+  /* Subtítulo do menu "Resumo do dia": segue o canal escolhido para quem recebe (WhatsApp, e-mail ou os dois) e o horário */
+  const subResumo = () => {
+    if (!rd) return 'Fim do dia, para a equipe';
+    const quem = (rd.pessoas || []).filter(p => p.ativo !== false);
+    if (!quem.length) return 'Ninguém recebe agora';
+    const wa = !!rd.whatsapp_ativo, temWa = wa && quem.some(p => p.canal === 'whatsapp' || p.canal === 'ambos'), temEm = !wa || quem.some(p => p.canal !== 'whatsapp');
+    return `${temWa && temEm ? 'WhatsApp e e-mail' : temWa ? 'WhatsApp' : 'E-mail'} às ${rd.hora}h para a equipe`;
+  };
   const DIAS_RD = [[1, 'Seg'], [2, 'Ter'], [3, 'Qua'], [4, 'Qui'], [5, 'Sex'], [6, 'Sáb'], [0, 'Dom']];
   const SIT_RD = { enviado:['Enviado', 'green'], falhou:['Falhou', 'red'], voltou_email:['Foi por e-mail', 'orange'] };
   const telaResumo = () => {
@@ -315,7 +323,7 @@
     // Menu vertical de seções (aprovado em 29/10/2026, quadro "SONVI · Agências, controle e metas", telas 7 e 8): grupos Grupo,
     // Pessoas e Cadastros, cada item com ícone, nome, uma linha de apoio e a quantidade. No celular, a lista é a primeira tela.
     const SECOES = [['Grupo', [['empresa', 'Empresa comercial', 'Dados e modelo da proposta', 'empresa', null], ['veiculos', 'Veículos', 'Quem fatura, OPEC e financeiro', 'veiculos', S.db.veiculos.length]]],
-      ['Pessoas', [['colaboradores', 'Colaboradores', 'Equipe, metas e comissão', 'clientes', S.db.colaboradores ? S.db.colaboradores.filter(c => c.ativo).length : null], ['comissoes', 'Vendas e comissões', 'Por consultor, mês a mês', 'vendas', null], ['usuarios', 'Usuários e acessos', 'Quem entra e o que vê', 'chave', S.db.usuarios.length], ['resumo', 'Resumo do dia', rd ? `E-mail às ${rd.hora}h para a equipe` : 'E-mail do fim do dia', 'relogio', null]]],
+      ['Pessoas', [['colaboradores', 'Colaboradores', 'Equipe, metas e comissão', 'clientes', S.db.colaboradores ? S.db.colaboradores.filter(c => c.ativo).length : null], ['comissoes', 'Vendas e comissões', 'Por consultor, mês a mês', 'vendas', null], ['usuarios', 'Usuários e acessos', 'Quem entra e o que vê', 'chave', S.db.usuarios.length], ['resumo', 'Resumo do dia', subResumo(), 'relogio', null]]],
       ['Cadastros', [['agencias', 'Agências', 'Vale em todos os veículos', 'agencias', S.agenciasN ? S.agenciasN() : null], ['lixeira', 'Lixeira', 'Excluídos nos últimos 30 dias', 'lixo', lix ? lix.length : null]]]];
     if (!ehGer()) { if (!lix && !lixBusca) carregarLix(); if (!S.db.colaboradores) carregarColab(); if (S.agenciasN && S.agenciasN() === null) S.agenciasTela(); }   // contadores do menu
     const naCel = !ehGer() && S.celular && celLista;
